@@ -1,0 +1,10 @@
+# Bundled Python runtime (recreate with scripts\setup_env.ps1)
+/python/
+
+# Build output
+/build/
+/dist/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
