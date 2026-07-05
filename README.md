@@ -35,7 +35,8 @@ MudLab2\
   scripts\          environment setup script
   run.cmd           run the app with the bundled Python
   python.cmd        run the bundled Python directly (scripts, pip, REPL)
-  designer.cmd      open the bundled Qt Designer
+  designer.cmd      open the bundled Qt Designer (command line)
+  Launch PySide6 Designer.bat   double-click to open Qt Designer
   build_ui.cmd      recompile all .ui files to ui_*.py
   build.cmd         build the Windows executable with PyInstaller
   MudLab.spec       PyInstaller build configuration

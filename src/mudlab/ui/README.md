@@ -1,5 +1,8 @@
 # GUI designs (Qt Designer)
 
+Porting notes for wiring windows to the rest of the code live in
+[WIRING.md](WIRING.md).
+
 Every GUI component of MudLab has a `.ui` file in this folder. The `.ui`
 files are the source of truth for all layout and design; edit them in
 Qt Designer, never by hand-coding widget layouts in Python.
