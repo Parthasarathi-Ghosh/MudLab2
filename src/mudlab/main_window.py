@@ -1,4 +1,4 @@
-"""Main window: menu bar, status bar, and an embedded Matplotlib canvas."""
+"""Main window logic. The design lives in ui/main_window.ui (edit in Qt Designer)."""
 
 from __future__ import annotations
 
@@ -11,10 +11,11 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from PySide6 import __version__ as PYSIDE6_VERSION
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QMainWindow, QMessageBox
 from scipy.signal import savgol_filter
 
 from mudlab import APP_NAME, __version__
+from mudlab.ui.ui_main_window import Ui_MainWindow
 
 # Chart colors: validated light-mode palette (surface, ink, hairlines, series hue).
 SURFACE = "#fcfcfb"
@@ -29,28 +30,23 @@ SERIES_BLUE = "#2a78d6"
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle(APP_NAME)
-        self.resize(1000, 700)
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
 
-        self._build_menus()
-        self._build_central_widget()
+        self.ui.actionExit.triggered.connect(self.close)
+        self.ui.actionAbout.triggered.connect(self._show_about)
 
-        self.statusBar().showMessage(
+        self._build_plot()
+
+        self.ui.statusBar.showMessage(
             f"Python {platform.python_version()}  |  PySide6 {PYSIDE6_VERSION}  |  "
             f"NumPy {np.__version__}  |  SciPy {scipy.__version__}  |  "
             f"Matplotlib {matplotlib.__version__}"
         )
 
-    def _build_menus(self) -> None:
-        file_menu = self.menuBar().addMenu("&File")
-        exit_action = file_menu.addAction("E&xit")
-        exit_action.triggered.connect(self.close)
-
-        help_menu = self.menuBar().addMenu("&Help")
-        about_action = help_menu.addAction(f"&About {APP_NAME}")
-        about_action.triggered.connect(self._show_about)
-
-    def _build_central_widget(self) -> None:
+    def _build_plot(self) -> None:
+        # The Matplotlib canvas cannot be designed in Qt Designer, so the .ui
+        # provides the empty plotLayout placeholder and it is filled here.
         figure = Figure(facecolor=SURFACE)
         canvas = FigureCanvasQTAgg(figure)
         toolbar = NavigationToolbar2QT(canvas, self)
@@ -59,11 +55,8 @@ class MainWindow(QMainWindow):
         self._plot_demo(axes)
         figure.tight_layout()
 
-        central = QWidget(self)
-        layout = QVBoxLayout(central)
-        layout.addWidget(toolbar)
-        layout.addWidget(canvas)
-        self.setCentralWidget(central)
+        self.ui.plotLayout.addWidget(toolbar)
+        self.ui.plotLayout.addWidget(canvas)
 
     @staticmethod
     def _plot_demo(axes: Axes) -> None:

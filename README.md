@@ -31,9 +31,12 @@ git-ignored).
 MudLab2\
   python\           bundled CPython runtime + all libraries (git-ignored)
   src\mudlab\       application source code
+  src\mudlab\ui\    Qt Designer .ui files + compiled ui_*.py (see its README)
   scripts\          environment setup script
   run.cmd           run the app with the bundled Python
   python.cmd        run the bundled Python directly (scripts, pip, REPL)
+  designer.cmd      open the bundled Qt Designer
+  build_ui.cmd      recompile all .ui files to ui_*.py
   build.cmd         build the Windows executable with PyInstaller
   MudLab.spec       PyInstaller build configuration
   requirements.txt  pinned direct dependencies
@@ -44,8 +47,18 @@ MudLab2\
 ```bat
 run.cmd                      Start the app
 python.cmd -m pip list       Use the bundled Python / pip
+designer.cmd path\to\x.ui    Edit a GUI design in Qt Designer
+build_ui.cmd                 Recompile .ui designs after editing
 build.cmd                    Build dist\MudLab\MudLab.exe
 ```
+
+## GUI design workflow
+
+Every GUI component has a `.ui` file in `src\mudlab\ui\` that can be
+opened and modified in Qt Designer (bundled - `designer.cmd`). The `.ui`
+files are the source of truth for layout/design; `build_ui.cmd` compiles
+them to `ui_*.py`, and the Python classes in `src\mudlab\` contain logic
+only. Details and rules: `src\mudlab\ui\README.md`.
 
 ## Building the executable
 
