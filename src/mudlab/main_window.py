@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (
 )
 
 from mudlab import APP_NAME, __version__
+from mudlab.edit_project_dialog import EditProjectDialog
+from mudlab.edit_specimen_dialog import EditSpecimenDialog
 from mudlab.ui.ui_main_window import Ui_MainWindow
 
 TITLE_FORMAT = "MudLab - {}"
@@ -80,8 +82,12 @@ class MainWindow(QMainWindow):
         self.ui.menuView.addAction(toggle_dock)
         self.resizeDocks([self.ui.specimensDock], [260], Qt.Orientation.Horizontal)
 
+        self._edit_project_dialog: EditProjectDialog | None = None
+        self._edit_specimen_dialog: EditSpecimenDialog | None = None
+
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
+        self.ui.actionEditProject.triggered.connect(self._show_edit_project)
         self.ui.actionShowPlotToolbar.toggled.connect(self._set_plot_toolbar_visible)
         self.ui.actionZoomIn.triggered.connect(lambda: self._zoom_x(1.0 / ZOOM_STEP))
         self.ui.actionZoomOut.triggered.connect(lambda: self._zoom_x(ZOOM_STEP))
@@ -192,6 +198,8 @@ class MainWindow(QMainWindow):
         self.ui.specimensTree.selectionModel().selectionChanged.connect(
             self._on_specimen_selection_changed
         )
+        # Old app: double-click (row-activated) opened Edit Specimen.
+        self.ui.specimensTree.doubleClicked.connect(self._on_specimen_double_clicked)
 
         # Placeholder rows until the project model is ported.
         for name in ("Specimen A", "Specimen B", "Specimen C"):
@@ -300,6 +308,26 @@ class MainWindow(QMainWindow):
         for side in ("left", "bottom"):
             axes.spines[side].set_color(BASELINE)
         axes.legend(frameon=False, labelcolor=INK_SECONDARY, loc="upper right")
+
+    def _on_specimen_double_clicked(self, index) -> None:
+        if index.column() != 0:
+            return  # double-clicks on the toggle columns just toggle
+        if self._edit_specimen_dialog is None:
+            self._edit_specimen_dialog = EditSpecimenDialog(self)
+        dialog = self._edit_specimen_dialog
+        dialog.set_specimen_name(index.data())
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _show_edit_project(self) -> None:
+        # Modeless, like the old app's ProjectView.present().
+        if self._edit_project_dialog is None:
+            self._edit_project_dialog = EditProjectDialog(self)
+        dialog = self._edit_project_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def _show_about(self) -> None:
         QMessageBox.about(

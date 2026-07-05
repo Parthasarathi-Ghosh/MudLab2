@@ -1,4 +1,94 @@
-# Wiring notes: main_window.ui
+# Wiring notes
+
+## edit_project.ui (Edit Project dialog)
+
+Ported from the GTK ProjectView (`project/glade/project.glade`, notebook
+`nbk_edit_project`, 4 tabs). Logic class: `mudlab/edit_project_dialog.py`
+(`EditProjectDialog`); opened modeless by `actionEditProject` (old:
+`ProjectController` + `view.project.present()`).
+
+- Object names match the old glade ids (`project_name`, `project_author`,
+  `project_date`, `project_description`, `project_layout_mode`,
+  `project_axes_*`, `project_display_*`, `spin_display_*`,
+  `spin_project_axes_*`), so the old adapter list in
+  `project/controllers.py` greps cleanly.
+- **Combo index -> model value maps** live at the top of
+  `edit_project_dialog.py` (`LAYOUT_MODES`, `AXES_YNORMALIZERS`,
+  `AXES_LIMITS`, `PATTERN_LINE_STYLES`, `PATTERN_MARKERS`,
+  `MARKER_STYLES`, `MARKER_BASES`, `MARKER_TOPS`, `MARKER_ALIGNS`) —
+  identical order to the old `settings.py` choice dicts.
+- **Layout mode combo is temporary**: only FULL mode will be used in
+  MudLab2; the combo exists for wiring parity and can be deleted later
+  (also delete `LAYOUT_MODES` and the old `full_mode_only` handling).
+- GtkColorButtons became QPushButtons opening the native `QColorDialog`;
+  current value via `EditProjectDialog.button_color(btn)`; defaults
+  black/#FF0000/black as in old `settings.py`.
+- Manual x/y range spinboxes enable only when their Scale combo is
+  Manual (old sensitivity behavior). Ranges/steps copied from the old
+  GtkAdjustments (x: 0-180 °2θ; y: 0-1e12 counts, step 100; linewidths
+  1-100).
+- Old behavior to port: fields applied to the Project model live (no
+  OK/Cancel — hence the single Close button); title-bar title is plain
+  "Edit Project"; changing name/layout updates main-window title and
+  widget visibility.
+- The `specimen_popup` context menu and `vbox_specimens` panel that also
+  live in project.glade belong to the specimens dock (see below), NOT to
+  this dialog.
+
+## edit_specimen.ui (Edit Specimen dialog)
+
+Ported from the GTK SpecimenView (`specimen/glade/specimen.glade`,
+notebook `edit_specimen`, `specimen/views/specimens.py`). Logic class:
+`mudlab/edit_specimen_dialog.py` (`EditSpecimenDialog`), modeless; opened
+by double-clicking a specimen row (old: row-activated on the specimens
+tree -> `edit_specimen`). The old `edit_specimen` context-menu action must
+open the same dialog when the specimens context menu is added.
+
+- Tabs: General (specimen_name, specimen_sample_name, specimen_source),
+  Display, Experimental, Calculated, Exclusion ranges, Goniometer.
+- Display tab fields map to old specimen properties:
+  `display_experimental/calculated/phases/derivatives/residuals`,
+  `display_stats_in_lbl` (Rp in label), `display_vshift` (-10..10),
+  `display_vscale` and `display_residual_scale` (0..1e9, default 1).
+- The two group boxes host `LinePropertiesWidget` instances (see below)
+  in `expLineLayout` / `calcLineLayout` (old: `specimen_exp_line` /
+  `specimen_calc_line` event boxes).
+- Pattern tables (`specimen_experimental_pattern`,
+  `specimen_calculated_pattern`, `specimen_exclusion_ranges`) hold
+  placeholder QStandardItemModels; the real models come from the ported
+  specimen model (Qt signals). Buttons keep their old ids
+  (`btn_add_experimental_data`, `btn_del_experimental_data`,
+  `btn_import_experimental_data`, `btn_export_experimental_data`,
+  `btn_export_calculated_data`, `btn_add_exclusion_range`,
+  `btn_del_exclusion_ranges`, `btn_import_exclusion_ranges`,
+  `btn_export_exclusion_ranges`) and are not yet connected.
+- Goniometer tab: `goniometerLayout` placeholder for the future
+  goniometer component (old: InlineGoniometerView / goniometer.glade);
+  remove `lblGonioPlaceholder` when it lands.
+- Old full-mode-only widgets in this dialog (hidden in VIEWER mode):
+  calculated/phases/stats checkboxes, derivatives/residuals checkboxes,
+  Calculated tab, Exclusion ranges tab - irrelevant once layout modes are
+  dropped (FULL only).
+
+## line_properties.ui (reusable line style editor)
+
+`mudlab/line_properties_widget.py` (`LinePropertiesWidget`), used twice in
+the Edit Specimen Display tab. Old: `generic/views/glade/lines/
+experimental_props.glade` + `calculated_props.glade` (one component here;
+`with_cap=False` hides the cut-off row for the calculated variant).
+
+- Fields: color_button (+inherit_color), linewidth 1-100 (+inherit_lw),
+  linestyle (+inherit_ls), marker (+inherit_marker), cap_value
+  ("Cut-off value [counts]", experimental only).
+- "Use default X" checked -> paired editor disabled; the value then
+  inherits from the project display settings (old inherit_* properties on
+  the pattern models).
+- Combo item order matches `PATTERN_LINE_STYLES` / `PATTERN_MARKERS` in
+  `edit_project_dialog.py`.
+- Colors use `mudlab/qt_utils.py` `ColorButton` (native QColorDialog),
+  shared with the Edit Project dialog.
+
+# main_window.ui
 
 Ported from the GTK main window of the original MudLab
 (`C:\GitHub\MudLab\...\site-packages\mudlab\application\glade\application.glade`,

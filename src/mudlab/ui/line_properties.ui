@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LinePropertiesWidget</class>
+ <widget class="QWidget" name="LinePropertiesWidget">
+  <layout class="QFormLayout" name="linePropsForm">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblColor">
+     <property name="text">
+      <string>Color</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <layout class="QHBoxLayout" name="colorRow">
+     <item>
+      <widget class="QPushButton" name="color_button">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>#000000</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="inherit_color">
+       <property name="text">
+        <string>Use default colour</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblLinewidth">
+     <property name="text">
+      <string>Linewidth</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <layout class="QHBoxLayout" name="linewidthRow">
+     <item>
+      <widget class="QDoubleSpinBox" name="linewidth">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="decimals">
+        <number>1</number>
+       </property>
+       <property name="minimum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>100.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="inherit_lw">
+       <property name="text">
+        <string>Use default linewidth</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblLinestyle">
+     <property name="text">
+      <string>Linestyle</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <layout class="QHBoxLayout" name="linestyleRow">
+     <item>
+      <widget class="QComboBox" name="linestyle">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
+       <item>
+        <property name="text">
+         <string>Nothing</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Solid</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Dashed</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Dash Dot</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Dotted</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="inherit_ls">
+       <property name="text">
+        <string>Use default linestyle</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblMarker">
+     <property name="text">
+      <string>Marker</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <layout class="QHBoxLayout" name="markerRow">
+     <item>
+      <widget class="QComboBox" name="marker">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <item>
+        <property name="text">
+         <string>No marker</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Point</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Pixel</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Plus</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Cross</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Diamond</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Circle</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Triangle down</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Triangle up</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Triangle left</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Triangle right</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Octagon</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Square</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Pentagon</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Star</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Hexagon</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="inherit_marker">
+       <property name="text">
+        <string>Use default marker</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblCap">
+     <property name="text">
+      <string>Cut-off value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QDoubleSpinBox" name="cap_value">
+     <property name="suffix">
+      <string> counts</string>
+     </property>
+     <property name="decimals">
+      <number>0</number>
+     </property>
+     <property name="maximum">
+      <double>1000000000000.000000000000000</double>
+     </property>
+     <property name="singleStep">
+      <double>100.000000000000000</double>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

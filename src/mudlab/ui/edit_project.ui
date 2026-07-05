@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditProjectDialog</class>
+ <widget class="QDialog" name="EditProjectDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>620</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Edit Project</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabGeneral">
+      <attribute name="title">
+       <string>General</string>
+      </attribute>
+      <layout class="QFormLayout" name="generalForm">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblName">
+         <property name="text">
+          <string>Name</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="project_name"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblAuthor">
+         <property name="text">
+          <string>Author</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="project_author"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblDate">
+         <property name="text">
+          <string>Date</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="project_date"/>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblDescription">
+         <property name="text">
+          <string>Description</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QPlainTextEdit" name="project_description"/>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblLayoutMode">
+         <property name="text">
+          <string>Layout mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QComboBox" name="project_layout_mode">
+         <property name="toolTip">
+          <string>Temporary: only Full mode will be used; kept for wiring parity with the old app.</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>Full</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>View-mode</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabPatterns">
+      <attribute name="title">
+       <string>Patterns</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="patternsTabLayout">
+       <item>
+        <layout class="QFormLayout" name="patternsForm">
+         <item row="0" column="0">
+          <widget class="QLabel" name="lblYNormalize">
+           <property name="text">
+            <string>Y-scale normalization</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="project_axes_ynormalize">
+           <item>
+            <property name="text">
+             <string>Multi normalised</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Single normalised</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Unchanged raw counts</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="lblOffset">
+           <property name="text">
+            <string>Pattern offset</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="project_display_plot_offset">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <double>100.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.750000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="lblGroupBy">
+           <property name="text">
+            <string>Group patterns by</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="spin_display_group_by">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="lblLabelPos">
+           <property name="text">
+            <string>Default label position [0-1]</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QDoubleSpinBox" name="project_display_label_pos">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.350000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpExperimental">
+         <property name="title">
+          <string>Experimental pattern</string>
+         </property>
+         <layout class="QFormLayout" name="experimentalForm">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lblExpColor">
+            <property name="text">
+             <string>Color</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="project_display_exp_color">
+            <property name="text">
+             <string>#000000</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="lblExpLw">
+            <property name="text">
+             <string>Linewidth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QDoubleSpinBox" name="spin_display_exp_lw">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>1.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblExpLs">
+            <property name="text">
+             <string>Linestyle</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="project_display_exp_ls">
+            <property name="currentIndex">
+             <number>1</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>Nothing</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Solid</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dashed</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dash Dot</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dotted</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lblExpMarker">
+            <property name="text">
+             <string>Marker</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QComboBox" name="project_display_exp_marker">
+            <item>
+             <property name="text">
+              <string>No marker</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Point</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Pixel</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Plus</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Cross</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Diamond</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Circle</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle down</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle up</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle left</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle right</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Octagon</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Square</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Pentagon</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Star</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Hexagon</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpCalculated">
+         <property name="title">
+          <string>Calculated pattern</string>
+         </property>
+         <layout class="QFormLayout" name="calculatedForm">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lblCalcColor">
+            <property name="text">
+             <string>Color</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="project_display_calc_color">
+            <property name="text">
+             <string>#FF0000</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="lblCalcLw">
+            <property name="text">
+             <string>Linewidth</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QDoubleSpinBox" name="spin_display_calc_lw">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>2.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblCalcLs">
+            <property name="text">
+             <string>Linestyle</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="project_display_calc_ls">
+            <property name="currentIndex">
+             <number>1</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>Nothing</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Solid</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dashed</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dash Dot</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Dotted</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lblCalcMarker">
+            <property name="text">
+             <string>Marker</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QComboBox" name="project_display_calc_marker">
+            <item>
+             <property name="text">
+              <string>No marker</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Point</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Pixel</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Plus</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Cross</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Diamond</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Circle</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle down</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle up</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle left</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Triangle right</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Octagon</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Square</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Pentagon</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Star</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Hexagon</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="patternsSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabPlot">
+      <attribute name="title">
+       <string>Plot</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="plotTabLayout">
+       <item>
+        <widget class="QGroupBox" name="grpXScale">
+         <property name="title">
+          <string>X scale</string>
+         </property>
+         <layout class="QFormLayout" name="xScaleForm">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lblXLimit">
+            <property name="text">
+             <string>Scale</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="project_axes_xlimit">
+            <item>
+             <property name="text">
+              <string>Automatic</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Manual</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QCheckBox" name="project_axes_xstretch">
+            <property name="text">
+             <string>Stretch X-axis to fit window</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblXMin">
+            <property name="text">
+             <string>min.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="spin_project_axes_xmin">
+            <property name="suffix">
+             <string> °2θ</string>
+            </property>
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="maximum">
+             <double>180.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lblXMax">
+            <property name="text">
+             <string>max.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QDoubleSpinBox" name="spin_project_axes_xmax">
+            <property name="suffix">
+             <string> °2θ</string>
+            </property>
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="maximum">
+             <double>180.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>70.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpYScale">
+         <property name="title">
+          <string>Y scale</string>
+         </property>
+         <layout class="QFormLayout" name="yScaleForm">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lblYLimit">
+            <property name="text">
+             <string>Scale</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="project_axes_ylimit">
+            <item>
+             <property name="text">
+              <string>Automatic</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Manual</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QCheckBox" name="project_axes_yvisible">
+            <property name="text">
+             <string>Y-axis visible</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblYMin">
+            <property name="text">
+             <string>min.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="spin_project_axes_ymin">
+            <property name="suffix">
+             <string> counts</string>
+            </property>
+            <property name="decimals">
+             <number>0</number>
+            </property>
+            <property name="maximum">
+             <double>1000000000000.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>100.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lblYMax">
+            <property name="text">
+             <string>max.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QDoubleSpinBox" name="spin_project_axes_ymax">
+            <property name="suffix">
+             <string> counts</string>
+            </property>
+            <property name="decimals">
+             <number>0</number>
+            </property>
+            <property name="maximum">
+             <double>1000000000000.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>100.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="project_axes_dspacing">
+         <property name="toolTip">
+          <string>Will use the wavelength of the first specimen's goniometer setup</string>
+         </property>
+         <property name="text">
+          <string>Show d-spacing (in nm)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="plotSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabMarkers">
+      <attribute name="title">
+       <string>Markers</string>
+      </attribute>
+      <layout class="QFormLayout" name="markersForm">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblMarkerAngle">
+         <property name="text">
+          <string>Angle</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QDoubleSpinBox" name="project_display_marker_angle">
+         <property name="suffix">
+          <string> °</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-180.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblMarkerTopOffset">
+         <property name="text">
+          <string>Offset from base</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QDoubleSpinBox" name="project_display_marker_top_offset">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-1000000.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1000000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblMarkerStyle">
+         <property name="text">
+          <string>Line style</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QComboBox" name="project_display_marker_style">
+         <item>
+          <property name="text">
+           <string>None</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Solid</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Dash</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Dotted</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Dash-Dotted</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Display at Y-offset</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblMarkerColor">
+         <property name="text">
+          <string>Colour</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QPushButton" name="project_display_marker_color">
+         <property name="text">
+          <string>#000000</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblMarkerBase">
+         <property name="text">
+          <string>Base connection</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QComboBox" name="project_display_marker_base">
+         <item>
+          <property name="text">
+           <string>X-axis</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Experimental profile</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Calculated profile</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Lowest of both</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Highest of both</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblMarkerTop">
+         <property name="text">
+          <string>Top connection</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QComboBox" name="project_display_marker_top">
+         <item>
+          <property name="text">
+           <string>Relative to base</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Top of plot</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="lblMarkerAlign">
+         <property name="text">
+          <string>Label alignment</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QComboBox" name="project_display_marker_align">
+         <item>
+          <property name="text">
+           <string>Left align</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Centered</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Right align</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

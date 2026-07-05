@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditSpecimenDialog</class>
+ <widget class="QDialog" name="EditSpecimenDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Edit Specimen</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabGeneral">
+      <attribute name="title">
+       <string>General</string>
+      </attribute>
+      <layout class="QFormLayout" name="generalForm">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblName">
+         <property name="text">
+          <string>Name</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="specimen_name"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblSample">
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="specimen_sample_name"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblSource">
+         <property name="text">
+          <string>Source</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QPlainTextEdit" name="specimen_source"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabDisplay">
+      <attribute name="title">
+       <string>Display</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="displayTabLayout">
+       <item>
+        <layout class="QFormLayout" name="displayForm">
+         <item row="0" column="1">
+          <widget class="QCheckBox" name="specimen_display_experimental">
+           <property name="text">
+            <string>Display experimental diffractogram</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QCheckBox" name="specimen_display_calculated">
+           <property name="text">
+            <string>Display calculated diffractogram</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QCheckBox" name="specimen_display_phases">
+           <property name="text">
+            <string>Display phases separately</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QCheckBox" name="specimen_display_derivatives">
+           <property name="text">
+            <string>Display derivative patterns</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QCheckBox" name="specimen_display_residuals">
+           <property name="text">
+            <string>Display residual patterns</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QCheckBox" name="specimen_display_stats_in_lbl">
+           <property name="text">
+            <string>Add Rₚ value to the specimen label</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="lblVshift">
+           <property name="text">
+            <string>Vertical shift of the plot</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QDoubleSpinBox" name="display_vshift_spb">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-10.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="lblVscale">
+           <property name="text">
+            <string>Experimental scale factor</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QDoubleSpinBox" name="display_vscale_spb">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="lblResidualScale">
+           <property name="text">
+            <string>Residuals scale factor</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="1">
+          <widget class="QDoubleSpinBox" name="display_residual_scale_spb">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpExpLine">
+         <property name="title">
+          <string>Experimental line</string>
+         </property>
+         <layout class="QVBoxLayout" name="expLineLayout"/>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpCalcLine">
+         <property name="title">
+          <string>Calculated line</string>
+         </property>
+         <layout class="QVBoxLayout" name="calcLineLayout"/>
+        </widget>
+       </item>
+       <item>
+        <spacer name="displaySpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabExperimental">
+      <attribute name="title">
+       <string>Experimental</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="experimentalTabLayout">
+       <item>
+        <widget class="QTableView" name="specimen_experimental_pattern">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="experimentalButtons">
+         <item>
+          <widget class="QPushButton" name="btn_add_experimental_data">
+           <property name="text">
+            <string>Add</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_del_experimental_data">
+           <property name="text">
+            <string>Remove</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="expBtnSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_import_experimental_data">
+           <property name="text">
+            <string>Import</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_export_experimental_data">
+           <property name="text">
+            <string>Export</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabCalculated">
+      <attribute name="title">
+       <string>Calculated</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="calculatedTabLayout">
+       <item>
+        <widget class="QTableView" name="specimen_calculated_pattern">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="calculatedButtons">
+         <item>
+          <spacer name="calcBtnSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_export_calculated_data">
+           <property name="text">
+            <string>Export</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabExclusions">
+      <attribute name="title">
+       <string>Exclusion ranges</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="exclusionsTabLayout">
+       <item>
+        <widget class="QTableView" name="specimen_exclusion_ranges">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="exclusionButtons">
+         <item>
+          <widget class="QPushButton" name="btn_add_exclusion_range">
+           <property name="text">
+            <string>Add</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_del_exclusion_ranges">
+           <property name="text">
+            <string>Remove</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="exclBtnSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_import_exclusion_ranges">
+           <property name="text">
+            <string>Import</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_export_exclusion_ranges">
+           <property name="text">
+            <string>Export</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabGoniometer">
+      <attribute name="title">
+       <string>Goniometer</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="goniometerTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="goniometerLayout"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblGonioPlaceholder">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>The goniometer setup component (goniometer.ui) will be inserted here.</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="gonioSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
