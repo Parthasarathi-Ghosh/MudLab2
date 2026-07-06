@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SmoothDataDialog</class>
+ <widget class="QDialog" name="SmoothDataDialog">
+  <property name="windowTitle">
+   <string>Smooth Data</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="smoothForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_type">
+       <property name="text">
+        <string>Type</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="smooth_type">
+       <item>
+        <property name="text">
+         <string>Moving Triangle</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Savitzky-Golay</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Gaussian</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Moving Average</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Smoothing Spline</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Butterworth (filtfilt)</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_degree">
+       <property name="text">
+        <string>Degree</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="spin_degree">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>600</number>
+       </property>
+       <property name="value">
+        <number>3</number>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="smooth_show_original">
+       <property name="text">
+        <string>Show Original</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

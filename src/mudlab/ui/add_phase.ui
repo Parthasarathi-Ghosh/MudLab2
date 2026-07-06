@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AddPhaseDialog</class>
+ <widget class="QDialog" name="AddPhaseDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>420</width>
+    <height>320</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Add Phase</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <widget class="QRadioButton" name="rdb_empty_phase">
+     <property name="text">
+      <string>Create a new phase:</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="cont_empty_phase" native="true">
+     <layout class="QFormLayout" name="emptyPhaseForm">
+      <property name="leftMargin">
+       <number>24</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="lbl_N">
+        <property name="text">
+         <string># of components</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QSpinBox" name="G">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>6</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lbl_reichweite">
+        <property name="text">
+         <string>Reichweite</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="R">
+        <property name="maximum">
+         <number>4</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QRadioButton" name="rdb_default_phase">
+     <property name="text">
+      <string>Choose a default phase:</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="cont_default_phase" native="true">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <layout class="QHBoxLayout" name="defaultPhaseRow">
+      <property name="leftMargin">
+       <number>24</number>
+      </property>
+      <item>
+       <widget class="QComboBox" name="cmb_default_phases">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_generate_phases">
+        <property name="toolTip">
+         <string>Regenerate the default phases catalog.</string>
+        </property>
+        <property name="text">
+         <string>Generate</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QRadioButton" name="rdb_raw_pattern">
+     <property name="text">
+      <string>Add a raw pattern</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="dialogSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

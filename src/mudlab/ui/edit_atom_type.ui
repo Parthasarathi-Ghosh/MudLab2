@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditAtomTypeWidget</class>
+ <widget class="QWidget" name="EditAtomTypeWidget">
+  <layout class="QVBoxLayout" name="atomTypeLayout">
+   <item>
+    <layout class="QFormLayout" name="atomForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblAtomName">
+       <property name="text">
+        <string>Name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="atom_name"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lblAtomNr">
+       <property name="text">
+        <string>Atom nr</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="atom_atom_nr">
+       <property name="maximum">
+        <number>118</number>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lblAtomWeight">
+       <property name="text">
+        <string>Atomic weight</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="atom_weight">
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="maximum">
+        <double>500.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lblAtomDebye">
+       <property name="text">
+        <string>Debye-Waller factor</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QDoubleSpinBox" name="atom_debye">
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="minimum">
+        <double>-100.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>100.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lblAtomCharge">
+       <property name="text">
+        <string>Charge</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QDoubleSpinBox" name="atom_charge">
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>-10.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>10.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="frm_atom_type_asfs">
+     <property name="title">
+      <string>Parameters</string>
+     </property>
+     <layout class="QGridLayout" name="parametersGrid">
+      <item row="0" column="0">
+       <widget class="QLabel" name="lbl_a1">
+        <property name="text">
+         <string>a₁</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="lbl_a2">
+        <property name="text">
+         <string>a₂</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="lbl_a3">
+        <property name="text">
+         <string>a₃</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="lbl_a4">
+        <property name="text">
+         <string>a₄</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QLabel" name="lbl_a5">
+        <property name="text">
+         <string>a₅</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QDoubleSpinBox" name="atom_par_a1">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="atom_par_a2">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QDoubleSpinBox" name="atom_par_a3">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QDoubleSpinBox" name="atom_par_a4">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QDoubleSpinBox" name="atom_par_a5">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="lbl_b1">
+        <property name="text">
+         <string>b₁</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="lbl_b2">
+        <property name="text">
+         <string>b₂</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QLabel" name="lbl_b3">
+        <property name="text">
+         <string>b₃</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QLabel" name="lbl_b4">
+        <property name="text">
+         <string>b₄</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="4">
+       <widget class="QLabel" name="lbl_b5">
+        <property name="text">
+         <string>b₅</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QDoubleSpinBox" name="atom_par_b1">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QDoubleSpinBox" name="atom_par_b2">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QDoubleSpinBox" name="atom_par_b3">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
+       <widget class="QDoubleSpinBox" name="atom_par_b4">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="4">
+       <widget class="QDoubleSpinBox" name="atom_par_b5">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="lbl_c">
+        <property name="text">
+         <string>c</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QDoubleSpinBox" name="atom_par_c">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpScattering">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Scattering factor</string>
+     </property>
+     <layout class="QVBoxLayout" name="scatteringLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

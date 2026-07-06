@@ -88,6 +88,189 @@ experimental_props.glade` + `calculated_props.glade` (one component here;
 - Colors use `mudlab/qt_utils.py` `ColorButton` (native QColorDialog),
   shared with the Edit Project dialog.
 
+## object_store.ui (generic list + properties shell)
+
+`mudlab/object_store_dialog.py` (`ObjectStoreDialog`), ported from the GTK
+ObjectListStoreView (`generic/views/glade/object_store.glade`). Reused by
+Edit Phases now and by Edit Atom Types / Edit Mixtures / Edit Behaviours
+later (old AppView child_views all used this shell; phases/mixtures used
+the NoMinMax variant - Qt dialogs have no min/max buttons anyway).
+
+- Left: Objects group with `edit_objects_treeview` + `button_add_object`,
+  `button_del_object`, `button_load_object` (Import), `button_save_object`
+  (Export), and `extraLayout` (old `extra_box`) for per-store extras.
+- Right: Properties group; `set_properties_widget()` inserts the editor
+  into `propertiesLayout` inside the `vwp_edit_object` scroll area.
+- `object_selected` Signal(QModelIndex) fires on selection; the buttons
+  are not yet connected (old: controllers handled add/del/load/save with
+  parser-driven file dialogs).
+
+## edit_phases.ui-less window: EditPhasesDialog + edit_phase.ui
+
+`mudlab/edit_phases_dialog.py` subclasses ObjectStoreDialog (title "Edit
+Phases", columns Phase | R | G) and hosts `mudlab/edit_phase_widget.py`
+(`EditPhaseWidget`, design `edit_phase.ui`, old `phases/glade/phase.glade`
+EditPhaseView). Opened modeless by `actionEditPhases`. Placeholder list:
+three demo phases; selection fills the form via
+`set_phase_placeholder(name, R, G)`.
+
+- Fields: `phase_name` + `phase_display_color` (+`phase_inherit_display_color`),
+  `phase_based_on` (combo, populated at runtime with the OTHER phases -
+  old kept an index of allowed parents), `phase_G` and `phase_R`
+  (read-only: fixed at creation by the Add Phase dialog), `phase_sigma_star`
+  (0-90°, default 3.0) + `phase_inherit_sigma_star`.
+- Inherit checkboxes disable their paired editors and are only enabled
+  when a based-on phase is selected (old adapter behavior); inherit-CSDS
+  grays out whatever sits in `csdsLayout` (old `set_csds_sensitive`).
+- Tab placeholders in `book_wrapper`: `csdsLayout` (future csds.ui with a
+  matplotlib histogram; old EditCSDSDistributionView), `probabilitiesLayout`
+  (future probabilities component; old app REMOVED this tab for R0/G1
+  phases - `remove_probabilities()`), `componentsLayout` (future
+  edit_component.ui; old EditComponentView with layer/interlayer atoms,
+  atom relations, unit-cell a/b editors).
+- Still to port around this window: the Add Phase dialog
+  (`addphase.glade`: radio choice empty/default/raw phase, G 1-12, R 0-4,
+  default-phase catalog combo), EditRawPatternPhaseView
+  (`raw_pattern_phase.glade`), and the atom ratio/contents dialogs
+  (`ratio.glade`, `contents.glade`).
+
+## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
+
+`mudlab/edit_atom_types_dialog.py` subclasses ObjectStoreDialog (title
+"Edit Atom Types") and hosts `mudlab/edit_atom_type_widget.py`
+(`EditAtomTypeWidget`, design `edit_atom_type.ui`, old
+`atoms/glade/atoms.glade` EditAtomTypeView). Opened modeless by
+`actionEditAtomTypes`.
+
+- Fields keep old ids: `atom_name`, `atom_atom_nr`, `atom_weight`,
+  `atom_debye` (Debye-Waller), `atom_charge`, and the scattering factor
+  coefficients `atom_par_a1..a5`, `atom_par_b1..b5`, `atom_par_c`.
+- The Scattering factor plot (old `view_graph` + `update_figure(x, y)`)
+  is a Matplotlib canvas inserted into `scatteringLayout`; it currently
+  recomputes f(s) = Σ aᵢ·e^(−bᵢ·s²) + c live on coefficient edits with
+  x = sin(θ)/λ. The old app plotted against 2θ (goniometer conversion,
+  fed by the controller) - switch to that with the model port.
+- Placeholder list: three demo atom types; atom numbers/weights are real
+  but the coefficient sets are synthetic. Real data lives in the old
+  app's data file `mudlab/data/atomic scattering factors.atl` - port it
+  with the atom type model.
+
+## Edit Mixtures: EditMixturesDialog + edit_mixture.ui
+
+`mudlab/edit_mixtures_dialog.py` subclasses ObjectStoreDialog (title
+"Edit Mixtures") and hosts `mudlab/edit_mixture_widget.py`
+(`EditMixtureWidget`, design `edit_mixture.ui`, old
+`mixture/views/glade/edit_mixture.glade` EditMixtureView). Opened
+modeless by `actionEditMixtures`.
+
+- Kept old ids: `mixture_name`, `mixture_auto_run`, `btn_optimize`,
+  `btn_refine`, `btn_composition`, `tbl_matrix`, `btn_add_phase`,
+  `btn_add_specimen`, `btn_add_both`, `mixture_auto_scales`,
+  `mixture_auto_bg`.
+- The old app built `tbl_matrix` dynamically: phase rows (editable name +
+  fraction entry) x specimen columns (a combo per cell choosing which
+  phase object applies to that specimen), plus per-specimen Abs. scale
+  and Bg. shift rows. The placeholder QTableWidget shows that exact
+  arrangement read-only via `set_mixture_placeholder(...)`; the real
+  editable matrix (combos per cell) comes with the mixture model port.
+- btn_refine opened the refinement window; btn_composition a composition
+  summary dialog; btn_optimize ran the optimizer - all pending ports.
+- The Add Mixture dialog (`add_mixture.glade`) for the shell's Add button
+  is still to do.
+
+## Add Phase dialog: add_phase.ui
+
+`mudlab/add_phase_dialog.py` (`AddPhaseDialog`), modal, old
+`phases/glade/addphase.glade` AddPhaseView. Opened by the Edit Phases
+shell's Add button; on accept a placeholder row is appended (real
+creation of empty/default/raw phases comes with the phase model port).
+
+- Three radio choices (old ids kept): `rdb_empty_phase` (with `G` spin
+  1-6 and `R` spin 0-4), `rdb_default_phase` (with `cmb_default_phases` +
+  `btn_generate_phases`), `rdb_raw_pattern`. Radios enable their own
+  container (old `update_sensitivities`).
+- Result accessors mirror the old view: `phase_type`
+  ("empty"/"default"/"raw"), `G`, `R`, `default_phase`.
+- R is forced to 0 and disabled while G == 1 (Reichweite needs >1
+  component).
+- The default-phase catalog is a placeholder list; the old app filled it
+  from the default phases directory (.phs files) and could regenerate
+  them (`btn_generate_phases`, with spinner + progress bar) - port with
+  the phase model.
+
+## Goniometer component: goniometer.ui
+
+`mudlab/goniometer_widget.py` (`GoniometerWidget`), old
+`goniometer/glade/goniometer.glade` InlineGoniometerView. Inserted into
+the Edit Specimen Goniometer tab (`goniometerLayout`); reuse it anywhere
+a goniometer setup is edited.
+
+- Four groups with old ids kept: General (`gonio_radius_spb`,
+  `gonio_min_2theta_spb` 0-160, `gonio_max_2theta_spb` 0-100,
+  `steps_spn_btn1` 1-5000), Sample (`sample_length_spb`,
+  `sample_surf_density_spb`, `gonio_has_absorption_correction` +
+  `absorption_spb` [cm²/g]), Primary beam (`btn_edit_wld` ->
+  wavelength-distribution editor still to do, `gonio_divergence_mode`,
+  `gonio_div_value_spb`, `gonio_has_soller1` + `gonio_soller1_spb`),
+  Secondary beam (`gonio_has_soller2` + `gonio_soller2_spb`,
+  `gonio_mcr2t_spb` monochromator 2θ).
+- `DIVERGENCE_MODES = ("AUTOMATIC", "FIXED")` maps combo indexes to the
+  old model values; on AUTOMATIC the value spin suffix switches from °
+  (slit angle) to cm (irradiated length), as the old controller did.
+- Soller/absorption checkboxes enable their paired spins.
+- Bottom row (old ids): `cmb_import_gonio` ("Load setup", placeholder
+  item until the stored setups port), `btn_export_gonio` ("Store setup"),
+  `lbl_applied_gonio` (shows the applied setup name).
+
+## Specimen-operation dialogs (lines + trim/statistics/save-size)
+
+Nine small modal dialogs. Logic: `mudlab/line_dialogs.py`
+(RemoveBackground, SmoothData, ShiftPattern, AddNoise, StripPeak,
+PeakProperties) and `mudlab/specimen_dialogs.py` (TrimData, Statistics,
+SaveGraphSize). Old sources: `generic/views/glade/lines/*.glade` and
+`specimen/glade/{trim_dialog,statistics,save_graph_size}.glade`. The
+main-window actions open them (`actionRemoveBackground`,
+`actionSmoothData`, `actionShiftPattern`, `actionAddNoise`,
+`actionStripPeak`, `actionPeakProperties`, `actionTrimData`,
+`actionSaveGraph`); OK currently applies nothing - the operations hook up
+with the specimen model port.
+
+- **Remove Background** (`background.ui`): `bg_type` Linear/Pattern
+  switches `bg_view_stack` (old swapped tables into bg_view_container).
+  Linear: `bg_position`. Pattern: file row (`bg_pattern_file` +
+  `btn_browse_bg`, native file dialog; filters come with the parser
+  port), `bg_scale`, `bg_offset`. Old extra: bg_type change triggered
+  `find_bg_position` (auto-suggest); port with model.
+- **Smooth Data** (`smoothing.ui`): `smooth_type` (Moving Triangle,
+  Savitzky-Golay, Gaussian, Moving Average, Smoothing Spline, Butterworth
+  - `SMOOTH_TYPES` map), `spin_degree` 1-600 (default 3),
+  `smooth_show_original`.
+- **Shift Pattern** (`shifting.ui`): `shift_position` reference list
+  (Quartz/Silicon/Zincite/Corundum/Goethite/Gibbsite/Manual;
+  `SHIFT_POSITIONS` maps to d-spacings in nm), `spin_shift_value` ±10 nm;
+  selecting a reference fills the value and locks the spin, Manual
+  unlocks it.
+- **Add Noise** (`add_noise.ui`): `spin_fraction` 0-1 (default 0.10).
+- **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` +
+  `cmd_sample_start`/`cmd_sample_end` (eye-dropper sampling on the
+  pattern - connect with the plot controller), `noise_level`.
+- **Peak Properties** (`peak_properties.ui`): start/end + sample buttons,
+  result labels `peak_area_result`/`peak_fwhm_result`
+  (`set_results(area, fwhm)`), `btn_copy_results` copies both to the
+  clipboard.
+- **Trim Data** (`trim_dialog.ui`): irreversibility warning, `cmb_scope`
+  (This specimen only / All loaded specimens -> `TRIM_SCOPES`),
+  `spin_min_2theta`/`spin_max_2theta` 0-180.
+- **Statistics** (`statistics.ui`): read-only χ², R², Rp, Rwp, Re, data
+  points via `set_statistics(...)`. NOT yet reachable from the UI - the
+  old `view_statistics` action lives in the future specimens context
+  menu.
+- **Save Graph** (`save_graph_size.ui`): old GTK embedded this as an
+  expander inside the save dialog; Qt native dialogs cannot embed custom
+  widgets, so it runs as a small pre-dialog (presets fill
+  `entry_width`/`entry_height`/`entry_dpi`), then the native save dialog
+  follows (with the plot controller port).
+
 # main_window.ui
 
 Ported from the GTK main window of the original MudLab

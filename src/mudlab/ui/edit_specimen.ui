@@ -387,19 +387,6 @@
         <layout class="QVBoxLayout" name="goniometerLayout"/>
        </item>
        <item>
-        <widget class="QLabel" name="lblGonioPlaceholder">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>The goniometer setup component (goniometer.ui) will be inserted here.</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
         <spacer name="gonioSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>

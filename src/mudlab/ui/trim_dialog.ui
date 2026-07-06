@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TrimDataDialog</class>
+ <widget class="QDialog" name="TrimDataDialog">
+  <property name="windowTitle">
+   <string>Trim Data</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <widget class="QLabel" name="lbl_irreversible">
+     <property name="text">
+      <string>⚠ This operation permanently modifies the data and cannot be undone.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="trimForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_scope">
+       <property name="text">
+        <string>Apply to</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cmb_scope">
+       <item>
+        <property name="text">
+         <string>This specimen only</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>All loaded specimens</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_min_2theta">
+       <property name="text">
+        <string>Min °2θ</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="spin_min_2theta">
+       <property name="suffix">
+        <string> °</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_max_2theta">
+       <property name="text">
+        <string>Max °2θ</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="spin_max_2theta">
+       <property name="suffix">
+        <string> °</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="value">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="lbl_removal_warning">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

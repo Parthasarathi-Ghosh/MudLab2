@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>StripPeakDialog</class>
+ <widget class="QDialog" name="StripPeakDialog">
+  <property name="windowTitle">
+   <string>Strip Peak</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="stripForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_startpos">
+       <property name="text">
+        <string>Start position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="startRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="strip_startx">
+         <property name="suffix">
+          <string> °2θ</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cmd_sample_start">
+         <property name="toolTip">
+          <string>Select the position directly on the pattern</string>
+         </property>
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_endpos">
+       <property name="text">
+        <string>End position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="endRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="strip_endx">
+         <property name="suffix">
+          <string> °2θ</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cmd_sample_end">
+         <property name="toolTip">
+          <string>Select the position directly on the pattern</string>
+         </property>
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_noise">
+       <property name="text">
+        <string>Noise level</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="noise_level">
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <double>1000000.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PeakPropertiesDialog</class>
+ <widget class="QDialog" name="PeakPropertiesDialog">
+  <property name="windowTitle">
+   <string>Peak Properties</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="peakForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_startpos">
+       <property name="text">
+        <string>Start position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="startRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="peak_startx">
+         <property name="suffix">
+          <string> °2θ</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cmd_sample_start">
+         <property name="toolTip">
+          <string>Select the position directly on the pattern</string>
+         </property>
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_endpos">
+       <property name="text">
+        <string>End position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="endRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="peak_endx">
+         <property name="suffix">
+          <string> °2θ</string>
+         </property>
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cmd_sample_end">
+         <property name="toolTip">
+          <string>Select the position directly on the pattern</string>
+         </property>
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_result">
+       <property name="text">
+        <string>Peak area:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="peak_area_result">
+       <property name="text">
+        <string>0.0</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lbl_fwhm">
+       <property name="text">
+        <string>FWHM [°2θ]:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLabel" name="peak_fwhm_result">
+       <property name="text">
+        <string>0.0</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonsRow">
+     <item>
+      <widget class="QPushButton" name="btn_copy_results">
+       <property name="toolTip">
+        <string>Copy Peak Area and FWHM to clipboard</string>
+       </property>
+       <property name="text">
+        <string>Copy Results</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDialogButtonBox" name="buttonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -285,13 +285,6 @@ class Ui_EditSpecimenDialog(object):
 
         self.goniometerTabLayout.addLayout(self.goniometerLayout)
 
-        self.lblGonioPlaceholder = QLabel(self.tabGoniometer)
-        self.lblGonioPlaceholder.setObjectName(u"lblGonioPlaceholder")
-        self.lblGonioPlaceholder.setEnabled(False)
-        self.lblGonioPlaceholder.setAlignment(Qt.AlignCenter)
-
-        self.goniometerTabLayout.addWidget(self.lblGonioPlaceholder)
-
         self.gonioSpacer = QSpacerItem(20, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.goniometerTabLayout.addItem(self.gonioSpacer)
@@ -345,7 +338,6 @@ class Ui_EditSpecimenDialog(object):
         self.btn_import_exclusion_ranges.setText(QCoreApplication.translate("EditSpecimenDialog", u"Import", None))
         self.btn_export_exclusion_ranges.setText(QCoreApplication.translate("EditSpecimenDialog", u"Export", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExclusions), QCoreApplication.translate("EditSpecimenDialog", u"Exclusion ranges", None))
-        self.lblGonioPlaceholder.setText(QCoreApplication.translate("EditSpecimenDialog", u"The goniometer setup component (goniometer.ui) will be inserted here.", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabGoniometer), QCoreApplication.translate("EditSpecimenDialog", u"Goniometer", None))
     # retranslateUi
 

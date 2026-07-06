@@ -1,7 +1,9 @@
 # GUI designs (Qt Designer)
 
 Porting notes for wiring windows to the rest of the code live in
-[WIRING.md](WIRING.md).
+[WIRING.md](WIRING.md). The checklist of recreated vs remaining
+dialogs/windows is [TODO.md](TODO.md) - keep it current whenever a
+component is added or completed.
 
 Every GUI component of MudLab has a `.ui` file in this folder. The `.ui`
 files are the source of truth for all layout and design; edit them in

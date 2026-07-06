@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditMixtureWidget</class>
+ <widget class="QWidget" name="EditMixtureWidget">
+  <layout class="QVBoxLayout" name="mixtureLayout">
+   <item>
+    <layout class="QFormLayout" name="mixtureForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblMixtureName">
+       <property name="text">
+        <string>Mixture name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="mixture_name"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="actionsRow">
+     <item>
+      <widget class="QCheckBox" name="mixture_auto_run">
+       <property name="toolTip">
+        <string>Run automatically when patterns have updated.</string>
+       </property>
+       <property name="text">
+        <string>Auto run</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="actionsSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_composition">
+       <property name="toolTip">
+        <string>Show the chemical composition of this mixture.</string>
+       </property>
+       <property name="text">
+        <string>Composition</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_refine">
+       <property name="toolTip">
+        <string>Refine the mixture parameters.</string>
+       </property>
+       <property name="text">
+        <string>Refine</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_optimize">
+       <property name="toolTip">
+        <string>Optimize fractions, scales and background shifts.</string>
+       </property>
+       <property name="text">
+        <string>Optimize</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="tbl_matrix">
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::NoSelection</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="matrixButtons">
+     <item>
+      <widget class="QPushButton" name="btn_add_phase">
+       <property name="toolTip">
+        <string>Add a phase row to this mixture</string>
+       </property>
+       <property name="text">
+        <string>Add phase</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_add_specimen">
+       <property name="toolTip">
+        <string>Add a specimen column to this mixture</string>
+       </property>
+       <property name="text">
+        <string>Add specimen</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_add_both">
+       <property name="toolTip">
+        <string>Add a phase row and a specimen column to this mixture</string>
+       </property>
+       <property name="text">
+        <string>Add both</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="matrixBtnSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="mixture_auto_scales">
+     <property name="toolTip">
+      <string>Automatically optimize the absolute scales.</string>
+     </property>
+     <property name="text">
+      <string>Auto-adjust absolute scales</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="mixture_auto_bg">
+     <property name="toolTip">
+      <string>Automatically optimize the background shifts.</string>
+     </property>
+     <property name="text">
+      <string>Auto-adjust background shifts</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

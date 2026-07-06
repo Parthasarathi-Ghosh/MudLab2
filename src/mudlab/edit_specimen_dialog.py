@@ -10,6 +10,7 @@ from __future__ import annotations
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QDialog, QHeaderView, QWidget
 
+from mudlab.goniometer_widget import GoniometerWidget
 from mudlab.line_properties_widget import LinePropertiesWidget
 from mudlab.ui.ui_edit_specimen import Ui_EditSpecimenDialog
 
@@ -26,6 +27,10 @@ class EditSpecimenDialog(QDialog):
         self.ui.expLineLayout.addWidget(self.exp_line)
         self.calc_line = LinePropertiesWidget(self, with_cap=False, default_color="#FF0000")
         self.ui.calcLineLayout.addWidget(self.calc_line)
+
+        # Inline goniometer setup (old: InlineGoniometerView event box).
+        self.goniometer = GoniometerWidget(self)
+        self.ui.goniometerLayout.addWidget(self.goniometer)
 
         self._setup_pattern_tables()
 

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RemoveBackgroundDialog</class>
+ <widget class="QDialog" name="RemoveBackgroundDialog">
+  <property name="windowTitle">
+   <string>Remove Background</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="typeForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_type">
+       <property name="text">
+        <string>Type</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="bg_type">
+       <item>
+        <property name="text">
+         <string>Linear</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Pattern</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QStackedWidget" name="bg_view_stack">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="bg_linear">
+      <layout class="QFormLayout" name="linearForm">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lbl_position">
+         <property name="text">
+          <string>Background value</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QDoubleSpinBox" name="bg_position">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-1000000000.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1000000000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="bg_pattern">
+      <layout class="QFormLayout" name="patternForm">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lbl_file">
+         <property name="text">
+          <string>Pattern file</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <layout class="QHBoxLayout" name="fileRow">
+         <item>
+          <widget class="QLineEdit" name="bg_pattern_file">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_browse_bg">
+           <property name="text">
+            <string>Browse...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lbl_scale">
+         <property name="text">
+          <string>Scale factor</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QDoubleSpinBox" name="bg_scale">
+         <property name="decimals">
+          <number>4</number>
+         </property>
+         <property name="maximum">
+          <double>1000000.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lbl_offset">
+         <property name="text">
+          <string>Offset value</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QDoubleSpinBox" name="bg_offset">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-1000000000.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1000000000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

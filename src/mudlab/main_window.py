@@ -29,22 +29,33 @@ from PySide6.QtWidgets import (
 )
 
 from mudlab import APP_NAME, __version__
+from mudlab.chart_style import (
+    INK_MUTED,
+    INK_PRIMARY,
+    INK_SECONDARY,
+    SERIES_BLUE,
+    SURFACE,
+    style_axes,
+)
+from mudlab.edit_atom_types_dialog import EditAtomTypesDialog
+from mudlab.edit_mixtures_dialog import EditMixturesDialog
+from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.edit_project_dialog import EditProjectDialog
 from mudlab.edit_specimen_dialog import EditSpecimenDialog
+from mudlab.line_dialogs import (
+    AddNoiseDialog,
+    PeakPropertiesDialog,
+    RemoveBackgroundDialog,
+    ShiftPatternDialog,
+    SmoothDataDialog,
+    StripPeakDialog,
+)
+from mudlab.specimen_dialogs import SaveGraphSizeDialog, TrimDataDialog
 from mudlab.ui.ui_main_window import Ui_MainWindow
 
 TITLE_FORMAT = "MudLab - {}"
 
 NAV_HINTS = "Zoom - Ctrl++ / Ctrl+-   |   Reset - Ctrl+0"
-
-# Chart colors: validated light-mode palette (surface, ink, hairlines, series hue).
-SURFACE = "#fcfcfb"
-INK_PRIMARY = "#0b0b0b"
-INK_SECONDARY = "#52514e"
-INK_MUTED = "#898781"
-GRIDLINE = "#e1e0d9"
-BASELINE = "#c3c2b7"
-SERIES_BLUE = "#2a78d6"
 
 # Minimum height of one plot in the portrait stack; a single plot expands
 # to fill the viewport, multiple plots overflow into the vertical scrollbar.
@@ -84,10 +95,32 @@ class MainWindow(QMainWindow):
 
         self._edit_project_dialog: EditProjectDialog | None = None
         self._edit_specimen_dialog: EditSpecimenDialog | None = None
+        self._edit_phases_dialog: EditPhasesDialog | None = None
+        self._edit_atom_types_dialog: EditAtomTypesDialog | None = None
+        self._edit_mixtures_dialog: EditMixturesDialog | None = None
 
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
         self.ui.actionEditProject.triggered.connect(self._show_edit_project)
+        self.ui.actionEditPhases.triggered.connect(self._show_edit_phases)
+        self.ui.actionEditAtomTypes.triggered.connect(self._show_edit_atom_types)
+        self.ui.actionEditMixtures.triggered.connect(self._show_edit_mixtures)
+
+        # Specimen-operation dialogs (modal; the actual data operations
+        # connect to these once the specimen model is ported).
+        for action, dialog_cls in (
+            (self.ui.actionRemoveBackground, RemoveBackgroundDialog),
+            (self.ui.actionSmoothData, SmoothDataDialog),
+            (self.ui.actionShiftPattern, ShiftPatternDialog),
+            (self.ui.actionAddNoise, AddNoiseDialog),
+            (self.ui.actionStripPeak, StripPeakDialog),
+            (self.ui.actionPeakProperties, PeakPropertiesDialog),
+            (self.ui.actionTrimData, TrimDataDialog),
+            (self.ui.actionSaveGraph, SaveGraphSizeDialog),
+        ):
+            action.triggered.connect(
+                lambda _=False, cls=dialog_cls: cls(self).exec()
+            )
         self.ui.actionShowPlotToolbar.toggled.connect(self._set_plot_toolbar_visible)
         self.ui.actionZoomIn.triggered.connect(lambda: self._zoom_x(1.0 / ZOOM_STEP))
         self.ui.actionZoomOut.triggered.connect(lambda: self._zoom_x(ZOOM_STEP))
@@ -296,17 +329,10 @@ class MainWindow(QMainWindow):
         )
         axes.plot(two_theta, pattern, color=SERIES_BLUE, linewidth=1.6, label="Calculated")
 
-        axes.set_facecolor(SURFACE)
+        style_axes(axes)
         axes.set_title(name, color=INK_PRIMARY, fontsize="medium", loc="left")
         axes.set_xlabel("2θ (°)", color=INK_SECONDARY)
         axes.set_ylabel("Intensity (counts)", color=INK_SECONDARY)
-        axes.tick_params(colors=INK_MUTED)
-        axes.grid(True, color=GRIDLINE, linewidth=0.8)
-        axes.set_axisbelow(True)
-        for side in ("top", "right"):
-            axes.spines[side].set_visible(False)
-        for side in ("left", "bottom"):
-            axes.spines[side].set_color(BASELINE)
         axes.legend(frameon=False, labelcolor=INK_SECONDARY, loc="upper right")
 
     def _on_specimen_double_clicked(self, index) -> None:
@@ -325,6 +351,33 @@ class MainWindow(QMainWindow):
         if self._edit_project_dialog is None:
             self._edit_project_dialog = EditProjectDialog(self)
         dialog = self._edit_project_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _show_edit_phases(self) -> None:
+        # Modeless, like the old app's phases view present().
+        if self._edit_phases_dialog is None:
+            self._edit_phases_dialog = EditPhasesDialog(self)
+        dialog = self._edit_phases_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _show_edit_atom_types(self) -> None:
+        # Modeless, like the old app's atom_types view present().
+        if self._edit_atom_types_dialog is None:
+            self._edit_atom_types_dialog = EditAtomTypesDialog(self)
+        dialog = self._edit_atom_types_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _show_edit_mixtures(self) -> None:
+        # Modeless, like the old app's mixtures view present().
+        if self._edit_mixtures_dialog is None:
+            self._edit_mixtures_dialog = EditMixturesDialog(self)
+        dialog = self._edit_mixtures_dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()

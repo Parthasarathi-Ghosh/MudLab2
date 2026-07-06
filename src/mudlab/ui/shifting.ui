@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ShiftPatternDialog</class>
+ <widget class="QDialog" name="ShiftPatternDialog">
+  <property name="windowTitle">
+   <string>Shift Pattern</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="shiftForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_position">
+       <property name="text">
+        <string>Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="shift_position">
+       <item>
+        <property name="text">
+         <string>Quartz    0.42574   SiO2</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Silicon   0.31355   Si</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Zincite   0.24759   ZnO</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Corundum  0.2085    Al2O3</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Goethite  0.4183    FeO(OH)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Gibbsite  0.48486   Al(OH)3</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Manual</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_value">
+       <property name="text">
+        <string>Value</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="spin_shift_value">
+       <property name="suffix">
+        <string> nm</string>
+       </property>
+       <property name="decimals">
+        <number>5</number>
+       </property>
+       <property name="minimum">
+        <double>-10.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>10.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.010000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

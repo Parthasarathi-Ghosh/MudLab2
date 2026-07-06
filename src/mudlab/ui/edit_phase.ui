@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditPhaseWidget</class>
+ <widget class="QWidget" name="EditPhaseWidget">
+  <layout class="QVBoxLayout" name="phaseLayout">
+   <item>
+    <layout class="QFormLayout" name="phaseForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblPhaseName">
+       <property name="text">
+        <string>Name &amp; colour</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="nameColorRow">
+       <item>
+        <widget class="QLineEdit" name="phase_name"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="phase_display_color">
+         <property name="maximumSize">
+          <size>
+           <width>110</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>#808080</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="phase_inherit_display_color">
+         <property name="toolTip">
+          <string>Inherit the colour from the "based on" phase.</string>
+         </property>
+         <property name="text">
+          <string>Inherit</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lblBasedOn">
+       <property name="text">
+        <string>Based on phase</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="phase_based_on">
+       <item>
+        <property name="text">
+         <string>None</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lblG">
+       <property name="text">
+        <string>Nr. of components</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="phase_G">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>Fixed when the phase is created.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lblR">
+       <property name="text">
+        <string>Reichweite</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="phase_R">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>Fixed when the phase is created.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lblSigmaStar">
+       <property name="text">
+        <string>σ* [°]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <layout class="QHBoxLayout" name="sigmaStarRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="phase_sigma_star">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="maximum">
+          <double>90.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>3.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="phase_inherit_sigma_star">
+         <property name="toolTip">
+          <string>Inherit the value from the "based on" phase.</string>
+         </property>
+         <property name="text">
+          <string>Inherit</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="book_wrapper">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabCSDS">
+      <attribute name="title">
+       <string>CSDS Distribution</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="csdsTabLayout">
+       <item>
+        <widget class="QCheckBox" name="phase_inherit_CSDS_distribution">
+         <property name="toolTip">
+          <string>Inherit the CSDS distribution from the "based on" phase.</string>
+         </property>
+         <property name="text">
+          <string>Inherit from the "based on" phase</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="csdsLayout"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblCsdsPlaceholder">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>The CSDS distribution component (csds.ui) will be inserted here.</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="csdsSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabProbabilities">
+      <attribute name="title">
+       <string>Probabilities &amp;&amp; weight fractions</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="probabilitiesTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="probabilitiesLayout"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblProbabilitiesPlaceholder">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>The probabilities component (probabilities.ui) will be inserted here.</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="probabilitiesSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabComponents">
+      <attribute name="title">
+       <string>Components</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="componentsTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="componentsLayout"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblComponentsPlaceholder">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>The component editor (edit_component.ui) will be inserted here.</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="componentsSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
