@@ -42,7 +42,7 @@ class Ui_GoniometerWidget(object):
         self.gonio_radius_spb = QDoubleSpinBox(self.grpGeneral)
         self.gonio_radius_spb.setObjectName(u"gonio_radius_spb")
         self.gonio_radius_spb.setDecimals(2)
-        self.gonio_radius_spb.setMaximum(10000.000000000000000)
+        self.gonio_radius_spb.setMaximum(200.000000000000000)
         self.gonio_radius_spb.setValue(24.000000000000000)
 
         self.generalForm.setWidget(0, QFormLayout.ItemRole.FieldRole, self.gonio_radius_spb)
@@ -55,7 +55,7 @@ class Ui_GoniometerWidget(object):
         self.gonio_min_2theta_spb = QDoubleSpinBox(self.grpGeneral)
         self.gonio_min_2theta_spb.setObjectName(u"gonio_min_2theta_spb")
         self.gonio_min_2theta_spb.setDecimals(2)
-        self.gonio_min_2theta_spb.setMaximum(160.000000000000000)
+        self.gonio_min_2theta_spb.setMaximum(180.000000000000000)
         self.gonio_min_2theta_spb.setValue(3.000000000000000)
 
         self.generalForm.setWidget(1, QFormLayout.ItemRole.FieldRole, self.gonio_min_2theta_spb)
@@ -68,7 +68,7 @@ class Ui_GoniometerWidget(object):
         self.gonio_max_2theta_spb = QDoubleSpinBox(self.grpGeneral)
         self.gonio_max_2theta_spb.setObjectName(u"gonio_max_2theta_spb")
         self.gonio_max_2theta_spb.setDecimals(2)
-        self.gonio_max_2theta_spb.setMaximum(100.000000000000000)
+        self.gonio_max_2theta_spb.setMaximum(180.000000000000000)
         self.gonio_max_2theta_spb.setValue(50.000000000000000)
 
         self.generalForm.setWidget(2, QFormLayout.ItemRole.FieldRole, self.gonio_max_2theta_spb)
@@ -80,9 +80,8 @@ class Ui_GoniometerWidget(object):
 
         self.steps_spn_btn1 = QSpinBox(self.grpGeneral)
         self.steps_spn_btn1.setObjectName(u"steps_spn_btn1")
-        self.steps_spn_btn1.setMinimum(1)
-        self.steps_spn_btn1.setMaximum(5000)
-        self.steps_spn_btn1.setValue(3500)
+        self.steps_spn_btn1.setMaximum(10000)
+        self.steps_spn_btn1.setValue(2500)
 
         self.generalForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.steps_spn_btn1)
 
@@ -115,7 +114,7 @@ class Ui_GoniometerWidget(object):
         self.sample_surf_density_spb.setObjectName(u"sample_surf_density_spb")
         self.sample_surf_density_spb.setDecimals(2)
         self.sample_surf_density_spb.setMaximum(10000.000000000000000)
-        self.sample_surf_density_spb.setValue(10.000000000000000)
+        self.sample_surf_density_spb.setValue(20.000000000000000)
 
         self.sampleForm.setWidget(1, QFormLayout.ItemRole.FieldRole, self.sample_surf_density_spb)
 
@@ -184,7 +183,7 @@ class Ui_GoniometerWidget(object):
         self.gonio_div_value_spb = QDoubleSpinBox(self.grpPrimary)
         self.gonio_div_value_spb.setObjectName(u"gonio_div_value_spb")
         self.gonio_div_value_spb.setDecimals(2)
-        self.gonio_div_value_spb.setMaximum(100.000000000000000)
+        self.gonio_div_value_spb.setMaximum(90.000000000000000)
         self.gonio_div_value_spb.setValue(0.500000000000000)
 
         self.primaryForm.setWidget(2, QFormLayout.ItemRole.FieldRole, self.gonio_div_value_spb)
@@ -198,8 +197,8 @@ class Ui_GoniometerWidget(object):
         self.gonio_soller1_spb = QDoubleSpinBox(self.grpPrimary)
         self.gonio_soller1_spb.setObjectName(u"gonio_soller1_spb")
         self.gonio_soller1_spb.setDecimals(2)
-        self.gonio_soller1_spb.setMaximum(100.000000000000000)
-        self.gonio_soller1_spb.setValue(2.500000000000000)
+        self.gonio_soller1_spb.setMaximum(10.000000000000000)
+        self.gonio_soller1_spb.setValue(2.300000000000000)
 
         self.primaryForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.gonio_soller1_spb)
 
@@ -219,8 +218,8 @@ class Ui_GoniometerWidget(object):
         self.gonio_soller2_spb = QDoubleSpinBox(self.grpSecondary)
         self.gonio_soller2_spb.setObjectName(u"gonio_soller2_spb")
         self.gonio_soller2_spb.setDecimals(2)
-        self.gonio_soller2_spb.setMaximum(100.000000000000000)
-        self.gonio_soller2_spb.setValue(2.500000000000000)
+        self.gonio_soller2_spb.setMaximum(10.000000000000000)
+        self.gonio_soller2_spb.setValue(2.300000000000000)
 
         self.secondaryForm.setWidget(0, QFormLayout.ItemRole.FieldRole, self.gonio_soller2_spb)
 

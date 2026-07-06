@@ -15,11 +15,14 @@ from mudlab.ui.ui_trim_dialog import Ui_TrimDataDialog
 # Combo index -> scope (old cmb_scope items order).
 TRIM_SCOPES = ("specimen", "all")
 
-# Placeholder export presets: (label, width px, height px, dpi).
+# Export presets: (label, width px, height px, dpi) - old settings.OUTPUT_PRESETS.
 SAVE_GRAPH_PRESETS = (
-    ("Default (1600 × 1200, 300 DPI)", 1600, 1200, 300),
-    ("Screen (1920 × 1080, 96 DPI)", 1920, 1080, 96),
-    ("Publication (3200 × 2400, 600 DPI)", 3200, 2400, 600),
+    ("Landscape Large print", 8000, 4800, 300),
+    ("Landscape Medium print", 6000, 3800, 300),
+    ("Landscape Small print", 4000, 2800, 300),
+    ("Portrait Large print", 4800, 8000, 300),
+    ("Portrait Medium print", 3800, 6000, 300),
+    ("Portrait Small print", 2800, 4000, 300),
 )
 
 

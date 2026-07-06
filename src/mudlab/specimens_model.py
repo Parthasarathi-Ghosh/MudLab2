@@ -29,6 +29,13 @@ class SpecimensModel(QStandardItemModel):
         self._project = project
         self._updating = False
 
+        self.setHorizontalHeaderLabels(list(SPECIMEN_COLUMNS))
+        for col, tooltip in enumerate(SPECIMEN_COLUMN_TOOLTIPS):
+            self.setHeaderData(
+                col, Qt.Orientation.Horizontal, tooltip,
+                Qt.ItemDataRole.ToolTipRole,
+            )
+
         self.itemChanged.connect(self._on_item_changed)
         project.specimens_changed.connect(self.reload)
         project.visuals_changed.connect(self.refresh)
@@ -40,13 +47,9 @@ class SpecimensModel(QStandardItemModel):
     def reload(self) -> None:
         self._updating = True
         try:
-            self.clear()
-            self.setHorizontalHeaderLabels(list(SPECIMEN_COLUMNS))
-            for col, tooltip in enumerate(SPECIMEN_COLUMN_TOOLTIPS):
-                self.setHeaderData(
-                    col, Qt.Orientation.Horizontal, tooltip,
-                    Qt.ItemDataRole.ToolTipRole,
-                )
+            # removeRows (not clear) keeps the columns and header sections,
+            # so the view's per-section resize modes survive reloads.
+            self.removeRows(0, self.rowCount())
             for specimen in self._project.specimens:
                 name_item = QStandardItem(specimen.name)
                 name_item.setEditable(False)

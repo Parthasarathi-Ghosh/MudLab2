@@ -82,6 +82,6 @@ placeholder-driven.
 ### Not planned
 - Behaviours (add_behaviour.glade, edit_insitu_behaviour.glade) - feature
   was disabled in the old app; revisit only if revived.
-- edit_dialog.glade, none.glade, inline_ols.glade - GTK plumbing with no
-  Qt equivalent needed (QDialog, empty-selection state, and plain
-  QTreeView cover these).
+- edit_dialog.glade, none.glade, inline_ols.glade, shift_dialog.glade -
+  GTK plumbing with no Qt equivalent needed (QDialog with button box,
+  empty-selection state, and plain QTreeView cover these).
