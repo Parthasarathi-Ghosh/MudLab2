@@ -8,8 +8,14 @@ completed, or descoped.** Wiring details live in [WIRING.md](WIRING.md).
 
 Legend: **done** = .ui + logic exist and are wired for GUI trial;
 **partial** = done but contains placeholder slots for missing
-sub-components; all UIs remain placeholder-driven until the Qt-signal
-models land.
+sub-components.
+
+Model status (2026-07-06): Project + Specimen Qt-signal models exist
+(mudlab/models/); the specimens dock, plot stack, window title, Edit
+Project and Edit Specimen dialogs are live against them, and Import
+Specimens loads real text XY/CSV patterns. Phases, mixtures, atom
+types, goniometer, markers, and project save/load are still
+placeholder-driven.
 
 ## Recreated
 

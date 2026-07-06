@@ -1,5 +1,25 @@
 # Wiring notes
 
+## Model layer (Qt signals - mudlab/models/)
+
+The old mvc framework is NOT ported. `models/properties.py` provides the
+`Prop` descriptor (stores the value, emits the owner's named Qt signal on
+change - the old PropIntel signal names data_changed / visuals_changed
+are kept). `models/specimen.py` and `models/project.py` keep the old
+property names (`display_experimental`, `display_exp_color`, ...); the
+Project re-emits child specimen signals so views listen to the project
+only, and emits `specimens_changed` on add/remove.
+
+Live today: the specimens dock (`mudlab/specimens_model.py` adapter,
+two-way checkbox sync), the plot stack (draws real
+experimental/calculated patterns styled by the project display
+properties), the window title, and live-applying Edit Project / Edit
+Specimen dialogs (`bind_project` / `bind_specimen`). Import Specimens
+parses text XY/CSV/DAT patterns (`mudlab/file_parsers/xy_parser.py`);
+vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
+`file_parsers/xrd_parsers`. Not yet modeled: goniometer, markers,
+exclusion ranges, phases/mixtures/atom types, project save/load.
+
 ## edit_project.ui (Edit Project dialog)
 
 Ported from the GTK ProjectView (`project/glade/project.glade`, notebook

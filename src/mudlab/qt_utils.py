@@ -11,11 +11,14 @@ class ColorButton:
 
     The button shows the current color and its hex code; clicking opens the
     native color dialog. (Replaces the old GtkColorButton.) The initial
-    color is read from the button text set in the .ui file.
+    color is read from the button text set in the .ui file. `on_change` is
+    called with the new QColor after a user pick (not on programmatic
+    set_color, so filling a dialog from a model does not echo back).
     """
 
-    def __init__(self, button: QPushButton) -> None:
+    def __init__(self, button: QPushButton, on_change=None) -> None:
         self._button = button
+        self.on_change = on_change
         color = QColor(button.text())
         self._color = color if color.isValid() else QColor("#000000")
         self._apply()
@@ -41,6 +44,8 @@ class ColorButton:
         if color.isValid():
             self._color = color
             self._apply()
+            if self.on_change is not None:
+                self.on_change(QColor(color))
 
     def _apply(self) -> None:
         luminance = (
