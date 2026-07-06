@@ -45,6 +45,10 @@ class EditSpecimenDialog(QDialog):
     # ------------------------------------------------------------------
     # Model binding (live apply, old adapter behavior)
     # ------------------------------------------------------------------
+    def unbind(self) -> None:
+        """Stop writing to the (possibly deleted) specimen."""
+        self._specimen = None
+
     def bind_specimen(self, specimen: Specimen) -> None:
         self._specimen = specimen
         self._updating = True

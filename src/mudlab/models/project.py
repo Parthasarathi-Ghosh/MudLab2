@@ -65,6 +65,12 @@ class Project(QObject):
         if name:
             self.name = name
         self._specimens: list[Specimen] = []
+        # File-related plain attributes (not persisted properties):
+        # raw_properties keeps the full .mud property dict verbatim so that
+        # parts MudLab2 does not model yet survive load/save round-trips.
+        self.raw_properties: dict = {}
+        self.file_version: str | None = None
+        self.filename: str | None = None
 
     # ------------------------------------------------------------------
     # Specimens

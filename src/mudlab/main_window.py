@@ -43,7 +43,7 @@ from mudlab.edit_mixtures_dialog import EditMixturesDialog
 from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.edit_project_dialog import EditProjectDialog
 from mudlab.edit_specimen_dialog import EditSpecimenDialog
-from mudlab.file_parsers import parse_xy
+from mudlab.file_parsers import load_mud, parse_xy, save_mud
 from mudlab.line_dialogs import (
     AddNoiseDialog,
     PeakPropertiesDialog,
@@ -68,6 +68,7 @@ PLOT_MIN_HEIGHT = 340
 ZOOM_STEP = 1.25
 
 IMPORT_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
+PROJECT_FILTERS = "MudLab projects (*.mud);;All files (*.*)"
 
 
 class MainWindow(QMainWindow):
@@ -80,6 +81,7 @@ class MainWindow(QMainWindow):
         self.canvases: list[FigureCanvasQTAgg] = []
         self.nav_toolbar: NavigationToolbar2QT | None = None
         self._shown_specimens: list[Specimen] = []
+        self._dirty = False
 
         self._setup_plot_area()
         self._setup_specimens_panel()
@@ -100,6 +102,10 @@ class MainWindow(QMainWindow):
 
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
+        self.ui.actionNewProject.triggered.connect(self._new_project)
+        self.ui.actionOpenProject.triggered.connect(self._open_project)
+        self.ui.actionSaveProject.triggered.connect(self._save_project)
+        self.ui.actionSaveProjectAs.triggered.connect(self._save_project_as)
         self.ui.actionShowPlotToolbar.toggled.connect(self._set_plot_toolbar_visible)
         self.ui.actionZoomIn.triggered.connect(lambda: self._zoom_x(1.0 / ZOOM_STEP))
         self.ui.actionZoomOut.triggered.connect(lambda: self._zoom_x(ZOOM_STEP))
@@ -128,13 +134,19 @@ class MainWindow(QMainWindow):
             )
 
         # Model -> view plumbing.
-        self.project.visuals_changed.connect(self._on_project_changed)
-        self.project.data_changed.connect(self._refresh_plots)
+        self._connect_project_signals(self.project)
         self._update_title()
 
     # ------------------------------------------------------------------
     # Project-level updates
     # ------------------------------------------------------------------
+    def _connect_project_signals(self, project: Project) -> None:
+        project.visuals_changed.connect(self._on_project_changed)
+        project.data_changed.connect(self._refresh_plots)
+        project.visuals_changed.connect(self._mark_dirty)
+        project.data_changed.connect(self._mark_dirty)
+        project.specimens_changed.connect(self._mark_dirty)
+
     def _update_title(self) -> None:
         """Old AppView had title_format 'MudLab - %s' (project name)."""
         self.setWindowTitle(TITLE_FORMAT.format(self.project.name))
@@ -142,6 +154,126 @@ class MainWindow(QMainWindow):
     def _on_project_changed(self) -> None:
         self._update_title()
         self._refresh_plots()
+
+    def _mark_dirty(self) -> None:
+        self._dirty = True
+
+    # ------------------------------------------------------------------
+    # Project file handling (old: AppController load/save/new + the
+    # confirm-discard-unsaved-changes guards)
+    # ------------------------------------------------------------------
+    def _set_project(self, project: Project) -> None:
+        """Swap in a different project and rewire all views to it."""
+        old_project = self.project
+        old_model = self.specimens_model
+
+        project.setParent(self)
+        self.project = project
+        self.specimens_model = SpecimensModel(project, self)
+        self.ui.specimensTree.setModel(self.specimens_model)
+        header = self.ui.specimensTree.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for col in range(1, self.specimens_model.columnCount()):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        # setModel replaced the selection model: reconnect.
+        self.ui.specimensTree.selectionModel().selectionChanged.connect(
+            self._on_specimen_selection_changed
+        )
+        self._connect_project_signals(project)
+
+        old_model.deleteLater()
+        old_project.deleteLater()
+
+        # Re-target open editor windows.
+        if self._edit_project_dialog is not None:
+            self._edit_project_dialog.bind_project(project)
+        if self._edit_specimen_dialog is not None:
+            self._edit_specimen_dialog.unbind()
+            self._edit_specimen_dialog.close()
+
+        self._shown_specimens = []
+        self._update_title()
+        if project.specimens:
+            # Old app auto-selected the first specimen after loading.
+            self.select_specimen_row(0)
+        else:
+            self.show_specimen_plots([])
+        self._dirty = False
+
+    def _confirm_discard_unsaved(self, question: str) -> bool:
+        if not self._dirty:
+            return True
+        answer = QMessageBox.question(
+            self, APP_NAME,
+            "The current project has unsaved changes,\n" + question,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def closeEvent(self, event) -> None:
+        if self._confirm_discard_unsaved("are you sure you want to quit?"):
+            event.accept()
+        else:
+            event.ignore()
+
+    def _new_project(self) -> None:
+        if not self._confirm_discard_unsaved(
+            "are you sure you want to create a new project?"
+        ):
+            return
+        self._set_project(Project())
+        # Old behavior: a new project opens the Edit Project dialog.
+        self._show_edit_project()
+
+    def _open_project(self) -> None:
+        if not self._confirm_discard_unsaved(
+            "are you sure you want to load another project?"
+        ):
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load project", "", PROJECT_FILTERS
+        )
+        if not path:
+            return
+        try:
+            project = load_mud(path)
+        except Exception as error:  # zip/json/format errors
+            QMessageBox.critical(
+                self, "Parsing error",
+                f"An error has occurred:\n{error}\nYour project was not loaded!",
+            )
+            return
+        self._set_project(project)
+        self.ui.statusBar.showMessage(f"Loaded {path}", 5000)
+
+    def _save_project(self) -> None:
+        if self.project.filename:
+            self._save_to(self.project.filename)
+        else:
+            self._save_project_as()
+
+    def _save_project_as(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save project", self.project.filename or "", PROJECT_FILTERS
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".mud"):
+            path += ".mud"
+        self._save_to(path)
+
+    def _save_to(self, path: str) -> None:
+        try:
+            save_mud(self.project, path)
+        except OSError as error:
+            QMessageBox.critical(
+                self, "Save error",
+                f"An error has occurred while saving!\n{error}",
+            )
+            return
+        self._dirty = False
+        self.ui.statusBar.showMessage(f"Saved {path}", 5000)
 
     # ------------------------------------------------------------------
     # Plot area: a portrait stack of one canvas per selected specimen

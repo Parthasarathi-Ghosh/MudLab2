@@ -10,12 +10,13 @@ Legend: **done** = .ui + logic exist and are wired for GUI trial;
 **partial** = done but contains placeholder slots for missing
 sub-components.
 
-Model status (2026-07-06): Project + Specimen Qt-signal models exist
+Model status (2026-07-07): Project + Specimen Qt-signal models exist
 (mudlab/models/); the specimens dock, plot stack, window title, Edit
 Project and Edit Specimen dialogs are live against them, and Import
-Specimens loads real text XY/CSV patterns. Phases, mixtures, atom
-types, goniometer, markers, and project save/load are still
-placeholder-driven.
+Specimens loads real text XY/CSV patterns. Project New/Open/Save/Save As
+work with the old .mud format (data-preserving round-trip incl. phases/
+mixtures/atom types/goniometers/markers). Phases, mixtures, atom types,
+goniometer, and markers remain placeholder-driven in their editors.
 
 ## Recreated
 

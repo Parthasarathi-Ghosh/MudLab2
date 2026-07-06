@@ -40,6 +40,9 @@ class Specimen(QObject):
         self._exp_y = np.empty(0)
         self._calc_x = np.empty(0)
         self._calc_y = np.empty(0)
+        # Verbatim .mud specimen properties (goniometer, markers, ...) so
+        # unmodeled parts survive load/save round-trips.
+        self.raw_properties: dict = {}
 
     # ------------------------------------------------------------------
     # Pattern data (old: experimental_pattern / calculated_pattern models)

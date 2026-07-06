@@ -125,7 +125,10 @@ class EditProjectDialog(QDialog):
                 widget.setText(getattr(project, prop))
             self.ui.project_description.setPlainText(project.description)
             for widget, prop, values in self._combo_bindings:
-                widget.setCurrentIndex(values.index(getattr(project, prop)))
+                # Unknown values from old files fall back to the first
+                # entry visually; the model keeps the original value.
+                value = getattr(project, prop)
+                widget.setCurrentIndex(values.index(value) if value in values else 0)
             for widget, prop in self._spin_bindings:
                 widget.setValue(getattr(project, prop))
             for widget, prop in self._check_bindings:

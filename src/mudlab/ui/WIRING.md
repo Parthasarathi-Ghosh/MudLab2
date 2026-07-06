@@ -18,7 +18,32 @@ Specimen dialogs (`bind_project` / `bind_specimen`). Import Specimens
 parses text XY/CSV/DAT patterns (`mudlab/file_parsers/xy_parser.py`);
 vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
 `file_parsers/xrd_parsers`. Not yet modeled: goniometer, markers,
-exclusion ranges, phases/mixtures/atom types, project save/load.
+exclusion ranges, phases/mixtures/atom types.
+
+## Project files (.mud) - mudlab/file_parsers/mud_project.py
+
+Old-format compatible (deflated ZIP: `content` JSON with
+`file://<part>` placeholders + `version` + `specimens`/`phases`/
+`atom_types`/`mixtures` parts; pattern data is a JSON string of rows,
+calculated lines may carry extra per-phase columns - only the first two
+are read). **Data preservation rule:** loading keeps the full property
+dicts verbatim (`raw_properties` on Project/Specimen), and saving writes
+the modeled values back INTO that raw tree - so phases, mixtures, atom
+types, goniometers, markers, exclusion ranges, line properties and uuids
+from old projects survive MudLab2 round-trips untouched (verified
+byte-identical against both sample projects). New files carry version
+"0.1.10"; loaded files keep their own version tag. The MudLab2-only
+`source` field is not written (the old loader would not accept it).
+
+Main-window wiring (old AppController equivalents): `actionNewProject`
+(confirm-discard, then opens Edit Project like the old app),
+`actionOpenProject` (confirm-discard + error dialog on parse failure),
+`actionSaveProject` (Save As when no filename), `actionSaveProjectAs`.
+Dirty tracking sets on any project data/visuals/specimens signal and
+clears on load/save; `closeEvent` guards quitting with unsaved changes.
+Not yet ported: the old last-folder persistence
+(user_data_dir/last_folder.txt) and the `check_for_changes()` hash-based
+dirty detection (ours is signal-based and slightly more eager).
 
 ## edit_project.ui (Edit Project dialog)
 
