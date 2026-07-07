@@ -14,8 +14,7 @@ import platform
 import matplotlib
 import numpy as np
 import scipy
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
-from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from PySide6 import __version__ as PYSIDE6_VERSION
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase
@@ -26,18 +25,11 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QProgressBar,
-    QSizePolicy,
     QStyleFactory,
 )
 
 from mudlab import APP_NAME, __version__
-from mudlab.chart_style import (
-    INK_MUTED,
-    INK_PRIMARY,
-    INK_SECONDARY,
-    SURFACE,
-    style_axes,
-)
+from mudlab.calculations import get_nm_from_2t
 from mudlab.edit_atom_types_dialog import EditAtomTypesDialog
 from mudlab.edit_mixtures_dialog import EditMixturesDialog
 from mudlab.edit_phases_dialog import EditPhasesDialog
@@ -53,19 +45,19 @@ from mudlab.line_dialogs import (
     StripPeakDialog,
 )
 from mudlab.models import Project, Specimen
+from mudlab.plot_controller import PatternPlot
 from mudlab.specimen_dialogs import SaveGraphSizeDialog, TrimDataDialog
 from mudlab.specimens_model import SpecimensModel
 from mudlab.ui.ui_main_window import Ui_MainWindow
 
 TITLE_FORMAT = "MudLab - {}"
 
-NAV_HINTS = "Zoom - Ctrl++ / Ctrl+-   |   Reset - Ctrl+0"
+NAV_HINTS = (
+    "Zoom - Scroll or Ctrl+Scroll   |   "
+    "Pan - Shift+Scroll or ←→   |   Reset - Right-click"
+)
 
-# Minimum height of one plot in the portrait stack; a single plot expands
-# to fill the viewport, multiple plots overflow into the vertical scrollbar.
-PLOT_MIN_HEIGHT = 340
-
-ZOOM_STEP = 1.25
+ZOOM_STEP = 1.25  # Ctrl++ / Ctrl+- menu zoom
 
 IMPORT_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
 PROJECT_FILTERS = "MudLab projects (*.mud);;All files (*.*)"
@@ -78,10 +70,11 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.project = Project(parent=self)
-        self.canvases: list[FigureCanvasQTAgg] = []
+        self.pattern_plots: list[PatternPlot] = []
         self.nav_toolbar: NavigationToolbar2QT | None = None
         self._shown_specimens: list[Specimen] = []
         self._dirty = False
+        self._sampling = False
 
         self._setup_plot_area()
         self._setup_specimens_panel()
@@ -110,6 +103,8 @@ class MainWindow(QMainWindow):
         self.ui.actionZoomIn.triggered.connect(lambda: self._zoom_x(1.0 / ZOOM_STEP))
         self.ui.actionZoomOut.triggered.connect(lambda: self._zoom_x(ZOOM_STEP))
         self.ui.actionZoomReset.triggered.connect(self._zoom_reset)
+        self.ui.actionCrosshair.toggled.connect(self._on_crosshair_toggled)
+        self.ui.actionSamplePoint.triggered.connect(self._start_sampling)
         self.ui.actionEditProject.triggered.connect(self._show_edit_project)
         self.ui.actionEditPhases.triggered.connect(self._show_edit_phases)
         self.ui.actionEditAtomTypes.triggered.connect(self._show_edit_atom_types)
@@ -289,7 +284,13 @@ class MainWindow(QMainWindow):
             ):
                 bar.setStyle(self._classic_style)
 
-    def show_specimen_plots(self, specimens: list[Specimen]) -> None:
+    @property
+    def canvases(self) -> list:
+        return [plot.canvas for plot in self.pattern_plots]
+
+    def show_specimen_plots(
+        self, specimens: list[Specimen], restore_views: dict | None = None
+    ) -> None:
         """Fill the portrait stack with one plot per selected specimen."""
         self._shown_specimens = list(specimens)
         while self.ui.plotStackLayout.count():
@@ -297,70 +298,108 @@ class MainWindow(QMainWindow):
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-        self.canvases.clear()
+        self.pattern_plots.clear()
 
-        for specimen in specimens:
-            figure = Figure(facecolor=SURFACE, layout="constrained")
-            canvas = FigureCanvasQTAgg(figure)
-            canvas.setMinimumHeight(PLOT_MIN_HEIGHT)
-            canvas.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        restore_views = restore_views or {}
+        # One canvas, one shared axes with all selected specimens stacked
+        # (mudlab style); a single selection is just the N=1 case.
+        plots = []
+        if specimens:
+            plots.append(
+                PatternPlot(
+                    specimens, self.project,
+                    on_motion=self._on_plot_motion,
+                    on_click=self._on_plot_click,
+                )
             )
-            self._plot_specimen(figure, specimen)
-            self.ui.plotStackLayout.addWidget(canvas)
-            self.canvases.append(canvas)
+        for plot in plots:
+            plot.set_crosshair_enabled(self.ui.actionCrosshair.isChecked())
+            view = restore_views.get(plot.view_key)
+            if view is not None:
+                plot.restore_view(view)
+            self.ui.plotStackLayout.addWidget(plot.canvas)
+            self.pattern_plots.append(plot)
 
         self._rebuild_nav_toolbar()
 
     def _refresh_plots(self) -> None:
-        # Drop deleted specimens, then redraw the current stack.
+        # Preserve user zoom across redraws (old update() behavior) and
+        # drop deleted specimens.
+        views = {
+            plot.view_key: view
+            for plot in self.pattern_plots
+            if (view := plot.user_view()) is not None
+        }
         current = tuple(self.project.specimens)
         self.show_specimen_plots(
-            [s for s in self._shown_specimens if s in current]
+            [s for s in self._shown_specimens if s in current],
+            restore_views=views,
         )
 
-    def _plot_specimen(self, figure: Figure, specimen: Specimen) -> None:
-        project = self.project
-        axes = figure.add_subplot(111)
-        lines = 0
+    # ------------------------------------------------------------------
+    # Plot interaction callbacks (old AppController.update_plot_status
+    # and on_sample_point)
+    # ------------------------------------------------------------------
+    def _on_crosshair_toggled(self, enabled: bool) -> None:
+        for plot in self.pattern_plots:
+            plot.set_crosshair_enabled(enabled)
 
-        if specimen.display_experimental and specimen.has_experimental_data:
-            x, y = specimen.experimental_pattern
-            axes.plot(
-                x, y,
-                color=project.display_exp_color,
-                linewidth=project.display_exp_lw,
-                linestyle=project.display_exp_ls or "None",
-                marker=project.display_exp_marker or "",
-                markersize=3,
-                label="Experimental",
-            )
-            lines += 1
-        if specimen.display_calculated and specimen.has_calculated_data:
-            x, y = specimen.calculated_pattern
-            axes.plot(
-                x, y,
-                color=project.display_calc_color,
-                linewidth=project.display_calc_lw,
-                linestyle=project.display_calc_ls or "None",
-                marker=project.display_calc_marker or "",
-                markersize=3,
-                label="Calculated",
-            )
-            lines += 1
+    def _start_sampling(self) -> None:
+        # Old on_sample_point (EyeDropper): the next click on a pattern
+        # reports the data values.
+        self._sampling = True
+        self.ui.statusBar.showMessage("Sampling... click a point on a pattern")
 
-        style_axes(axes)
-        axes.set_title(specimen.name, color=INK_PRIMARY, fontsize="medium", loc="left")
-        axes.set_xlabel("2θ (°)", color=INK_SECONDARY)
-        axes.set_ylabel("Intensity (counts)", color=INK_SECONDARY)
-        if lines == 0:
-            axes.text(
-                0.5, 0.5, "No pattern data",
-                transform=axes.transAxes, ha="center", va="center",
-                color=INK_MUTED,
+    def _on_plot_click(self, plot: PatternPlot, x_pos: float) -> None:
+        if not self._sampling or x_pos <= 0:
+            return
+        self._sampling = False
+        self.ui.statusBar.clearMessage()
+        specimen = plot.specimen
+        message = "Sampled point:\n"
+        if specimen.has_experimental_data:
+            ex, ey = specimen.experimental_pattern
+            message += "\tExperimental data:\t( %.4f , %.4f )\n" % (
+                x_pos, float(np.interp(x_pos, ex, ey)),
             )
-        elif lines > 1:
-            axes.legend(frameon=False, labelcolor=INK_SECONDARY, loc="upper right")
+        if specimen.has_calculated_data:
+            cx, cy = specimen.calculated_pattern
+            message += "\tCalculated data:\t\t( %.4f , %.4f )" % (
+                x_pos, float(np.interp(x_pos, cx, cy)),
+            )
+        QMessageBox.information(self, "Sample Point", message)
+
+    def _on_plot_motion(self, plot: PatternPlot, x_pos: float) -> None:
+        specimen = plot.specimen
+        wavelength = specimen.wavelength
+        if plot.drag_start_x is not None and x_pos > 0:
+            x0, x1 = sorted((plot.drag_start_x, x_pos))
+            self.update_plot_status_range(
+                x0, x1,
+                get_nm_from_2t(x0, wavelength),
+                get_nm_from_2t(x1, wavelength),
+                multi=plot.multi,
+            )
+        elif x_pos > 0:
+            if plot.multi:
+                # Old multi readout: 2θ and d (from the first specimen's
+                # goniometer) only, marked with '*'.
+                self.update_plot_status(
+                    x_pos, get_nm_from_2t(x_pos, wavelength), multi=True
+                )
+                return
+            experimental = calculated = None
+            if specimen.has_experimental_data:
+                ex, ey = specimen.experimental_pattern
+                experimental = float(np.interp(x_pos, ex, ey))
+            if specimen.has_calculated_data:
+                cx, cy = specimen.calculated_pattern
+                calculated = float(np.interp(x_pos, cx, cy))
+            self.update_plot_status(
+                x_pos, get_nm_from_2t(x_pos, wavelength), experimental, calculated
+            )
+        else:
+            self.update_plot_status(None, None)
 
     def _rebuild_nav_toolbar(self) -> None:
         # The Matplotlib navigation toolbar binds to a single canvas; bind
@@ -386,19 +425,12 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _zoom_x(self, factor: float) -> None:
         """Scale the x-range of every shown plot around its center."""
-        for canvas in self.canvases:
-            for axes in canvas.figure.axes:
-                x0, x1 = axes.get_xlim()
-                center = (x0 + x1) / 2.0
-                half = (x1 - x0) / 2.0 * factor
-                axes.set_xlim(center - half, center + half)
-            canvas.draw_idle()
+        for plot in self.pattern_plots:
+            plot.zoom_x(factor)
 
     def _zoom_reset(self) -> None:
-        for canvas in self.canvases:
-            for axes in canvas.figure.axes:
-                axes.autoscale()
-            canvas.draw_idle()
+        for plot in self.pattern_plots:
+            plot.reset_view()
 
     # ------------------------------------------------------------------
     # Specimens dock

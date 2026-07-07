@@ -359,30 +359,77 @@ The old left pane of the `main_pained` splitter is now a `QDockWidget`
 - The specimens context menu (see "Old actions NOT in the main window UI")
   belongs on this tree view.
 
-## Plot area (portrait stack)
+## Plot area (PatternPlot)
 
-The central widget is a `QScrollArea` (`plotScrollArea`) holding
-`plotStackContainer`/`plotStackLayout`, a vertical stack of Matplotlib
-canvases — this is the main view:
+The central widget hosts **one** Matplotlib canvas: `PatternPlot` in
+`mudlab/plot_controller.py` - one shared axes with all selected specimens
+stacked, the mudlab style. (The scroll area + `plotStackLayout` from the
+portrait-stack era remain in the .ui as the canvas host; the classic
+scrollbar override in `_setup_plot_area()` is kept but the bar is never
+active.)
 
-- **Normal:** one specimen selected in the specimens tree -> one plot
-  (with legend) fills the viewport.
-- **Extended:** Shift/Ctrl+click multi-selection -> one plot per selected
-  specimen, stacked top-to-bottom in selection-row order (portrait), each
-  at least `PLOT_MIN_HEIGHT` (340 px) tall, overflowing into the vertical
-  scrollbar.
-- Scrollbars are classic, never auto-hiding: policy `AlwaysOn` (vertical)
-  in the .ui, plus a per-scrollbar `windowsvista` style override in
-  `_setup_plot_area()` because the `windows11` style draws transient
-  overlay scrollbars.
-- Zoom keyboard shortcuts (also in the View menu): `actionZoomIn`
-  (Ctrl++), `actionZoomOut` (Ctrl+-), `actionZoomReset` (Ctrl+0).
-  Placeholder implementation scales the x-range of every stacked plot
-  around its center / autoscales back; replace with the plot controller's
-  zoom once ported (old app: scroll-wheel zoom, Shift+scroll pan).
-- Selection changes arrive via `_on_specimen_selection_changed`; the
-  placeholder pattern generator `_plot_placeholder_pattern` is the seam to
-  replace with real specimen data.
+- Drawing (`PatternPlot.draw_pattern`, port of the old plot_specimens):
+  vertical offset stacking (`display_plot_offset` per `display_group_by`
+  group), Y-scale normalization (`axes_ynormalize`: multi / single / raw
+  counts), per-specimen vshift/vscale, specimen-name labels in the left
+  margin at `display_label_pos`, y-axis hidden unless `axes_yvisible`,
+  manual/auto x-limits from the axes settings. A single selection is
+  simply the N=1 case. Not yet drawn: markers, exclusion hatches,
+  residual/derivative statistics panels, mixture legends, per-pattern
+  line-property overrides.
+- Interactions (port of the old MainPlotController, old wheel mapping):
+  plain scroll = 2θ-zoom ×1.15 around the cursor, Ctrl+scroll =
+  intensity-zoom, Shift+scroll = pan 10% of the span; zooms clamp to the
+  home extent with x ≥ 0 / y ≥ 0. ←/→ keys pan (canvas takes click
+  focus), right-click resets to the home view, and user zoom is preserved
+  across model-driven redraws (reset on selection change). Menu zoom
+  (`actionZoomIn`/Out/Reset, Ctrl++/-/0) drives the same methods. The
+  axes never autoscale after the initial draw (old controllers.py:108),
+  so interaction artists can never alter the view ranges.
+- `actionCrosshair` toggles the dashed crosshair cursor (#555555); with
+  it active, left-drag draws the orange (#FF6600) measurement highlight
+  over every curve and the status bar shows Δ2θ/Δd.
+- `actionSamplePoint` (old EyeDropper): arms one-shot sampling; the next
+  click on a pattern reports experimental/calculated values in an info
+  dialog.
+- Mouse motion drives the old status readout (Bragg conversion in
+  `mudlab/calculations/goniometer.py`, ported as-is; wavelength = the
+  dominant entry of the specimen's goniometer wavelength distribution,
+  `Specimen.wavelength`, CuKα1 default): single specimen -> 2θ, d, Ie,
+  Ic interpolated from the patterns; multiple -> 2θ and d only,
+  `*`-marked, with d from the FIRST specimen (old multi behavior,
+  `PatternPlot.multi`).
+- Still with later ports: marker-click handling (ClickCatcher) and the
+  per-pattern operation previews (background/smooth/noise/strip lines of
+  the old plot_specimen).
+
+### Statistics band + GoF label (port when the calculation engine lands)
+
+Exact old behavior (plot_specimens/plot_statistics in plotters.py and
+Specimen.label in specimen/models/base.py):
+
+- **Difference curve below each specimen plot:** when the specimen has a
+  calculated pattern and `display_residuals` (or `display_derivatives`)
+  is on, the specimen's allocated slot splits - the patterns keep the TOP
+  65% (`spec_scale *= 0.65`, pattern offset shifted up by the band
+  height) and the BOTTOM 35% becomes the statistics band
+  (`stats_height = 0.35 * spec_reqst_height`). The residual pattern
+  (experimental − calculated, `specimen.statistics.residual_pattern`) is
+  drawn CENTERED in that band: offset + 0.5·height, scale =
+  spec_scale · 0.5 · `display_residual_scale`, alpha 0.75. With
+  `display_derivatives`, the derivative patterns (der_residual, der_exp,
+  der_calc) draw in the same band at alpha 0.65.
+- **Residuals/GoF under the sample name:** with `display_stats_in_lbl`
+  on, the left-margin label becomes multi-line:
+  `sample_name\nRp = x.x%\nRwp = x.x%\nGoF = x.xxx`
+  (old Specimen.label property). NOTE: the old plot label shows
+  **sample_name**, not the specimen name; MudLab2 currently labels with
+  `name` (safer while imported files may have an empty sample_name) -
+  decide at port time.
+- The statistics values (Rp, Rwp, GoF, residual/derivative patterns)
+  come from `mudlab/calculations/statistics.py` (Rp, Rpw, derive, GoF) +
+  the SpecimenStatistics model - both part of the calculation-engine
+  port.
 
 ## Look and feel (Windows-native)
 

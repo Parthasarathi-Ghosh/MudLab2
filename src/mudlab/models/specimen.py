@@ -8,10 +8,14 @@ display switches and labels.
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 from mudlab.models.properties import Prop
+
+DEFAULT_WAVELENGTH = 0.154056  # nm, CuKα1 (old settings default)
 
 
 class Specimen(QObject):
@@ -43,6 +47,24 @@ class Specimen(QObject):
         # Verbatim .mud specimen properties (goniometer, markers, ...) so
         # unmodeled parts survive load/save round-trips.
         self.raw_properties: dict = {}
+
+    @property
+    def wavelength(self) -> float:
+        """Dominant X-ray wavelength in nm (old Goniometer.wavelength:
+        the distribution's highest-fraction wavelength). Read from the
+        raw goniometer data until the goniometer model is ported."""
+        gonio = self.raw_properties.get("goniometer")
+        if isinstance(gonio, dict):
+            wld = gonio.get("properties", {}).get("wavelength_distribution")
+            if isinstance(wld, str) and wld:
+                try:
+                    rows = json.loads(wld)
+                except ValueError:
+                    rows = None
+                if rows:
+                    best = max(rows, key=lambda row: row[1])
+                    return float(best[0])
+        return DEFAULT_WAVELENGTH
 
     # ------------------------------------------------------------------
     # Pattern data (old: experimental_pattern / calculated_pattern models)

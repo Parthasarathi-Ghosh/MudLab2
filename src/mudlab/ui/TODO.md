@@ -10,6 +10,12 @@ Legend: **done** = .ui + logic exist and are wired for GUI trial;
 **partial** = done but contains placeholder slots for missing
 sub-components.
 
+Plot interactions (2026-07-07): the old MainPlotController is ported as
+PatternPlot (plot_controller.py) - scroll/Ctrl+scroll/Shift+scroll
+zoom-pan, arrow-key pan, right-click reset, crosshair + drag Δ2θ/Δd
+measurement, eye-dropper sampling, and the live 2θ/d/Ie/Ic status
+readout (calculations/goniometer.py, Specimen.wavelength).
+
 Model status (2026-07-07): Project + Specimen Qt-signal models exist
 (mudlab/models/); the specimens dock, plot stack, window title, Edit
 Project and Edit Specimen dialogs are live against them, and Import
