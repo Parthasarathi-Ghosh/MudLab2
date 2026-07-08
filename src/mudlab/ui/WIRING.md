@@ -316,6 +316,50 @@ with the specimen model port.
   `entry_width`/`entry_height`/`entry_dpi`), then the native save dialog
   follows (with the plot controller port).
 
+## Markers: Edit Markers + Detect Peaks + Match Minerals
+
+- **Edit Markers** (`edit_markers_dialog.py`) subclasses ObjectStoreDialog
+  (title "Edit Markers - <specimen>", columns Marker | Position) and hosts
+  `edit_marker_widget.py` (`EditMarkerWidget`, design `edit_marker.ui`,
+  old `specimen/glade/edit_marker.glade`). The old EditMarkersView put a
+  find_peaks.glade vbox under the list; here `btn_find_peaks` /
+  `btn_match_minerals` go in the shell's `extraLayout`. Opened by
+  `actionEditMarkers` and the context menu for the current single
+  specimen; rebuilt per open so it targets that specimen. Match minerals
+  is disabled until a marker is selected (old set_selection_state).
+- **EditMarkerWidget** fields keep old ids: `marker_label`,
+  `spb_position`/`spb_nanometer` (2θ <-> nm) + `cmd_sample` (eye-dropper),
+  `marker_visible`, and appearance/connector/offset groups with the same
+  inherit ("default") checkboxes as the project marker settings
+  (`marker_inherit_*` disable their paired editors). Choice maps
+  (MARKER_STYLES/ALIGNS/BASES/TOPS) match settings.py. Deferred: the old
+  `update_nanometer` two-way sync between `spb_position` (°2θ) and
+  `spb_nanometer` (nm) needs the specimen wavelength - wire with the
+  marker model port.
+- **Detect Peaks** (`detect_peaks_dialog.py`, `find_peaks_dialog.ui`, old
+  find_peaks_dialog.glade): modal; pattern/algorithm combos, threshold +
+  steps + #peaks, and the # peaks-vs-threshold histogram canvas in
+  `graphLayout`. Detection runs with the calc-engine port.
+- **Match Minerals** (`match_minerals_dialog.py`, `match_minerals.ui`, old
+  match_minerals.glade): NON-modal (old view kept it above the main
+  window so the plot stays interactive). All-minerals list (placeholder,
+  from the future mineral_references.csv port) <-> matched list with
+  transfer buttons; auto-match and append-labels run with the reference
+  data port. Button ids follow the old glade: `btn_rtl` = add (minerals
+  -> matches, `on_add_match_clicked`), `btn_ltr` = remove
+  (`on_del_match_clicked`). `min_distance` in Detect Peaks is hidden (old
+  prominence-algorithm-only field; MudLab2 offers Threshold only).
+
+## Specimens context menu (old specimen_popup)
+
+`main_window._build_specimens_menu()` builds the right-click menu on the
+specimens dock tree (context-menu policy set in `_setup_specimens_panel`):
+Add Specimen, Import Specimens, then Edit specimen / Edit markers / View
+statistics (enabled only for a SINGLE selected specimen) and Remove
+specimen (any non-empty selection, with a confirm dialog). View
+statistics opens the StatisticsDialog (zeros until the statistics port).
+Old context-menu-only actions still pending: Replace data, Export data.
+
 # main_window.ui
 
 Ported from the GTK main window of the original MudLab

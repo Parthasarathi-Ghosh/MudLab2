@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditMarkerWidget</class>
+ <widget class="QWidget" name="EditMarkerWidget">
+  <layout class="QVBoxLayout" name="markerLayout">
+   <item>
+    <layout class="QFormLayout" name="markerForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_lbl">
+       <property name="text">
+        <string>Label</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="marker_label"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="position_lbl">
+       <property name="text">
+        <string>Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="positionRow">
+       <item>
+        <widget class="QDoubleSpinBox" name="spb_position">
+         <property name="suffix">
+          <string> °2θ</string>
+         </property>
+         <property name="decimals">
+          <number>4</number>
+         </property>
+         <property name="maximum">
+          <double>180.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="spb_nanometer">
+         <property name="suffix">
+          <string> nm</string>
+         </property>
+         <property name="decimals">
+          <number>5</number>
+         </property>
+         <property name="maximum">
+          <double>1000.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cmd_sample">
+         <property name="toolTip">
+          <string>Select the position directly on the pattern</string>
+         </property>
+         <property name="text">
+          <string>Sample</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="marker_visible">
+       <property name="text">
+        <string>Visible</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpAppearance">
+     <property name="title">
+      <string>Appearance</string>
+     </property>
+     <layout class="QFormLayout" name="appearanceForm">
+      <item row="0" column="0">
+       <widget class="QLabel" name="colour_lbl">
+        <property name="text">
+         <string>Colour</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="colorRow">
+        <item>
+         <widget class="QPushButton" name="marker_color">
+          <property name="text">
+           <string>#000000</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_color">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="line_lbl">
+        <property name="text">
+         <string>Line style</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="styleRow">
+        <item>
+         <widget class="QComboBox" name="marker_style">
+          <item>
+           <property name="text">
+            <string>None</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Solid</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Dash</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Dotted</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Dash-Dotted</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Display at Y-offset</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_style">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="angle_lbl">
+        <property name="text">
+         <string>Label Angle</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <layout class="QHBoxLayout" name="angleRow">
+        <item>
+         <widget class="QDoubleSpinBox" name="spb_angle">
+          <property name="suffix">
+           <string> °</string>
+          </property>
+          <property name="decimals">
+           <number>2</number>
+          </property>
+          <property name="minimum">
+           <double>-360.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>360.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_angle">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="align_lbl">
+        <property name="text">
+         <string>Label alignment</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="alignRow">
+        <item>
+         <widget class="QComboBox" name="marker_align">
+          <item>
+           <property name="text">
+            <string>Left align</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Centered</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Right align</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_align">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpConnector">
+     <property name="title">
+      <string>Connector line</string>
+     </property>
+     <layout class="QFormLayout" name="connectorForm">
+      <item row="0" column="0">
+       <widget class="QLabel" name="base_lbl">
+        <property name="text">
+         <string>Line base</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="baseRow">
+        <item>
+         <widget class="QComboBox" name="marker_base">
+          <item>
+           <property name="text">
+            <string>X-axis</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Experimental profile</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Calculated profile</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Lowest of both</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Highest of both</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_base">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="top_lbl">
+        <property name="text">
+         <string>Line top</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="topRow">
+        <item>
+         <widget class="QComboBox" name="marker_top">
+          <item>
+           <property name="text">
+            <string>Relative to base</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Top of plot</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_top">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="offset_lbl">
+        <property name="text">
+         <string>Offset from base</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <layout class="QHBoxLayout" name="topOffsetRow">
+        <item>
+         <widget class="QDoubleSpinBox" name="spb_top_offset">
+          <property name="decimals">
+           <number>4</number>
+          </property>
+          <property name="minimum">
+           <double>-1000000.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>1000000.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="marker_inherit_top_offset">
+          <property name="text">
+           <string>default</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpOffsets">
+     <property name="title">
+      <string>Label offset</string>
+     </property>
+     <layout class="QFormLayout" name="offsetsForm">
+      <item row="0" column="0">
+       <widget class="QLabel" name="lbl_offset_x">
+        <property name="text">
+         <string>X Offset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QDoubleSpinBox" name="spb_x_offset">
+        <property name="suffix">
+         <string> °2θ</string>
+        </property>
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lbl_offset_y">
+        <property name="text">
+         <string>Y Offset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="spb_y_offset">
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="minimum">
+         <double>-1000.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1000.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.050000000000000</double>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

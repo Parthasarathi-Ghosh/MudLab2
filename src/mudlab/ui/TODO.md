@@ -61,11 +61,11 @@ goniometer, and markers remain placeholder-driven in their editors.
 - [ ] Edit Atom Contents dialog - phases/glade/contents.glade (modal)
 - [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
 
-### Markers
-- [ ] Edit Markers window - EditMarkersView (specimen/views/markers.py)
-- [ ] Edit Marker dialog - specimen/glade/edit_marker.glade
-- [ ] Detect peaks - specimen/glade/find_peaks.glade + find_peaks_dialog.glade
-- [ ] Match minerals - specimen/glade/match_minerals.glade
+### Markers (done - editors)
+- [x] Edit Markers window - edit_markers_dialog.py (object-store shell + find peaks / match minerals extra row); EditMarkersView
+- [x] Edit Marker fields - edit_marker.ui, edit_marker_widget.py (specimen/glade/edit_marker.glade)
+- [x] Detect peaks - find_peaks_dialog.ui, detect_peaks_dialog.py (threshold histogram placeholder; detection with the calc-engine port)
+- [x] Match minerals - match_minerals.ui, match_minerals_dialog.py (placeholder mineral list; auto-match/append with the mineral-reference port)
 
 ### Goniometer
 - [ ] Wavelength distribution editor - goniometer/glade/wavelength_distribution.glade (opened by the goniometer component's Edit emission spectrum button)
@@ -82,7 +82,7 @@ goniometer, and markers remain placeholder-driven in their editors.
 
 ### Other
 - [ ] CSV import options - generic/views/glade/csv_import.glade
-- [ ] Specimens context menu - specimen_popup in project/glade/project.glade (on the specimens dock tree)
+- [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)
 - [ ] About dialog branding + window/app icons - application/icons/
 - [ ] Splash screen - application/splash.py (optional)
 

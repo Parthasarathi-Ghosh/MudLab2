@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QStyleFactory,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 from mudlab import APP_NAME, __version__
 from mudlab.calculations import get_nm_from_2t
 from mudlab.edit_atom_types_dialog import EditAtomTypesDialog
+from mudlab.edit_markers_dialog import EditMarkersDialog
 from mudlab.edit_mixtures_dialog import EditMixturesDialog
 from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.edit_project_dialog import EditProjectDialog
@@ -46,7 +48,11 @@ from mudlab.line_dialogs import (
 )
 from mudlab.models import Project, Specimen
 from mudlab.plot_controller import PatternPlot
-from mudlab.specimen_dialogs import SaveGraphSizeDialog, TrimDataDialog
+from mudlab.specimen_dialogs import (
+    SaveGraphSizeDialog,
+    StatisticsDialog,
+    TrimDataDialog,
+)
 from mudlab.specimens_model import SpecimensModel
 from mudlab.ui.ui_main_window import Ui_MainWindow
 
@@ -92,6 +98,7 @@ class MainWindow(QMainWindow):
         self._edit_phases_dialog: EditPhasesDialog | None = None
         self._edit_atom_types_dialog: EditAtomTypesDialog | None = None
         self._edit_mixtures_dialog: EditMixturesDialog | None = None
+        self._edit_markers_dialog: EditMarkersDialog | None = None
 
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
@@ -105,6 +112,7 @@ class MainWindow(QMainWindow):
         self.ui.actionZoomReset.triggered.connect(self._zoom_reset)
         self.ui.actionCrosshair.toggled.connect(self._on_crosshair_toggled)
         self.ui.actionSamplePoint.triggered.connect(self._start_sampling)
+        self.ui.actionEditMarkers.triggered.connect(self._show_edit_markers)
         self.ui.actionEditProject.triggered.connect(self._show_edit_project)
         self.ui.actionEditPhases.triggered.connect(self._show_edit_phases)
         self.ui.actionEditAtomTypes.triggered.connect(self._show_edit_atom_types)
@@ -452,6 +460,45 @@ class MainWindow(QMainWindow):
         # Old app: double-click (row-activated) opened Edit Specimen.
         self.ui.specimensTree.doubleClicked.connect(self._on_specimen_double_clicked)
 
+        # Old specimen_popup context menu on the specimens tree.
+        self.ui.specimensTree.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.ui.specimensTree.customContextMenuRequested.connect(
+            self._show_specimens_menu
+        )
+
+    def _build_specimens_menu(self) -> QMenu:
+        """Old specimen_popup: add/import, then per-specimen actions."""
+        specimens = self._selected_specimens()
+        single = len(specimens) == 1
+        menu = QMenu(self)
+        menu.addAction(self.ui.actionAddSpecimen)
+        menu.addAction(self.ui.actionImportSpecimens)
+        menu.addSeparator()
+
+        act_edit = menu.addAction("Edit specimen")
+        act_edit.setEnabled(single)
+        act_edit.triggered.connect(lambda: self._show_edit_specimen(specimens[0]))
+
+        act_markers = menu.addAction("Edit markers")
+        act_markers.setEnabled(single)
+        act_markers.triggered.connect(self._show_edit_markers)
+
+        act_stats = menu.addAction("View statistics")
+        act_stats.setEnabled(single)
+        act_stats.triggered.connect(lambda: self._show_statistics(specimens[0]))
+
+        menu.addSeparator()
+        act_remove = menu.addAction("Remove specimen")
+        act_remove.setEnabled(bool(specimens))
+        act_remove.triggered.connect(lambda: self._remove_specimens(specimens))
+        return menu
+
+    def _show_specimens_menu(self, pos) -> None:
+        menu = self._build_specimens_menu()
+        menu.exec(self.ui.specimensTree.viewport().mapToGlobal(pos))
+
     def select_specimen_row(self, row: int) -> None:
         if 0 <= row < self.specimens_model.rowCount():
             self.ui.specimensTree.setCurrentIndex(self.specimens_model.index(row, 0))
@@ -476,6 +523,39 @@ class MainWindow(QMainWindow):
         specimen = Specimen(name=f"Specimen {len(self.project.specimens) + 1}")
         self.project.add_specimen(specimen)
         self.select_specimen_row(self.specimens_model.rowCount() - 1)
+
+    def _remove_specimens(self, specimens: list[Specimen]) -> None:
+        if not specimens:
+            return
+        count = len(specimens)
+        what = specimens[0].name if count == 1 else f"{count} specimens"
+        if QMessageBox.question(
+            self, "Remove Specimen",
+            f"Remove {what} from the project?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        # Row to land on afterwards: the first removed specimen's position,
+        # clamped to what remains (rebuilding the dock model clears the
+        # tree selection, so restore a sensible one - old app kept one).
+        try:
+            landing_row = min(self.project.specimens.index(s) for s in specimens)
+        except ValueError:
+            landing_row = 0
+        for specimen in specimens:
+            self.project.remove_specimen(specimen)
+        remaining = self.specimens_model.rowCount()
+        if remaining:
+            self.select_specimen_row(min(landing_row, remaining - 1))
+        else:
+            self.show_specimen_plots([])
+
+    def _show_statistics(self, specimen: Specimen) -> None:
+        # Old view_statistics action (specimens context menu). Values arrive
+        # with the statistics calculation port; the dialog shows zeros now.
+        dialog = StatisticsDialog(self)
+        dialog.setWindowTitle(f"Statistics - {specimen.name}")
+        dialog.exec()
 
     def _import_specimens(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
@@ -557,6 +637,20 @@ class MainWindow(QMainWindow):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _show_edit_markers(self) -> None:
+        # Old edit_markers action: markers belong to the current specimen.
+        specimens = self._selected_specimens()
+        if len(specimens) != 1:
+            return
+        # Rebuilt each time so it targets the current specimen (old app
+        # reset the markers view per specimen selection).
+        if self._edit_markers_dialog is not None:
+            self._edit_markers_dialog.close()
+        self._edit_markers_dialog = EditMarkersDialog(
+            self, specimen_name=specimens[0].name
+        )
+        self._edit_markers_dialog.show()
 
     # ------------------------------------------------------------------
     # Status bar
