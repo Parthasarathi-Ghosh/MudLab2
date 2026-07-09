@@ -92,6 +92,10 @@ class Project(QObject):
                 return atom_type
         return None
 
+    def atom_type_uuid_map(self) -> dict:
+        """uuid -> AtomType, for resolving atom references in components."""
+        return {at.uuid: at for at in self._atom_types}
+
     # ------------------------------------------------------------------
     # Specimens
     # ------------------------------------------------------------------

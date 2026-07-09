@@ -46,7 +46,15 @@ port, produces the calculated pattern from scratch):
   Specimen Goniometer tab bound to the real model. Specimen.wavelength now
   comes from the model. Verified LP factor falls off with angle; get_S
   matches the formula.
-- [ ] Batch 3: component structure factor (unit cell + layer/interlayer atoms)
+- [x] Batch 3: component structure factor - calculations/components.py
+  (get_factors: sums atom structure factors over layer + interlayer atoms,
+  recalculating interlayer z from the d-spacing z_factor, plus the phase
+  term). Atom + Component models (models/component.py) load from the .mud
+  and resolve atom references by uuid (project.atom_type_uuid_map). Calc
+  groundwork only - the component editor UI is wired with the phase-editor
+  port, so phases/components still save verbatim. Verified against the
+  Illite component: 11 atoms resolve, |SF| falls off with angle, intensity
+  is finite/non-negative.
 - [ ] Batch 4: CSDS distribution + stacking probabilities (Markovian)
 - [ ] Batch 5: phase intensity (recursive stacking)
 - [ ] Batch 6: mixture -> specimen calculated pattern + Calculate action
