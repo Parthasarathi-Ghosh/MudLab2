@@ -30,7 +30,14 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import QSizePolicy
 
-from mudlab.chart_style import INK_MUTED, INK_PRIMARY, INK_SECONDARY, SURFACE, style_axes
+from mudlab.chart_style import (
+    GRIDLINE,
+    INK_MUTED,
+    INK_PRIMARY,
+    INK_SECONDARY,
+    SURFACE,
+    style_axes,
+)
 from mudlab.models import Project, Specimen
 
 PLOT_MIN_HEIGHT = 340
@@ -40,6 +47,7 @@ PAN_FRACTION = 0.1  # old _pan_x step: 10% of the visible span
 
 CROSSHAIR_COLOR = "#555555"
 HIGHLIGHT_COLOR = "#FF6600"
+RESIDUAL_COLOR = "#7048a8"  # difference-curve violet (Rietveld convention)
 
 
 def _max_display_y(specimen: Specimen) -> float:
@@ -160,6 +168,24 @@ class PatternPlot:
                 (1.0 / spec_max) if (ynormalize == 1 and spec_max != 0.0) else scale
             ) * specimen.display_vscale
             spec_y_pos = (current_y_pos + specimen.display_vshift) * scale_unit
+
+            # Statistics band (old plot_specimens): when a calculated pattern
+            # exists and residuals/derivatives are shown, the bottom 35% of
+            # the specimen's slot holds the difference curve and the patterns
+            # take the top 65%.
+            spec_reqst_height = scale_unit * specimen.display_vscale
+            show_stats_band = (
+                specimen.display_calculated
+                and specimen.has_calculated_data
+                and (specimen.display_residuals or specimen.display_derivatives)
+            )
+            if show_stats_band:
+                stats_height = 0.35 * spec_reqst_height
+                self._draw_stats_band(
+                    specimen, spec_scale * 0.65, spec_y_pos, stats_height
+                )
+                spec_y_pos = spec_y_pos + stats_height
+                spec_scale = spec_scale * 0.65
 
             if specimen.display_experimental and specimen.has_experimental_data:
                 x, y = specimen.experimental_pattern
@@ -320,6 +346,37 @@ class PatternPlot:
                 color=color, clip_on=True, zorder=9, fontsize="small",
             )
             self._register_marker_artist(label_artist, marker)
+
+    def _draw_stats_band(self, specimen, spec_scale, stats_y_pos, stats_height) -> None:
+        """Difference curve(s) centered in the stats band (old plot_statistics).
+
+        Residual/derivative patterns plot with the pattern zero-line at the
+        band's middle, scaled by half the (reduced) specimen scale times the
+        residual scale factor.
+        """
+        stats = specimen.statistics
+        band_scale = spec_scale * 0.5 * specimen.display_residual_scale
+        band_offset = stats_y_pos + 0.5 * stats_height
+
+        # Faint zero line so the difference curve reads as its own panel.
+        self.axes.axhline(
+            band_offset, color=GRIDLINE, linewidth=0.6, zorder=1,
+            xmin=0, xmax=1,
+        )
+        if specimen.display_residuals:
+            rx, ry = stats.residual_pattern
+            if rx.size > 1:
+                self.axes.plot(
+                    rx, ry * band_scale + band_offset,
+                    color=RESIDUAL_COLOR, linewidth=0.6, alpha=0.75, zorder=7,
+                )
+        if specimen.display_derivatives:
+            dx, dy = stats.derivative_residual()
+            if dx.size > 1:
+                self.axes.plot(
+                    dx, dy * band_scale + band_offset,
+                    color=RESIDUAL_COLOR, linewidth=0.6, alpha=0.65, zorder=7,
+                )
 
     def _register_marker_artist(self, artist, marker) -> None:
         # Only pickable when a selection handler is wired (old ClickCatcher).

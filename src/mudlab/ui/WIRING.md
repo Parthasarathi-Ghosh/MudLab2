@@ -356,9 +356,20 @@ the Statistics dialog/GoF label are skipped. Wired into:
   `display_stats_in_lbl`, the left-margin label appends
   `Rp = x%% / Rwp = x%% / GoF = x.xxx` (old Specimen.label).
 
+- **Residual difference band** (`PatternPlot._draw_stats_band`, port of
+  old plot_statistics): when a specimen has a calculated pattern and
+  `display_residuals`/`display_derivatives` is on, its slot splits - the
+  patterns take the top 65% (spec_scale ×0.65, offset raised by the band
+  height) and the bottom 35% holds the difference curve (exp − calc for
+  residuals, or the derivative residual), drawn centered on a faint zero
+  line, scaled by half the reduced spec_scale × `display_residual_scale`,
+  in the Rietveld-convention violet `RESIDUAL_COLOR`. No band for
+  no-calc specimens.
+
 Not yet: exclusion-range masking of the R-factors (old
 get_exclusion_selector; exclusion ranges aren't modeled yet, samples have
-none) and the residual/derivative difference band on the plot.
+none), and the separate der_exp/der_calc derivative curves (only the
+derivative residual is drawn).
 
 ## Marker model (mudlab/models/marker.py)
 

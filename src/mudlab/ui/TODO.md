@@ -26,6 +26,14 @@ draw/edit/save for real. Project New/Open/Save/Save As work with the old
 goniometers). Phases, mixtures, atom types, and goniometer remain
 placeholder-driven in their editors.
 
+Calculation engine (2026-07-08): the fit-statistics groundwork is ported
+(calculations/statistics.py + math_tools.smooth; SpecimenStatistics via
+Specimen.statistics) - real Rp/Rwp/Re/R²/GoF drive the Statistics dialog,
+the GoF-in-label option, and the 65/35 residual difference band on the
+plot. Still to port: exclusion-range masking, and the pattern-calculation
+engine itself (structure-factor/mixture math that produces the calculated
+pattern - the biggest remaining analytics port).
+
 ## Recreated
 
 | Component | New files | Old source | Status |
