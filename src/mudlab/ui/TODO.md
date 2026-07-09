@@ -64,7 +64,16 @@ port, produces the calculated pattern from scratch):
   groundwork - CSDS/probabilities editors wire with the phase-editor port.
   Verified: CSDS sums to 1 with a sensible mean; mixed-layer IS phases
   give W=[0.8, 0.2] (80/20 illite-smectite) with valid stochastic P.
-- [ ] Batch 5: phase intensity (recursive stacking)
+- [x] Batch 5: phase intensity (recursive stacking) - calculations/phases.py
+  (get_intensity: folds component structure factors + CSDS distribution +
+  W/P stacking matrices into a phase's diffracted intensity via the Drits
+  recursive stacking summation, then applies the LP factor) and the calc
+  Phase model (models/phase.py: G/components/CSDS/probabilities/sigma_star,
+  loaded from the .mud, saved verbatim until the phase editor is wired).
+  math_tools.mmult + Component volume/weight + R0Probability.valid added.
+  Verified against both sample projects: illite 10.1 A, kaolinite 7.2 A,
+  chlorite 7.1 A, and the mixed-layer / smectite phases reproduce the
+  AD -> EG -> 350C sequence (15 A -> 17 A -> 10 A) exactly.
 - [ ] Batch 6: mixture -> specimen calculated pattern + Calculate action
 - [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
 

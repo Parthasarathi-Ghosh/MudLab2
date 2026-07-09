@@ -42,6 +42,18 @@ class R0Probability:
         # Independent stacking: every row of P is the weight-fraction vector.
         self._P = np.tile(mW, (G, 1))
 
+    @property
+    def valid(self) -> bool:
+        """Whether W and P are valid (old phase.valid_probs = all W_valid and
+        all P_valid). For R0 that means the weight fractions lie in [0, 1] and
+        sum to 1, and every P row is stochastic."""
+        mW = np.diag(self._W)
+        if np.any(mW < 0.0) or np.any(mW > 1.0):
+            return False
+        if not np.isclose(np.sum(mW), 1.0):
+            return False
+        return bool(np.allclose(np.sum(self._P, axis=1), 1.0))
+
     def get_distribution_matrix(self) -> np.ndarray:
         return self._W
 

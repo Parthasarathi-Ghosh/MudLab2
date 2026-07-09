@@ -66,6 +66,7 @@ class Project(QObject):
             self.name = name
         self._specimens: list[Specimen] = []
         self._atom_types: list = []
+        self._phases: list = []
         # File-related plain attributes (not persisted properties):
         # raw_properties keeps the full .mud property dict verbatim so that
         # parts MudLab2 does not model yet survive load/save round-trips.
@@ -95,6 +96,17 @@ class Project(QObject):
     def atom_type_uuid_map(self) -> dict:
         """uuid -> AtomType, for resolving atom references in components."""
         return {at.uuid: at for at in self._atom_types}
+
+    # ------------------------------------------------------------------
+    # Phases (calc models; still saved verbatim via raw passthrough)
+    # ------------------------------------------------------------------
+    @property
+    def phases(self) -> tuple:
+        return tuple(self._phases)
+
+    def add_phase(self, phase) -> "object":
+        self._phases.append(phase)
+        return phase
 
     # ------------------------------------------------------------------
     # Specimens

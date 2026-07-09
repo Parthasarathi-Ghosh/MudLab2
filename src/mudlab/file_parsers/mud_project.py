@@ -23,7 +23,7 @@ import zipfile
 
 import numpy as np
 
-from mudlab.models import AtomType, Goniometer, Marker, Project, Specimen
+from mudlab.models import AtomType, Goniometer, Marker, Phase, Project, Specimen
 
 # Version tag written for new files (old-app format version we are
 # compatible with); round-trips preserve the loaded tag.
@@ -98,6 +98,14 @@ def load_mud(path: str) -> Project:
     for atom_dict in properties.get("atom_types") or []:
         if isinstance(atom_dict, dict):
             project.add_atom_type(AtomType.from_dict(atom_dict))
+
+    # Phases are calc models (atoms resolve against the atom-type uuid map,
+    # so load them after the atom types). Still saved verbatim from
+    # raw_properties, so only regular Phase entries are modeled for now.
+    atom_type_map = project.atom_type_uuid_map()
+    for phase_dict in properties.get("phases") or []:
+        if isinstance(phase_dict, dict) and phase_dict.get("type") == "Phase":
+            project.add_phase(Phase.from_dict(phase_dict, atom_type_map))
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})

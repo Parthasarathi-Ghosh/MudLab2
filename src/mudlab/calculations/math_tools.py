@@ -19,6 +19,14 @@ def lognormal(T, a, b):
     return exp(-(log(T) - a) ** 2 / (2.0 * (b ** 2))) / (sqrt2pi * abs(b) * T)
 
 
+def mmult(A, B):
+    """Batched matrix multiply: A[i]·B[i] over the leading axis.
+
+    Used by the phase-intensity stacking summation to multiply the stack of
+    per-(2θ) matrices (old math_tools.mmult)."""
+    return np.einsum("ijk,ikl->ijl", A, B)
+
+
 def smooth(x: np.ndarray, half_window_len: int = 3, window: str = "blackman") -> np.ndarray:
     """Smooth a 1D signal by convolving it with a scaled window.
 
