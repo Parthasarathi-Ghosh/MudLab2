@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from math import pi, sqrt
+from math import exp, log, pi, sqrt
 
 import numpy as np
 
@@ -12,6 +12,11 @@ sqrt2pi = sqrt(2 * pi)
 sqrt8 = sqrt(8)
 
 _WINDOWS = ("flat", "hanning", "hamming", "bartlett", "blackman")
+
+
+def lognormal(T, a, b):
+    """Log-normal probability density (old math_tools.lognormal)."""
+    return exp(-(log(T) - a) ** 2 / (2.0 * (b ** 2))) / (sqrt2pi * abs(b) * T)
 
 
 def smooth(x: np.ndarray, half_window_len: int = 3, window: str = "blackman") -> np.ndarray:

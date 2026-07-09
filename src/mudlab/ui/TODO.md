@@ -55,7 +55,15 @@ port, produces the calculated pattern from scratch):
   port, so phases/components still save verbatim. Verified against the
   Illite component: 11 atoms resolve, |SF| falls off with angle, intensity
   is finite/non-negative.
-- [ ] Batch 4: CSDS distribution + stacking probabilities (Markovian)
+- [x] Batch 4: CSDS distribution + stacking probabilities - the Drits
+  log-normal CSDS (calculations/csds.py + models/csds.py; average stored,
+  Drits constants fixed, min/max derived) and the R0 (independent)
+  stacking model (models/probabilities.py: (G-1) F params -> g×g W
+  diagonal + P transition matrices). Only R0 is ported (all samples are
+  R0G1/R0G2); R1-R3 Markovian models come when a project needs them. Calc
+  groundwork - CSDS/probabilities editors wire with the phase-editor port.
+  Verified: CSDS sums to 1 with a sensible mean; mixed-layer IS phases
+  give W=[0.8, 0.2] (80/20 illite-smectite) with valid stochastic P.
 - [ ] Batch 5: phase intensity (recursive stacking)
 - [ ] Batch 6: mixture -> specimen calculated pattern + Calculate action
 - [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
