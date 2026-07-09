@@ -647,9 +647,7 @@ class MainWindow(QMainWindow):
         # reset the markers view per specimen selection).
         if self._edit_markers_dialog is not None:
             self._edit_markers_dialog.close()
-        self._edit_markers_dialog = EditMarkersDialog(
-            self, specimen_name=specimens[0].name
-        )
+        self._edit_markers_dialog = EditMarkersDialog(self, specimen=specimens[0])
         self._edit_markers_dialog.show()
 
     # ------------------------------------------------------------------

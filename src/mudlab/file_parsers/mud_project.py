@@ -23,7 +23,7 @@ import zipfile
 
 import numpy as np
 
-from mudlab.models import Project, Specimen
+from mudlab.models import Marker, Project, Specimen
 
 # Version tag written for new files (old-app format version we are
 # compatible with); round-trips preserve the loaded tag.
@@ -113,6 +113,11 @@ def load_mud(path: str) -> Project:
                 if x.size:
                     setter(x, y)
         project.add_specimen(specimen)
+        # Markers are now modeled; add them after the specimen has a project
+        # so inheritance resolves.
+        for marker_dict in spec_props.get("markers") or []:
+            if isinstance(marker_dict, dict):
+                specimen.add_marker(Marker.from_dict(marker_dict))
 
     return project
 
@@ -167,6 +172,8 @@ def _specimen_to_dict(specimen: Specimen) -> dict:
     for prop in SPECIMEN_PROPS:
         props[prop] = getattr(specimen, prop)
     props.setdefault("uuid", uuid.uuid4().hex)
+    # Markers are modeled: write the live list back.
+    props["markers"] = [marker.to_dict() for marker in specimen.markers]
 
     # Experimental pattern: update the data inside the (possibly raw) line
     # object so unmodeled line properties (color, lw, inherits, z_data)

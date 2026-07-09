@@ -44,9 +44,35 @@ class Specimen(QObject):
         self._exp_y = np.empty(0)
         self._calc_x = np.empty(0)
         self._calc_y = np.empty(0)
-        # Verbatim .mud specimen properties (goniometer, markers, ...) so
-        # unmodeled parts survive load/save round-trips.
+        self._markers: list = []
+        self.project = None  # set by Project.add_specimen
+        # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
+        # parts survive load/save round-trips.
         self.raw_properties: dict = {}
+
+    # ------------------------------------------------------------------
+    # Markers
+    # ------------------------------------------------------------------
+    @property
+    def markers(self) -> tuple:
+        return tuple(self._markers)
+
+    def add_marker(self, marker) -> "object":
+        marker._specimen = self
+        marker.setParent(self)
+        marker.visuals_changed.connect(self.visuals_changed)
+        self._markers.append(marker)
+        self.visuals_changed.emit()
+        return marker
+
+    def remove_marker(self, marker) -> None:
+        if marker in self._markers:
+            marker.visuals_changed.disconnect(self.visuals_changed)
+            self._markers.remove(marker)
+            marker._specimen = None
+            marker.setParent(None)
+            marker.deleteLater()
+            self.visuals_changed.emit()
 
     @property
     def wavelength(self) -> float:

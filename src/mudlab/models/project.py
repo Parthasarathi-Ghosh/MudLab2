@@ -81,6 +81,7 @@ class Project(QObject):
 
     def add_specimen(self, specimen: Specimen) -> Specimen:
         specimen.setParent(self)
+        specimen.project = self
         specimen.data_changed.connect(self.data_changed)
         specimen.visuals_changed.connect(self.visuals_changed)
         self._specimens.append(specimen)
@@ -92,6 +93,7 @@ class Project(QObject):
             specimen.data_changed.disconnect(self.data_changed)
             specimen.visuals_changed.disconnect(self.visuals_changed)
             self._specimens.remove(specimen)
+            specimen.project = None
             specimen.setParent(None)
             specimen.deleteLater()
             self.specimens_changed.emit()

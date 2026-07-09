@@ -16,13 +16,14 @@ zoom-pan, arrow-key pan, right-click reset, crosshair + drag Δ2θ/Δd
 measurement, eye-dropper sampling, and the live 2θ/d/Ie/Ic status
 readout (calculations/goniometer.py, Specimen.wavelength).
 
-Model status (2026-07-07): Project + Specimen Qt-signal models exist
-(mudlab/models/); the specimens dock, plot stack, window title, Edit
-Project and Edit Specimen dialogs are live against them, and Import
-Specimens loads real text XY/CSV patterns. Project New/Open/Save/Save As
-work with the old .mud format (data-preserving round-trip incl. phases/
-mixtures/atom types/goniometers/markers). Phases, mixtures, atom types,
-goniometer, and markers remain placeholder-driven in their editors.
+Model status (2026-07-08): Project + Specimen + Marker Qt-signal models
+exist (mudlab/models/); the specimens dock, plot stack, window title,
+Edit Project / Edit Specimen / Edit Markers dialogs are live against
+them, Import Specimens loads real text XY/CSV patterns, and markers load/
+draw/edit/save for real. Project New/Open/Save/Save As work with the old
+.mud format (data-preserving round-trip incl. phases/mixtures/atom types/
+goniometers). Phases, mixtures, atom types, and goniometer remain
+placeholder-driven in their editors.
 
 ## Recreated
 

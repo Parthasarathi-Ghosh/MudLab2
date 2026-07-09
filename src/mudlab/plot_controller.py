@@ -136,6 +136,7 @@ class PatternPlot:
         group_counter = 0
         ylim_top = scale_unit
         lines = 0
+        marker_specs: list[tuple] = []
 
         for specimen in self.specimens:
             spec_max = _max_display_y(specimen)
@@ -178,6 +179,11 @@ class PatternPlot:
                 color=INK_PRIMARY, fontsize="medium",
             )
 
+            for marker in specimen.markers:
+                marker_specs.append(
+                    (marker, specimen, spec_scale, spec_y_pos, scale_unit)
+                )
+
             ylim_top = current_y_pos * scale_unit + scale_unit
             group_counter += 1
             if group_counter >= group_by:
@@ -207,6 +213,11 @@ class PatternPlot:
         if not project.axes_yvisible:
             axes.spines["left"].set_visible(False)
             axes.grid(False, axis="y")
+
+        # Markers, once the y-range is fixed (top-of-plot markers need it).
+        for spec in marker_specs:
+            self._draw_marker(*spec, xlim=xlim, y_top=ylim_top)
+
         if lines == 0:
             axes.text(
                 0.5, 0.5, "No pattern data",
@@ -219,6 +230,71 @@ class PatternPlot:
         # Old controller (controllers.py:108): the axes never autoscale, so
         # crosshair/highlight artists can never alter the view ranges.
         axes.set_autoscale_on(False)
+
+    # matplotlib line styles by marker style value (none/offset draw no line).
+    _MARKER_LINE_STYLES = {
+        "solid": "-", "dashed": "--", "dotted": ":", "dashdot": "-.",
+    }
+
+    def _plotted_y(self, specimen, position, scale, y_pos, pattern) -> float:
+        x, y = pattern
+        if x.size < 2:
+            return y_pos
+        return float(np.interp(position, x, y)) * scale + y_pos
+
+    def _draw_marker(self, marker, specimen, scale, y_pos, unit, xlim, y_top) -> None:
+        """Port of the old plot_marker_line + plot_marker_text."""
+        if not marker.visible:
+            return
+        position = marker.position
+        # Old within_range: honor manual x-limits.
+        if self.project.axes_xlimit == 1 and not (xlim[0] <= position <= xlim[1]):
+            return
+
+        # base_y: where the connector starts (old plot_markers).
+        base = marker.effective_base
+        if base == 1:
+            base_y = self._plotted_y(specimen, position, scale, y_pos,
+                                     specimen.experimental_pattern)
+        elif base == 2:
+            base_y = self._plotted_y(specimen, position, scale, y_pos,
+                                     specimen.calculated_pattern)
+        elif base in (3, 4):
+            exp = self._plotted_y(specimen, position, scale, y_pos,
+                                  specimen.experimental_pattern)
+            calc = self._plotted_y(specimen, position, scale, y_pos,
+                                   specimen.calculated_pattern)
+            base_y = min(exp, calc) if base == 3 else max(exp, calc)
+        else:  # 0 = X-axis (specimen baseline)
+            base_y = y_pos
+
+        color = marker.effective_color
+        style = marker.effective_style
+        top = marker.effective_top
+        top_offset = marker.effective_top_offset
+
+        # Connector line (skipped for 'none'/'offset').
+        line_style = self._MARKER_LINE_STYLES.get(style)
+        if line_style is not None:
+            y1 = y_top if top == 1 else base_y + top_offset * unit
+            self.axes.plot(
+                [position, position], [base_y, y1],
+                color=color, linestyle=line_style, linewidth=1.0, zorder=8,
+            )
+
+        # Label text (skipped for 'offset'); rotated like the old app.
+        if style != "offset":
+            text = marker.anno_label or marker.label
+            if top == 1:
+                y_text = y_top * 0.98 + marker.y_offset * unit
+            else:
+                y_text = base_y + (top_offset + marker.y_offset) * unit
+            self.axes.text(
+                position + marker.x_offset, y_text, text,
+                rotation=90 - marker.effective_angle, rotation_mode="anchor",
+                ha=marker.effective_align, va="center",
+                color=color, clip_on=True, zorder=9, fontsize="small",
+            )
 
     # ------------------------------------------------------------------
     # View state (zoom preservation across redraws, old update() logic)

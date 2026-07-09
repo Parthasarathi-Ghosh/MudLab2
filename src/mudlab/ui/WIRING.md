@@ -327,15 +327,34 @@ with the specimen model port.
   `actionEditMarkers` and the context menu for the current single
   specimen; rebuilt per open so it targets that specimen. Match minerals
   is disabled until a marker is selected (old set_selection_state).
-- **EditMarkerWidget** fields keep old ids: `marker_label`,
-  `spb_position`/`spb_nanometer` (2θ <-> nm) + `cmd_sample` (eye-dropper),
-  `marker_visible`, and appearance/connector/offset groups with the same
-  inherit ("default") checkboxes as the project marker settings
-  (`marker_inherit_*` disable their paired editors). Choice maps
-  (MARKER_STYLES/ALIGNS/BASES/TOPS) match settings.py. Deferred: the old
-  `update_nanometer` two-way sync between `spb_position` (°2θ) and
-  `spb_nanometer` (nm) needs the specimen wavelength - wire with the
-  marker model port.
+- **EditMarkerWidget** binds live to a `Marker` model (`bind_marker`):
+  edits write to the marker and the plot refreshes via visuals_changed.
+  Fields keep old ids: `marker_label`, `spb_position`/`spb_nanometer`
+  (2θ <-> nm sync is live, via the specimen wavelength), `marker_visible`,
+  and appearance/connector/offset groups with the inherit ("default")
+  checkboxes (`marker_inherit_*` set the flag AND disable their editor).
+  Choice maps (MARKER_STYLES/ALIGNS/BASES/TOPS) match settings.py.
+  `cmd_sample` (eye-dropper pick) is still deferred to the plot-click port.
+
+## Marker model (mudlab/models/marker.py)
+
+`Marker` (Qt signals) keeps the old property names; `Specimen.markers`
+holds them (`add_marker`/`remove_marker`, marker.visuals_changed chained
+to the specimen). The inheritable props (color, angle, style, align,
+base, top, top_offset) fall back to the project's `display_marker_*`
+when their `inherit_*` flag is set - resolved by the `effective_*`
+accessors (old InheritableMixin). Loaded from / saved to each specimen's
+`markers` list in the .mud file (`Marker.from_dict`/`to_dict`, round-trip
+verified byte-identical incl. uuid/anno_label).
+
+`PatternPlot.draw_pattern` renders markers per specimen (port of the old
+plot_marker_line + plot_marker_text): base_y from `effective_base`
+(0 X-axis / 1 experimental / 2 calculated / 3 min / 4 max of the plotted
+curves), a connector line for real line styles (none/offset draw no
+line), and a rotated label (anno_label or label) at
+`rotation = 90 - effective_angle`, honoring align/color and the top /
+top_offset / y_offset placement. Not yet drawn: the "offset" style's
+special Y-offset line, marker-click selection (old ClickCatcher).
 - **Detect Peaks** (`detect_peaks_dialog.py`, `find_peaks_dialog.ui`, old
   find_peaks_dialog.glade): modal; pattern/algorithm combos, threshold +
   steps + #peaks, and the # peaks-vs-threshold histogram canvas in
