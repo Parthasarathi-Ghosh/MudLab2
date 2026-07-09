@@ -74,8 +74,21 @@ port, produces the calculated pattern from scratch):
   Verified against both sample projects: illite 10.1 A, kaolinite 7.2 A,
   chlorite 7.1 A, and the mixed-layer / smectite phases reproduce the
   AD -> EG -> 350C sequence (15 A -> 17 A -> 10 A) exactly.
-- [ ] Batch 6: mixture -> specimen calculated pattern + Calculate action
+- [x] Batch 6: mixture -> specimen calculated pattern + Calculate action -
+  calculations/specimen.py (calculate_phase_intensities: per-phase
+  corrected + wavelength-distributed intensities; calculate_scaled_
+  intensities: fractions x scale + bg-shift -> total) and the Mixture model
+  (models/mixture.py: the specimen x phase-slot grid, loaded from the .mud,
+  saved verbatim). Project.calculate() drives all mixtures; the F5 "Refresh
+  Graph" action recomputes and redraws the red calculated curve. Verified
+  END-TO-END against the OLD app's stored calculated patterns: 5/6 sample
+  specimens match to floating-point (RMS ~1e-7, corr 1.000000), the 6th to
+  0.2% - the full chain atoms -> SF -> CSDS -> stacking -> phase -> mixture
+  reproduces the GTK reference.
 - [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
+- [ ] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
+  the Refinement window family; the calc path above only re-applies the
+  stored solution (non-optimising), which is what the graph shows.
 
 ## Recreated
 

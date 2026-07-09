@@ -13,6 +13,8 @@ verbatim (raw passthrough in the file parser); this model is load + calc.
 
 from __future__ import annotations
 
+import uuid as _uuid
+
 from mudlab.models.component import Component
 from mudlab.models.csds import DritsCSDSDistribution
 from mudlab.models.probabilities import probabilities_from_dict
@@ -29,10 +31,12 @@ class Phase:
         apply_lpf: bool = True,
     ) -> None:
         self.type = "Phase"
+        self.uuid = _uuid.uuid4().hex
         self.name = name
         self.G = G
         self.sigma_star = sigma_star
         self.apply_lpf = apply_lpf  # apply the Lorentz-polarisation factor
+        self.apply_correction = True  # apply the machine correction range
         self.components: list[Component] = []
         self.CSDS = DritsCSDSDistribution()
         self.probabilities = probabilities_from_dict({}, G)
@@ -86,4 +90,6 @@ class Phase:
         phase.probabilities = probabilities_from_dict(
             props.get("probabilities") or {}, phase.G
         )
+        if "uuid" in props:
+            phase.uuid = props["uuid"]
         return phase

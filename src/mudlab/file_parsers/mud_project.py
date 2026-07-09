@@ -23,7 +23,9 @@ import zipfile
 
 import numpy as np
 
-from mudlab.models import AtomType, Goniometer, Marker, Phase, Project, Specimen
+from mudlab.models import (
+    AtomType, Goniometer, Marker, Mixture, Phase, Project, Specimen,
+)
 
 # Version tag written for new files (old-app format version we are
 # compatible with); round-trips preserve the loaded tag.
@@ -111,6 +113,8 @@ def load_mud(path: str) -> Project:
         spec_props = spec_dict.get("properties", {})
         specimen = Specimen()
         specimen.raw_properties = spec_props
+        if "uuid" in spec_props:
+            specimen.uuid = spec_props["uuid"]
         for prop in SPECIMEN_PROPS:
             if prop in spec_props:
                 setattr(specimen, prop, spec_props[prop])
@@ -133,6 +137,16 @@ def load_mud(path: str) -> Project:
         for marker_dict in spec_props.get("markers") or []:
             if isinstance(marker_dict, dict):
                 specimen.add_marker(Marker.from_dict(marker_dict))
+
+    # Mixtures resolve their phase-slot grid and specimen rows by uuid, so
+    # load them last (calc models; still saved verbatim via raw passthrough).
+    phase_map = project.phase_uuid_map()
+    specimen_map = project.specimen_uuid_map()
+    for mixture_dict in properties.get("mixtures") or []:
+        if isinstance(mixture_dict, dict):
+            project.add_mixture(
+                Mixture.from_dict(mixture_dict, phase_map, specimen_map)
+            )
 
     return project
 

@@ -17,8 +17,14 @@ properties), the window title, and live-applying Edit Project / Edit
 Specimen dialogs (`bind_project` / `bind_specimen`). Import Specimens
 parses text XY/CSV/DAT patterns (`mudlab/file_parsers/xy_parser.py`);
 vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
-`file_parsers/xrd_parsers`. Not yet modeled: goniometer, markers,
-exclusion ranges, phases/mixtures/atom types.
+`file_parsers/xrd_parsers`. Now modeled: goniometer, markers, atom types,
+and (calc-only, load + compute, still saved verbatim) phases, components,
+CSDS, probabilities and mixtures - the whole pattern-calculation engine
+(see the batch checklist in TODO.md). The F5 Refresh Graph action runs
+`project.calculate()` (every mixture -> each specimen's calculated
+pattern). Not yet modeled: exclusion ranges; not yet ported: the mixture
+fraction/scale/bg refinement optimizer (the calc path re-applies the
+stored solution).
 
 ## Project files (.mud) - mudlab/file_parsers/mud_project.py
 
@@ -569,7 +575,7 @@ matching editor window (each will need its own `.ui` when ported).
 | `actionSaveProjectAs` | `save_project_as` | `on_save_project_as_activate` |
 | `actionEditProject` | `edit_project` | present project view |
 | `actionQuit` | `exit` | confirm-discard-unsaved, then quit. *Connected to `close()`; confirmation still to port.* |
-| `actionRefreshGraph` | `refresh_graph` | `on_refresh_graph`: `update_all_mixtures()` + redraw |
+| `actionRefreshGraph` | `refresh_graph` | `on_refresh_graph`: `update_all_mixtures()` + redraw. *Wired: `MainWindow._refresh_graph` -> `project.calculate()` (all mixtures, non-optimising) + `_refresh_plots`; F5.* |
 | `actionSaveGraph` | `save_graph` | `on_save_graph`: plot controller's save-figure dialog (default name from specimen/project) |
 | `actionRemoveBackground` | `remove_bg` | single specimen: `specimen.remove_background()`; multiple: `project.remove_backgrounds(...)` |
 | `actionSmoothData` | `smooth_data` | single-specimen smoothing dialog |

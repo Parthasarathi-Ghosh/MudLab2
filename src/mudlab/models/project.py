@@ -67,6 +67,7 @@ class Project(QObject):
         self._specimens: list[Specimen] = []
         self._atom_types: list = []
         self._phases: list = []
+        self._mixtures: list = []
         # File-related plain attributes (not persisted properties):
         # raw_properties keeps the full .mud property dict verbatim so that
         # parts MudLab2 does not model yet survive load/save round-trips.
@@ -107,6 +108,33 @@ class Project(QObject):
     def add_phase(self, phase) -> "object":
         self._phases.append(phase)
         return phase
+
+    def phase_uuid_map(self) -> dict:
+        """uuid -> Phase, for resolving a mixture's phase-slot grid."""
+        return {p.uuid: p for p in self._phases}
+
+    # ------------------------------------------------------------------
+    # Mixtures (specimen × phase-slot grids; drive the calculated pattern)
+    # ------------------------------------------------------------------
+    @property
+    def mixtures(self) -> tuple:
+        return tuple(self._mixtures)
+
+    def add_mixture(self, mixture) -> "object":
+        self._mixtures.append(mixture)
+        return mixture
+
+    def calculate(self) -> None:
+        """Recompute every mixture's calculated patterns (old
+        update_all_mixtures, non-optimising path). Each mixture stores the
+        result back on its specimens, whose data_changed then refreshes the
+        plot."""
+        for mixture in self._mixtures:
+            mixture.calculate()
+
+    def specimen_uuid_map(self) -> dict:
+        """uuid -> Specimen, for resolving a mixture's specimen rows."""
+        return {s.uuid: s for s in self._specimens}
 
     # ------------------------------------------------------------------
     # Specimens

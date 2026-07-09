@@ -8,6 +8,8 @@ display switches and labels.
 
 from __future__ import annotations
 
+import uuid as _uuid
+
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
@@ -38,6 +40,7 @@ class Specimen(QObject):
         super().__init__(parent)
         if name:
             self.name = name
+        self.uuid = _uuid.uuid4().hex  # overwritten from the .mud on load
         self._exp_x = np.empty(0)
         self._exp_y = np.empty(0)
         self._calc_x = np.empty(0)

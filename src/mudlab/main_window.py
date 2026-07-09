@@ -19,6 +19,7 @@ from PySide6 import __version__ as PYSIDE6_VERSION
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHeaderView,
     QLabel,
@@ -110,6 +111,7 @@ class MainWindow(QMainWindow):
         self.ui.actionZoomIn.triggered.connect(lambda: self._zoom_x(1.0 / ZOOM_STEP))
         self.ui.actionZoomOut.triggered.connect(lambda: self._zoom_x(ZOOM_STEP))
         self.ui.actionZoomReset.triggered.connect(self._zoom_reset)
+        self.ui.actionRefreshGraph.triggered.connect(self._refresh_graph)
         self.ui.actionCrosshair.toggled.connect(self._on_crosshair_toggled)
         self.ui.actionSamplePoint.triggered.connect(self._start_sampling)
         self.ui.actionEditMarkers.triggered.connect(self._show_edit_markers)
@@ -334,6 +336,21 @@ class MainWindow(QMainWindow):
             self.pattern_plots.append(plot)
 
         self._rebuild_nav_toolbar()
+
+    def _refresh_graph(self) -> None:
+        """Recompute all mixtures' calculated patterns, then redraw (old
+        on_refresh_graph -> update_all_mixtures + redraw_plot). F5.
+
+        The heavy calculation can take a moment on large projects, so show a
+        busy cursor. Each mixture stores its result on the specimens, whose
+        data_changed refreshes the plot; an explicit refresh covers the
+        no-mixture case."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self.project.calculate()
+        finally:
+            QApplication.restoreOverrideCursor()
+        self._refresh_plots()
 
     def _refresh_plots(self) -> None:
         # Preserve user zoom across redraws (old update() behavior) and
