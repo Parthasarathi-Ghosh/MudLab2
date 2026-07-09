@@ -334,7 +334,8 @@ with the specimen model port.
   and appearance/connector/offset groups with the inherit ("default")
   checkboxes (`marker_inherit_*` set the flag AND disable their editor).
   Choice maps (MARKER_STYLES/ALIGNS/BASES/TOPS) match settings.py.
-  `cmd_sample` (eye-dropper pick) is still deferred to the plot-click port.
+  `cmd_sample` arms the main window's eye-dropper: the next plot click
+  fills the position (see the Plot area section).
 
 ## Marker model (mudlab/models/marker.py)
 
@@ -353,8 +354,9 @@ plot_marker_line + plot_marker_text): base_y from `effective_base`
 curves), a connector line for real line styles (none/offset draw no
 line), and a rotated label (anno_label or label) at
 `rotation = 90 - effective_angle`, honoring align/color and the top /
-top_offset / y_offset placement. Not yet drawn: the "offset" style's
-special Y-offset line, marker-click selection (old ClickCatcher).
+top_offset / y_offset placement. Marker line/label artists are pickable:
+double-clicking selects the marker (see the Plot area section). Not yet
+drawn: the "offset" style's special Y-offset line.
 - **Detect Peaks** (`detect_peaks_dialog.py`, `find_peaks_dialog.ui`, old
   find_peaks_dialog.glade): modal; pattern/algorithm combos, threshold +
   steps + #peaks, and the # peaks-vs-threshold histogram canvas in
@@ -452,9 +454,21 @@ active.)
 - `actionCrosshair` toggles the dashed crosshair cursor (#555555); with
   it active, left-drag draws the orange (#FF6600) measurement highlight
   over every curve and the status bar shows Δ2θ/Δd.
-- `actionSamplePoint` (old EyeDropper): arms one-shot sampling; the next
-  click on a pattern reports experimental/calculated values in an info
-  dialog.
+- Eye-dropper position picking (old EyeDropper) is a reusable one-shot on
+  the main window: `arm_position_pick(callback, hint)` sets a crosshair
+  cursor and, on the next left click on a pattern, calls
+  `callback(plot, x_pos)` and disarms. Users: `actionSamplePoint` (arms
+  `_report_sampled_point` -> info dialog of experimental/calculated
+  values), the Edit Marker `cmd_sample` (fills the marker position, which
+  writes to the bound marker and syncs nm), and the Strip Peak /
+  Peak Properties `cmd_sample_start`/`cmd_sample_end` (fill their
+  start/end fields). Those two dialogs are MODELESS so the plot stays
+  clickable while picking.
+- Marker double-click selection (old ClickCatcher): marker line/label
+  artists are pickable when `on_marker_pick` is wired; a double-click
+  (tracked manually, 0.5 s window, like the old app) calls
+  `MainWindow._on_marker_picked` -> opens Edit Markers for the marker's
+  specimen and selects it (`EditMarkersDialog.select_marker`).
 - Mouse motion drives the old status readout (Bragg conversion in
   `mudlab/calculations/goniometer.py`, ported as-is; wavelength = the
   dominant entry of the specimen's goniometer wavelength distribution,
@@ -462,8 +476,8 @@ active.)
   Ic interpolated from the patterns; multiple -> 2θ and d only,
   `*`-marked, with d from the FIRST specimen (old multi behavior,
   `PatternPlot.multi`).
-- Still with later ports: marker-click handling (ClickCatcher) and the
-  per-pattern operation previews (background/smooth/noise/strip lines of
+- Still with later ports: the per-pattern operation previews
+  (background/smooth/noise/strip lines of
   the old plot_specimen).
 
 ### Statistics band + GoF label (port when the calculation engine lands)

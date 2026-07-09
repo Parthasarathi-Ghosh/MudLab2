@@ -20,13 +20,14 @@ Interactions (old generic/plot/controllers.py):
 
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import QSizePolicy
 
 from mudlab.chart_style import INK_MUTED, INK_PRIMARY, INK_SECONDARY, SURFACE, style_axes
@@ -60,6 +61,7 @@ class PatternPlot:
         project: Project,
         on_motion: Callable | None = None,
         on_click: Callable | None = None,
+        on_marker_pick: Callable | None = None,
     ) -> None:
         if not specimens:
             raise ValueError("PatternPlot needs at least one specimen")
@@ -67,6 +69,7 @@ class PatternPlot:
         self.project = project
         self._on_motion = on_motion
         self._on_click = on_click
+        self._on_marker_pick = on_marker_pick
 
         self.figure = Figure(facecolor=SURFACE)
         self.canvas = FigureCanvasQTAgg(self.figure)
@@ -85,6 +88,10 @@ class PatternPlot:
         self._drag_highlight_lines: list = []
         self._home_xlim: tuple[float, float] | None = None
         self._home_ylim: tuple[float, float] | None = None
+        # Marker artist -> Marker, for double-click picking (old ClickCatcher).
+        self._marker_artists: dict = {}
+        self._last_pick_artist = None
+        self._last_pick_time = 0.0
 
         self.draw_pattern()
 
@@ -94,6 +101,14 @@ class PatternPlot:
         self.canvas.mpl_connect("button_press_event", self._on_button_press)
         self.canvas.mpl_connect("button_release_event", self._on_button_release)
         self.canvas.mpl_connect("key_press_event", self._on_key_press)
+        self.canvas.mpl_connect("pick_event", self._on_pick)
+
+    def set_pick_cursor(self, enabled: bool) -> None:
+        """Show a crosshair cursor while an eye-dropper pick is armed."""
+        if enabled:
+            self.canvas.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        else:
+            self.canvas.unsetCursor()
 
     @property
     def specimen(self) -> Specimen:
@@ -118,6 +133,7 @@ class PatternPlot:
         axes.clear()
         self._crosshair_line = None
         self._drag_highlight_lines = []
+        self._marker_artists = {}
         self.figure.subplots_adjust(left=0.18, right=0.97, top=0.96, bottom=0.10)
 
         # Old Project.get_scale_factor():
@@ -277,10 +293,11 @@ class PatternPlot:
         line_style = self._MARKER_LINE_STYLES.get(style)
         if line_style is not None:
             y1 = y_top if top == 1 else base_y + top_offset * unit
-            self.axes.plot(
+            line, = self.axes.plot(
                 [position, position], [base_y, y1],
                 color=color, linestyle=line_style, linewidth=1.0, zorder=8,
             )
+            self._register_marker_artist(line, marker)
 
         # Label text (skipped for 'offset'); rotated like the old app.
         if style != "offset":
@@ -289,12 +306,38 @@ class PatternPlot:
                 y_text = y_top * 0.98 + marker.y_offset * unit
             else:
                 y_text = base_y + (top_offset + marker.y_offset) * unit
-            self.axes.text(
+            label_artist = self.axes.text(
                 position + marker.x_offset, y_text, text,
                 rotation=90 - marker.effective_angle, rotation_mode="anchor",
                 ha=marker.effective_align, va="center",
                 color=color, clip_on=True, zorder=9, fontsize="small",
             )
+            self._register_marker_artist(label_artist, marker)
+
+    def _register_marker_artist(self, artist, marker) -> None:
+        # Only pickable when a selection handler is wired (old ClickCatcher).
+        if self._on_marker_pick is not None:
+            artist.set_picker(True)
+            self._marker_artists[artist] = marker
+
+    def _on_pick(self, event) -> None:
+        """Double-click a marker line/label to select it (old ClickCatcher)."""
+        marker = self._marker_artists.get(event.artist)
+        if marker is None:
+            return
+        now = time.monotonic()
+        is_double = getattr(event.mouseevent, "dblclick", False) or (
+            event.artist is self._last_pick_artist
+            and (now - self._last_pick_time) <= 0.5
+        )
+        if is_double:
+            self._last_pick_artist = None
+            self._last_pick_time = 0.0
+            if self._on_marker_pick is not None:
+                self._on_marker_pick(marker)
+        else:
+            self._last_pick_artist = event.artist
+            self._last_pick_time = now
 
     # ------------------------------------------------------------------
     # View state (zoom preservation across redraws, old update() logic)

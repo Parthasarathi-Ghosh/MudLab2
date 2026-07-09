@@ -10,11 +10,12 @@ Legend: **done** = .ui + logic exist and are wired for GUI trial;
 **partial** = done but contains placeholder slots for missing
 sub-components.
 
-Plot interactions (2026-07-07): the old MainPlotController is ported as
+Plot interactions (2026-07-08): the old MainPlotController is ported as
 PatternPlot (plot_controller.py) - scroll/Ctrl+scroll/Shift+scroll
 zoom-pan, arrow-key pan, right-click reset, crosshair + drag Δ2θ/Δd
-measurement, eye-dropper sampling, and the live 2θ/d/Ie/Ic status
-readout (calculations/goniometer.py, Specimen.wavelength).
+measurement, the live 2θ/d/Ie/Ic status readout, a reusable eye-dropper
+position pick (Select Point + the marker/strip-peak/peak-property Sample
+buttons), and marker double-click selection (opens Edit Markers).
 
 Model status (2026-07-08): Project + Specimen + Marker Qt-signal models
 exist (mudlab/models/); the specimens dock, plot stack, window title,
@@ -44,8 +45,8 @@ placeholder-driven in their editors.
 | Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (op applies with model port) |
 | Shift Pattern | shifting.ui, line_dialogs.py | lines/shifting.glade | done (reference presets working; op applies with model port) |
 | Add Noise | add_noise.ui, line_dialogs.py | lines/add_noise.glade | done (op applies with model port) |
-| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (eye-dropper sampling with plot-controller port) |
-| Peak Properties | peak_properties.ui, line_dialogs.py | lines/peak_properties.glade | done (copy-to-clipboard working; computation with model port) |
+| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (modeless; Sample buttons pick start/end on the plot; strip op with model port) |
+| Peak Properties | peak_properties.ui, line_dialogs.py | lines/peak_properties.glade | done (modeless; Sample buttons + copy-to-clipboard; area/FWHM computation with model port) |
 | Trim Data | trim_dialog.ui, specimen_dialogs.py | specimen/glade/trim_dialog.glade | done (op applies with model port) |
 | Statistics | statistics.ui, specimen_dialogs.py | specimen/glade/statistics.glade | done (unwired until the specimens context menu exists) |
 | Save Graph size | save_graph_size.ui, specimen_dialogs.py | specimen/glade/save_graph_size.glade | done (runs before the native save dialog; export with plot-controller port) |

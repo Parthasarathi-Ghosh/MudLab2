@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         self.nav_toolbar: NavigationToolbar2QT | None = None
         self._shown_specimens: list[Specimen] = []
         self._dirty = False
-        self._sampling = False
+        self._pending_pick = None
 
         self._setup_plot_area()
         self._setup_specimens_panel()
@@ -127,14 +127,18 @@ class MainWindow(QMainWindow):
             (self.ui.actionSmoothData, SmoothDataDialog),
             (self.ui.actionShiftPattern, ShiftPatternDialog),
             (self.ui.actionAddNoise, AddNoiseDialog),
-            (self.ui.actionStripPeak, StripPeakDialog),
-            (self.ui.actionPeakProperties, PeakPropertiesDialog),
             (self.ui.actionTrimData, TrimDataDialog),
             (self.ui.actionSaveGraph, SaveGraphSizeDialog),
         ):
             action.triggered.connect(
                 lambda _=False, cls=dialog_cls: cls(self).exec()
             )
+        # Strip Peak / Peak Properties are modeless: their Sample buttons
+        # pick positions on the plot, so the plot must stay clickable.
+        self._strip_peak_dialog: StripPeakDialog | None = None
+        self._peak_props_dialog: PeakPropertiesDialog | None = None
+        self.ui.actionStripPeak.triggered.connect(self._show_strip_peak)
+        self.ui.actionPeakProperties.triggered.connect(self._show_peak_properties)
 
         # Model -> view plumbing.
         self._connect_project_signals(self.project)
@@ -318,6 +322,7 @@ class MainWindow(QMainWindow):
                     specimens, self.project,
                     on_motion=self._on_plot_motion,
                     on_click=self._on_plot_click,
+                    on_marker_pick=self._on_marker_picked,
                 )
             )
         for plot in plots:
@@ -352,17 +357,39 @@ class MainWindow(QMainWindow):
         for plot in self.pattern_plots:
             plot.set_crosshair_enabled(enabled)
 
+    # ------------------------------------------------------------------
+    # Eye-dropper position picking (old EyeDropper)
+    # ------------------------------------------------------------------
+    def arm_position_pick(
+        self, callback, hint: str = "Click a point on the pattern..."
+    ) -> None:
+        """Arm a one-shot pick: the next left click on a pattern calls
+        callback(plot, x_pos) and disarms. Used by Select Point and the
+        Sample buttons in the marker / strip-peak / peak-property dialogs."""
+        self._pending_pick = callback
+        self.ui.statusBar.showMessage(hint)
+        for plot in self.pattern_plots:
+            plot.set_pick_cursor(True)
+
+    def _disarm_pick(self) -> None:
+        self._pending_pick = None
+        self.ui.statusBar.clearMessage()
+        for plot in self.pattern_plots:
+            plot.set_pick_cursor(False)
+
     def _start_sampling(self) -> None:
-        # Old on_sample_point (EyeDropper): the next click on a pattern
-        # reports the data values.
-        self._sampling = True
-        self.ui.statusBar.showMessage("Sampling... click a point on a pattern")
+        # Old on_sample_point: the next click reports the data values.
+        self.arm_position_pick(
+            self._report_sampled_point, "Sampling... click a point on a pattern"
+        )
 
     def _on_plot_click(self, plot: PatternPlot, x_pos: float) -> None:
-        if not self._sampling or x_pos <= 0:
-            return
-        self._sampling = False
-        self.ui.statusBar.clearMessage()
+        if self._pending_pick is not None and x_pos > 0:
+            callback = self._pending_pick
+            self._disarm_pick()
+            callback(plot, x_pos)
+
+    def _report_sampled_point(self, plot: PatternPlot, x_pos: float) -> None:
         specimen = plot.specimen
         message = "Sampled point:\n"
         if specimen.has_experimental_data:
@@ -376,6 +403,14 @@ class MainWindow(QMainWindow):
                 x_pos, float(np.interp(x_pos, cx, cy)),
             )
         QMessageBox.information(self, "Sample Point", message)
+
+    def _on_marker_picked(self, marker) -> None:
+        # Old ClickCatcher/show_marker: double-clicking a marker opens the
+        # markers view with that marker selected.
+        specimen = marker.specimen
+        if specimen is None:
+            return
+        self._open_edit_markers(specimen, marker)
 
     def _on_plot_motion(self, plot: PatternPlot, x_pos: float) -> None:
         specimen = plot.specimen
@@ -638,17 +673,35 @@ class MainWindow(QMainWindow):
         dialog.raise_()
         dialog.activateWindow()
 
+    def _show_strip_peak(self) -> None:
+        if self._strip_peak_dialog is None:
+            self._strip_peak_dialog = StripPeakDialog(self)
+        self._strip_peak_dialog.show()
+        self._strip_peak_dialog.raise_()
+        self._strip_peak_dialog.activateWindow()
+
+    def _show_peak_properties(self) -> None:
+        if self._peak_props_dialog is None:
+            self._peak_props_dialog = PeakPropertiesDialog(self)
+        self._peak_props_dialog.show()
+        self._peak_props_dialog.raise_()
+        self._peak_props_dialog.activateWindow()
+
     def _show_edit_markers(self) -> None:
         # Old edit_markers action: markers belong to the current specimen.
         specimens = self._selected_specimens()
-        if len(specimens) != 1:
-            return
-        # Rebuilt each time so it targets the current specimen (old app
-        # reset the markers view per specimen selection).
+        if len(specimens) == 1:
+            self._open_edit_markers(specimens[0])
+
+    def _open_edit_markers(self, specimen, marker=None) -> None:
+        # Rebuilt each time so it targets the given specimen (old app reset
+        # the markers view per specimen selection).
         if self._edit_markers_dialog is not None:
             self._edit_markers_dialog.close()
-        self._edit_markers_dialog = EditMarkersDialog(self, specimen=specimens[0])
+        self._edit_markers_dialog = EditMarkersDialog(self, specimen=specimen)
         self._edit_markers_dialog.show()
+        if marker is not None:
+            self._edit_markers_dialog.select_marker(marker)
 
     # ------------------------------------------------------------------
     # Status bar

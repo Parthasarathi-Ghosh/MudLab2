@@ -81,13 +81,29 @@ class AddNoiseDialog(QDialog):
         self.ui.buttonBox.rejected.connect(self.reject)
 
 
+def _arm_sample(dialog: QDialog, spinbox) -> None:
+    """Arm the main window's eye-dropper so the next plot click fills the
+    given spinbox with the picked 2-theta position."""
+    main_window = dialog.parent()
+    if main_window is not None and hasattr(main_window, "arm_position_pick"):
+        main_window.arm_position_pick(
+            lambda plot, x: spinbox.setValue(x),
+            "Click the position on the pattern...",
+        )
+
+
 class StripPeakDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.ui = Ui_StripPeakDialog()
         self.ui.setupUi(self)
-        # cmd_sample_start / cmd_sample_end pick positions on the pattern
-        # via the eye-dropper; connected with the plot controller port.
+        # Sample buttons pick start/end positions directly on the plot.
+        self.ui.cmd_sample_start.clicked.connect(
+            lambda: _arm_sample(self, self.ui.strip_startx)
+        )
+        self.ui.cmd_sample_end.clicked.connect(
+            lambda: _arm_sample(self, self.ui.strip_endx)
+        )
         self.ui.buttonBox.accepted.connect(self.accept)
         self.ui.buttonBox.rejected.connect(self.reject)
 
@@ -97,6 +113,12 @@ class PeakPropertiesDialog(QDialog):
         super().__init__(parent)
         self.ui = Ui_PeakPropertiesDialog()
         self.ui.setupUi(self)
+        self.ui.cmd_sample_start.clicked.connect(
+            lambda: _arm_sample(self, self.ui.peak_startx)
+        )
+        self.ui.cmd_sample_end.clicked.connect(
+            lambda: _arm_sample(self, self.ui.peak_endx)
+        )
         self.ui.btn_copy_results.clicked.connect(self._copy_results)
         self.ui.buttonBox.rejected.connect(self.reject)
 

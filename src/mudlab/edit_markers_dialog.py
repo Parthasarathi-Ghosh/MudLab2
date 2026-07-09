@@ -43,11 +43,35 @@ class EditMarkersDialog(ObjectStoreDialog):
         self.object_selected.connect(self._on_marker_selected)
         self.ui.button_add_object.clicked.connect(self._on_add_marker)
         self.ui.button_del_object.clicked.connect(self._on_del_marker)
+        # Sample button: pick the marker position directly on the plot.
+        self.marker_widget.ui.cmd_sample.clicked.connect(self._on_sample_position)
 
         self._reload_markers()
 
     def _markers(self) -> tuple:
         return self.specimen.markers if self.specimen is not None else ()
+
+    def select_marker(self, marker) -> None:
+        """Select the row for the given marker (old show_marker)."""
+        markers = self._markers()
+        if marker in markers:
+            self.ui.edit_objects_treeview.setCurrentIndex(
+                self.objects_model.index(markers.index(marker), 0)
+            )
+        self.raise_()
+        self.activateWindow()
+
+    def _on_sample_position(self) -> None:
+        # Arm the main window's eye-dropper; the next plot click fills the
+        # position field (which writes to the bound marker).
+        if self.marker_widget._marker is None:
+            return
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "arm_position_pick"):
+            main_window.arm_position_pick(
+                lambda plot, x: self.marker_widget.ui.spb_position.setValue(x),
+                "Click the marker position on the pattern...",
+            )
 
     def _reload_markers(self, select_row: int = 0) -> None:
         self.objects_model.removeRows(0, self.objects_model.rowCount())
