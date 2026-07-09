@@ -48,6 +48,13 @@ def calculate_phase_intensities(
         return f(range_theta)
 
     def apply_wavelength_distribution(intensity):
+        # Faithful port of the old code's `I += interpolate_wavelength(I, ...)`:
+        # each emission line ADDS a wavelength-shifted copy on top of the
+        # running intensity. Gotcha: a single-line spectrum ([[wl, 1.0]], the
+        # usual case) shifts by zero and so DOUBLES the intensity - that
+        # constant factor is absorbed by the fitted specimen `scale`, so it is
+        # correct-to-port but do not be surprised the total is ~2x the raw
+        # phase intensity.
         for new_wavelength, fraction in wavelength_distribution:
             intensity = intensity + interpolate_wavelength(
                 intensity, new_wavelength, fraction
