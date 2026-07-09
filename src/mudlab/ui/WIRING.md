@@ -248,7 +248,9 @@ creation of empty/default/raw phases comes with the phase model port).
 `mudlab/goniometer_widget.py` (`GoniometerWidget`), old
 `goniometer/glade/goniometer.glade` InlineGoniometerView. Inserted into
 the Edit Specimen Goniometer tab (`goniometerLayout`); reuse it anywhere
-a goniometer setup is edited.
+a goniometer setup is edited. Bound live to the specimen's `Goniometer`
+model (`bind_goniometer`) - edits write to the model, which feeds the
+intensity-correction calculations (batch 2 below).
 
 - Four groups with old ids kept: General (`gonio_radius_spb`,
   `gonio_min_2theta_spb` 0-160, `gonio_max_2theta_spb` 0-100,

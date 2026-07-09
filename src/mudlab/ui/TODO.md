@@ -38,7 +38,14 @@ port, produces the calculated pattern from scratch):
   (get_atomic_scattering_factor/get_structure_factor), AtomType model
   (models/atom_type.py) loaded from the .mud, Edit Atom Types dialog on
   real data. Verified: O->8, Fe->26 electrons at s=0; round-trip identical.
-- [ ] Batch 2: goniometer model + Lorentz-polarization/absorption factors
+- [x] Batch 2: goniometer model + intensity corrections - Goniometer
+  model (models/goniometer.py) loaded/saved per specimen (round-trip
+  identical; wavelength_distribution string preserved verbatim), the LP
+  factor + Soller S/T terms + machine correction range (auto-divergence /
+  absorption / sample-length) in calculations/goniometer.py, and the Edit
+  Specimen Goniometer tab bound to the real model. Specimen.wavelength now
+  comes from the model. Verified LP factor falls off with angle; get_S
+  matches the formula.
 - [ ] Batch 3: component structure factor (unit cell + layer/interlayer atoms)
 - [ ] Batch 4: CSDS distribution + stacking probabilities (Markovian)
 - [ ] Batch 5: phase intensity (recursive stacking)

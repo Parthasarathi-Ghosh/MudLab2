@@ -8,8 +8,6 @@ display switches and labels.
 
 from __future__ import annotations
 
-import json
-
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
@@ -45,6 +43,7 @@ class Specimen(QObject):
         self._calc_x = np.empty(0)
         self._calc_y = np.empty(0)
         self._markers: list = []
+        self.goniometer = None  # set from the .mud (Goniometer model)
         self.project = None  # set by Project.add_specimen
         # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
         # parts survive load/save round-trips.
@@ -91,20 +90,9 @@ class Specimen(QObject):
 
     @property
     def wavelength(self) -> float:
-        """Dominant X-ray wavelength in nm (old Goniometer.wavelength:
-        the distribution's highest-fraction wavelength). Read from the
-        raw goniometer data until the goniometer model is ported."""
-        gonio = self.raw_properties.get("goniometer")
-        if isinstance(gonio, dict):
-            wld = gonio.get("properties", {}).get("wavelength_distribution")
-            if isinstance(wld, str) and wld:
-                try:
-                    rows = json.loads(wld)
-                except ValueError:
-                    rows = None
-                if rows:
-                    best = max(rows, key=lambda row: row[1])
-                    return float(best[0])
+        """Dominant X-ray wavelength in nm (from the goniometer)."""
+        if self.goniometer is not None:
+            return self.goniometer.wavelength
         return DEFAULT_WAVELENGTH
 
     # ------------------------------------------------------------------

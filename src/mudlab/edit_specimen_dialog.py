@@ -64,6 +64,7 @@ class EditSpecimenDialog(QDialog):
         finally:
             self._updating = False
         self._fill_pattern_tables(specimen)
+        self.goniometer.bind_goniometer(specimen.goniometer)
 
     def _checkbox_props(self):
         return (

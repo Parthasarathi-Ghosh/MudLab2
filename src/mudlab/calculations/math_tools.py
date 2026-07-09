@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+from math import pi, sqrt
+
 import numpy as np
+
+# Constants used by the goniometer Lorentz-polarisation factor.
+sqrtpi = sqrt(pi)
+sqrt2pi = sqrt(2 * pi)
+sqrt8 = sqrt(8)
 
 _WINDOWS = ("flat", "hanning", "hamming", "bartlett", "blackman")
 

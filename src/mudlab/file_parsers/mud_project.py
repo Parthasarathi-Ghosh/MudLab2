@@ -23,7 +23,7 @@ import zipfile
 
 import numpy as np
 
-from mudlab.models import AtomType, Marker, Project, Specimen
+from mudlab.models import AtomType, Goniometer, Marker, Project, Specimen
 
 # Version tag written for new files (old-app format version we are
 # compatible with); round-trips preserve the loaded tag.
@@ -106,6 +106,9 @@ def load_mud(path: str) -> Project:
         for prop in SPECIMEN_PROPS:
             if prop in spec_props:
                 setattr(specimen, prop, spec_props[prop])
+        gonio_dict = spec_props.get("goniometer")
+        if isinstance(gonio_dict, dict):
+            specimen.goniometer = Goniometer.from_dict(gonio_dict)
         for key, setter in (
             ("experimental_pattern", specimen.set_experimental_pattern),
             ("calculated_pattern", specimen.set_calculated_pattern),
@@ -181,6 +184,10 @@ def _specimen_to_dict(specimen: Specimen) -> dict:
     props.setdefault("uuid", uuid.uuid4().hex)
     # Markers are modeled: write the live list back.
     props["markers"] = [marker.to_dict() for marker in specimen.markers]
+    # Goniometer is modeled: write it back (wavelength_distribution string
+    # is preserved verbatim, so round-trips stay byte-identical).
+    if specimen.goniometer is not None:
+        props["goniometer"] = specimen.goniometer.to_dict()
 
     # Experimental pattern: update the data inside the (possibly raw) line
     # object so unmodeled line properties (color, lw, inherits, z_data)
