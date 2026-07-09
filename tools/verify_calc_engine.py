@@ -20,8 +20,9 @@ head-less without QT_QPA_PLATFORM. Exit codes:
     1  a regression (some specimen drifted from the stored pattern)
     2  no sample projects found - nothing was verified
 
-The two default sample projects live outside the repo (in the user's
-Downloads); pass paths on the command line to point elsewhere.
+The two default sample projects are kept locally under tools/sample_projects/
+- gitignored (the user's own data, never committed or distributed) - with a
+fallback to ~/Downloads; pass paths on the command line to point elsewhere.
 """
 
 from __future__ import annotations
@@ -39,11 +40,26 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from mudlab.file_parsers.mud_project import load_mud  # noqa: E402
 
-# Default sample projects (override on the command line).
-DEFAULT_PROJECTS = [
-    r"C:\Users\pxgho\Downloads\308 r1.mud",
-    r"C:\Users\pxgho\Downloads\Dh2040A.mud",
-]
+# Default sample projects: the in-repo fixtures come first so the harness is
+# self-contained; the original Downloads copies are kept as a fallback for
+# machines where the fixtures were not committed. Override on the command
+# line to point at other projects.
+_FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
+
+
+def _default_projects():
+    names = ["308 r1.mud", "Dh2040A.mud"]
+    projects = []
+    for name in names:
+        in_repo = os.path.join(_FIXTURES, name)
+        downloads = os.path.join(
+            os.path.expanduser("~"), "Downloads", name
+        )
+        projects.append(in_repo if os.path.isfile(in_repo) else downloads)
+    return projects
+
+
+DEFAULT_PROJECTS = _default_projects()
 
 # Pass/fail tolerances, normalised to the reference pattern's peak. The
 # known-good state matches to RMS ~1e-7 for 5/6 sample specimens and ~1e-4

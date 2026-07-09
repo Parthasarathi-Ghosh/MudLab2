@@ -8,3 +8,8 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# Test-only sample projects: the user's own .mud data, kept locally for the
+# calc-engine regression harness only. NEVER commit or push these - see
+# tools/sample_projects/README.md.
+tools/sample_projects/*.mud

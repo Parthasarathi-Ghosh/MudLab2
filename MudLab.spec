@@ -6,6 +6,10 @@ a = Analysis(
     ["src/mudlab/__main__.py"],
     pathex=["src"],
     binaries=[],
+    # Keep `datas` free of tools/sample_projects/*.mud. Those are test-only
+    # fixtures that must never ship in a release (see .gitattributes
+    # export-ignore). No app code imports them, so an empty list already
+    # excludes them - do not add them here.
     datas=[],
     hiddenimports=[],
     hookspath=[],
