@@ -49,6 +49,21 @@ class Specimen(QObject):
         # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
         # parts survive load/save round-trips.
         self.raw_properties: dict = {}
+        # Derived fit statistics (lazy; cache cleared on data_changed).
+        self._statistics = None
+        self.data_changed.connect(self._invalidate_statistics)
+
+    @property
+    def statistics(self):
+        """Per-specimen fit statistics (old specimen.statistics)."""
+        if self._statistics is None:
+            from mudlab.models.statistics import SpecimenStatistics
+            self._statistics = SpecimenStatistics(self)
+        return self._statistics
+
+    def _invalidate_statistics(self) -> None:
+        if self._statistics is not None:
+            self._statistics.invalidate()
 
     # ------------------------------------------------------------------
     # Markers

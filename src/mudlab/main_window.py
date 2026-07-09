@@ -586,10 +586,15 @@ class MainWindow(QMainWindow):
             self.show_specimen_plots([])
 
     def _show_statistics(self, specimen: Specimen) -> None:
-        # Old view_statistics action (specimens context menu). Values arrive
-        # with the statistics calculation port; the dialog shows zeros now.
+        # Old view_statistics action (specimens context menu).
         dialog = StatisticsDialog(self)
         dialog.setWindowTitle(f"Statistics - {specimen.name}")
+        stats = specimen.statistics
+        if stats.has_data:
+            # χ² field shows the reduced chi-squared (= GoF²).
+            dialog.set_statistics(
+                stats.points, stats.GoF ** 2, stats.R2, stats.Rp, stats.Rwp, stats.Re
+            )
         dialog.exec()
 
     def _import_specimens(self) -> None:

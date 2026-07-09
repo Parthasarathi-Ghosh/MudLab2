@@ -185,11 +185,18 @@ class PatternPlot:
                 lines += 1
 
             # Old plot_label: specimen name in the left margin, right
-            # aligned, y in data coordinates at the label position.
+            # aligned, y in data coordinates at the label position. With
+            # display_stats_in_lbl, append Rp/Rwp/GoF (old Specimen.label).
+            label_text = specimen.name
+            if specimen.display_stats_in_lbl and specimen.statistics.has_data:
+                st = specimen.statistics
+                label_text += "\nRp = %.1f%%\nRwp = %.1f%%\nGoF = %.3f" % (
+                    st.Rp, st.Rwp, st.GoF
+                )
             axes.text(
                 -0.02,
                 (current_y_pos + label_offset + specimen.display_vshift) * scale_unit,
-                specimen.name,
+                label_text,
                 transform=axes.get_yaxis_transform(),
                 ha="right", va="center", clip_on=False,
                 color=INK_PRIMARY, fontsize="medium",

@@ -337,6 +337,29 @@ with the specimen model port.
   `cmd_sample` arms the main window's eye-dropper: the next plot click
   fills the position (see the Plot area section).
 
+## Fit statistics (mudlab/calculations/statistics.py + models/statistics.py)
+
+The old R-factor routines are ported verbatim in
+`calculations/statistics.py` (R_squared, Rp, Rpw=Rwp, Rpe=Re, GoF,
+derive/Rpder) with `smooth` in `calculations/math_tools.py`. They take the
+experimental and calculated intensity arrays (aligned on a shared x-grid,
+as the old app assumed - verified against the sample projects).
+
+`SpecimenStatistics` (`models/statistics.py`, reached via
+`Specimen.statistics`) computes these lazily and caches them; the cache
+clears on the specimen's `data_changed`. `has_data` is False when there is
+no calculated pattern (e.g. bulk/heated specimens) - stats are then 0 and
+the Statistics dialog/GoF label are skipped. Wired into:
+- **Statistics dialog** (`_show_statistics`): points, R², Rp, Rwp, Re, and
+  the χ² field showing reduced chi-squared (= GoF²).
+- **GoF-in-label** (`PatternPlot.draw_pattern`): with
+  `display_stats_in_lbl`, the left-margin label appends
+  `Rp = x%% / Rwp = x%% / GoF = x.xxx` (old Specimen.label).
+
+Not yet: exclusion-range masking of the R-factors (old
+get_exclusion_selector; exclusion ranges aren't modeled yet, samples have
+none) and the residual/derivative difference band on the plot.
+
 ## Marker model (mudlab/models/marker.py)
 
 `Marker` (Qt signals) keeps the old property names; `Specimen.markers`
