@@ -23,7 +23,7 @@ import zipfile
 
 import numpy as np
 
-from mudlab.models import Marker, Project, Specimen
+from mudlab.models import AtomType, Marker, Project, Specimen
 
 # Version tag written for new files (old-app format version we are
 # compatible with); round-trips preserve the loaded tag.
@@ -95,6 +95,10 @@ def load_mud(path: str) -> Project:
         if prop in properties:
             setattr(project, prop, properties[prop])
 
+    for atom_dict in properties.get("atom_types") or []:
+        if isinstance(atom_dict, dict):
+            project.add_atom_type(AtomType.from_dict(atom_dict))
+
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})
         specimen = Specimen()
@@ -133,6 +137,9 @@ def save_mud(project: Project, path: str) -> None:
     properties["specimens"] = [
         _specimen_to_dict(specimen) for specimen in project.specimens
     ]
+    # Atom types are modeled: write the live list back (phases/mixtures are
+    # still preserved verbatim from raw_properties below).
+    properties["atom_types"] = [at.to_dict() for at in project.atom_types]
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
 

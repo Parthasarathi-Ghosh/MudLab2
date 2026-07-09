@@ -661,13 +661,12 @@ class MainWindow(QMainWindow):
         dialog.activateWindow()
 
     def _show_edit_atom_types(self) -> None:
-        # Modeless, like the old app's atom_types view present().
-        if self._edit_atom_types_dialog is None:
-            self._edit_atom_types_dialog = EditAtomTypesDialog(self)
-        dialog = self._edit_atom_types_dialog
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
+        # Modeless; rebuilt per open so it reflects the current project's
+        # atom types (atom types belong to the project).
+        if self._edit_atom_types_dialog is not None:
+            self._edit_atom_types_dialog.close()
+        self._edit_atom_types_dialog = EditAtomTypesDialog(self, project=self.project)
+        self._edit_atom_types_dialog.show()
 
     def _show_edit_mixtures(self) -> None:
         # Modeless, like the old app's mixtures view present().

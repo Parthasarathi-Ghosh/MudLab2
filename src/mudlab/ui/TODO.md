@@ -30,9 +30,20 @@ Calculation engine (2026-07-08): the fit-statistics groundwork is ported
 (calculations/statistics.py + math_tools.smooth; SpecimenStatistics via
 Specimen.statistics) - real Rp/Rwp/Re/R²/GoF drive the Statistics dialog,
 the GoF-in-label option, and the 65/35 residual difference band on the
-plot. Still to port: exclusion-range masking, and the pattern-calculation
-engine itself (structure-factor/mixture math that produces the calculated
-pattern - the biggest remaining analytics port).
+plot.
+
+Pattern-calculation engine (bottom-up batches - the biggest analytics
+port, produces the calculated pattern from scratch):
+- [x] Batch 1: atomic scattering factors - calculations/atoms.py
+  (get_atomic_scattering_factor/get_structure_factor), AtomType model
+  (models/atom_type.py) loaded from the .mud, Edit Atom Types dialog on
+  real data. Verified: O->8, Fe->26 electrons at s=0; round-trip identical.
+- [ ] Batch 2: goniometer model + Lorentz-polarization/absorption factors
+- [ ] Batch 3: component structure factor (unit cell + layer/interlayer atoms)
+- [ ] Batch 4: CSDS distribution + stacking probabilities (Markovian)
+- [ ] Batch 5: phase intensity (recursive stacking)
+- [ ] Batch 6: mixture -> specimen calculated pattern + Calculate action
+- [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
 
 ## Recreated
 
@@ -44,7 +55,7 @@ pattern - the biggest remaining analytics port).
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (buttons not yet connected) |
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py | phases/glade/phase.glade + shell | partial (CSDS, probabilities, components tabs are placeholders) |
-| Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (live scattering-factor plot; synthetic demo coefficients) |
+| Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (placeholder read-only matrix; editable combos-per-cell matrix comes with the model port) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |

@@ -65,12 +65,32 @@ class Project(QObject):
         if name:
             self.name = name
         self._specimens: list[Specimen] = []
+        self._atom_types: list = []
         # File-related plain attributes (not persisted properties):
         # raw_properties keeps the full .mud property dict verbatim so that
         # parts MudLab2 does not model yet survive load/save round-trips.
         self.raw_properties: dict = {}
         self.file_version: str | None = None
         self.filename: str | None = None
+
+    # ------------------------------------------------------------------
+    # Atom types (reference data; a full periodic table of ions)
+    # ------------------------------------------------------------------
+    @property
+    def atom_types(self) -> tuple:
+        return tuple(self._atom_types)
+
+    def add_atom_type(self, atom_type) -> "object":
+        atom_type.setParent(self)
+        self._atom_types.append(atom_type)
+        return atom_type
+
+    def get_atom_type(self, name: str):
+        """Look up an atom type by name (old atom-type resolution by name)."""
+        for atom_type in self._atom_types:
+            if atom_type.name == name:
+                return atom_type
+        return None
 
     # ------------------------------------------------------------------
     # Specimens
