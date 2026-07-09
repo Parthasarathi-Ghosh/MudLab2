@@ -90,6 +90,13 @@ port, produces the calculated pattern from scratch):
   the Refinement window family; the calc path above only re-applies the
   stored solution (non-optimising), which is what the graph shows.
 
+Regression harness: `tools/verify_calc_engine.py` recomputes the sample
+projects and diffs the result against the calculated pattern the old GTK
+app stored in the .mud (the gold standard) - run it after touching any
+calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
+(exit 0 = within tolerance, 1 = regression, 2 = no samples found; pass
+.mud paths to point at other projects).
+
 ## Recreated
 
 | Component | New files | Old source | Status |
