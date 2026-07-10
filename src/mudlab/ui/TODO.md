@@ -135,12 +135,16 @@ port, produces the calculated pattern from scratch):
   the Refinement window family; the calc path above only re-applies the
   stored solution (non-optimising), which is what the graph shows.
 
-Regression harness: `tools/verify_calc_engine.py` recomputes the sample
-projects and diffs the result against the calculated pattern the old GTK
-app stored in the .mud (the gold standard) - run it after touching any
-calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
-(exit 0 = within tolerance, 1 = regression, 2 = no samples found; pass
-.mud paths to point at other projects).
+Regression harnesses (both head-less, bundled interpreter, exit 0 = pass /
+1 = regression / 2 = no samples; pass .mud paths to point elsewhere):
+- `tools/verify_calc_engine.py` guards the CALC path - recomputes the
+  sample projects and diffs the result against the calculated pattern the
+  old GTK app stored in the .mud (the gold standard). Run after touching any
+  calc-engine file.
+- `tools/verify_roundtrip.py` guards the PERSISTENCE path - load -> save ->
+  reload keeps the modeled parts JSON-equal (A), every editable field
+  survives a round-trip (B), and the calc is unchanged by a round-trip (C).
+  Run after touching a model to_dict / from_dict or the file parser.
 
 ## Recreated
 
