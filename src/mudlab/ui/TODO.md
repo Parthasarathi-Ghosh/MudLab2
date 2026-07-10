@@ -131,11 +131,17 @@ port, produces the calculated pattern from scratch):
   0.2% - the full chain atoms -> SF -> CSDS -> stacking -> phase -> mixture
   reproduces the GTK reference.
 - [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
-- [ ] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
-  the Refinement window family; the calc path above only re-applies the
-  stored solution (non-optimising), which is what the graph shows.
+- [~] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
+  CORE DONE (calculations/mixture.py: masks from fractions_mask + auto_scales/
+  auto_bg, per-specimen phase-intensity cache, mean-Rp objective, L-BFGS-B,
+  finalize; Mixture.optimize()/current_residual()). GUI wiring (the Optimize/
+  Refine buttons + auto-* checkboxes) is the next sub-batch. Notes for
+  debugging: scipy 1.18 dropped fmin_l_bfgs_b'"'"'s iprint arg (it is silent by
+  default); the core does NOT swallow exceptions (fail loud - the GUI wraps
+  it), the objective is guarded finite (_PENALTY), and a diverged solve keeps
+  the current solution.
 
-Regression harnesses (both head-less, bundled interpreter, exit 0 = pass /
+Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 1 = regression / 2 = no samples; pass .mud paths to point elsewhere):
 - `tools/verify_calc_engine.py` guards the CALC path - recomputes the
   sample projects and diffs the result against the calculated pattern the
@@ -145,6 +151,10 @@ Regression harnesses (both head-less, bundled interpreter, exit 0 = pass /
   reload keeps the modeled parts JSON-equal (A), every editable field
   survives a round-trip (B), and the calc is unchanged by a round-trip (C).
   Run after touching a model to_dict / from_dict or the file parser.
+- `tools/verify_optimizer.py` guards the OPTIMIZER - re-optimising the stored
+  solution never worsens it, a perturbed start (scales->1, bg->0) recovers,
+  the solution stays valid, and no-free-vars is a safe no-op. Run after
+  touching calculations/mixture.py or the objective/masks.
 
 ## Recreated
 

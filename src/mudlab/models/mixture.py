@@ -62,6 +62,23 @@ class Mixture:
             )
             specimen.set_calculated_pattern(two_theta, total)
 
+    def current_residual(self) -> float:
+        """Mean Rp of the current (un-optimised) solution against the
+        experimental patterns."""
+        from mudlab.calculations.mixture import get_current_residual
+
+        return get_current_residual(self)
+
+    def optimize(self) -> float:
+        """Refine fractions / scales / background shifts to minimise the mean
+        Rp residual (L-BFGS-B), then recompute the stored patterns. Returns
+        the achieved residual."""
+        from mudlab.calculations.mixture import optimize_mixture
+
+        residual = optimize_mixture(self)
+        self.calculate()
+        return residual
+
     @classmethod
     def from_dict(
         cls, data: dict, phase_uuid_map: dict, specimen_uuid_map: dict
