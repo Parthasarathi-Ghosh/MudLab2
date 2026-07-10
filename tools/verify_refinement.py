@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from mudlab.file_parsers.mud_project import load_mud, save_mud  # noqa: E402
 from mudlab.calculations.refinement import (  # noqa: E402
-    REFINE_METHODS, enumerate_refinables,
+    REFINE_METHODS, enumerate_refinables, refine_mixture,
 )
 
 _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
@@ -103,6 +103,27 @@ def check_project(path):
         residual = m.refine(idx, {"maxfun": 6, "maxiter": 3, "niter": 1, "num_samples": 4})
         print("  method %d %-24s residual=%.4f" % (idx, name, residual))
         _check(results, "method %d (%s) finite" % (idx, name), np.isfinite(residual))
+
+    # 3b. Initial/Best/Last solutions are tracked without the history hook
+    # (they back the Refinement window's keep-solution buttons).
+    proj = load_mud(path)
+    mix = proj.mixtures[0]
+    ref = _first_flaggable(enumerate_refinables(mix))
+    ref.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
+    ref.value = 12.0
+    refiner = refine_mixture(mix, 0, {"maxfun": 12})
+    _check(results, "history hook stays disabled", len(refiner.history) == 0)
+    _check(results, "initial/best/last residuals tracked",
+           None not in (refiner.initial_residual, refiner.best_residual,
+                        refiner.last_residual))
+    _check(results, "best is no worse than initial",
+           refiner.best_residual <= refiner.initial_residual + 1e-9)
+    refiner.apply_initial()
+    _check(results, "apply_initial restores the initial value",
+           np.isclose(ref.value, refiner.initial_solution[0], atol=1e-6))
+    refiner.apply_best()
+    _check(results, "apply_best sets the best value",
+           np.isclose(ref.value, refiner.best_solution[0], atol=1e-6))
 
     # 4. No flags -> falls back to a plain optimize.
     residual = load_mud(path).mixtures[0].refine(0, {})

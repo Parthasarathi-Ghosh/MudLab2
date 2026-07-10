@@ -215,8 +215,16 @@ class Refiner:
             self.ranges.append((lo, hi))
             initial.append(min(max(ref.value, lo), hi))  # clip into bounds
         self.initial_solution = np.array(initial, dtype=float)
+        # The three "keep this solution" points the Refinement window offers
+        # (Initial / Best / Last) are tracked as explicit fields here, NOT
+        # derived from the history - so they survive with the progress-plot
+        # history disabled. Only the full trajectory (for the Show-plot button)
+        # lives in the history hook below.
         self.best_solution = self.initial_solution.copy()
+        self.last_solution = self.initial_solution.copy()
+        self.initial_residual = None
         self.best_residual = None
+        self.last_residual = None
 
         # DEFERRED FEATURE - refinement progress plot (old RefineHistory +
         # refine_results.glade / get_plot_samples). update() is the recording
@@ -245,18 +253,28 @@ class Refiner:
         return residual
 
     def update(self, x, residual) -> None:
+        x = np.atleast_1d(np.asarray(x, dtype=float)).copy()
         if self.record_history:  # deferred progress-plot hook (disabled)
-            self.history.append(
-                (float(residual), np.atleast_1d(np.asarray(x, dtype=float)).copy())
-            )
+            self.history.append((float(residual), x.copy()))
+        self.last_solution = x
+        self.last_residual = float(residual)
         if self.best_residual is None or residual < self.best_residual:
-            self.best_residual = residual
-            self.best_solution = np.atleast_1d(np.asarray(x, dtype=float)).copy()
+            self.best_residual = float(residual)
+            self.best_solution = x.copy()
 
+    # The Refinement window's Initial / Best / Last buttons apply one of the
+    # three tracked solutions; each sets the structural params then inner-fits
+    # fractions/scales/background so the mixture lands at that solution's fit.
     def apply_best(self) -> None:
-        """Set the refinables to the best solution found and inner-optimise
-        once more so the mixture ends at its best fit."""
         self.apply_solution(self.best_solution)
+        optimize_mixture(self.mixture)
+
+    def apply_last(self) -> None:
+        self.apply_solution(self.last_solution)
+        optimize_mixture(self.mixture)
+
+    def apply_initial(self) -> None:
+        self.apply_solution(self.initial_solution)
         optimize_mixture(self.mixture)
 
 
@@ -312,10 +330,13 @@ REFINE_METHODS = {
 }
 
 
-def refine_mixture(mixture, method_index=0, options=None, stop=None) -> float:
+def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner":
     """Refine the mixture's flagged structural parameters with the chosen
     SciPy method, leaving the model at the best solution (structural params +
-    inner-fitted fractions/scales/background). Returns the best residual.
+    inner-fitted fractions/scales/background). Returns the Refiner, which
+    carries the initial / best / last solutions + residuals and the
+    apply_initial/best/last methods the Refinement window wires its buttons to
+    (refiner.best_residual is the achieved residual).
 
     With nothing flagged (or all ranges degenerate) it simply inner-optimises
     fractions/scales/background, matching a plain Optimize. `stop` is an
@@ -326,15 +347,19 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None) -> float:
     options = options or {}
     refiner = Refiner(mixture, enumerate_refinables(mixture), stop=stop)
     if not refiner.refinables:
-        return optimize_mixture(mixture)
+        residual = float(optimize_mixture(mixture))
+        refiner.initial_residual = residual
+        refiner.best_residual = residual
+        refiner.last_residual = residual
+        return refiner
 
     try:
-        # Seed the best with the starting point, then run the outer search.
-        refiner.get_residual(refiner.initial_solution)
+        # Seed the best/initial with the starting point, then run the search.
+        refiner.initial_residual = refiner.get_residual(refiner.initial_solution)
         runner = REFINE_METHODS.get(method_index, REFINE_METHODS[0])[1]
         runner(refiner, options)
     except _RefinementStopped:
         pass  # cancelled: fall through and apply the best solution so far
 
     refiner.apply_best()
-    return float(refiner.best_residual)
+    return refiner
