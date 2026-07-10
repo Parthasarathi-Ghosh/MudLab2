@@ -20,7 +20,9 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHeaderView, QTableWidgetItem, QWidget
+from PySide6.QtWidgets import (
+    QApplication, QHeaderView, QMessageBox, QTableWidgetItem, QWidget,
+)
 
 from mudlab.ui.ui_edit_mixture import Ui_EditMixtureWidget
 
@@ -41,24 +43,31 @@ class EditMixtureWidget(QWidget):
         self._mixture = None
         self._on_changed: Callable[[], None] | None = None
 
-        # Refinement family (optimizer + structural edits) is a later port;
-        # keep the controls visible but disabled so the UI reads honestly.
+        # Still a later port: the full Refinement window (btn_refine), the
+        # composition summary, and structural add/remove. Disabled so the UI
+        # reads honestly. The one-shot Optimize + the auto-* flags are live.
         for control, why in (
-            (self.ui.btn_refine, "Refinement is not ported yet."),
-            (self.ui.btn_optimize, "The fraction/scale/bg optimizer is not ported yet."),
+            (self.ui.btn_refine, "The Refinement window is not ported yet."),
             (self.ui.btn_composition, "Composition summary is not ported yet."),
             (self.ui.btn_add_phase, "Adding phase slots is not ported yet."),
             (self.ui.btn_add_specimen, "Adding specimens is not ported yet."),
             (self.ui.btn_add_both, "Adding rows/columns is not ported yet."),
-            (self.ui.mixture_auto_run, "Auto-run needs the refinement port."),
-            (self.ui.mixture_auto_scales, "Auto-scaling needs the refinement port."),
-            (self.ui.mixture_auto_bg, "Auto background needs the refinement port."),
         ):
             control.setEnabled(False)
             control.setToolTip(why)
 
         self.ui.mixture_name.editingFinished.connect(self._on_name_edited)
         self.ui.tbl_matrix.itemChanged.connect(self._on_item_changed)
+        self.ui.btn_optimize.clicked.connect(self._on_optimize)
+        self.ui.mixture_auto_run.toggled.connect(
+            lambda checked: self._on_auto_toggled("auto_run", checked)
+        )
+        self.ui.mixture_auto_scales.toggled.connect(
+            lambda checked: self._on_auto_toggled("auto_scales", checked)
+        )
+        self.ui.mixture_auto_bg.toggled.connect(
+            lambda checked: self._on_auto_toggled("auto_bg", checked)
+        )
 
     # ------------------------------------------------------------------
     def bind_mixture(self, mixture, on_changed: Callable[[], None] | None = None) -> None:
@@ -67,13 +76,22 @@ class EditMixtureWidget(QWidget):
         self._mixture = mixture
         self._on_changed = on_changed
         self._populate()
+        self._update_residual_label()
 
     def _populate(self) -> None:
         mixture = self._mixture
         table = self.ui.tbl_matrix
-        # Block itemChanged while we build, or every setItem would fire it.
+        # Block change signals while we build, or every setItem / setChecked
+        # would fire its handler.
+        checkboxes = (
+            self.ui.mixture_auto_run,
+            self.ui.mixture_auto_scales,
+            self.ui.mixture_auto_bg,
+        )
         table.blockSignals(True)
         self.ui.mixture_name.blockSignals(True)
+        for box in checkboxes:
+            box.blockSignals(True)
         try:
             if mixture is None:
                 self.ui.mixture_name.setText("")
@@ -83,11 +101,12 @@ class EditMixtureWidget(QWidget):
                 return
 
             self.ui.mixture_name.setText(mixture.name)
-            # Reflect the stored (read-only) optimizer preferences.
+            # Reflect the stored optimizer preferences (auto_scales/bg default
+            # on in the old model; they select which variables Optimize frees).
             raw = mixture.raw_properties
             self.ui.mixture_auto_run.setChecked(bool(raw.get("auto_run", False)))
-            self.ui.mixture_auto_scales.setChecked(bool(raw.get("auto_scales", False)))
-            self.ui.mixture_auto_bg.setChecked(bool(raw.get("auto_bg", False)))
+            self.ui.mixture_auto_scales.setChecked(bool(raw.get("auto_scales", True)))
+            self.ui.mixture_auto_bg.setChecked(bool(raw.get("auto_bg", True)))
 
             specimens = mixture.specimens
             labels = mixture.phase_labels
@@ -127,6 +146,55 @@ class EditMixtureWidget(QWidget):
         finally:
             table.blockSignals(False)
             self.ui.mixture_name.blockSignals(False)
+            for box in checkboxes:
+                box.blockSignals(False)
+
+    # ------------------------------------------------------------------
+    # Optimizer + auto-* flags
+    # ------------------------------------------------------------------
+    def _on_auto_toggled(self, key: str, checked: bool) -> None:
+        """auto_run / auto_scales / auto_bg select which variables Optimize
+        frees; store the flag (it round-trips) and mark the project changed."""
+        if self._mixture is None:
+            return
+        self._mixture.raw_properties[key] = bool(checked)
+        self._notify()
+
+    def _on_optimize(self) -> None:
+        """Run the L-BFGS-B refinement for this mixture. The optimizer core
+        fails loud; this is the UI-boundary safety net (busy cursor + an error
+        dialog) so a bad refine never takes the app down or corrupts state -
+        optimize() only writes the model on success."""
+        if self._mixture is None:
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            residual = self._mixture.optimize()
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(
+                self, "Refinement failed",
+                "The refinement could not complete:\n\n%s" % exc,
+            )
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+        # optimize() already recomputed + stored the patterns (which redraws
+        # the plot via the specimens' data_changed); just refresh this editor.
+        self._populate()
+        self._show_residual(residual)
+
+    def _update_residual_label(self) -> None:
+        if self._mixture is None:
+            self.ui.lbl_residual.setText("Residual (Rp): -")
+            return
+        try:
+            self._show_residual(self._mixture.current_residual())
+        except Exception:  # noqa: BLE001 - a display convenience, never fatal
+            self.ui.lbl_residual.setText("Residual (Rp): -")
+
+    def _show_residual(self, residual: float) -> None:
+        self.ui.lbl_residual.setText("Residual (Rp): %.3f %%" % residual)
 
     # ------------------------------------------------------------------
     # Editing

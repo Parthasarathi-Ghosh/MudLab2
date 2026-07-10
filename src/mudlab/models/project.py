@@ -125,12 +125,18 @@ class Project(QObject):
         return mixture
 
     def calculate(self) -> None:
-        """Recompute every mixture's calculated patterns (old
-        update_all_mixtures, non-optimising path). Each mixture stores the
-        result back on its specimens, whose data_changed then refreshes the
-        plot."""
+        """Recompute every mixture's calculated patterns (non-optimising).
+        Each mixture stores the result back on its specimens, whose
+        data_changed then refreshes the plot."""
         for mixture in self._mixtures:
             mixture.calculate()
+
+    def refresh(self) -> None:
+        """Refresh every mixture the way the old update_all_mixtures did:
+        optimise the ones with auto_run set, else re-apply their current
+        solution. This is the F5 Refresh Graph semantics."""
+        for mixture in self._mixtures:
+            mixture.update()
 
     def specimen_uuid_map(self) -> dict:
         """uuid -> Specimen, for resolving a mixture's specimen rows."""

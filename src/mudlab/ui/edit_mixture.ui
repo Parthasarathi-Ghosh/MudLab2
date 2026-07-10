@@ -151,6 +151,16 @@
      </property>
     </widget>
    </item>
+   <item>
+    <widget class="QLabel" name="lbl_residual">
+     <property name="toolTip">
+      <string>Mean Rp residual of the current solution against the experimental patterns.</string>
+     </property>
+     <property name="text">
+      <string>Residual (Rp): -</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

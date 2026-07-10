@@ -131,15 +131,21 @@ port, produces the calculated pattern from scratch):
   0.2% - the full chain atoms -> SF -> CSDS -> stacking -> phase -> mixture
   reproduces the GTK reference.
 - [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
-- [~] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
-  CORE DONE (calculations/mixture.py: masks from fractions_mask + auto_scales/
+- [x] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
+  DONE. Core: calculations/mixture.py (masks from fractions_mask + auto_scales/
   auto_bg, per-specimen phase-intensity cache, mean-Rp objective, L-BFGS-B,
-  finalize; Mixture.optimize()/current_residual()). GUI wiring (the Optimize/
-  Refine buttons + auto-* checkboxes) is the next sub-batch. Notes for
-  debugging: scipy 1.18 dropped fmin_l_bfgs_b'"'"'s iprint arg (it is silent by
-  default); the core does NOT swallow exceptions (fail loud - the GUI wraps
-  it), the objective is guarded finite (_PENALTY), and a diverged solve keeps
-  the current solution.
+  finalize; Mixture.optimize()/current_residual()/update()). GUI: the Edit
+  Mixtures Optimize button runs it under a busy cursor with a UI-boundary
+  error dialog, updates the matrix + a live "Residual (Rp)" label and redraws;
+  the auto_run/auto_scales/auto_bg checkboxes are editable + persisted (they
+  pick the free variables), and F5 Refresh Graph optimises auto_run mixtures
+  (project.refresh()) else re-applies. Still deferred: the full Refinement
+  WINDOW (btn_refine: method selection, refinable tree, live status) and the
+  auto-run-on-every-edit behaviour (manual edits apply, only F5/Optimize
+  refine). Debugging notes: scipy 1.18 dropped fmin_l_bfgs_b'"'"'s iprint arg (it
+  is silent by default); the core does NOT swallow exceptions (fail loud - the
+  GUI wraps it), the objective is guarded finite (_PENALTY), a diverged solve
+  keeps the current solution.
 
 Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 1 = regression / 2 = no samples; pass .mud paths to point elsewhere):
@@ -168,7 +174,7 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; unit-cell a/b, phase inheritance, colour, Add/Remove phase still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
-| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; phase-cell reassign + structural edits + optimizer disabled, come with later batches) |
+| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, the Refine window + composition still to wire) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |

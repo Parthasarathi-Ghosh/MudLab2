@@ -338,16 +338,25 @@ class MainWindow(QMainWindow):
         self._rebuild_nav_toolbar()
 
     def _refresh_graph(self) -> None:
-        """Recompute all mixtures' calculated patterns, then redraw (old
-        on_refresh_graph -> update_all_mixtures + redraw_plot). F5.
+        """Refresh all mixtures, then redraw (old on_refresh_graph ->
+        update_all_mixtures + redraw_plot). F5.
 
-        The heavy calculation can take a moment on large projects, so show a
-        busy cursor. Each mixture stores its result on the specimens, whose
-        data_changed refreshes the plot; an explicit refresh covers the
-        no-mixture case."""
+        project.refresh() optimises the mixtures whose auto_run flag is set and
+        re-applies the rest, so this can run the L-BFGS-B refinement - hence
+        the busy cursor and the UI-boundary error guard (the optimizer core
+        fails loud; this keeps the app alive). Each mixture stores its result
+        on the specimens, whose data_changed refreshes the plot; an explicit
+        refresh covers the no-mixture case."""
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            self.project.calculate()
+            self.project.refresh()
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(
+                self, "Refresh failed",
+                "Refreshing the calculated patterns failed:\n\n%s" % exc,
+            )
+            return
         finally:
             QApplication.restoreOverrideCursor()
         self._refresh_plots()

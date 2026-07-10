@@ -253,11 +253,22 @@ modeless by `actionEditMixtures`.
   validates (bad input reverts) and calls `on_changed` -> `mixture.
   calculate()`, so the pattern redraws live. Phase cells show the assigned
   phase name read-only. Row/col constants live in the widget module.
+- Refinement (2026-07-10): `btn_optimize` runs `Mixture.optimize()`
+  (L-BFGS-B, calculations/mixture.py) under a busy cursor inside a
+  UI-boundary try/except -> `QMessageBox` on failure (the optimizer core
+  fails loud; this is the only safety net). On success it re-populates the
+  matrix with the refined solution and updates the `lbl_residual`
+  "Residual (Rp)" label (also shown on bind via `Mixture.current_residual`).
+  The `mixture_auto_run/scales/bg` checkboxes are editable and persisted
+  (stored in `raw_properties`); they select which variables Optimize frees
+  (fractions_mask from the .mud gates fractions). F5 Refresh Graph calls
+  `project.refresh()` -> `Mixture.update()`, which optimises auto_run
+  mixtures and re-applies the rest.
 - Still disabled (later batches / other ports): the phase-per-cell combo
   (reassigning a slot's phase), btn_add_phase/specimen/both (structural),
-  btn_refine + btn_optimize + mixture_auto_run/scales/bg (the optimizer),
-  btn_composition (composition summary), and the Add Mixture dialog
-  (`add_mixture.glade`) for the shell's Add button.
+  `btn_refine` (the full Refinement WINDOW: method selection, refinable
+  tree, live status), `btn_composition` (composition summary), and the Add
+  Mixture dialog (`add_mixture.glade`) for the shell's Add button.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.

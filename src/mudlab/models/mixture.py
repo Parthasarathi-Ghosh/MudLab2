@@ -79,6 +79,15 @@ class Mixture:
         self.calculate()
         return residual
 
+    def update(self) -> float:
+        """Refresh this mixture (old Mixture.update): optimise when auto_run is
+        set, else just re-apply the current solution. Returns the residual
+        (0.0 when only applied)."""
+        if bool(self.raw_properties.get("auto_run", False)):
+            return self.optimize()
+        self.calculate()
+        return 0.0
+
     @classmethod
     def from_dict(
         cls, data: dict, phase_uuid_map: dict, specimen_uuid_map: dict

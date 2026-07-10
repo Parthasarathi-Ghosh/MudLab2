@@ -111,6 +111,11 @@ class Ui_EditMixtureWidget(object):
 
         self.mixtureLayout.addWidget(self.mixture_auto_bg)
 
+        self.lbl_residual = QLabel(EditMixtureWidget)
+        self.lbl_residual.setObjectName(u"lbl_residual")
+
+        self.mixtureLayout.addWidget(self.lbl_residual)
+
 
         self.retranslateUi(EditMixtureWidget)
 
@@ -155,6 +160,10 @@ class Ui_EditMixtureWidget(object):
         self.mixture_auto_bg.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Automatically optimize the background shifts.", None))
 #endif // QT_CONFIG(tooltip)
         self.mixture_auto_bg.setText(QCoreApplication.translate("EditMixtureWidget", u"Auto-adjust background shifts", None))
+#if QT_CONFIG(tooltip)
+        self.lbl_residual.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Mean Rp residual of the current solution against the experimental patterns.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_residual.setText(QCoreApplication.translate("EditMixtureWidget", u"Residual (Rp): -", None))
         pass
     # retranslateUi
 
