@@ -32,6 +32,7 @@ class EditPhaseWidget(QWidget):
         self.ui.setupUi(self)
 
         self._phase = None
+        self._atom_types: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
 
@@ -77,10 +78,14 @@ class EditPhaseWidget(QWidget):
         self.setEnabled(False)
 
     # ------------------------------------------------------------------
-    def bind_phase(self, phase, on_changed: Callable[[], None] | None = None) -> None:
-        """Show and edit a real Phase model. `on_changed` runs after every
-        accepted edit (used to recompute + redraw the pattern)."""
+    def bind_phase(
+        self, phase, on_changed: Callable[[], None] | None = None, atom_types=None
+    ) -> None:
+        """Show and edit a real Phase model. `atom_types` feeds the component
+        atom-element combos. `on_changed` runs after every accepted edit (used
+        to recompute + redraw the pattern)."""
         self._phase = phase
+        self._atom_types = list(atom_types or [])
         self._on_changed = on_changed
         self.setEnabled(phase is not None)
         if phase is None:
@@ -111,7 +116,9 @@ class EditPhaseWidget(QWidget):
         else:
             self.probabilities_widget.bind_probabilities(None)
 
-        self.component_widget.bind_components(phase.components, on_changed=self._notify)
+        self.component_widget.bind_components(
+            phase.components, atom_types=self._atom_types, on_changed=self._notify
+        )
 
     def _set_probabilities_tab_visible(self, visible: bool) -> None:
         tabs = self.ui.book_wrapper

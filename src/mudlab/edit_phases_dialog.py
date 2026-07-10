@@ -55,8 +55,11 @@ class EditPhasesDialog(ObjectStoreDialog):
     def _on_phase_selected(self, index: QModelIndex) -> None:
         if 0 <= index.row() < len(self._phases):
             phase = self._phases[index.row()]
+            atom_types = self.project.atom_types if self.project is not None else []
             self.phase_widget.bind_phase(
-                phase, on_changed=lambda p=phase: self._recalculate(p)
+                phase,
+                on_changed=lambda p=phase: self._recalculate(p),
+                atom_types=atom_types,
             )
 
     def _recalculate(self, phase) -> None:

@@ -191,9 +191,12 @@ the CSDS component.
   selector picks one of the phase's G components; its c-axis scalars
   (name, `component_d001`, `component_default_c`, `component_delta_c`) are
   editable and bound to the Component model, with cell a/b, volume and
-  charge balance read-only. Editing recomputes the structure factor +
-  pattern. The `grpLayerAtoms` / `grpInterlayerAtoms` group boxes are
-  placeholders for the atom lists (batch 4b).
+  charge balance read-only. The `grpLayerAtoms` / `grpInterlayerAtoms` group
+  boxes each hold an `AtomListWidget` (atom_list.ui + atom_list_widget.py):
+  a table of Atom name / Def. Z / Calc. Z (read-only) / # (pn) / Element
+  (an atom-type combo from the project atom types) with Add/Remove. Editing
+  a scalar or an atom recomputes the structure factor + pattern; atom edits
+  also refresh the component weight / charge balance.
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
   + `phase_inherit_CSDS_distribution` (phase inheritance / visuals not

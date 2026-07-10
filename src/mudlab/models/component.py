@@ -12,6 +12,8 @@ passthrough) for now.
 
 from __future__ import annotations
 
+import uuid as _uuid
+
 
 class Atom:
     """One atom projected onto the c-axis (old Atom model, calc subset)."""
@@ -22,22 +24,49 @@ class Atom:
         pn: float = 0.0,
         default_z: float = 0.0,
         atom_type=None,
+        stretch_z: bool = False,
     ) -> None:
         self.name = name
         self.pn = pn               # number of atoms projected to this z
         self.default_z = default_z  # default z coordinate
         self.atom_type = atom_type  # AtomType model (scattering factors)
         self.z = default_z          # working z, set during get_factors
+        self.stretch_z = stretch_z  # interlayer atoms rescale z with d-spacing
+        self.uuid = _uuid.uuid4().hex
+        # Verbatim .mud atom dict so unmodeled fields (uuid, ref_info) survive.
+        self.raw_properties: dict = {}
 
     @classmethod
     def from_dict(cls, data: dict, atom_type_map: dict) -> "Atom":
         props = data.get("properties", {})
-        return cls(
+        atom = cls(
             name=props.get("name", ""),
             pn=props.get("pn", 0.0),
             default_z=props.get("default_z", 0.0),
             atom_type=atom_type_map.get(props.get("atom_type_uuid")),
+            stretch_z=bool(props.get("stretch_z", False)),
         )
+        atom.raw_properties = dict(props)
+        if "uuid" in props:
+            atom.uuid = props["uuid"]
+        return atom
+
+    def to_dict(self) -> dict:
+        """Serialize back to a .mud atom dict, overwriting the modeled fields
+        (name, default_z, pn, atom_type_uuid) on top of the verbatim raw
+        properties. An unresolved atom type keeps its original uuid so the
+        reference is not lost."""
+        props = dict(self.raw_properties)
+        props["name"] = self.name
+        props["default_z"] = self.default_z
+        props["pn"] = self.pn
+        props["stretch_z"] = self.stretch_z
+        if self.atom_type is not None:
+            props["atom_type_uuid"] = self.atom_type.uuid
+        else:
+            props.setdefault("atom_type_uuid", props.get("atom_type_uuid", ""))
+        props["uuid"] = self.uuid
+        return {"type": "Atom", "properties": props}
 
 
 class Component:
@@ -102,15 +131,17 @@ class Component:
         return layer, interlayer, layer + interlayer
 
     def to_dict(self) -> dict:
-        """Serialize back to a .mud component dict, overwriting only the
-        modeled c-axis scalars (name, d001, default_c, delta_c) on top of the
-        verbatim raw properties. Cell a/b, atoms, relations, inherit flags and
-        uuid are preserved (their editors come with later sub-batches)."""
+        """Serialize back to a .mud component dict, overwriting the modeled
+        fields (name, c-axis scalars, layer + interlayer atom lists) on top of
+        the verbatim raw properties. Cell a/b (ucp), atom relations, inherit
+        flags and uuid are preserved (their editors come later)."""
         props = dict(self.raw_properties)
         props["name"] = self.name
         props["d001"] = self.d001
         props["default_c"] = self.default_c
         props["delta_c"] = self.delta_c
+        props["layer_atoms"] = [a.to_dict() for a in self.layer_atoms]
+        props["interlayer_atoms"] = [a.to_dict() for a in self.interlayer_atoms]
         return {"type": "Component", "properties": props}
 
     @classmethod

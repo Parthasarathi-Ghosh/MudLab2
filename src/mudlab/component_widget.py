@@ -19,6 +19,7 @@ from typing import Callable
 
 from PySide6.QtWidgets import QWidget
 
+from mudlab.atom_list_widget import AtomListWidget
 from mudlab.ui.ui_edit_component import Ui_EditComponentWidget
 
 
@@ -30,8 +31,15 @@ class EditComponentWidget(QWidget):
 
         self._components: list = []
         self._component = None
+        self._atom_types: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
+
+        # Layer and interlayer atom lists fill the two group-box placeholders.
+        self.layer_atoms_widget = AtomListWidget(self)
+        self.ui.layerAtomsLayout.addWidget(self.layer_atoms_widget)
+        self.interlayer_atoms_widget = AtomListWidget(self)
+        self.ui.interlayerAtomsLayout.addWidget(self.interlayer_atoms_widget)
 
         self.ui.cmb_component.currentIndexChanged.connect(self._on_component_selected)
         self.ui.component_name.editingFinished.connect(self._on_name_edited)
@@ -48,10 +56,14 @@ class EditComponentWidget(QWidget):
         self.setEnabled(False)
 
     # ------------------------------------------------------------------
-    def bind_components(self, components, on_changed: Callable[[], None] | None = None) -> None:
-        """Show and edit a phase's Component list. `on_changed` runs after an
-        accepted scalar edit (used to recompute + redraw the pattern)."""
+    def bind_components(
+        self, components, atom_types=None, on_changed: Callable[[], None] | None = None
+    ) -> None:
+        """Show and edit a phase's Component list. `atom_types` fills the atom
+        element combos; `on_changed` runs after an accepted edit (used to
+        recompute + redraw the pattern)."""
         self._components = list(components or [])
+        self._atom_types = list(atom_types or [])
         self._on_changed = on_changed
         self.setEnabled(bool(self._components))
 
@@ -83,7 +95,19 @@ class EditComponentWidget(QWidget):
             self.ui.component_delta_c.setValue(float(comp.delta_c))
         finally:
             self._updating = False
+        self.layer_atoms_widget.bind_atoms(
+            comp.layer_atoms, self._atom_types, on_changed=self._on_atoms_changed
+        )
+        self.interlayer_atoms_widget.bind_atoms(
+            comp.interlayer_atoms, self._atom_types, on_changed=self._on_atoms_changed
+        )
         self._refresh_derived()
+
+    def _on_atoms_changed(self) -> None:
+        # An atom edit changes weight / charge balance; refresh them and
+        # recompute the pattern.
+        self._refresh_derived()
+        self._notify()
 
     # ------------------------------------------------------------------
     def _on_component_selected(self, index: int) -> None:
