@@ -21,10 +21,11 @@ vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
 and the whole pattern-calculation engine - phases, components, CSDS,
 probabilities and mixtures (see the batch checklist in TODO.md). Mixtures
 save from the model now (Edit Mixtures makes fractions/scales/background
-editable), and phases save the modeled fields too (Edit Phases makes name/
-sigma*/CSDS-mean editable; Phase.to_dict keeps everything else verbatim by
-uuid). Components/probabilities within a phase still round-trip verbatim
-until their tabs are wired. The F5 Refresh Graph action and any Edit Mixtures
+editable), and phases save the modeled fields too - Edit Phases makes name/
+sigma*/CSDS-mean, the R0 F params, and each component (c-axis scalars +
+layer/interlayer atoms) editable; Phase/Component/Atom.to_dict keep
+everything else verbatim by uuid. Within a phase, only the unit-cell a/b
+(ucp) and atom relations still round-trip verbatim (their editors pending). The F5 Refresh Graph action and any Edit Mixtures
 edit run `project.calculate()` / `mixture.calculate()` (each specimen's
 calculated pattern). Not yet modeled: exclusion ranges; not yet ported:
 the mixture fraction/scale/bg refinement optimizer (the calc path

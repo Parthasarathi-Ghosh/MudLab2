@@ -5,9 +5,10 @@ one clay layer: its layer and interlayer atoms plus the d-spacing terms
 consumed by `calculations.components.get_factors`. Atoms reference a
 project AtomType by uuid.
 
-These are calculation models loaded from the .mud; the phase editor UI is
-wired later, so phases/components are still saved verbatim (raw
-passthrough) for now.
+These are calculation models loaded from the .mud and bound to the Edit
+Phases component editor: the modeled fields (name, c-axis scalars, layer/
+interlayer atoms) save via to_dict, while unmodeled fields (ucp a/b, atom
+relations, uuid, ref_info) round-trip verbatim through raw_properties.
 """
 
 from __future__ import annotations

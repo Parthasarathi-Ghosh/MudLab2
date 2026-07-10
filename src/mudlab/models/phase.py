@@ -7,8 +7,9 @@ orientation factor. It produces one phase's diffracted intensity via
 `calculations.phases.get_intensity`.
 
 Only the regular "Phase" type is modeled (RawPatternPhase comes later). The
-phase editor UI is wired with a later batch, so phases are still saved
-verbatim (raw passthrough in the file parser); this model is load + calc.
+Edit Phases dialog binds this model, so the modeled fields (name, sigma*,
+CSDS mean, R0 F params, components) save via to_dict while everything else
+round-trips verbatim through raw_properties.
 """
 
 from __future__ import annotations

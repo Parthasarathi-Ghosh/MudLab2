@@ -96,8 +96,8 @@ port, produces the calculated pattern from scratch):
   recalculating interlayer z from the d-spacing z_factor, plus the phase
   term). Atom + Component models (models/component.py) load from the .mud
   and resolve atom references by uuid (project.atom_type_uuid_map). Calc
-  groundwork only - the component editor UI is wired with the phase-editor
-  port, so phases/components still save verbatim. Verified against the
+  groundwork only - components saved verbatim at the time; the component
+  editor is wired later (see the editor-wiring batches). Verified against the
   Illite component: 11 atoms resolve, |SF| falls off with angle, intensity
   is finite/non-negative.
 - [x] Batch 4: CSDS distribution + stacking probabilities - the Drits
