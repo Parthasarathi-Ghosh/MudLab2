@@ -54,7 +54,16 @@ bound to their editors so parameters become editable with a live recalc.
   an F re-derives W/P and recomputes the pattern; F params save via
   Phase.to_dict. Verified: F1 0.8->0.6 gives W=[0.6,0.4], pattern moves,
   round-trips; G=1 phases hide the tab; harness 5/5.
-- [ ] Batch 4: Edit Phases components (d001, atoms, unit cell)
+- [x] Batch 4a: Edit Phases component scalars - the component editor
+  (edit_component.ui + component_widget.py) with a component selector and
+  editable c-axis scalars (name, d001/cell length c, default_c, delta_c)
+  bound to the Component model; derived cell a/b, volume and charge balance
+  shown read-only. Editing recomputes the structure factor + pattern live;
+  components save via Component.to_dict (atoms / ucp / relations / uuid kept
+  verbatim). Verified: d001 edit shifts the peak, the G=2 IS phase selector
+  switches Illite<->Di-Smectite, edits round-trip, unedited stays JSON-equal.
+- [ ] Batch 4b: Edit Phases component atom lists (layer + interlayer atoms:
+  editable name/z/pn + atom-type combo, add/remove; then Atom.to_dict)
 
 Calculation engine (2026-07-08): the fit-statistics groundwork is ported
 (calculations/statistics.py + math_tools.smooth; SpecimenStatistics via
@@ -136,7 +145,7 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 | Edit Specimen | edit_specimen.ui, edit_specimen_dialog.py | specimen/glade/specimen.glade | done (hosts line properties + goniometer components) |
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (buttons not yet connected) |
-| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui, csds_widget.py, probabilities.ui, probabilities_widget.py | phases/glade/phase.glade + csds.glade + probabilities.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params editable with live recalc; components tab, inheritance, colour, Add/Remove still to wire) |
+| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py | phases/glade/phase.glade + csds/probabilities/component.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars editable with live recalc; component atom lists, inheritance, colour, Add/Remove still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; phase-cell reassign + structural edits + optimizer disabled, come with later batches) |
@@ -163,9 +172,10 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
   dynamically; tab shown only for G>=2). Old: probabilities/glade/
   probabilities.glade + matrix.glade + R0_independents.glade. R1-R3 Markovian
   models come when a project needs them.
-- [ ] Component editor - phases/glade/component.glade (plugs into Edit Phases Components tab)
-- [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside component editor)
-- [ ] Layer / interlayer atom lists - phases/glade/layer.glade (inside component editor)
+- [~] Component editor - edit_component.ui + component_widget.py (selector +
+  c-axis scalars done; atom lists next). Old: phases/glade/component.glade.
+- [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside component editor; cell a/b currently read-only)
+- [ ] Layer / interlayer atom lists - phases/glade/layer.glade (inside component editor - batch 4b)
 - [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal)
 - [ ] Edit Atom Contents dialog - phases/glade/contents.glade (modal)
 - [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade

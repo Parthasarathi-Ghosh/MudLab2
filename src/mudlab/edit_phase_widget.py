@@ -18,6 +18,7 @@ from typing import Callable
 
 from PySide6.QtWidgets import QWidget
 
+from mudlab.component_widget import EditComponentWidget
 from mudlab.csds_widget import CSDSWidget
 from mudlab.probabilities_widget import ProbabilitiesWidget
 from mudlab.qt_utils import ColorButton
@@ -51,6 +52,12 @@ class EditPhaseWidget(QWidget):
         self._prob_tab_index = self.ui.book_wrapper.indexOf(self.ui.tabProbabilities)
         self._prob_tab_title = self.ui.book_wrapper.tabText(self._prob_tab_index)
 
+        # The component editor fills the Components tab (always present - every
+        # phase has at least one component).
+        self.component_widget = EditComponentWidget(self)
+        self.ui.componentsLayout.addWidget(self.component_widget)
+        self.ui.lblComponentsPlaceholder.hide()
+
         # Not modeled yet: phase inheritance (based-on chains), the display
         # colour and every inherit flag. Disable them so the UI reads
         # honestly; they come with the phase-visuals / inheritance batch.
@@ -80,6 +87,7 @@ class EditPhaseWidget(QWidget):
             self.csds_widget.bind_csds(None)
             self.probabilities_widget.bind_probabilities(None)
             self._set_probabilities_tab_visible(False)
+            self.component_widget.bind_components([])
             return
         self._updating = True
         try:
@@ -102,6 +110,8 @@ class EditPhaseWidget(QWidget):
             )
         else:
             self.probabilities_widget.bind_probabilities(None)
+
+        self.component_widget.bind_components(phase.components, on_changed=self._notify)
 
     def _set_probabilities_tab_visible(self, visible: bool) -> None:
         tabs = self.ui.book_wrapper

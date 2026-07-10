@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditComponentWidget</class>
+ <widget class="QWidget" name="EditComponentWidget">
+  <layout class="QVBoxLayout" name="componentRootLayout">
+   <item>
+    <layout class="QFormLayout" name="componentForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblComponent">
+       <property name="text">
+        <string>Component</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cmb_component"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lblComponentName">
+       <property name="text">
+        <string>Name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="component_name"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lblD001">
+       <property name="text">
+        <string>Cell length c / d001 [nm]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="component_d001">
+       <property name="toolTip">
+        <string>The basal spacing (d001) of this layer.</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="maximum">
+        <double>5.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.001000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lblDefaultC">
+       <property name="text">
+        <string>Default length c [nm]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QDoubleSpinBox" name="component_default_c">
+       <property name="toolTip">
+        <string>The default basal spacing (used to rescale interlayer atom z-coordinates).</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="maximum">
+        <double>5.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.001000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lblDeltaC">
+       <property name="text">
+        <string>&#916;c spacing [nm]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QDoubleSpinBox" name="component_delta_c">
+       <property name="toolTip">
+        <string>The variation in basal spacing due to defects.</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="maximum">
+        <double>0.050000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.001000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="lblCellA">
+       <property name="text">
+        <string>Cell length a [nm]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLabel" name="component_cell_a">
+       <property name="text">
+        <string>-</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="lblCellB">
+       <property name="text">
+        <string>Cell length b [nm]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLabel" name="component_cell_b">
+       <property name="text">
+        <string>-</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="lblVolume">
+       <property name="text">
+        <string>Cell volume [nm&#179;]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QLabel" name="component_volume">
+       <property name="text">
+        <string>-</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="lblCharge">
+       <property name="text">
+        <string>Charge balance</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1">
+      <widget class="QLabel" name="component_charge">
+       <property name="text">
+        <string>-</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpLayerAtoms">
+     <property name="title">
+      <string>Layer atoms</string>
+     </property>
+     <layout class="QVBoxLayout" name="layerAtomsLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpInterlayerAtoms">
+     <property name="title">
+      <string>Interlayer atoms</string>
+     </property>
+     <layout class="QVBoxLayout" name="interlayerAtomsLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

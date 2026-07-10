@@ -53,6 +53,10 @@ class Component:
         self.cell_b = 0.0      # unit-cell length b (nm), from ucp_b
         self.layer_atoms: list[Atom] = []
         self.interlayer_atoms: list[Atom] = []
+        # Full .mud component dict kept verbatim so unmodeled fields (ucp_a/b,
+        # atom_relations, inherit flags, linked_with, ref_info, uuid, and -
+        # until the atom lists are wired - the atoms) survive a round-trip.
+        self.raw_properties: dict = {}
 
     @property
     def volume(self) -> float:
@@ -83,10 +87,37 @@ class Component:
             return float(ucp)
         return 0.0
 
+    def compute_charge_balance(self) -> tuple[float, float, float]:
+        """(layer charge, interlayer charge, net) per unit cell = Σ pn·charge
+        over each atom list (old Component.compute_charge_balance). Atoms with
+        no resolved atom type are skipped; a neutral model nets ~0."""
+        def _sum(atoms):
+            return sum(
+                a.pn * a.atom_type.charge
+                for a in atoms
+                if a.atom_type is not None
+            )
+        layer = _sum(self.layer_atoms)
+        interlayer = _sum(self.interlayer_atoms)
+        return layer, interlayer, layer + interlayer
+
+    def to_dict(self) -> dict:
+        """Serialize back to a .mud component dict, overwriting only the
+        modeled c-axis scalars (name, d001, default_c, delta_c) on top of the
+        verbatim raw properties. Cell a/b, atoms, relations, inherit flags and
+        uuid are preserved (their editors come with later sub-batches)."""
+        props = dict(self.raw_properties)
+        props["name"] = self.name
+        props["d001"] = self.d001
+        props["default_c"] = self.default_c
+        props["delta_c"] = self.delta_c
+        return {"type": "Component", "properties": props}
+
     @classmethod
     def from_dict(cls, data: dict, atom_type_map: dict) -> "Component":
         props = data.get("properties", {})
         comp = cls(name=props.get("name", ""))
+        comp.raw_properties = dict(props)
         comp.d001 = props.get("d001", 1.0)
         comp.default_c = props.get("default_c", comp.d001)
         comp.delta_c = props.get("delta_c", 0.0)

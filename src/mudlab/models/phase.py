@@ -79,6 +79,11 @@ class Phase:
         props = dict(self.raw_properties)
         props["name"] = self.name
         props["sigma_star"] = self.sigma_star
+        # Components are modeled: write the live list back (each preserves its
+        # own unmodeled fields verbatim). Only when the phase actually has
+        # component models, so a phase loaded without them stays untouched.
+        if self.components:
+            props["components"] = [c.to_dict() for c in self.components]
         csds = dict(props.get("CSDS_distribution") or {})
         csds.setdefault("type", "DritsCSDSDistribution")
         csds_props = dict(csds.get("properties") or {})

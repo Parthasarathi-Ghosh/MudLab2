@@ -186,11 +186,19 @@ the CSDS component.
   are read-only; all built dynamically per phase. The tab is removed/
   re-inserted per phase so it only shows for G>=2 (old app'
   `remove_probabilities()` for single-component R0/G1 phases).
+- Components tab: the real `EditComponentWidget` (edit_component.ui +
+  component_widget.py) sits in `componentsLayout`. A `cmb_component`
+  selector picks one of the phase's G components; its c-axis scalars
+  (name, `component_d001`, `component_default_c`, `component_delta_c`) are
+  editable and bound to the Component model, with cell a/b, volume and
+  charge balance read-only. Editing recomputes the structure factor +
+  pattern. The `grpLayerAtoms` / `grpInterlayerAtoms` group boxes are
+  placeholders for the atom lists (batch 4b).
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
   + `phase_inherit_CSDS_distribution` (phase inheritance / visuals not
   modeled), the object-store Add/Remove/Import/Export buttons (structural),
-  and the `componentsLayout` tab (batch 4).
+  and the component unit-cell a/b editors (read-only for now).
 - Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
   `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
   keeps non-Phase entries (e.g. RawPatternPhase) untouched.
