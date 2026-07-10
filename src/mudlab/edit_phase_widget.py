@@ -19,6 +19,7 @@ from typing import Callable
 from PySide6.QtWidgets import QWidget
 
 from mudlab.csds_widget import CSDSWidget
+from mudlab.probabilities_widget import ProbabilitiesWidget
 from mudlab.qt_utils import ColorButton
 from mudlab.ui.ui_edit_phase import Ui_EditPhaseWidget
 
@@ -40,6 +41,15 @@ class EditPhaseWidget(QWidget):
         self.csds_widget = CSDSWidget(self)
         self.ui.csdsLayout.addWidget(self.csds_widget)
         self.ui.lblCsdsPlaceholder.hide()
+
+        # The probabilities component fills the Probabilities tab (R0 only).
+        # The old app removed the tab for single-component (G=1) phases, so we
+        # remove/re-insert it per phase; remember its title/position for that.
+        self.probabilities_widget = ProbabilitiesWidget(self)
+        self.ui.probabilitiesLayout.addWidget(self.probabilities_widget)
+        self.ui.lblProbabilitiesPlaceholder.hide()
+        self._prob_tab_index = self.ui.book_wrapper.indexOf(self.ui.tabProbabilities)
+        self._prob_tab_title = self.ui.book_wrapper.tabText(self._prob_tab_index)
 
         # Not modeled yet: phase inheritance (based-on chains), the display
         # colour and every inherit flag. Disable them so the UI reads
@@ -68,6 +78,8 @@ class EditPhaseWidget(QWidget):
         self.setEnabled(phase is not None)
         if phase is None:
             self.csds_widget.bind_csds(None)
+            self.probabilities_widget.bind_probabilities(None)
+            self._set_probabilities_tab_visible(False)
             return
         self._updating = True
         try:
@@ -78,6 +90,28 @@ class EditPhaseWidget(QWidget):
         finally:
             self._updating = False
         self.csds_widget.bind_csds(phase.CSDS, on_changed=self._notify)
+
+        # Probabilities tab: R0/G1 single-component phases have no independent
+        # variables, so (like the old app) the tab is only shown for G>=2.
+        has_probabilities = phase.G >= 2
+        self._set_probabilities_tab_visible(has_probabilities)
+        if has_probabilities:
+            labels = [getattr(c, "name", "") for c in phase.components]
+            self.probabilities_widget.bind_probabilities(
+                phase.probabilities, labels=labels, on_changed=self._notify
+            )
+        else:
+            self.probabilities_widget.bind_probabilities(None)
+
+    def _set_probabilities_tab_visible(self, visible: bool) -> None:
+        tabs = self.ui.book_wrapper
+        index = tabs.indexOf(self.ui.tabProbabilities)
+        if visible and index == -1:
+            tabs.insertTab(
+                self._prob_tab_index, self.ui.tabProbabilities, self._prob_tab_title
+            )
+        elif not visible and index != -1:
+            tabs.removeTab(index)
 
     # ------------------------------------------------------------------
     def _on_name_edited(self) -> None:

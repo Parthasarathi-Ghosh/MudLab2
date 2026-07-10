@@ -43,6 +43,25 @@ class R0Probability:
         self._P = np.tile(mW, (G, 1))
 
     @property
+    def n_independents(self) -> int:
+        """Number of independent F parameters = G - 1."""
+        return max(self.G - 1, 0)
+
+    def f_value(self, index: int) -> float:
+        """The i-th independent variable Fi = Wi / sum(Wi..Wg) (default 0.8)."""
+        return self.F[index] if index < len(self.F) else 0.8
+
+    def f_params(self) -> list[float]:
+        return [self.f_value(i) for i in range(self.n_independents)]
+
+    def set_f(self, index: int, value: float) -> None:
+        """Update the i-th independent variable and re-derive W and P."""
+        while len(self.F) <= index:
+            self.F.append(0.8)
+        self.F[index] = float(value)
+        self._update()
+
+    @property
     def valid(self) -> bool:
         """Whether W and P are valid (old phase.valid_probs = all W_valid and
         all P_valid). For R0 that means the weight fractions lie in [0, 1] and

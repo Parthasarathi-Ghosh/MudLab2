@@ -45,7 +45,15 @@ bound to their editors so parameters become editable with a live recalc.
   ref_info / display_color / based_on / inherit flags / uuid; non-Phase
   entries stay verbatim, matched by uuid). Phase inheritance, display colour,
   the inherit flags, and Add/Remove phase are disabled - later batches.
-- [ ] Batch 3: Edit Phases probabilities (F params -> W/P)
+- [x] Batch 3: Edit Phases probabilities (F params -> W/P) - the R0 (G-1)
+  independent variables Fi = Wi/sum(Wi..Wg) are editable spinboxes bound to
+  the R0Probability model, with the derived weight fractions W and junction
+  matrix P shown read-only (probabilities.ui + probabilities_widget.py, the
+  G-1 inputs + GxG tables built dynamically per phase). The tab only shows
+  for G>=2 (removed for single-component phases, like the old app). Editing
+  an F re-derives W/P and recomputes the pattern; F params save via
+  Phase.to_dict. Verified: F1 0.8->0.6 gives W=[0.6,0.4], pattern moves,
+  round-trips; G=1 phases hide the tab; harness 5/5.
 - [ ] Batch 4: Edit Phases components (d001, atoms, unit cell)
 
 Calculation engine (2026-07-08): the fit-statistics groundwork is ported
@@ -128,7 +136,7 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 | Edit Specimen | edit_specimen.ui, edit_specimen_dialog.py | specimen/glade/specimen.glade | done (hosts line properties + goniometer components) |
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (buttons not yet connected) |
-| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui, csds_widget.py | phases/glade/phase.glade + csds.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean editable with live recalc + histogram; probabilities & components tabs, inheritance, colour, Add/Remove still to wire) |
+| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui, csds_widget.py, probabilities.ui, probabilities_widget.py | phases/glade/phase.glade + csds.glade + probabilities.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params editable with live recalc; components tab, inheritance, colour, Add/Remove still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; phase-cell reassign + structural edits + optimizer disabled, come with later batches) |
@@ -150,7 +158,11 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 - [x] CSDS distribution component - csds.ui + csds_widget.py (mean spinbox +
   live log-normal histogram + derived range; plugged into Edit Phases CSDS
   tab, bound to DritsCSDSDistribution). Old: phases/glade/csds.glade.
-- [ ] Probabilities component - probabilities/glade/probabilities.glade + matrix.glade + R0_independents.glade (plugs into Edit Phases tab; old app removed the tab for R0/G1 phases)
+- [x] Probabilities component - probabilities.ui + probabilities_widget.py
+  (R0 only: editable (G-1) F spinboxes + read-only W/P tables, built
+  dynamically; tab shown only for G>=2). Old: probabilities/glade/
+  probabilities.glade + matrix.glade + R0_independents.glade. R1-R3 Markovian
+  models come when a project needs them.
 - [ ] Component editor - phases/glade/component.glade (plugs into Edit Phases Components tab)
 - [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside component editor)
 - [ ] Layer / interlayer atom lists - phases/glade/layer.glade (inside component editor)

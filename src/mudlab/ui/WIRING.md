@@ -179,13 +179,18 @@ the CSDS component.
   (`csds_average`), a derived min-max label (`csds_range`) and a live
   matplotlib histogram of the Drits log-normal distribution, bound to the
   phase's DritsCSDSDistribution.
+- Probabilities tab: the real `ProbabilitiesWidget` (probabilities.ui +
+  probabilities_widget.py) sits in `probabilitiesLayout`. R0 only: the
+  (G-1) independent F spinboxes (`Fi = Wi/sum(Wi..Wg)`) are editable and
+  bound to the R0Probability model; the derived W (1xG) and P (GxG) tables
+  are read-only; all built dynamically per phase. The tab is removed/
+  re-inserted per phase so it only shows for G>=2 (old app'
+  `remove_probabilities()` for single-component R0/G1 phases).
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
   + `phase_inherit_CSDS_distribution` (phase inheritance / visuals not
   modeled), the object-store Add/Remove/Import/Export buttons (structural),
-  and the `probabilitiesLayout` / `componentsLayout` tabs (batches 3-4;
-  old app REMOVED the probabilities tab for R0/G1 phases via
-  `remove_probabilities()`).
+  and the `componentsLayout` tab (batch 4).
 - Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
   `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
   keeps non-Phase entries (e.g. RawPatternPhase) untouched.

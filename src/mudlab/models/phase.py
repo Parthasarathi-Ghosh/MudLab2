@@ -85,6 +85,17 @@ class Phase:
         csds_props["average"] = self.CSDS.average
         csds["properties"] = csds_props
         props["CSDS_distribution"] = csds
+        # R0 stacking: write the (G-1) independent F variables back into the
+        # probabilities dict (keeping its uuid / ref_info / inherit flags).
+        f_params = getattr(self.probabilities, "f_params", None)
+        probs = props.get("probabilities")
+        if callable(f_params) and isinstance(probs, dict):
+            probs = dict(probs)
+            probs_props = dict(probs.get("properties") or {})
+            for i, value in enumerate(f_params()):
+                probs_props["F%d" % (i + 1)] = value
+            probs["properties"] = probs_props
+            props["probabilities"] = probs
         return {"type": "Phase", "properties": props}
 
     @classmethod
