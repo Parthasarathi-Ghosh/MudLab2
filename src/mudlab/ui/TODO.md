@@ -240,9 +240,15 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 - [ ] Phase B: the Refinement window UI - refinement/views/glade/
   refinement.glade (refinable tree with refine flags + min/max, method combo,
   Refine button, residual/status) wired to btn_refine.
-- [ ] Phase C (deferred): threaded live status (refine_status.glade), refine
-  results/history (refine_results.glade), per-method options
-  (refine_method.glade), randomize / auto-restrict.
+- [ ] Phase C (deferred): threaded live status (refine_status.glade), the
+  refinement PROGRESS PLOT / results+history (refine_results.glade; the
+  disabled hook is Refiner.record_history + Refiner.history, and the old
+  get_plot_samples plotted residual-vs-iteration + parameter samples),
+  per-method options (refine_method.glade), randomize / auto-restrict.
+  Long-run handling: the engine already takes a `stop` callable (cancel) and
+  is synchronous - Phase C should run it on a worker thread and drive Cancel +
+  live status from there. See the "Robustness & long runs" note in
+  calculations/refinement.py.
 
 ### Other
 - [ ] CSV import options - generic/views/glade/csv_import.glade

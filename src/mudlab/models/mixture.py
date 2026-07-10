@@ -96,14 +96,15 @@ class Mixture:
 
         return enumerate_refinables(self)
 
-    def refine(self, method_index: int = 0, options: dict | None = None) -> float:
+    def refine(self, method_index: int = 0, options: dict | None = None, stop=None) -> float:
         """Refine the flagged structural parameters with the chosen SciPy
         method (0 = L-BFGS-B, 1 = Basin Hopping, 2 = Brute force), each trial
-        inner-fitting fractions/scales/background. Recomputes the patterns and
-        returns the best residual."""
+        inner-fitting fractions/scales/background. `stop` is an optional no-arg
+        callable returning True to cancel a long run. Recomputes the patterns
+        and returns the best residual."""
         from mudlab.calculations.refinement import refine_mixture
 
-        residual = refine_mixture(self, method_index, options)
+        residual = refine_mixture(self, method_index, options, stop=stop)
         self.calculate()
         return residual
 

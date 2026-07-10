@@ -18,6 +18,29 @@ Only the three SciPy methods are ported (the old deap-based CMA-ES / MPSO /
 PS-CMA-ES are dropped - deap is not available); the indices are renumbered
 contiguously: 0 = L-BFGS-B, 1 = Basin Hopping, 2 = Brute force. L-BFGS-B
 stays 0, so a .mud with refine_method_index 0 still maps correctly.
+
+Robustness & long runs (this is the heaviest, most fragile operation):
+- Cost: each outer trial does a FULL per-phase recompute plus an inner
+  fraction/scale/bg optimise. Rough worst cases - L-BFGS-B (maxfun 500):
+  seconds to ~2 min; Basin Hopping (niter 100 = 100 local minimisations):
+  minutes to tens of minutes; Brute force: C(n,2)*num_samples^2 trials, which
+  explodes with the number of flagged params. It is SYNCHRONOUS - it blocks
+  its caller - so the GUI must run it under a busy cursor now and move it to a
+  worker thread later (Phase C).
+- Cancellation: pass a `stop` callable (returns True to abort); it is checked
+  before every trial and unwinds cleanly, keeping the best-so-far solution.
+  This is the hook the Refinement window's Cancel button will use.
+- Numerical guards: a non-finite residual becomes _PENALTY (never NaN to
+  scipy); degenerate ranges (min>=max) are skipped and the start value is
+  clipped into bounds; brute force needs num_samples>=2 (guarded).
+- Fail-loud: only _RefinementStopped is caught here; any other exception
+  propagates (a bug to fix) and the GUI wraps the call. On such an error the
+  model may be left at a mid-trial solution - the caller should rebind/recompute.
+- Not thread-safe: it mutates the shared model in place, so a threaded Phase C
+  must own the mixture while refining. Re-entrancy (a second Refine while one
+  runs) must be prevented by the UI.
+- Deferred: the refinement PROGRESS PLOT (old RefineHistory / refine_results)
+  - Refiner.update() has a disabled record_history hook for it.
 """
 
 from __future__ import annotations
@@ -30,6 +53,12 @@ from scipy.optimize import basinhopping, fmin_l_bfgs_b
 from mudlab.calculations.mixture import optimize_mixture
 
 _PENALTY = 1.0e6  # finite substitute for a non-finite residual
+
+
+class _RefinementStopped(Exception):
+    """Raised from the objective when the caller's stop callback fires, to
+    abort the SciPy method cleanly (the exception unwinds out of scipy) and
+    keep the best-so-far solution."""
 
 
 # ----------------------------------------------------------------------
@@ -167,8 +196,12 @@ def enumerate_refinables(mixture) -> list[Refinable]:
 # Refiner (the outer-search context)
 # ----------------------------------------------------------------------
 class Refiner:
-    def __init__(self, mixture, refinables):
+    def __init__(self, mixture, refinables, stop=None):
         self.mixture = mixture
+        # `stop`, if given, is a no-arg callable returning True to abort. It is
+        # checked before each (expensive) trial so a long refinement can be
+        # cancelled (the GUI will pass a threading.Event.is_set here).
+        self._stop = stop
         self.refinables = []
         self.ranges = []
         initial = []
@@ -185,6 +218,15 @@ class Refiner:
         self.best_solution = self.initial_solution.copy()
         self.best_residual = None
 
+        # DEFERRED FEATURE - refinement progress plot (old RefineHistory +
+        # refine_results.glade / get_plot_samples). update() is the recording
+        # point: with record_history on it would append every trial's
+        # (residual, solution) for a post-run residual-vs-iteration / parameter
+        # plot. Kept OFF so a long refinement never grows an unbounded history
+        # in memory; enable this and add a plot consumer when that UI is built.
+        self.record_history = False
+        self.history: list = []
+
     def apply_solution(self, x) -> None:
         x = np.atleast_1d(np.asarray(x, dtype=float))
         for i, ref in enumerate(self.refinables):
@@ -193,6 +235,8 @@ class Refiner:
     def get_residual(self, x) -> float:
         """Set the structural refinables to x, inner-optimise fractions/scales/
         background, and return that residual (guarded finite)."""
+        if self._stop is not None and self._stop():
+            raise _RefinementStopped()
         self.apply_solution(x)
         residual = optimize_mixture(self.mixture)
         if not np.isfinite(residual):
@@ -201,6 +245,10 @@ class Refiner:
         return residual
 
     def update(self, x, residual) -> None:
+        if self.record_history:  # deferred progress-plot hook (disabled)
+            self.history.append(
+                (float(residual), np.atleast_1d(np.asarray(x, dtype=float)).copy())
+            )
         if self.best_residual is None or residual < self.best_residual:
             self.best_residual = residual
             self.best_solution = np.atleast_1d(np.asarray(x, dtype=float)).copy()
@@ -237,7 +285,7 @@ def _run_basinhopping(refiner, options):
 
 
 def _run_bruteforce(refiner, options):
-    num_samples = int(options.get("num_samples", 11))
+    num_samples = max(int(options.get("num_samples", 11)), 2)  # /(n-1): need >=2
     bounds = np.array(refiner.ranges, dtype=float)
     mins = bounds[:, 0]
     spans = bounds[:, 1] - bounds[:, 0]
@@ -264,24 +312,29 @@ REFINE_METHODS = {
 }
 
 
-def refine_mixture(mixture, method_index=0, options=None) -> float:
+def refine_mixture(mixture, method_index=0, options=None, stop=None) -> float:
     """Refine the mixture's flagged structural parameters with the chosen
     SciPy method, leaving the model at the best solution (structural params +
     inner-fitted fractions/scales/background). Returns the best residual.
 
     With nothing flagged (or all ranges degenerate) it simply inner-optimises
-    fractions/scales/background, matching a plain Optimize. Exceptions are not
-    swallowed here (fail loud); the GUI wraps this call.
+    fractions/scales/background, matching a plain Optimize. `stop` is an
+    optional no-arg callable returning True to cancel (see Refiner); on cancel
+    the best-so-far solution is applied. Other exceptions are not swallowed
+    here (fail loud); the GUI wraps this call.
     """
     options = options or {}
-    refiner = Refiner(mixture, enumerate_refinables(mixture))
+    refiner = Refiner(mixture, enumerate_refinables(mixture), stop=stop)
     if not refiner.refinables:
         return optimize_mixture(mixture)
 
-    # Seed the history with the starting point, then run the outer search.
-    refiner.get_residual(refiner.initial_solution)
-    runner = REFINE_METHODS.get(method_index, REFINE_METHODS[0])[1]
-    runner(refiner, options)
+    try:
+        # Seed the best with the starting point, then run the outer search.
+        refiner.get_residual(refiner.initial_solution)
+        runner = REFINE_METHODS.get(method_index, REFINE_METHODS[0])[1]
+        runner(refiner, options)
+    except _RefinementStopped:
+        pass  # cancelled: fall through and apply the best solution so far
 
     refiner.apply_best()
     return float(refiner.best_residual)
