@@ -98,8 +98,8 @@ class Mixture:
 
     def refine(self, method_index: int = 0, options: dict | None = None, stop=None) -> float:
         """Refine the flagged structural parameters with the chosen SciPy
-        method (0 = L-BFGS-B, 1 = Basin Hopping, 2 = Brute force), each trial
-        inner-fitting fractions/scales/background. `stop` is an optional no-arg
+        method (0 = L-BFGS-B, 1 = Basin Hopping), each trial inner-fitting
+        fractions/scales/background. `stop` is an optional no-arg
         callable returning True to cancel a long run. Recomputes the patterns
         and returns the best residual. The Refinement window instead calls
         calculations.refinement.refine_mixture directly to get the Refiner (for

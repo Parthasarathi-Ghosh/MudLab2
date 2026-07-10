@@ -14,25 +14,28 @@ the fractions/scales/background via calculations.mixture.optimize_mixture
 one full per-phase recompute plus an inner fit per trial - heavy, but
 correct.
 
-Only the three SciPy methods are ported (the old deap-based CMA-ES / MPSO /
-PS-CMA-ES are dropped - deap is not available); the indices are renumbered
-contiguously: 0 = L-BFGS-B, 1 = Basin Hopping, 2 = Brute force. L-BFGS-B
-stays 0, so a .mud with refine_method_index 0 still maps correctly.
+Two convergent SciPy methods are kept: 0 = L-BFGS-B (local), 1 = Basin
+Hopping (global). The old deap-based CMA-ES / MPSO / PS-CMA-ES are dropped
+(deap is not available), and Brute force was removed too - it is a coarse
+fixed-grid scan with no convergence and a combinatorial runtime, so Basin
+Hopping strictly dominates it for global search. (Its only niche was
+visualising the residual landscape, which belongs with the deferred progress
+plot; a constrained grid scan can be reintroduced then.) L-BFGS-B stays 0, so
+a .mud with refine_method_index 0 still maps correctly.
 
 Robustness & long runs (this is the heaviest, most fragile operation):
 - Cost: each outer trial does a FULL per-phase recompute plus an inner
   fraction/scale/bg optimise. Rough worst cases - L-BFGS-B (maxfun 500):
   seconds to ~2 min; Basin Hopping (niter 100 = 100 local minimisations):
-  minutes to tens of minutes; Brute force: C(n,2)*num_samples^2 trials, which
-  explodes with the number of flagged params. It is SYNCHRONOUS - it blocks
-  its caller - so the GUI must run it under a busy cursor now and move it to a
-  worker thread later (Phase C).
+  minutes to tens of minutes. It is SYNCHRONOUS - it blocks its caller - so
+  the GUI must run it under a busy cursor now and move it to a worker thread
+  later (Phase C).
 - Cancellation: pass a `stop` callable (returns True to abort); it is checked
   before every trial and unwinds cleanly, keeping the best-so-far solution.
   This is the hook the Refinement window's Cancel button will use.
 - Numerical guards: a non-finite residual becomes _PENALTY (never NaN to
   scipy); degenerate ranges (min>=max) are skipped and the start value is
-  clipped into bounds; brute force needs num_samples>=2 (guarded).
+  clipped into bounds.
 - Fail-loud: only _RefinementStopped is caught here; any other exception
   propagates (a bug to fix) and the GUI wraps the call. On such an error the
   model may be left at a mid-trial solution - the caller should rebind/recompute.
@@ -44,8 +47,6 @@ Robustness & long runs (this is the heaviest, most fragile operation):
 """
 
 from __future__ import annotations
-
-from itertools import combinations, product
 
 import numpy as np
 from scipy.optimize import basinhopping, fmin_l_bfgs_b
@@ -302,31 +303,9 @@ def _run_basinhopping(refiner, options):
     )
 
 
-def _run_bruteforce(refiner, options):
-    num_samples = max(int(options.get("num_samples", 11)), 2)  # /(n-1): need >=2
-    bounds = np.array(refiner.ranges, dtype=float)
-    mins = bounds[:, 0]
-    spans = bounds[:, 1] - bounds[:, 0]
-    n = len(refiner.ranges)
-    if n == 1:
-        for index in range(num_samples):
-            frac = np.array([index / float(num_samples - 1)])
-            refiner.get_residual(mins + spans * frac)
-    else:
-        # Grid over each pair of parameters, others held at mid-range (old
-        # custom_brute); a full n-D grid would explode combinatorially.
-        for par1, par2 in combinations(range(n), 2):
-            fracs = np.ones(n) * 0.5
-            for a, b in product(range(num_samples), repeat=2):
-                fracs[par1] = a / float(num_samples - 1)
-                fracs[par2] = b / float(num_samples - 1)
-                refiner.get_residual(mins + spans * fracs)
-
-
 REFINE_METHODS = {
     0: ("L-BFGS-B algorithm", _run_lbfgsb),
     1: ("Basin Hopping algorithm", _run_basinhopping),
-    2: ("Brute force algorithm", _run_bruteforce),
 }
 
 

@@ -233,10 +233,13 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   written into raw_properties ref_info (round-trips via to_dict). Refiner runs
   an outer SciPy method over the FLAGGED params; each trial inner-optimises
   fractions/scales/bg (optimize_mixture) - the old nested get_optimized_
-  residual. Three methods, deap ones dropped, indices renumbered contiguously:
-  0 = L-BFGS-B (unchanged, so .mud refine_method_index 0 still maps), 1 =
-  Basin Hopping, 2 = Brute force. Mixture.refine()/refinables(). Debugging:
-  no iprint (scipy 1.18), objective guarded finite, fail-loud (GUI wraps).
+  residual. Two convergent SciPy methods kept - 0 = L-BFGS-B (unchanged, so
+  .mud refine_method_index 0 still maps), 1 = Basin Hopping; the deap ones
+  (no deap) and Brute force (coarse grid, no convergence, combinatorial
+  runtime - Basin Hopping dominates it) were dropped. Mixture.refine()/
+  refinables() + refine_mixture() returns the Refiner (initial/best/last +
+  apply methods). Debugging: no iprint (scipy 1.18), objective guarded finite,
+  fail-loud (GUI wraps), stop hook for cancel, disabled record_history hook.
 - [ ] Phase B: the Refinement window UI - refinement/views/glade/
   refinement.glade (refinable tree with refine flags + min/max, method combo,
   Refine button, residual/status) wired to btn_refine.

@@ -9,8 +9,7 @@ SciPy refine methods + the nested inner optimize). For each sample project:
   2. Flagging one structural parameter, perturbing it, and refining RECOVERS
      a residual below the perturbed one and no worse than the un-perturbed
      optimum (L-BFGS-B, small budget).
-  3. All three methods (0 L-BFGS-B, 1 Basin Hopping, 2 Brute force) run to a
-     finite residual.
+  3. Both methods (0 L-BFGS-B, 1 Basin Hopping) run to a finite residual.
   4. With nothing flagged, refine falls back to a plain fraction/scale/bg
      optimize (finite).
   5. A flag + bounds written into ref_info survive a save/load round-trip.
@@ -100,7 +99,7 @@ def check_project(path):
         m = p.mixtures[0]
         r = _first_flaggable(enumerate_refinables(m))
         r.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
-        residual = m.refine(idx, {"maxfun": 6, "maxiter": 3, "niter": 1, "num_samples": 4})
+        residual = m.refine(idx, {"maxfun": 6, "maxiter": 3, "niter": 1})
         print("  method %d %-24s residual=%.4f" % (idx, name, residual))
         _check(results, "method %d (%s) finite" % (idx, name), np.isfinite(residual))
 
