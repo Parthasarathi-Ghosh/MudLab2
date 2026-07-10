@@ -34,8 +34,9 @@ bound to their editors so parameters become editable with a live recalc.
   editable and bound to the Mixture model; every edit recomputes the
   pattern and redraws (the F5 path). Mixtures now save from the model
   (to_dict passthrough keeps masks / refine options / auto flags / uuid).
-  Phase-cell reassignment, structural add/remove and the optimizer
-  (Refine / Optimize / auto-*) are disabled - later batches.
+  Phase-cell reassignment and structural add/remove are disabled here; the
+  Optimize button + auto-* flags were wired later (see the L-BFGS-B optimizer
+  entry below), and the full Refine window is still deferred.
 - [x] Batch 2: Edit Phases CSDS mean + sigma* - the phase name, sigma*
   orientation factor and CSDS mean are editable and bound to the Phase /
   DritsCSDSDistribution models; the CSDS component (csds.ui + csds_widget.py,
