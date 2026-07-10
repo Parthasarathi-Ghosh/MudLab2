@@ -669,13 +669,15 @@ class MainWindow(QMainWindow):
         dialog.activateWindow()
 
     def _show_edit_phases(self) -> None:
-        # Modeless, like the old app's phases view present().
-        if self._edit_phases_dialog is None:
-            self._edit_phases_dialog = EditPhasesDialog(self)
-        dialog = self._edit_phases_dialog
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
+        # Modeless; rebuilt per open so it reflects the current project's
+        # phases (phases belong to the project). Editing name / sigma* / CSDS
+        # mean recomputes the pattern live.
+        if self._edit_phases_dialog is not None:
+            self._edit_phases_dialog.close()
+        self._edit_phases_dialog = EditPhasesDialog(self, project=self.project)
+        self._edit_phases_dialog.show()
+        self._edit_phases_dialog.raise_()
+        self._edit_phases_dialog.activateWindow()
 
     def _show_edit_atom_types(self) -> None:
         # Modeless; rebuilt per open so it reflects the current project's

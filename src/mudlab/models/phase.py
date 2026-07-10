@@ -40,6 +40,11 @@ class Phase:
         self.components: list[Component] = []
         self.CSDS = DritsCSDSDistribution()
         self.probabilities = probabilities_from_dict({}, G)
+        # Full .mud phase dict kept verbatim so unmodeled fields (components,
+        # probabilities, ref_info, display_color, based_on, inherit flags,
+        # uuid) survive a load/save round-trip; to_dict writes the modeled
+        # values (name, sigma*, CSDS mean) back into it.
+        self.raw_properties: dict = {}
 
     # Stacking probability matrices (independent stacking for R0). ------
     @property
@@ -66,6 +71,22 @@ class Phase:
             range_theta, range_stl, soller1, soller2, mcr_2theta, self
         )
 
+    def to_dict(self) -> dict:
+        """Serialize back to a .mud phase dict, overwriting only the modeled
+        fields (name, sigma*, CSDS mean) on top of the verbatim raw
+        properties. The CSDS mean is nested in CSDS_distribution.properties,
+        whose other keys (uuid, average_ref_info) are preserved."""
+        props = dict(self.raw_properties)
+        props["name"] = self.name
+        props["sigma_star"] = self.sigma_star
+        csds = dict(props.get("CSDS_distribution") or {})
+        csds.setdefault("type", "DritsCSDSDistribution")
+        csds_props = dict(csds.get("properties") or {})
+        csds_props["average"] = self.CSDS.average
+        csds["properties"] = csds_props
+        props["CSDS_distribution"] = csds
+        return {"type": "Phase", "properties": props}
+
     @classmethod
     def from_dict(cls, data: dict, atom_type_map: dict) -> "Phase":
         props = data.get("properties", {})
@@ -74,6 +95,7 @@ class Phase:
             G=int(props.get("G", 1)),
             sigma_star=props.get("sigma_star", 3.0),
         )
+        phase.raw_properties = dict(props)
         phase.components = [
             Component.from_dict(c, atom_type_map)
             for c in (props.get("components") or [])

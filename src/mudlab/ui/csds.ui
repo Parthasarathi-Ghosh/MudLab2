@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CSDSWidget</class>
+ <widget class="QWidget" name="CSDSWidget">
+  <layout class="QVBoxLayout" name="csdsRootLayout">
+   <item>
+    <layout class="QFormLayout" name="csdsForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblAverage">
+       <property name="text">
+        <string>Mean CSDS [layers]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QDoubleSpinBox" name="csds_average">
+       <property name="toolTip">
+        <string>The mean coherent-scattering-domain size (average number of stacked layers).</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>10.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lblRange">
+       <property name="text">
+        <string>Range [layers]</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLabel" name="csds_range">
+       <property name="text">
+        <string>1 - 25</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpCsdsHist">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Size distribution</string>
+     </property>
+     <layout class="QVBoxLayout" name="csdsHistLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

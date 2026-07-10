@@ -1,4 +1,5 @@
-"""Edit Phases window: the object-store shell hosting the phase editor.
+"""Edit Phases window: the object-store shell hosting the phase editor,
+bound to the project's real Phase models.
 
 Old: AppView child view "phases" = NoMinMaxObjectListStoreView +
 PhasesController; opened by the edit_phases action.
@@ -7,61 +8,65 @@ PhasesController; opened by the edit_phases action.
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QDialog, QWidget
+from PySide6.QtWidgets import QWidget
 
-from mudlab.add_phase_dialog import AddPhaseDialog
 from mudlab.edit_phase_widget import EditPhaseWidget
+from mudlab.models import Project
 from mudlab.object_store_dialog import ObjectStoreDialog
-
-# Placeholder phases until the project model (Qt signals) exists.
-_DEMO_PHASES = (
-    ("Kaolinite", 0, 1),
-    ("Illite", 0, 1),
-    ("Illite/Smectite R1", 1, 2),
-)
 
 
 class EditPhasesDialog(ObjectStoreDialog):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, project: Project | None = None) -> None:
         super().__init__(parent, title="Edit Phases", columns=("Phase", "R", "G"))
+        self.project = project
 
         self.phase_widget = EditPhaseWidget(self)
         self.set_properties_widget(self.phase_widget)
 
-        self._phases = list(_DEMO_PHASES)
-        for name, R, G in self._phases:
-            self.add_object_row(name, str(R), str(G))
+        self._phases = list(project.phases) if project is not None else []
+        for phase in self._phases:
+            self.add_object_row(
+                phase.name,
+                str(getattr(phase.probabilities, "R", 0)),
+                str(phase.G),
+            )
 
         self.object_selected.connect(self._on_phase_selected)
-        self.ui.button_add_object.clicked.connect(self._on_add_phase)
 
-        # The based-on combo offers the other phases (placeholder).
-        for name, _R, _G in self._phases:
-            self.phase_widget.ui.phase_based_on.addItem(name)
+        # Adding / removing / import / export of phases is structural and
+        # comes with the phase-creation batch (needs the component editor and
+        # the default-phase catalog); disable them for now.
+        for button, why in (
+            (self.ui.button_add_object, "Creating phases is not ported yet."),
+            (self.ui.button_del_object, "Removing phases is not ported yet."),
+            (self.ui.button_load_object, "Importing phases is not ported yet."),
+            (self.ui.button_save_object, "Exporting phases is not ported yet."),
+        ):
+            button.setEnabled(False)
+            button.setToolTip(why)
 
-        # Select the first phase so the editor shows something.
-        first = self.objects_model.index(0, 0)
-        self.ui.edit_objects_treeview.setCurrentIndex(first)
+        if self._phases:
+            self.ui.edit_objects_treeview.setCurrentIndex(
+                self.objects_model.index(0, 0)
+            )
+        else:
+            self.phase_widget.bind_phase(None)
 
     def _on_phase_selected(self, index: QModelIndex) -> None:
-        name, R, G = self._phases[index.row()]
-        self.phase_widget.set_phase_placeholder(name, R, G)
+        if 0 <= index.row() < len(self._phases):
+            phase = self._phases[index.row()]
+            self.phase_widget.bind_phase(
+                phase, on_changed=lambda p=phase: self._recalculate(p)
+            )
 
-    def _on_add_phase(self) -> None:
-        dialog = AddPhaseDialog(self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        # Placeholder: append a row; the real phase creation (empty /
-        # default catalog / raw pattern) comes with the phase model port.
-        if dialog.phase_type == "empty":
-            name, R, G = "New phase", dialog.R, dialog.G
-        elif dialog.phase_type == "default":
-            name, R, G = dialog.default_phase, 0, 1
-        else:
-            name, R, G = "Raw pattern phase", 0, 1
-        self._phases.append((name, R, G))
-        self.add_object_row(name, str(R), str(G))
-        self.phase_widget.ui.phase_based_on.addItem(name)
-        self.ui.edit_objects_treeview.setCurrentIndex(
-            self.objects_model.index(self.objects_model.rowCount() - 1, 0)
-        )
+    def _recalculate(self, phase) -> None:
+        """Recompute every mixture after a phase edit (any mixture may use
+        this phase); the specimens' data_changed then refreshes the plot.
+        Keep the list label in sync with an edited phase name."""
+        if self.project is not None:
+            self.project.calculate()
+        rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
+        if rows:
+            item = self.objects_model.itemFromIndex(rows[0])
+            if item is not None:
+                item.setText(phase.name)

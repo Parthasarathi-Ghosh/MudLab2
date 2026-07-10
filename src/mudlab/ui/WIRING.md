@@ -21,8 +21,10 @@ vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
 and the whole pattern-calculation engine - phases, components, CSDS,
 probabilities and mixtures (see the batch checklist in TODO.md). Mixtures
 save from the model now (Edit Mixtures makes fractions/scales/background
-editable); phases/components/CSDS/probabilities still save verbatim until
-their editors are wired. The F5 Refresh Graph action and any Edit Mixtures
+editable), and phases save the modeled fields too (Edit Phases makes name/
+sigma*/CSDS-mean editable; Phase.to_dict keeps everything else verbatim by
+uuid). Components/probabilities within a phase still round-trip verbatim
+until their tabs are wired. The F5 Refresh Graph action and any Edit Mixtures
 edit run `project.calculate()` / `mixture.calculate()` (each specimen's
 calculated pattern). Not yet modeled: exclusion ranges; not yet ported:
 the mixture fraction/scale/bg refinement optimizer (the calc path
@@ -163,24 +165,30 @@ the NoMinMax variant - Qt dialogs have no min/max buttons anyway).
 `mudlab/edit_phases_dialog.py` subclasses ObjectStoreDialog (title "Edit
 Phases", columns Phase | R | G) and hosts `mudlab/edit_phase_widget.py`
 (`EditPhaseWidget`, design `edit_phase.ui`, old `phases/glade/phase.glade`
-EditPhaseView). Opened modeless by `actionEditPhases`. Placeholder list:
-three demo phases; selection fills the form via
-`set_phase_placeholder(name, R, G)`.
+EditPhaseView). Opened modeless by `actionEditPhases`, rebuilt per open
+with the project. Bound to the real Phase models via
+`bind_phase(phase, on_changed)` (2026-07-10); selection fills the form and
+the CSDS component.
 
-- Fields: `phase_name` + `phase_display_color` (+`phase_inherit_display_color`),
-  `phase_based_on` (combo, populated at runtime with the OTHER phases -
-  old kept an index of allowed parents), `phase_G` and `phase_R`
-  (read-only: fixed at creation by the Add Phase dialog), `phase_sigma_star`
-  (0-90°, default 3.0) + `phase_inherit_sigma_star`.
-- Inherit checkboxes disable their paired editors and are only enabled
-  when a based-on phase is selected (old adapter behavior); inherit-CSDS
-  grays out whatever sits in `csdsLayout` (old `set_csds_sensitive`).
-- Tab placeholders in `book_wrapper`: `csdsLayout` (future csds.ui with a
-  matplotlib histogram; old EditCSDSDistributionView), `probabilitiesLayout`
-  (future probabilities component; old app REMOVED this tab for R0/G1
-  phases - `remove_probabilities()`), `componentsLayout` (future
-  edit_component.ui; old EditComponentView with layer/interlayer atoms,
-  atom relations, unit-cell a/b editors).
+- Editable + bound: `phase_name` (editingFinished) and `phase_sigma_star`
+  (0-90°, valueChanged). `phase_G`/`phase_R` are read-only (G = component
+  count, R from the probability model). Every accepted edit calls
+  `on_changed` -> `project.calculate()`, so the pattern redraws live.
+- CSDS tab: the real `CSDSWidget` (csds.ui + csds_widget.py) sits in
+  `csdsLayout`; the "insert here" label is hidden. It has the mean spinbox
+  (`csds_average`), a derived min-max label (`csds_range`) and a live
+  matplotlib histogram of the Drits log-normal distribution, bound to the
+  phase's DritsCSDSDistribution.
+- Disabled until later batches: `phase_display_color` +
+  `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
+  + `phase_inherit_CSDS_distribution` (phase inheritance / visuals not
+  modeled), the object-store Add/Remove/Import/Export buttons (structural),
+  and the `probabilitiesLayout` / `componentsLayout` tabs (batches 3-4;
+  old app REMOVED the probabilities tab for R0/G1 phases via
+  `remove_probabilities()`).
+- Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
+  `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
+  keeps non-Phase entries (e.g. RawPatternPhase) untouched.
 - Still to port around this window: the Add Phase dialog
   (`addphase.glade`: radio choice empty/default/raw phase, G 1-12, R 0-4,
   default-phase catalog combo), EditRawPatternPhaseView

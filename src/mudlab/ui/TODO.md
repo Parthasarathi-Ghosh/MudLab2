@@ -23,9 +23,10 @@ Edit Project / Edit Specimen / Edit Markers dialogs are live against
 them, Import Specimens loads real text XY/CSV patterns, and markers load/
 draw/edit/save for real. Project New/Open/Save/Save As work with the old
 .mud format (data-preserving round-trip incl. phases/mixtures/atom types/
-goniometers). Atom types, goniometer, and (Edit Mixtures, 2026-07-10) the
-mixture fraction/scale/background matrix are live against real models;
-phases remain placeholder-driven in their editor.
+goniometers). Atom types, goniometer, (Edit Mixtures, 2026-07-10) the
+mixture fraction/scale/background matrix, and (Edit Phases, 2026-07-10)
+the phase name/sigma*/CSDS-mean are live against real models; the phase
+probabilities and components tabs remain to wire.
 
 Editor wiring (2026-07-10, batches): the calc-engine models are being
 bound to their editors so parameters become editable with a live recalc.
@@ -35,7 +36,15 @@ bound to their editors so parameters become editable with a live recalc.
   (to_dict passthrough keeps masks / refine options / auto flags / uuid).
   Phase-cell reassignment, structural add/remove and the optimizer
   (Refine / Optimize / auto-*) are disabled - later batches.
-- [ ] Batch 2: Edit Phases CSDS mean + sigma*
+- [x] Batch 2: Edit Phases CSDS mean + sigma* - the phase name, sigma*
+  orientation factor and CSDS mean are editable and bound to the Phase /
+  DritsCSDSDistribution models; the CSDS component (csds.ui + csds_widget.py,
+  mean spinbox + live log-normal histogram + derived range) fills the CSDS
+  tab. Every edit recomputes all mixtures and redraws. Phases now save from
+  the model (Phase.to_dict passthrough keeps components / probabilities /
+  ref_info / display_color / based_on / inherit flags / uuid; non-Phase
+  entries stay verbatim, matched by uuid). Phase inheritance, display colour,
+  the inherit flags, and Add/Remove phase are disabled - later batches.
 - [ ] Batch 3: Edit Phases probabilities (F params -> W/P)
 - [ ] Batch 4: Edit Phases components (d001, atoms, unit cell)
 
@@ -119,7 +128,7 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 | Edit Specimen | edit_specimen.ui, edit_specimen_dialog.py | specimen/glade/specimen.glade | done (hosts line properties + goniometer components) |
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (buttons not yet connected) |
-| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py | phases/glade/phase.glade + shell | partial (CSDS, probabilities, components tabs are placeholders) |
+| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui, csds_widget.py | phases/glade/phase.glade + csds.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean editable with live recalc + histogram; probabilities & components tabs, inheritance, colour, Add/Remove still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; phase-cell reassign + structural edits + optimizer disabled, come with later batches) |
@@ -138,7 +147,9 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 ## To do
 
 ### Phase editing family
-- [ ] CSDS distribution component - phases/glade/csds.glade (param rows + matplotlib histogram; plugs into Edit Phases tab)
+- [x] CSDS distribution component - csds.ui + csds_widget.py (mean spinbox +
+  live log-normal histogram + derived range; plugged into Edit Phases CSDS
+  tab, bound to DritsCSDSDistribution). Old: phases/glade/csds.glade.
 - [ ] Probabilities component - probabilities/glade/probabilities.glade + matrix.glade + R0_independents.glade (plugs into Edit Phases tab; old app removed the tab for R0/G1 phases)
 - [ ] Component editor - phases/glade/component.glade (plugs into Edit Phases Components tab)
 - [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside component editor)
