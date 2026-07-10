@@ -23,8 +23,21 @@ Edit Project / Edit Specimen / Edit Markers dialogs are live against
 them, Import Specimens loads real text XY/CSV patterns, and markers load/
 draw/edit/save for real. Project New/Open/Save/Save As work with the old
 .mud format (data-preserving round-trip incl. phases/mixtures/atom types/
-goniometers). Phases, mixtures, atom types, and goniometer remain
-placeholder-driven in their editors.
+goniometers). Atom types, goniometer, and (Edit Mixtures, 2026-07-10) the
+mixture fraction/scale/background matrix are live against real models;
+phases remain placeholder-driven in their editor.
+
+Editor wiring (2026-07-10, batches): the calc-engine models are being
+bound to their editors so parameters become editable with a live recalc.
+- [x] Batch 1: Edit Mixtures - fractions / scales / background shifts are
+  editable and bound to the Mixture model; every edit recomputes the
+  pattern and redraws (the F5 path). Mixtures now save from the model
+  (to_dict passthrough keeps masks / refine options / auto flags / uuid).
+  Phase-cell reassignment, structural add/remove and the optimizer
+  (Refine / Optimize / auto-*) are disabled - later batches.
+- [ ] Batch 2: Edit Phases CSDS mean + sigma*
+- [ ] Batch 3: Edit Phases probabilities (F params -> W/P)
+- [ ] Batch 4: Edit Phases components (d001, atoms, unit cell)
 
 Calculation engine (2026-07-08): the fit-statistics groundwork is ported
 (calculations/statistics.py + math_tools.smooth; SpecimenStatistics via
@@ -109,7 +122,7 @@ calc-engine file. `./python/python.exe tools/verify_calc_engine.py`
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py | phases/glade/phase.glade + shell | partial (CSDS, probabilities, components tabs are placeholders) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
-| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (placeholder read-only matrix; editable combos-per-cell matrix comes with the model port) |
+| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; phase-cell reassign + structural edits + optimizer disabled, come with later batches) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |

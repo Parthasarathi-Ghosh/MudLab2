@@ -33,6 +33,11 @@ class Mixture:
         self.bgshifts = np.array([], dtype=float)   # n (per specimen)
         self.specimens: list = []                # resolved Specimen models (n)
         self.phase_matrix: list[list] = []       # resolved Phase grid (n × m)
+        # Full .mud property dict kept verbatim so unmodeled fields
+        # (fractions_mask, refine_method_index/options, auto_* flags, uuid)
+        # survive a load/save round-trip; to_dict writes the modeled values
+        # back into it.
+        self.raw_properties: dict = {}
 
     @property
     def n(self) -> int:
@@ -63,6 +68,7 @@ class Mixture:
     ) -> "Mixture":
         props = data.get("properties", {})
         mix = cls(name=props.get("name", ""))
+        mix.raw_properties = dict(props)
         mix.phase_labels = list(props.get("phases") or [])
         mix.specimen_uuids = list(props.get("specimen_uuids") or [])
         mix.phase_uuids = [list(row) for row in (props.get("phase_uuids") or [])]
@@ -74,3 +80,17 @@ class Mixture:
             [phase_uuid_map.get(u) for u in row] for row in mix.phase_uuids
         ]
         return mix
+
+    def to_dict(self) -> dict:
+        """Serialize back to a .mud mixture dict, overwriting only the modeled
+        fields on top of the verbatim raw properties (so masks, refine
+        options, auto_* flags and uuid survive)."""
+        props = dict(self.raw_properties)
+        props["name"] = self.name
+        props["phases"] = list(self.phase_labels)
+        props["specimen_uuids"] = list(self.specimen_uuids)
+        props["phase_uuids"] = [list(row) for row in self.phase_uuids]
+        props["fractions"] = [float(x) for x in self.fractions]
+        props["scales"] = [float(x) for x in self.scales]
+        props["bgshifts"] = [float(x) for x in self.bgshifts]
+        return {"type": "Mixture", "properties": props}

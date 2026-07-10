@@ -162,9 +162,13 @@ def save_mud(project: Project, path: str) -> None:
     properties["specimens"] = [
         _specimen_to_dict(specimen) for specimen in project.specimens
     ]
-    # Atom types are modeled: write the live list back (phases/mixtures are
-    # still preserved verbatim from raw_properties below).
+    # Atom types and mixtures are modeled: write the live lists back (phases
+    # are still preserved verbatim from raw_properties below). Mixtures are
+    # only rewritten when at least one is modeled, so a project the parser
+    # never loaded mixtures for still round-trips its raw list untouched.
     properties["atom_types"] = [at.to_dict() for at in project.atom_types]
+    if project.mixtures:
+        properties["mixtures"] = [mix.to_dict() for mix in project.mixtures]
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
 

@@ -18,13 +18,15 @@ Specimen dialogs (`bind_project` / `bind_specimen`). Import Specimens
 parses text XY/CSV/DAT patterns (`mudlab/file_parsers/xy_parser.py`);
 vendor binary formats (RD, RAW, CPI, UDF, ...) port later from the old
 `file_parsers/xrd_parsers`. Now modeled: goniometer, markers, atom types,
-and (calc-only, load + compute, still saved verbatim) phases, components,
-CSDS, probabilities and mixtures - the whole pattern-calculation engine
-(see the batch checklist in TODO.md). The F5 Refresh Graph action runs
-`project.calculate()` (every mixture -> each specimen's calculated
-pattern). Not yet modeled: exclusion ranges; not yet ported: the mixture
-fraction/scale/bg refinement optimizer (the calc path re-applies the
-stored solution).
+and the whole pattern-calculation engine - phases, components, CSDS,
+probabilities and mixtures (see the batch checklist in TODO.md). Mixtures
+save from the model now (Edit Mixtures makes fractions/scales/background
+editable); phases/components/CSDS/probabilities still save verbatim until
+their editors are wired. The F5 Refresh Graph action and any Edit Mixtures
+edit run `project.calculate()` / `mixture.calculate()` (each specimen's
+calculated pattern). Not yet modeled: exclusion ranges; not yet ported:
+the mixture fraction/scale/bg refinement optimizer (the calc path
+re-applies the current solution).
 
 ## Project files (.mud) - mudlab/file_parsers/mud_project.py
 
@@ -218,16 +220,22 @@ modeless by `actionEditMixtures`.
   `btn_refine`, `btn_composition`, `tbl_matrix`, `btn_add_phase`,
   `btn_add_specimen`, `btn_add_both`, `mixture_auto_scales`,
   `mixture_auto_bg`.
-- The old app built `tbl_matrix` dynamically: phase rows (editable name +
-  fraction entry) x specimen columns (a combo per cell choosing which
-  phase object applies to that specimen), plus per-specimen Abs. scale
-  and Bg. shift rows. The placeholder QTableWidget shows that exact
-  arrangement read-only via `set_mixture_placeholder(...)`; the real
-  editable matrix (combos per cell) comes with the mixture model port.
-- btn_refine opened the refinement window; btn_composition a composition
-  summary dialog; btn_optimize ran the optimizer - all pending ports.
-- The Add Mixture dialog (`add_mixture.glade`) for the shell's Add button
-  is still to do.
+- Bound to the real Mixture model via `bind_mixture(mixture, on_changed)`
+  (2026-07-10). `tbl_matrix` is phase-slot rows x specimen columns, with
+  two fixed header rows (Abs. scale, Bg. shift) and a Fraction column.
+  Editable numeric cells (scales per specimen, background per specimen,
+  fraction per slot) write straight to the model arrays; `itemChanged`
+  validates (bad input reverts) and calls `on_changed` -> `mixture.
+  calculate()`, so the pattern redraws live. Phase cells show the assigned
+  phase name read-only. Row/col constants live in the widget module.
+- Still disabled (later batches / other ports): the phase-per-cell combo
+  (reassigning a slot's phase), btn_add_phase/specimen/both (structural),
+  btn_refine + btn_optimize + mixture_auto_run/scales/bg (the optimizer),
+  btn_composition (composition summary), and the Add Mixture dialog
+  (`add_mixture.glade`) for the shell's Add button.
+- Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
+  `raw_properties`, so masks / refine options / auto flags / uuid survive;
+  `save_mud` rewrites the mixtures part from the models when any is loaded.
 
 ## Add Phase dialog: add_phase.ui
 

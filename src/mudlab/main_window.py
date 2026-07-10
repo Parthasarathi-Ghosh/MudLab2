@@ -686,13 +686,15 @@ class MainWindow(QMainWindow):
         self._edit_atom_types_dialog.show()
 
     def _show_edit_mixtures(self) -> None:
-        # Modeless, like the old app's mixtures view present().
-        if self._edit_mixtures_dialog is None:
-            self._edit_mixtures_dialog = EditMixturesDialog(self)
-        dialog = self._edit_mixtures_dialog
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
+        # Modeless; rebuilt per open so it reflects the current project's
+        # mixtures (mixtures belong to the project). Editing a fraction /
+        # scale / background recomputes the pattern live.
+        if self._edit_mixtures_dialog is not None:
+            self._edit_mixtures_dialog.close()
+        self._edit_mixtures_dialog = EditMixturesDialog(self, project=self.project)
+        self._edit_mixtures_dialog.show()
+        self._edit_mixtures_dialog.raise_()
+        self._edit_mixtures_dialog.activateWindow()
 
     def _show_strip_peak(self) -> None:
         if self._strip_peak_dialog is None:
