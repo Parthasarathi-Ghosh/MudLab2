@@ -88,6 +88,25 @@ class Mixture:
         self.calculate()
         return 0.0
 
+    def refinables(self) -> list:
+        """The mixture's refinable structural parameters (sigma*, CSDS mean,
+        F params, component d001/delta_c), flagged or not - for the Refinement
+        window's parameter tree."""
+        from mudlab.calculations.refinement import enumerate_refinables
+
+        return enumerate_refinables(self)
+
+    def refine(self, method_index: int = 0, options: dict | None = None) -> float:
+        """Refine the flagged structural parameters with the chosen SciPy
+        method (0 = L-BFGS-B, 1 = Basin Hopping, 2 = Brute force), each trial
+        inner-fitting fractions/scales/background. Recomputes the patterns and
+        returns the best residual."""
+        from mudlab.calculations.refinement import refine_mixture
+
+        residual = refine_mixture(self, method_index, options)
+        self.calculate()
+        return residual
+
     @classmethod
     def from_dict(
         cls, data: dict, phase_uuid_map: dict, specimen_uuid_map: dict

@@ -162,6 +162,10 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   solution never worsens it, a perturbed start (scales->1, bg->0) recovers,
   the solution stays valid, and no-free-vars is a safe no-op. Run after
   touching calculations/mixture.py or the objective/masks.
+- `tools/verify_refinement.py` guards the structural REFINEMENT - refinables
+  enumerate, a flagged param perturbed then refined recovers, all three
+  methods run finite, ref_info round-trips. The heaviest harness (nested
+  optimize). Run after touching calculations/refinement.py.
 
 ## Recreated
 
@@ -221,11 +225,24 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 - [ ] Add Mixture dialog - mixture/views/glade/add_mixture.glade (for the Edit Mixtures shell's Add button)
 - [ ] Composition summary - opened by btn_composition in the mixture editor
 
-### Refinement
-- [ ] Refinement window - refinement/views/glade/refinement.glade
-- [ ] Refine method options - refinement/views/glade/refine_method.glade
-- [ ] Refinement results - refinement/views/glade/refine_results.glade
-- [ ] Refinement status - refinement/views/glade/refine_status.glade
+### Refinement (structural-parameter refinement, distinct from mixture Optimize)
+- [x] Phase A: refinables framework + engine - calculations/refinement.py.
+  enumerate_refinables(mixture) collects the phases' refinable structural
+  params (sigma*, CSDS mean, R0 F params, component d001/delta_c), each a
+  Refinable with value get/set into the live model + [min,max,refine] read/
+  written into raw_properties ref_info (round-trips via to_dict). Refiner runs
+  an outer SciPy method over the FLAGGED params; each trial inner-optimises
+  fractions/scales/bg (optimize_mixture) - the old nested get_optimized_
+  residual. Three methods, deap ones dropped, indices renumbered contiguously:
+  0 = L-BFGS-B (unchanged, so .mud refine_method_index 0 still maps), 1 =
+  Basin Hopping, 2 = Brute force. Mixture.refine()/refinables(). Debugging:
+  no iprint (scipy 1.18), objective guarded finite, fail-loud (GUI wraps).
+- [ ] Phase B: the Refinement window UI - refinement/views/glade/
+  refinement.glade (refinable tree with refine flags + min/max, method combo,
+  Refine button, residual/status) wired to btn_refine.
+- [ ] Phase C (deferred): threaded live status (refine_status.glade), refine
+  results/history (refine_results.glade), per-method options
+  (refine_method.glade), randomize / auto-restrict.
 
 ### Other
 - [ ] CSV import options - generic/views/glade/csv_import.glade
