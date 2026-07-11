@@ -131,11 +131,25 @@ port, produces the calculated pattern from scratch):
   specimens match to floating-point (RMS ~1e-7, corr 1.000000), the 6th to
   0.2% - the full chain atoms -> SF -> CSDS -> stacking -> phase -> mixture
   reproduces the GTK reference.
-- [x] exclusion-range masking of the R-factors - Specimen.exclusion_ranges +
-  exclusion_selector(2theta) (parsed from / saved to the .mud JSON string);
-  the fit/refine residual (calculations/mixture.py) and SpecimenStatistics
-  mask out the excluded 2theta regions. The Edit Specimen exclusion tab + the
-  plot shading come with sub-batches 2-3.
+- [x] exclusion ranges (2theta regions the fit ignores) - DONE, all three
+  sub-batches. Model: Specimen.exclusion_ranges + set_exclusion_ranges (emits
+  data_changed) + exclusion_selector(2theta) (boolean mask; all-True with no
+  ranges; parsed from / saved to the .mud JSON string). HONOURED by: the
+  mixture fit residual (calculations/mixture.py _Problem.residual masks
+  observed+calculated via ctx.selected), the structural refinement (inherits
+  it through optimize_mixture), the R-factors (SpecimenStatistics._compute
+  masks exp+calc), and the plot shading (plot_controller axvspan per range,
+  deduped, zero-width skipped). NOT honoured (by design): the calculated
+  pattern itself (exclusion only changes the fit metric, not the diffractogram)
+  and - deliberately deferred (#4) - the residual/derivative DIFFERENCE bands
+  (statistics.residual_pattern / derivative_residual draw over the FULL range;
+  the shading marks what is excluded). Edge cases (verified): multiple ranges
+  union cleanly (a point in ANY range is out, no double-count); start>end is
+  normalised by a lo/hi swap in the selector AND the shading (the model stores
+  what you typed); start==end and out-of-data ranges exclude ~0 points (safe
+  no-op); delete restores those points. Editor: the Edit Specimen exclusion
+  tab (edit_specimen_dialog.py) - add/delete/edit rows commit to
+  set_exclusion_ranges (malformed rows skipped); import/export disabled.
 - [x] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
   DONE. Core: calculations/mixture.py (masks from fractions_mask + auto_scales/
   auto_bg, per-specimen phase-intensity cache, mean-Rp objective, L-BFGS-B,

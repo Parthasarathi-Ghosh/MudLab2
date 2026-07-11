@@ -111,14 +111,20 @@ open the same dialog when the specimens context menu is added.
   in `expLineLayout` / `calcLineLayout` (old: `specimen_exp_line` /
   `specimen_calc_line` event boxes).
 - Pattern tables (`specimen_experimental_pattern`,
-  `specimen_calculated_pattern`, `specimen_exclusion_ranges`) hold
-  placeholder QStandardItemModels; the real models come from the ported
-  specimen model (Qt signals). Buttons keep their old ids
+  `specimen_calculated_pattern`) show the specimen's real data READ-ONLY
+  (the add/del/import/export data buttons wire with the pattern-model
+  port). The **exclusion-range table** (`specimen_exclusion_ranges`) IS
+  wired: `_fill_exclusion_table` fills it from `specimen.exclusion_ranges`;
+  `btn_add_exclusion_range` appends a `0,0` row, `btn_del_exclusion_ranges`
+  removes the selected row(s), and any cell edit (`itemChanged`) runs
+  `_commit_exclusions` -> reads every row back into
+  `Specimen.set_exclusion_ranges` (malformed rows skipped; a `_updating`
+  guard suppresses re-entrancy while filling). `data_changed` then refreshes
+  the stats + plot. `btn_import/export_exclusion_ranges` are disabled (not
+  ported). The other buttons keep their old ids
   (`btn_add_experimental_data`, `btn_del_experimental_data`,
   `btn_import_experimental_data`, `btn_export_experimental_data`,
-  `btn_export_calculated_data`, `btn_add_exclusion_range`,
-  `btn_del_exclusion_ranges`, `btn_import_exclusion_ranges`,
-  `btn_export_exclusion_ranges`) and are not yet connected.
+  `btn_export_calculated_data`).
 - Goniometer tab: `goniometerLayout` placeholder for the future
   goniometer component (old: InlineGoniometerView / goniometer.glade);
   remove `lblGonioPlaceholder` when it lands.
@@ -458,11 +464,22 @@ the Statistics dialog/GoF label are skipped. Wired into:
   in the Rietveld-convention violet `RESIDUAL_COLOR`. No band for
   no-calc specimens.
 
-Exclusion-range masking of the R-factors is done
-(Specimen.exclusion_selector; SpecimenStatistics + the fit/refine residual
-mask the excluded 2theta regions). Not yet: shading the excluded regions on
-the plot (exclusion sub-batch 3), and the separate der_exp/der_calc
-derivative curves (only the derivative residual is drawn).
+Exclusion ranges (2theta regions the fit ignores) are fully wired.
+`Specimen.exclusion_selector(2theta)` is a boolean mask (all-True with no
+ranges; lo/hi swapped so start>end still works). It is applied by the
+mixture fit residual (`calculations/mixture.py` `_Problem.residual` masks
+observed+calculated), the structural refinement (inherits it via
+`optimize_mixture`), the R-factors (`SpecimenStatistics._compute`), and the
+plot shading (`plot_controller` draws a faint `axvspan` per range, deduped,
+zero-width skipped). The Edit Specimen exclusion tab edits them live
+(see edit_specimen.ui below). **Deliberately NOT masked (deferred, "#4"):**
+the residual/derivative DIFFERENCE bands (`residual_pattern` /
+`derivative_residual`) draw over the FULL 2theta range - so the difference
+curve is still visible under the shading inside an excluded region, while the
+R-factor numbers exclude it. This is a known, intentional gap (the shading
+marks the region); revisit if the mismatch confuses users. Also not yet: the
+separate der_exp/der_calc derivative curves (only the derivative residual is
+drawn).
 
 ## Marker model (mudlab/models/marker.py)
 
@@ -566,8 +583,9 @@ active.)
   counts), per-specimen vshift/vscale, specimen-name labels in the left
   margin at `display_label_pos`, y-axis hidden unless `axes_yvisible`,
   manual/auto x-limits from the axes settings. A single selection is
-  simply the N=1 case. Not yet drawn: markers, exclusion hatches,
-  residual/derivative statistics panels, mixture legends, per-pattern
+  simply the N=1 case. Now drawn: markers, the exclusion-range shading
+  (faint full-height axvspan bands), and the 65/35 residual/derivative
+  statistics band. Not yet drawn: mixture legends, per-pattern
   line-property overrides.
 - Interactions (port of the old MainPlotController, old wheel mapping):
   plain scroll = 2θ-zoom ×1.15 around the cursor, Ctrl+scroll =
