@@ -126,6 +126,18 @@ class EditSpecimenDialog(QDialog):
                 QHeaderView.ResizeMode.Stretch
             )
 
+        # Experimental / calculated tables are read-only; the exclusion-range
+        # table is editable and drives Specimen.set_exclusion_ranges.
+        self.exclusion_model.itemChanged.connect(self._on_exclusion_changed)
+        self.ui.btn_add_exclusion_range.clicked.connect(self._on_add_exclusion)
+        self.ui.btn_del_exclusion_ranges.clicked.connect(self._on_del_exclusion)
+        for button in (
+            self.ui.btn_import_exclusion_ranges,
+            self.ui.btn_export_exclusion_ranges,
+        ):
+            button.setEnabled(False)
+            button.setToolTip("Import/export exclusion ranges is not ported yet.")
+
     def _fill_pattern_tables(self, specimen: Specimen) -> None:
         # Read-only view of the data; editing/add/remove connect with the
         # pattern model port.
@@ -135,6 +147,67 @@ class EditSpecimenDialog(QDialog):
         ):
             model.removeRows(0, model.rowCount())
             for xi, yi in zip(x, y):
-                model.appendRow(
-                    [QStandardItem(f"{xi:.4f}"), QStandardItem(f"{yi:.2f}")]
+                items = [QStandardItem(f"{xi:.4f}"), QStandardItem(f"{yi:.2f}")]
+                for item in items:
+                    item.setEditable(False)
+                model.appendRow(items)
+        self._fill_exclusion_table(specimen)
+
+    def _fill_exclusion_table(self, specimen: Specimen) -> None:
+        self._updating = True
+        try:
+            self.exclusion_model.removeRows(0, self.exclusion_model.rowCount())
+            for a, b in specimen.exclusion_ranges:
+                self.exclusion_model.appendRow(
+                    [QStandardItem(f"{a:.4f}"), QStandardItem(f"{b:.4f}")]
                 )
+        finally:
+            self._updating = False
+
+    # ------------------------------------------------------------------
+    # Exclusion ranges
+    # ------------------------------------------------------------------
+    def _on_add_exclusion(self) -> None:
+        if self._specimen is None:
+            return
+        self._updating = True
+        try:
+            self.exclusion_model.appendRow(
+                [QStandardItem("0.0000"), QStandardItem("0.0000")]
+            )
+        finally:
+            self._updating = False
+        self._commit_exclusions()
+
+    def _on_del_exclusion(self) -> None:
+        if self._specimen is None:
+            return
+        rows = sorted(
+            {i.row() for i in self.ui.specimen_exclusion_ranges.selectionModel().selectedRows()},
+            reverse=True,
+        )
+        for row in rows:
+            self.exclusion_model.removeRow(row)
+        if rows:
+            self._commit_exclusions()
+
+    def _on_exclusion_changed(self, _item) -> None:
+        if not self._updating:
+            self._commit_exclusions()
+
+    def _commit_exclusions(self) -> None:
+        """Read every row back into Specimen.set_exclusion_ranges (which emits
+        data_changed -> stats + plot refresh). Malformed rows are skipped."""
+        if self._specimen is None:
+            return
+        ranges = []
+        for row in range(self.exclusion_model.rowCount()):
+            a_item = self.exclusion_model.item(row, 0)
+            b_item = self.exclusion_model.item(row, 1)
+            if a_item is None or b_item is None:
+                continue
+            try:
+                ranges.append((float(a_item.text()), float(b_item.text())))
+            except ValueError:
+                continue
+        self._specimen.set_exclusion_ranges(ranges)
