@@ -264,14 +264,45 @@ modeless by `actionEditMixtures`.
   (fractions_mask from the .mud gates fractions). F5 Refresh Graph calls
   `project.refresh()` -> `Mixture.update()`, which optimises auto_run
   mixtures and re-applies the rest.
+- `btn_refine` (2026-07-11) opens the Refinement window
+  (`refinement_dialog.py` RefinementDialog) for structural-parameter
+  refinement; the mixture editor re-populates when it closes. See the
+  Refinement window section below.
 - Still disabled (later batches / other ports): the phase-per-cell combo
   (reassigning a slot's phase), btn_add_phase/specimen/both (structural),
-  `btn_refine` (the full Refinement WINDOW: method selection, refinable
-  tree, live status), `btn_composition` (composition summary), and the Add
-  Mixture dialog (`add_mixture.glade`) for the shell's Add button.
+  `btn_composition` (composition summary), and the Add Mixture dialog
+  (`add_mixture.glade`) for the shell's Add button.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.
+
+## Refinement window: RefinementDialog + refinement.ui
+
+`mudlab/refinement_dialog.py` (`RefinementDialog`, design `refinement.ui`,
+old `refinement/views/glade/refinement.glade` + `refine_results.glade`).
+Opened modal from the Edit Mixtures `btn_refine` for the current mixture;
+structural-parameter refinement, distinct from `btn_optimize`
+(fractions/scales/bg). Engine: `calculations/refinement.py` (see the
+"Robustness & long runs" note there).
+
+- `tbl_refinables`: a row per `mixture.refinables()` - Parameter (label) /
+  Value (read-only) / Min / Max (editable) / Refine (checkable). Edits go
+  through `Refinable.set_ref_info`, which writes the `<name>_ref_info` triple
+  (round-trips via the phase/component to_dict).
+- `cmb_method`: 0 = L-BFGS-B, 1 = Basin Hopping (persisted to
+  `refine_method_index`). `optionsLayout` holds a per-method options form
+  (maxfun/maxiter, or niter/T/stepsize) seeded from / saved to
+  `refine_options[index]`. `btn_auto_restrict` sets Min/Max to v*0.8..v*1.2
+  for flagged params; `btn_randomize` sets flagged params to uniform(min,max)
+  and recomputes.
+- `btn_refine` runs `refine_mixture` SYNCHRONOUSLY (Phase B) under a busy
+  cursor + `setEnabled(False)`, inside a UI-boundary try/except ->
+  `QMessageBox`. `grpResult` shows Initial/Best/Last residuals;
+  `btn_apply_initial/best/last` call `refiner.apply_*` (each re-fits and
+  recomputes). The tree Values refresh after refine/apply.
+- Deferred (Phase C): real Cancel + live status (the engine `stop` hook is
+  ready but unusable while synchronous) and the progress plot (disabled
+  `Refiner.record_history` hook).
 
 ## Add Phase dialog: add_phase.ui
 

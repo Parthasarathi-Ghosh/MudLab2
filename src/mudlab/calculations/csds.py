@@ -15,6 +15,11 @@ import numpy as np
 from mudlab.calculations.math_tools import lognormal
 
 _csds_cache: dict = {}
+# Bound the cache: refining the CSDS mean evaluates a new `average` every
+# outer trial, so an unbounded dict would grow for the length of a long
+# refinement (and across a session). Clear wholesale on overflow - cheap, and
+# the useful hits are within one inner optimise (constant CSDS) anyway.
+_CSDS_CACHE_MAX = 1000
 
 
 def calculate_distribution(csds):
@@ -48,5 +53,7 @@ def calculate_distribution(csds):
         r_mean += t * q
     r_mean /= smq
 
+    if len(_csds_cache) >= _CSDS_CACHE_MAX:
+        _csds_cache.clear()
     _csds_cache[key] = (tq_arr, r_mean)
     return tq_arr, r_mean

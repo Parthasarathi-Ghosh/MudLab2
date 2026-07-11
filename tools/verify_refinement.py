@@ -128,6 +128,38 @@ def check_project(path):
     residual = load_mud(path).mixtures[0].refine(0, {})
     _check(results, "no-flags refine is finite", np.isfinite(residual))
 
+    # 4b. A mid-loop error re-raises AND restores the pre-refine model state
+    # (structural value + fractions/scales/bg), never a half-refined solution.
+    import mudlab.calculations.refinement as _R
+    proj = load_mud(path)
+    mix = proj.mixtures[0]
+    ref = _first_flaggable(enumerate_refinables(mix))
+    ref.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
+    ref.value = 8.0
+    mix.optimize()
+    pre = (ref.value, mix.fractions.copy(), mix.scales.copy(), mix.bgshifts.copy())
+    original = _R.optimize_mixture
+    state = {"n": 0}
+
+    def _boom(m):
+        state["n"] += 1
+        if state["n"] >= 3:
+            raise RuntimeError("injected mid-loop error")
+        return original(m)
+
+    _R.optimize_mixture = _boom
+    raised = False
+    try:
+        _R.refine_mixture(mix, 0, {"maxfun": 100})
+    except RuntimeError:
+        raised = True
+    finally:
+        _R.optimize_mixture = original
+    _check(results, "mid-loop error re-raises (fail loud)", raised)
+    _check(results, "mid-loop error restores model state",
+           np.isclose(ref.value, pre[0]) and np.allclose(mix.fractions, pre[1])
+           and np.allclose(mix.scales, pre[2]) and np.allclose(mix.bgshifts, pre[3]))
+
     # 5. ref_info round-trip.
     p = load_mud(path)
     m = p.mixtures[0]

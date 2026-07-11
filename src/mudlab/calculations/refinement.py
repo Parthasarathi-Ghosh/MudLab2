@@ -320,8 +320,14 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner
     With nothing flagged (or all ranges degenerate) it simply inner-optimises
     fractions/scales/background, matching a plain Optimize. `stop` is an
     optional no-arg callable returning True to cancel (see Refiner); on cancel
-    the best-so-far solution is applied. Other exceptions are not swallowed
-    here (fail loud); the GUI wraps this call.
+    the best-so-far solution is applied.
+
+    End state: normally / on cancel the model is left at the best solution
+    (structural params + inner-fitted fractions/scales/background). On any
+    OTHER exception the pre-refine state is RESTORED and the exception
+    re-raised - so a mid-loop error never leaves the model at a random
+    half-refined solution (which could then be saved). It still fails loud;
+    the GUI wraps this call to report it.
     """
     options = options or {}
     refiner = Refiner(mixture, enumerate_refinables(mixture), stop=stop)
@@ -332,6 +338,14 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner
         refiner.last_residual = residual
         return refiner
 
+    # Snapshot the full mutable state before the search (the flagged structural
+    # values plus the mixture's fractions/scales/background, which the inner
+    # optimise rewrites every trial) so an error can restore it.
+    saved_values = [ref.value for ref in refiner.refinables]
+    saved_fractions = np.array(mixture.fractions, dtype=float)
+    saved_scales = np.array(mixture.scales, dtype=float)
+    saved_bgshifts = np.array(mixture.bgshifts, dtype=float)
+
     try:
         # Seed the best/initial with the starting point, then run the search.
         refiner.initial_residual = refiner.get_residual(refiner.initial_solution)
@@ -339,6 +353,13 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner
         runner(refiner, options)
     except _RefinementStopped:
         pass  # cancelled: fall through and apply the best solution so far
+    except Exception:
+        for ref, value in zip(refiner.refinables, saved_values):
+            ref.value = value
+        mixture.fractions = saved_fractions
+        mixture.scales = saved_scales
+        mixture.bgshifts = saved_bgshifts
+        raise  # fail loud, but with the model back to its pre-refine state
 
     refiner.apply_best()
     return refiner
