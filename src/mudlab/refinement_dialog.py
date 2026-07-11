@@ -381,6 +381,29 @@ class RefinementDialog(QDialog):
         self.ui.lbl_initial_residual.setText(fmt(refiner.initial_residual))
         self.ui.lbl_best_residual.setText(fmt(refiner.best_residual))
         self.ui.lbl_last_residual.setText(fmt(refiner.last_residual))
+        # GoF of the best solution: this runs in the finished handler, after
+        # the model was left at best + recomputed, so the specimens' calculated
+        # patterns reflect it. Mean over the mixture's specimens (num_params=0,
+        # matching SpecimenStatistics), like the mean-Rp residual.
+        gof = self._compute_gof()
+        self.ui.lbl_gof.setText("-" if gof is None else "%.4f" % gof)
+
+    def _compute_gof(self) -> float | None:
+        from mudlab.calculations import GoF
+
+        if self._mixture is None:
+            return None
+        values = []
+        for specimen in self._mixture.specimens:
+            if specimen is None or not (
+                specimen.has_experimental_data and specimen.has_calculated_data
+            ):
+                continue
+            exp = specimen.experimental_pattern[1]
+            calc = specimen.calculated_pattern[1]
+            if exp.size == calc.size and exp.size > 0:
+                values.append(float(GoF(exp, calc)))
+        return sum(values) / len(values) if values else None
 
     def _set_apply_enabled(self, enabled: bool) -> None:
         for button in (self.ui.btn_apply_initial, self.ui.btn_apply_best,

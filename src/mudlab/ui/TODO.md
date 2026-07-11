@@ -180,7 +180,7 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
-| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | partial (B1+B2 done: refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, synchronous Refine, Initial/Best/Last keep-buttons. Phase C: threaded Cancel + live status + progress plot) |
+| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |
@@ -266,11 +266,21 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   and emits no signals from the calc path; the recompute + plot redraw happen
   on the GUI thread in the finished handler; closeEvent cancels + joins. See
   the "Robustness & long runs" note in calculations/refinement.py.
+  The results output (Initial/Best/Last residuals + Keep buttons + a GoF
+  (best solution) readout, mean per-specimen GoF) is inline in the window.
 - [ ] Progress/results PLOT (deferred, not needed now): the refinement
   progress plot + results/history window (refine_results.glade / the disabled
   Refiner.record_history + Refiner.history hook; old get_plot_samples plotted
   residual-vs-iteration + parameter samples). The Create-plot checkbox /
-  Show-plot button / plot dialog are intentionally omitted.
+  Show-plot button / plot dialog are intentionally omitted. With Brute force
+  gone the parameter-space plot has little value (the other two methods only
+  sample a convergence trajectory, not the residual surface).
+- [ ] Phase-intensity cache (deferred perf, user-deferred): the old
+  calculations/phases._phase_intensity_cache + its "use intensity cache"
+  checkbox were never ported. Re-adding it (keyed by phase params, always-on,
+  bounded like _csds_cache) would speed up refining multi-phase mixtures where
+  only some phases are flagged (the unchanged phases would cache-hit each
+  outer trial). Not essential; no checkbox needed.
 
 ### Other
 - [ ] CSV import options - generic/views/glade/csv_import.glade

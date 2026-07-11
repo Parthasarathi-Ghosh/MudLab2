@@ -131,6 +131,16 @@ class Ui_RefinementDialog(object):
 
         self.residualForm.setWidget(2, QFormLayout.ItemRole.FieldRole, self.lbl_last_residual)
 
+        self.lblGoF = QLabel(self.grpResult)
+        self.lblGoF.setObjectName(u"lblGoF")
+
+        self.residualForm.setWidget(3, QFormLayout.ItemRole.LabelRole, self.lblGoF)
+
+        self.lbl_gof = QLabel(self.grpResult)
+        self.lbl_gof.setObjectName(u"lbl_gof")
+
+        self.residualForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.lbl_gof)
+
 
         self.resultLayout.addLayout(self.residualForm)
 
@@ -197,6 +207,11 @@ class Ui_RefinementDialog(object):
         self.lbl_best_residual.setText(QCoreApplication.translate("RefinementDialog", u"-", None))
         self.lblLast.setText(QCoreApplication.translate("RefinementDialog", u"Last residual (Rp)", None))
         self.lbl_last_residual.setText(QCoreApplication.translate("RefinementDialog", u"-", None))
+#if QT_CONFIG(tooltip)
+        self.lblGoF.setToolTip(QCoreApplication.translate("RefinementDialog", u"Goodness of fit of the best solution, averaged over the mixture's specimens.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lblGoF.setText(QCoreApplication.translate("RefinementDialog", u"GoF (best solution)", None))
+        self.lbl_gof.setText(QCoreApplication.translate("RefinementDialog", u"-", None))
         self.btn_apply_initial.setText(QCoreApplication.translate("RefinementDialog", u"Keep initial", None))
         self.btn_apply_best.setText(QCoreApplication.translate("RefinementDialog", u"Keep best", None))
         self.btn_apply_last.setText(QCoreApplication.translate("RefinementDialog", u"Keep last", None))

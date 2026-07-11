@@ -304,7 +304,9 @@ structural-parameter refinement, distinct from `btn_optimize`
   worker only mutates the plain calc models + emits `progress`/`finished`/
   `failed`; `finished`/`failed` run on the GUI thread - `finished` calls
   `mixture.calculate()` (the plot redraw), shows Initial/Best/Last residuals
-  and enables `btn_apply_initial/best/last` (-> `refiner.apply_*`); `failed`
+  + a GoF-of-best readout (`lbl_gof`, mean per-specimen GoF via
+  `_compute_gof`) and enables `btn_apply_initial/best/last`
+  (-> `refiner.apply_*`); `failed`
   -> `QMessageBox` (the model was already restored by the engine).
   `closeEvent` cancels + joins the thread.
 - Deferred (not needed now): the progress/results plot (disabled
