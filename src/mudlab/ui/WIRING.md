@@ -295,14 +295,20 @@ structural-parameter refinement, distinct from `btn_optimize`
   `refine_options[index]`. `btn_auto_restrict` sets Min/Max to v*0.8..v*1.2
   for flagged params; `btn_randomize` sets flagged params to uniform(min,max)
   and recomputes.
-- `btn_refine` runs `refine_mixture` SYNCHRONOUSLY (Phase B) under a busy
-  cursor + `setEnabled(False)`, inside a UI-boundary try/except ->
-  `QMessageBox`. `grpResult` shows Initial/Best/Last residuals;
-  `btn_apply_initial/best/last` call `refiner.apply_*` (each re-fits and
-  recomputes). The tree Values refresh after refine/apply.
-- Deferred (Phase C): real Cancel + live status (the engine `stop` hook is
-  ready but unusable while synchronous) and the progress plot (disabled
-  `Refiner.record_history` hook).
+- `btn_refine` runs `refine_mixture` on a background QThread
+  (`_RefineWorker`), so the window stays responsive. `_set_running` locks the
+  tree / method / options / helpers / Close and enables `btn_cancel`;
+  `lbl_status` shows "Refining... N evaluations, best Rp = X" (engine
+  `on_progress` -> queued `progress` signal). `btn_cancel` sets a
+  `threading.Event` wired to the engine `stop` hook (keeps best-so-far). The
+  worker only mutates the plain calc models + emits `progress`/`finished`/
+  `failed`; `finished`/`failed` run on the GUI thread - `finished` calls
+  `mixture.calculate()` (the plot redraw), shows Initial/Best/Last residuals
+  and enables `btn_apply_initial/best/last` (-> `refiner.apply_*`); `failed`
+  -> `QMessageBox` (the model was already restored by the engine).
+  `closeEvent` cancels + joins the thread.
+- Deferred (not needed now): the progress/results plot (disabled
+  `Refiner.record_history` hook; no Create-plot / Show-plot / plot dialog).
 
 ## Add Phase dialog: add_phase.ui
 

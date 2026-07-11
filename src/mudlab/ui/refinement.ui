@@ -71,6 +71,13 @@
    <item>
     <layout class="QHBoxLayout" name="refineRow">
      <item>
+      <widget class="QLabel" name="lbl_status">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="refineSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -86,10 +93,23 @@
      <item>
       <widget class="QPushButton" name="btn_refine">
        <property name="toolTip">
-        <string>Run the refinement (this can take a while and the window will be busy).</string>
+        <string>Run the refinement on a background thread; the window stays responsive and Cancel keeps the best result so far.</string>
        </property>
        <property name="text">
         <string>Refine</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_cancel">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="toolTip">
+        <string>Stop the running refinement and keep the best solution found so far.</string>
+       </property>
+       <property name="text">
+        <string>Cancel</string>
        </property>
       </widget>
      </item>

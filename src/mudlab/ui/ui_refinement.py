@@ -72,6 +72,11 @@ class Ui_RefinementDialog(object):
 
         self.refineRow = QHBoxLayout()
         self.refineRow.setObjectName(u"refineRow")
+        self.lbl_status = QLabel(RefinementDialog)
+        self.lbl_status.setObjectName(u"lbl_status")
+
+        self.refineRow.addWidget(self.lbl_status)
+
         self.refineSpacer = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.refineRow.addItem(self.refineSpacer)
@@ -80,6 +85,12 @@ class Ui_RefinementDialog(object):
         self.btn_refine.setObjectName(u"btn_refine")
 
         self.refineRow.addWidget(self.btn_refine)
+
+        self.btn_cancel = QPushButton(RefinementDialog)
+        self.btn_cancel.setObjectName(u"btn_cancel")
+        self.btn_cancel.setEnabled(False)
+
+        self.refineRow.addWidget(self.btn_cancel)
 
 
         self.refinementLayout.addLayout(self.refineRow)
@@ -170,10 +181,15 @@ class Ui_RefinementDialog(object):
         self.btn_randomize.setToolTip(QCoreApplication.translate("RefinementDialog", u"Randomize each flagged parameter within its Min/Max.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_randomize.setText(QCoreApplication.translate("RefinementDialog", u"Randomize", None))
+        self.lbl_status.setText("")
 #if QT_CONFIG(tooltip)
-        self.btn_refine.setToolTip(QCoreApplication.translate("RefinementDialog", u"Run the refinement (this can take a while and the window will be busy).", None))
+        self.btn_refine.setToolTip(QCoreApplication.translate("RefinementDialog", u"Run the refinement on a background thread; the window stays responsive and Cancel keeps the best result so far.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_refine.setText(QCoreApplication.translate("RefinementDialog", u"Refine", None))
+#if QT_CONFIG(tooltip)
+        self.btn_cancel.setToolTip(QCoreApplication.translate("RefinementDialog", u"Stop the running refinement and keep the best solution found so far.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_cancel.setText(QCoreApplication.translate("RefinementDialog", u"Cancel", None))
         self.grpResult.setTitle(QCoreApplication.translate("RefinementDialog", u"Result - which solution do you want to keep?", None))
         self.lblInitial.setText(QCoreApplication.translate("RefinementDialog", u"Initial residual (Rp)", None))
         self.lbl_initial_residual.setText(QCoreApplication.translate("RefinementDialog", u"-", None))

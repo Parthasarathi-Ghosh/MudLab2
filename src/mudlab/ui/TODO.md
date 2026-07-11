@@ -257,15 +257,20 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   params; randomize sets each flagged param to uniform(min,max) and recomputes
   the starting pattern. (Inner optimiser limits stay fixed; the old inner_*
   options are not exposed.)
-- [ ] Phase C (deferred): threaded live status (refine_status.glade), the
-  refinement PROGRESS PLOT / results+history (refine_results.glade; the
-  disabled hook is Refiner.record_history + Refiner.history, and the old
-  get_plot_samples plotted residual-vs-iteration + parameter samples),
-  per-method options (refine_method.glade), randomize / auto-restrict.
-  Long-run handling: the engine already takes a `stop` callable (cancel) and
-  is synchronous - Phase C should run it on a worker thread and drive Cancel +
-  live status from there. See the "Robustness & long runs" note in
-  calculations/refinement.py.
+- [x] Phase C: threaded refinement - the Refine button now runs on a
+  background QThread (_RefineWorker in refinement_dialog.py), so the window
+  stays responsive. A live status label shows "Refining... N evaluations,
+  best Rp = X" (engine on_progress hook -> Refiner.update, emitted as a queued
+  Qt signal), and Cancel sets a threading.Event wired to the engine `stop`
+  hook (keeps the best-so-far). The worker only mutates the plain calc models
+  and emits no signals from the calc path; the recompute + plot redraw happen
+  on the GUI thread in the finished handler; closeEvent cancels + joins. See
+  the "Robustness & long runs" note in calculations/refinement.py.
+- [ ] Progress/results PLOT (deferred, not needed now): the refinement
+  progress plot + results/history window (refine_results.glade / the disabled
+  Refiner.record_history + Refiner.history hook; old get_plot_samples plotted
+  residual-vs-iteration + parameter samples). The Create-plot checkbox /
+  Show-plot button / plot dialog are intentionally omitted.
 
 ### Other
 - [ ] CSV import options - generic/views/glade/csv_import.glade

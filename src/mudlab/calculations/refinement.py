@@ -197,12 +197,18 @@ def enumerate_refinables(mixture) -> list[Refinable]:
 # Refiner (the outer-search context)
 # ----------------------------------------------------------------------
 class Refiner:
-    def __init__(self, mixture, refinables, stop=None):
+    def __init__(self, mixture, refinables, stop=None, on_progress=None):
         self.mixture = mixture
         # `stop`, if given, is a no-arg callable returning True to abort. It is
         # checked before each (expensive) trial so a long refinement can be
         # cancelled (the GUI will pass a threading.Event.is_set here).
         self._stop = stop
+        # `on_progress(n_evaluations, best_residual)`, if given, is called after
+        # each outer trial for a live status readout. It runs on whatever thread
+        # drives the refinement; the GUI passes a callback that only emits a
+        # queued Qt signal (no GUI access here).
+        self._on_progress = on_progress
+        self._n_evals = 0
         self.refinables = []
         self.ranges = []
         initial = []
@@ -246,6 +252,7 @@ class Refiner:
         background, and return that residual (guarded finite)."""
         if self._stop is not None and self._stop():
             raise _RefinementStopped()
+        self._n_evals += 1
         self.apply_solution(x)
         residual = optimize_mixture(self.mixture)
         if not np.isfinite(residual):
@@ -262,6 +269,8 @@ class Refiner:
         if self.best_residual is None or residual < self.best_residual:
             self.best_residual = float(residual)
             self.best_solution = x.copy()
+        if self._on_progress is not None:
+            self._on_progress(self._n_evals, self.best_residual)
 
     # The Refinement window's Initial / Best / Last buttons apply one of the
     # three tracked solutions; each sets the structural params then inner-fits
@@ -309,7 +318,8 @@ REFINE_METHODS = {
 }
 
 
-def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner":
+def refine_mixture(mixture, method_index=0, options=None, stop=None,
+                   on_progress=None) -> "Refiner":
     """Refine the mixture's flagged structural parameters with the chosen
     SciPy method, leaving the model at the best solution (structural params +
     inner-fitted fractions/scales/background). Returns the Refiner, which
@@ -330,7 +340,9 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None) -> "Refiner
     the GUI wraps this call to report it.
     """
     options = options or {}
-    refiner = Refiner(mixture, enumerate_refinables(mixture), stop=stop)
+    refiner = Refiner(
+        mixture, enumerate_refinables(mixture), stop=stop, on_progress=on_progress
+    )
     if not refiner.refinables:
         residual = float(optimize_mixture(mixture))
         refiner.initial_residual = residual

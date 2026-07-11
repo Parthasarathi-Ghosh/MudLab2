@@ -96,17 +96,21 @@ class Mixture:
 
         return enumerate_refinables(self)
 
-    def refine(self, method_index: int = 0, options: dict | None = None, stop=None) -> float:
+    def refine(self, method_index: int = 0, options: dict | None = None,
+               stop=None, on_progress=None) -> float:
         """Refine the flagged structural parameters with the chosen SciPy
         method (0 = L-BFGS-B, 1 = Basin Hopping), each trial inner-fitting
-        fractions/scales/background. `stop` is an optional no-arg
-        callable returning True to cancel a long run. Recomputes the patterns
-        and returns the best residual. The Refinement window instead calls
-        calculations.refinement.refine_mixture directly to get the Refiner (for
-        its Initial/Best/Last buttons)."""
+        fractions/scales/background. `stop` is an optional no-arg callable
+        returning True to cancel a long run; `on_progress(n, best)` reports
+        live progress. Recomputes the patterns and returns the best residual.
+        The Refinement window instead calls calculations.refinement.
+        refine_mixture directly to get the Refiner (for its Initial/Best/Last
+        buttons) and to keep the recompute on the GUI thread."""
         from mudlab.calculations.refinement import refine_mixture
 
-        refiner = refine_mixture(self, method_index, options, stop=stop)
+        refiner = refine_mixture(
+            self, method_index, options, stop=stop, on_progress=on_progress
+        )
         self.calculate()
         return float(refiner.best_residual) if refiner.best_residual is not None else 0.0
 

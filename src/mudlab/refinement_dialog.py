@@ -7,25 +7,59 @@ structural parameters (value + editable min/max + a Refine toggle), a
 method combo (0 = L-BFGS-B, 1 = Basin Hopping), a Refine button, and the
 Initial / Best / Last residuals with buttons to keep one of those solutions.
 
-Phase B is synchronous - Refine runs under a busy cursor and blocks; the
-Cancel button + live status (the engine's stop hook) and the progress plot
-come with the threaded Phase C. The per-method options and the
-auto-restrict / randomize helpers are wired in B2 (disabled here).
+Refine runs on a background thread (_RefineWorker + QThread): the window
+stays responsive, a live status label shows the evaluation count + best Rp,
+and Cancel sets the engine's stop event (keeping the best result so far).
+The worker only mutates the plain calc models and emits no signals from the
+calc path; the recompute + plot redraw happen on the GUI thread in the
+finished handler. The progress/results PLOT stays deferred.
 """
 
 from __future__ import annotations
 
 import random
+import threading
 from typing import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QDoubleSpinBox, QFormLayout, QHeaderView, QMessageBox,
+    QDialog, QDoubleSpinBox, QFormLayout, QHeaderView, QMessageBox,
     QSpinBox, QTableWidgetItem, QWidget,
 )
 
 from mudlab.calculations.refinement import REFINE_METHODS, refine_mixture
 from mudlab.ui.ui_refinement import Ui_RefinementDialog
+
+
+class _RefineWorker(QObject):
+    """Runs one refinement on a background thread. Only touches the plain calc
+    models (thread-safe) and never emits a Qt signal from the calc path itself;
+    the recompute + redraw happen on the main thread in the finished handler.
+    `refine_mixture` restores the model on error before re-raising, so `failed`
+    leaves the mixture clean."""
+
+    progress = Signal(int, float)   # (n_evaluations, best_residual)
+    finished = Signal(object)       # the Refiner
+    failed = Signal(str)
+
+    def __init__(self, mixture, method_index, options, stop_event):
+        super().__init__()
+        self._mixture = mixture
+        self._method_index = method_index
+        self._options = options
+        self._stop_event = stop_event
+
+    def run(self) -> None:
+        try:
+            refiner = refine_mixture(
+                self._mixture, self._method_index, self._options,
+                stop=self._stop_event.is_set,
+                on_progress=lambda n, best: self.progress.emit(n, best),
+            )
+        except Exception as exc:  # noqa: BLE001 - reported via `failed`
+            self.failed.emit(str(exc))
+        else:
+            self.finished.emit(refiner)
 
 _COL_NAME, _COL_VALUE, _COL_MIN, _COL_MAX, _COL_REFINE = range(5)
 _HEADERS = ["Parameter", "Value", "Min", "Max", "Refine"]
@@ -61,6 +95,11 @@ class RefinementDialog(QDialog):
         self._option_spins: dict = {}
         self._options_form = QFormLayout()
         self.ui.optionsLayout.addLayout(self._options_form)
+        # Background-refinement state (Phase C).
+        self._thread: QThread | None = None
+        self._worker: _RefineWorker | None = None
+        self._stop_event: threading.Event | None = None
+        self._cancelled = False
 
         table = self.ui.tbl_refinables
         table.setColumnCount(len(_HEADERS))
@@ -80,6 +119,7 @@ class RefinementDialog(QDialog):
         table.itemChanged.connect(self._on_item_changed)
         self.ui.cmb_method.currentIndexChanged.connect(self._on_method_changed)
         self.ui.btn_refine.clicked.connect(self._on_refine)
+        self.ui.btn_cancel.clicked.connect(self._on_cancel)
         self.ui.btn_auto_restrict.clicked.connect(self._on_auto_restrict)
         self.ui.btn_randomize.clicked.connect(self._on_randomize)
         self.ui.btn_apply_initial.clicked.connect(lambda: self._on_apply("initial"))
@@ -226,46 +266,107 @@ class RefinementDialog(QDialog):
             self._on_applied()
 
     # ------------------------------------------------------------------
-    # Running the refinement (synchronous - Phase B)
+    # Running the refinement on a background thread (Phase C)
     # ------------------------------------------------------------------
     def _on_refine(self) -> None:
-        if self._mixture is None:
-            return
+        if self._mixture is None or self._thread is not None:
+            return  # already running
         method_index = int(self.ui.cmb_method.currentData())
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        self.setEnabled(False)
-        QApplication.processEvents()  # paint the disabled/busy state before blocking
-        try:
-            refiner = refine_mixture(self._mixture, method_index, self._options())
-            self._mixture.calculate()  # recompute patterns + redraw via signals
-        except Exception as exc:  # noqa: BLE001 - surface, don't crash
-            self.setEnabled(True)
-            QApplication.restoreOverrideCursor()
-            QMessageBox.warning(
-                self, "Refinement failed",
-                "The refinement could not complete:\n\n%s" % exc,
-            )
-            return
-        finally:
-            self.setEnabled(True)
-            QApplication.restoreOverrideCursor()
+        options = self._options()  # read the form on the main thread
 
+        self._cancelled = False
+        self._stop_event = threading.Event()
+        self._worker = _RefineWorker(self._mixture, method_index, options, self._stop_event)
+        self._thread = QThread(self)
+        self._worker.moveToThread(self._thread)
+        self._thread.started.connect(self._worker.run)
+        self._worker.progress.connect(self._on_progress)
+        self._worker.finished.connect(self._on_finished)
+        self._worker.failed.connect(self._on_failed)
+
+        self._set_running(True)
+        self.ui.lbl_status.setText("Refining...")
+        self._thread.start()
+
+    def _on_cancel(self) -> None:
+        if self._stop_event is not None:
+            self._cancelled = True
+            self._stop_event.set()  # the engine aborts at the next trial
+            self.ui.btn_cancel.setEnabled(False)
+            self.ui.lbl_status.setText("Cancelling - keeping the best so far...")
+
+    def _on_progress(self, n_evals: int, best_residual: float) -> None:
+        self.ui.lbl_status.setText(
+            "Refining... %d evaluations, best Rp = %.3f %%" % (n_evals, best_residual)
+        )
+
+    def _on_finished(self, refiner) -> None:
+        self._teardown_thread()
+        # Back on the GUI thread: recompute (this emits data_changed -> the plot
+        # redraws) and show the outcome.
+        self._mixture.calculate()
         self._refiner = refiner
         self._show_results(refiner)
         self._refresh_values()
         self._set_apply_enabled(True)
+        self._set_running(False)
+        self.ui.lbl_status.setText(
+            "Cancelled - kept best (Rp = %.3f %%)." % refiner.best_residual
+            if self._cancelled else "Done - best Rp = %.3f %%." % refiner.best_residual
+        )
         if self._on_applied is not None:
             self._on_applied()
 
+    def _on_failed(self, message: str) -> None:
+        self._teardown_thread()
+        self._set_running(False)
+        self.ui.lbl_status.setText("Refinement failed.")
+        QMessageBox.warning(
+            self, "Refinement failed",
+            "The refinement could not complete:\n\n%s" % message,
+        )
+
+    def _teardown_thread(self) -> None:
+        if self._thread is not None:
+            self._thread.quit()
+            self._thread.wait()
+            self._worker.deleteLater()
+            self._thread.deleteLater()
+        self._thread = None
+        self._worker = None
+        self._stop_event = None
+
+    def _set_running(self, running: bool) -> None:
+        """Lock the editing controls while a refinement runs; only Cancel stays
+        active. Cancel is disabled otherwise."""
+        for control in (
+            self.ui.tbl_refinables, self.ui.cmb_method, self.ui.btn_refine,
+            self.ui.btn_auto_restrict, self.ui.btn_randomize, self.ui.buttonBox,
+            self.ui.btn_apply_initial, self.ui.btn_apply_best, self.ui.btn_apply_last,
+        ):
+            control.setEnabled(not running)
+        for spin, _kind in self._option_spins.values():
+            spin.setEnabled(not running)
+        self.ui.btn_cancel.setEnabled(running)
+        if not running:
+            self._set_apply_enabled(self._refiner is not None)
+
+    def closeEvent(self, event) -> None:
+        # If a refinement is running, cancel and wait for it before closing so
+        # the worker never outlives the dialog / keeps mutating the model.
+        if self._thread is not None:
+            if self._stop_event is not None:
+                self._stop_event.set()
+            self._thread.quit()
+            self._thread.wait()
+            self._teardown_thread()
+        super().closeEvent(event)
+
     def _on_apply(self, which: str) -> None:
-        if self._refiner is None or self._mixture is None:
+        if self._refiner is None or self._mixture is None or self._thread is not None:
             return
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            getattr(self._refiner, "apply_" + which)()
-            self._mixture.calculate()
-        finally:
-            QApplication.restoreOverrideCursor()
+        getattr(self._refiner, "apply_" + which)()
+        self._mixture.calculate()
         self._refresh_values()
         if self._on_applied is not None:
             self._on_applied()
