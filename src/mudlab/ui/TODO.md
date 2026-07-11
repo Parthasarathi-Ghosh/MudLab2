@@ -131,7 +131,11 @@ port, produces the calculated pattern from scratch):
   specimens match to floating-point (RMS ~1e-7, corr 1.000000), the 6th to
   0.2% - the full chain atoms -> SF -> CSDS -> stacking -> phase -> mixture
   reproduces the GTK reference.
-- [ ] exclusion-range masking of the R-factors (needs exclusion-range model)
+- [x] exclusion-range masking of the R-factors - Specimen.exclusion_ranges +
+  exclusion_selector(2theta) (parsed from / saved to the .mud JSON string);
+  the fit/refine residual (calculations/mixture.py) and SpecimenStatistics
+  mask out the excluded 2theta regions. The Edit Specimen exclusion tab + the
+  plot shading come with sub-batches 2-3.
 - [x] mixture fraction/scale/bg-shift refinement (L-BFGS-B optimizer) -
   DONE. Core: calculations/mixture.py (masks from fractions_mask + auto_scales/
   auto_bg, per-specimen phase-intensity cache, mean-Rp objective, L-BFGS-B,

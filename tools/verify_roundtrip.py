@@ -160,6 +160,10 @@ def check_edited(path, results):
                 swapped_uuid = atom_type.uuid
                 break
 
+    espec = project.specimens[0] if project.specimens else None
+    if espec is not None:
+        espec.set_exclusion_ranges([(9.9, 10.1), (20.0, 21.0)])
+
     tmp, reloaded = _save_reload(project)
     try:
         # Scalar-field survival.
@@ -171,6 +175,11 @@ def check_edited(path, results):
                 "B %-22s survives" % label,
                 np.isclose(got, want) if isinstance(want, float) else got == want,
             ))
+
+        rspec = reloaded.specimens[0] if reloaded.specimens else None
+        if rspec is not None:
+            _check(results, "B specimen.exclusion_ranges survives",
+                   list(rspec.exclusion_ranges) == [(9.9, 10.1), (20.0, 21.0)])
 
         rphase = reloaded.phases[0] if reloaded.phases else None
         if rphase is not None:

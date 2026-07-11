@@ -71,6 +71,24 @@ def _encode_pattern_data(x: np.ndarray, y: np.ndarray) -> str:
     return json.dumps(pairs, separators=(",", ":"))
 
 
+def _parse_exclusion_ranges(value) -> list[tuple[float, float]]:
+    """The .mud stores exclusion_ranges as a JSON string of [from, to] 2theta
+    rows (old XYListStore serialisation); tolerate an already-decoded list."""
+    if isinstance(value, str):
+        rows = json.loads(value) if value else []
+    elif isinstance(value, list):
+        rows = value
+    else:
+        rows = []
+    return [(float(r[0]), float(r[1])) for r in rows if len(r) >= 2]
+
+
+def _encode_exclusion_ranges(ranges) -> str:
+    return json.dumps(
+        [[float(a), float(b)] for a, b in ranges], separators=(",", ":")
+    )
+
+
 # ----------------------------------------------------------------------
 # Loading
 # ----------------------------------------------------------------------
@@ -121,6 +139,9 @@ def load_mud(path: str) -> Project:
         gonio_dict = spec_props.get("goniometer")
         if isinstance(gonio_dict, dict):
             specimen.goniometer = Goniometer.from_dict(gonio_dict)
+        specimen._exclusion_ranges = _parse_exclusion_ranges(
+            spec_props.get("exclusion_ranges")
+        )
         for key, setter in (
             ("experimental_pattern", specimen.set_experimental_pattern),
             ("calculated_pattern", specimen.set_calculated_pattern),
@@ -226,6 +247,8 @@ def _specimen_to_dict(specimen: Specimen) -> dict:
     # is preserved verbatim, so round-trips stay byte-identical).
     if specimen.goniometer is not None:
         props["goniometer"] = specimen.goniometer.to_dict()
+    # Exclusion ranges are modeled: write the live list back (JSON string).
+    props["exclusion_ranges"] = _encode_exclusion_ranges(specimen.exclusion_ranges)
 
     # Experimental pattern: update the data inside the (possibly raw) line
     # object so unmodeled line properties (color, lw, inherits, z_data)

@@ -5,9 +5,9 @@ the R-factors and the residual pattern from a specimen's experimental and
 calculated patterns. Values are lazily computed and cached; the cache is
 cleared when the specimen's data changes.
 
-Exclusion ranges are not modeled yet, so statistics are computed over the
-full overlapping pattern (old app masked out exclusion ranges via
-get_exclusion_selector - add that when exclusion ranges are ported).
+The specimen's exclusion ranges are honoured: the R-factors are computed on
+the pattern with the excluded 2theta regions masked out (old app's
+get_exclusion_selector), so they match what the fit / refinement minimise.
 """
 
 from __future__ import annotations
@@ -40,8 +40,11 @@ class SpecimenStatistics:
         if not self.has_data:
             self._cache = {}
             return self._cache
-        exp = self._specimen.experimental_pattern[1]
+        two_theta, exp = self._specimen.experimental_pattern
         calc = self._specimen.calculated_pattern[1]
+        selector = self._specimen.exclusion_selector(two_theta)
+        exp = exp[selector]
+        calc = calc[selector]
         self._cache = {
             "points": int(exp.size),
             "R2": float(R_squared(exp, calc)),

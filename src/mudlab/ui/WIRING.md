@@ -27,9 +27,10 @@ layer/interlayer atoms) editable; Phase/Component/Atom.to_dict keep
 everything else verbatim by uuid. Within a phase, only the unit-cell a/b
 (ucp) and atom relations still round-trip verbatim (their editors pending). The F5 Refresh Graph action and any Edit Mixtures
 edit run `project.calculate()` / `mixture.calculate()` (each specimen's
-calculated pattern). Not yet modeled: exclusion ranges; not yet ported:
-the mixture fraction/scale/bg refinement optimizer (the calc path
-re-applies the current solution).
+calculated pattern). Specimen exclusion ranges are modeled
+(Specimen.exclusion_selector) and mask the fit/refine residual + the
+R-factors; the mixture Optimize and the structural Refinement window (both
+L-BFGS-B based) are live.
 
 ## Project files (.mud) - mudlab/file_parsers/mud_project.py
 
@@ -457,10 +458,11 @@ the Statistics dialog/GoF label are skipped. Wired into:
   in the Rietveld-convention violet `RESIDUAL_COLOR`. No band for
   no-calc specimens.
 
-Not yet: exclusion-range masking of the R-factors (old
-get_exclusion_selector; exclusion ranges aren't modeled yet, samples have
-none), and the separate der_exp/der_calc derivative curves (only the
-derivative residual is drawn).
+Exclusion-range masking of the R-factors is done
+(Specimen.exclusion_selector; SpecimenStatistics + the fit/refine residual
+mask the excluded 2theta regions). Not yet: shading the excluded regions on
+the plot (exclusion sub-batch 3), and the separate der_exp/der_calc
+derivative curves (only the derivative residual is drawn).
 
 ## Marker model (mudlab/models/marker.py)
 

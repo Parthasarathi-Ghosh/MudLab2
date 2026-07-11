@@ -14,8 +14,9 @@ Masks (which variables are free vs static):
   auto_bg flags are set, else all-zeros (the old model derives them the
   same way).
 
-Only the Rp residual is used (settings.RESIDUAL_METHOD default); exclusion
-ranges are not modelled yet, so every observation is included.
+Only the Rp residual is used (settings.RESIDUAL_METHOD default); a specimen's
+exclusion ranges (specimen.exclusion_selector) mask the excluded 2theta
+regions out of the residual (all observations when there are none).
 """
 
 from __future__ import annotations
@@ -41,8 +42,8 @@ _PENALTY = 1.0e6
 class _SpecimenContext:
     """The 2theta-independent data one specimen contributes to the objective:
     its per-phase intensities, machine correction, observed pattern and the
-    (currently all-True) exclusion selector, plus its row index for scale/bg
-    lookup."""
+    exclusion selector (boolean mask, all-True with no exclusion ranges), plus
+    its row index for scale/bg lookup."""
 
     __slots__ = ("index", "correction", "phase_intensities", "observed", "selected")
 
@@ -116,7 +117,9 @@ class _Problem:
                 gonio.soller1, gonio.soller2, gonio.mcr_2theta,
                 correction, phases,
             )
-            selected = np.ones(exp_y.shape, dtype=bool)  # no exclusion ranges yet
+            # Exclude the masked 2theta regions from the residual (all-True
+            # when the specimen has no exclusion ranges).
+            selected = specimen.exclusion_selector(exp_x)
             contexts.append(
                 _SpecimenContext(i, correction, phase_intensities, exp_y, selected)
             )

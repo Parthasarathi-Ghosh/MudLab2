@@ -46,6 +46,9 @@ class Specimen(QObject):
         self._calc_x = np.empty(0)
         self._calc_y = np.empty(0)
         self._markers: list = []
+        # Exclusion ranges: (from_2theta, to_2theta) pairs the fit / stats
+        # ignore (old exclusion_ranges XYListStore). Set from the .mud on load.
+        self._exclusion_ranges: list[tuple[float, float]] = []
         self.goniometer = None  # set from the .mud (Goniometer model)
         self.project = None  # set by Project.add_specimen
         # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
@@ -66,6 +69,32 @@ class Specimen(QObject):
     def _invalidate_statistics(self) -> None:
         if self._statistics is not None:
             self._statistics.invalidate()
+
+    # ------------------------------------------------------------------
+    # Exclusion ranges (2theta regions the fit / R-factors ignore)
+    # ------------------------------------------------------------------
+    @property
+    def exclusion_ranges(self) -> tuple[tuple[float, float], ...]:
+        return tuple(self._exclusion_ranges)
+
+    def set_exclusion_ranges(self, ranges) -> None:
+        """Replace the exclusion ranges with (from, to) 2theta pairs and emit
+        data_changed (so the stats cache + plot refresh)."""
+        self._exclusion_ranges = [
+            (float(a), float(b)) for a, b in (ranges or [])
+        ]
+        self.data_changed.emit()
+
+    def exclusion_selector(self, two_theta) -> np.ndarray:
+        """Boolean mask over `two_theta` (degrees) that is False inside any
+        exclusion range (old get_exclusion_selector). All-True with no ranges,
+        so the fit/stats are unchanged until a range is added."""
+        x = np.asarray(two_theta, dtype=float)
+        selector = np.ones(x.shape, dtype=bool)
+        for a, b in self._exclusion_ranges:
+            lo, hi = (a, b) if a <= b else (b, a)
+            selector &= ~((x >= lo) & (x <= hi))
+        return selector
 
     # ------------------------------------------------------------------
     # Markers
