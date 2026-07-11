@@ -43,11 +43,10 @@ class EditMixtureWidget(QWidget):
         self._mixture = None
         self._on_changed: Callable[[], None] | None = None
 
-        # Still a later port: the full Refinement window (btn_refine), the
-        # composition summary, and structural add/remove. Disabled so the UI
-        # reads honestly. The one-shot Optimize + the auto-* flags are live.
+        # Still a later port: the composition summary and structural add/remove.
+        # Disabled so the UI reads honestly. Optimize, the auto-* flags and the
+        # Refine window are live.
         for control, why in (
-            (self.ui.btn_refine, "The Refinement window is not ported yet."),
             (self.ui.btn_composition, "Composition summary is not ported yet."),
             (self.ui.btn_add_phase, "Adding phase slots is not ported yet."),
             (self.ui.btn_add_specimen, "Adding specimens is not ported yet."),
@@ -59,6 +58,7 @@ class EditMixtureWidget(QWidget):
         self.ui.mixture_name.editingFinished.connect(self._on_name_edited)
         self.ui.tbl_matrix.itemChanged.connect(self._on_item_changed)
         self.ui.btn_optimize.clicked.connect(self._on_optimize)
+        self.ui.btn_refine.clicked.connect(self._on_refine)
         self.ui.mixture_auto_run.toggled.connect(
             lambda checked: self._on_auto_toggled("auto_run", checked)
         )
@@ -183,6 +183,19 @@ class EditMixtureWidget(QWidget):
         # the plot via the specimens' data_changed); just refresh this editor.
         self._populate()
         self._show_residual(residual)
+
+    def _on_refine(self) -> None:
+        """Open the Refinement window for this mixture (structural-parameter
+        refinement). It edits the same model, so refresh this editor's matrix +
+        residual after it closes."""
+        if self._mixture is None:
+            return
+        from mudlab.refinement_dialog import RefinementDialog
+
+        dialog = RefinementDialog(self, mixture=self._mixture)
+        dialog.exec()
+        self._populate()
+        self._update_residual_label()
 
     def _update_residual_label(self) -> None:
         if self._mixture is None:

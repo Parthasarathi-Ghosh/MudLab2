@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RefinementDialog</class>
+ <widget class="QDialog" name="RefinementDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Refine mixture</string>
+  </property>
+  <layout class="QVBoxLayout" name="refinementLayout">
+   <item>
+    <widget class="QLabel" name="lblRefinables">
+     <property name="text">
+      <string>Tick &quot;Refine&quot; and set Min/Max for the parameters to refine:</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="tbl_refinables">
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::NoSelection</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="methodRow">
+     <item>
+      <widget class="QLabel" name="lblMethod">
+       <property name="text">
+        <string>Method</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cmb_method"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_auto_restrict">
+       <property name="toolTip">
+        <string>Set Min/Max to +/-20% of each flagged parameter's current value.</string>
+       </property>
+       <property name="text">
+        <string>Auto-restrict</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_randomize">
+       <property name="toolTip">
+        <string>Randomize each flagged parameter within its Min/Max.</string>
+       </property>
+       <property name="text">
+        <string>Randomize</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="optionsLayout"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="refineRow">
+     <item>
+      <spacer name="refineSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_refine">
+       <property name="toolTip">
+        <string>Run the refinement (this can take a while and the window will be busy).</string>
+       </property>
+       <property name="text">
+        <string>Refine</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpResult">
+     <property name="title">
+      <string>Result - which solution do you want to keep?</string>
+     </property>
+     <layout class="QVBoxLayout" name="resultLayout">
+      <item>
+       <layout class="QFormLayout" name="residualForm">
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblInitial">
+          <property name="text">
+           <string>Initial residual (Rp)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="lbl_initial_residual">
+          <property name="text">
+           <string>-</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="lblBest">
+          <property name="text">
+           <string>Best residual (Rp)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLabel" name="lbl_best_residual">
+          <property name="text">
+           <string>-</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="lblLast">
+          <property name="text">
+           <string>Last residual (Rp)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLabel" name="lbl_last_residual">
+          <property name="text">
+           <string>-</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="applyRow">
+        <item>
+         <widget class="QPushButton" name="btn_apply_initial">
+          <property name="text">
+           <string>Keep initial</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_apply_best">
+          <property name="text">
+           <string>Keep best</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_apply_last">
+          <property name="text">
+           <string>Keep last</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

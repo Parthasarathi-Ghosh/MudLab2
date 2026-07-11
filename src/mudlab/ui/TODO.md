@@ -179,7 +179,8 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; unit-cell a/b, phase inheritance, colour, Add/Remove phase still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
-| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, the Refine window + composition still to wire) |
+| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
+| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | partial (B1: refinable tree with flags/bounds, method combo, synchronous Refine, Initial/Best/Last keep-buttons. B2: per-method options + auto-restrict/randomize. Phase C: threaded Cancel + live status + progress plot) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |
@@ -240,9 +241,18 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   refinables() + refine_mixture() returns the Refiner (initial/best/last +
   apply methods). Debugging: no iprint (scipy 1.18), objective guarded finite,
   fail-loud (GUI wraps), stop hook for cancel, disabled record_history hook.
-- [ ] Phase B: the Refinement window UI - refinement/views/glade/
-  refinement.glade (refinable tree with refine flags + min/max, method combo,
-  Refine button, residual/status) wired to btn_refine.
+- [x] Phase B1: the Refinement window - refinement.ui + refinement_dialog.py
+  (RefinementDialog). A table of the mixture's refinables (Parameter / Value /
+  editable Min / Max / Refine toggle, bound to mixture.refinables() +
+  Refinable.set_ref_info, round-trips), a method combo (0 = L-BFGS-B, 1 =
+  Basin Hopping, persisted to refine_method_index), a synchronous Refine
+  button (busy cursor + UI-boundary error dialog), and the Initial / Best /
+  Last residuals with Keep buttons (refiner.apply_*). Opened from the Edit
+  Mixtures btn_refine; refreshes that editor on close. Old: refinement.glade +
+  refine_results.glade.
+- [ ] Phase B2: method combo per-method options (maxfun/maxiter; niter/T/
+  stepsize) + auto_restrict (min=v*0.8,max=v*1.2) / randomize (uniform in
+  [min,max]) - disabled in B1.
 - [ ] Phase C (deferred): threaded live status (refine_status.glade), the
   refinement PROGRESS PLOT / results+history (refine_results.glade; the
   disabled hook is Refiner.record_history + Refiner.history, and the old
