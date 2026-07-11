@@ -239,6 +239,18 @@ class PatternPlot:
                 group_counter = 0
                 current_y_pos += base_offset
 
+        # Shade the excluded 2theta regions (light band behind the curves).
+        # Full-height for simplicity - per-specimen vertical slots are not
+        # distinguished, which is exact for a single specimen or shared ranges.
+        shaded = set()
+        for specimen in self.specimens:
+            for x0, x1 in specimen.exclusion_ranges:
+                lo, hi = round(min(x0, x1), 6), round(max(x0, x1), 6)
+                if lo == hi or (lo, hi) in shaded:
+                    continue
+                shaded.add((lo, hi))
+                axes.axvspan(lo, hi, color=INK_MUTED, alpha=0.15, linewidth=0, zorder=0)
+
         # Old update_axes: manual or automatic x-limits; tight y from stack.
         if project.axes_xlimit == 1:
             xlim = (project.axes_xmin, project.axes_xmax)
