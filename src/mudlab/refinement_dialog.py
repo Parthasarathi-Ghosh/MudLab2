@@ -15,11 +15,13 @@ auto-restrict / randomize helpers are wired in B2 (disabled here).
 
 from __future__ import annotations
 
+import random
 from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QHeaderView, QMessageBox, QTableWidgetItem, QWidget,
+    QApplication, QDialog, QDoubleSpinBox, QFormLayout, QHeaderView, QMessageBox,
+    QSpinBox, QTableWidgetItem, QWidget,
 )
 
 from mudlab.calculations.refinement import REFINE_METHODS, refine_mixture
@@ -27,6 +29,21 @@ from mudlab.ui.ui_refinement import Ui_RefinementDialog
 
 _COL_NAME, _COL_VALUE, _COL_MIN, _COL_MAX, _COL_REFINE = range(5)
 _HEADERS = ["Parameter", "Value", "Min", "Max", "Refine"]
+
+# Per-method OUTER-search options (name, label, default, min, max, kind). The
+# inner fraction/scale/bg optimiser keeps its own fixed limits. Old sources:
+# scipy_runs.py (L-BFGS-B / Basin Hopping); indices match REFINE_METHODS.
+_METHOD_OPTIONS = {
+    0: [
+        ("maxfun", "Max # function calls", 500, 1, 1_000_000, int),
+        ("maxiter", "Max # iterations", 150, 1, 1_000_000, int),
+    ],
+    1: [
+        ("niter", "Number of iterations", 100, 1, 100_000, int),
+        ("T", "Temperature", 1.0, 0.0, 10_000.0, float),
+        ("stepsize", "Step size", 0.5, 0.0, 1_000.0, float),
+    ],
+}
 
 
 class RefinementDialog(QDialog):
@@ -41,6 +58,9 @@ class RefinementDialog(QDialog):
         self._refinables: list = []
         self._refiner = None
         self._updating = False
+        self._option_spins: dict = {}
+        self._options_form = QFormLayout()
+        self.ui.optionsLayout.addLayout(self._options_form)
 
         table = self.ui.tbl_refinables
         table.setColumnCount(len(_HEADERS))
@@ -55,15 +75,13 @@ class RefinementDialog(QDialog):
         for index, (name, _fn) in sorted(REFINE_METHODS.items()):
             self.ui.cmb_method.addItem(name, index)
         self._select_stored_method()
-
-        # B2 controls - wired in the next sub-batch.
-        for control in (self.ui.btn_auto_restrict, self.ui.btn_randomize):
-            control.setEnabled(False)
-            control.setToolTip("Auto-restrict / randomize are wired in B2.")
+        self._build_options_form(int(self.ui.cmb_method.currentData()))
 
         table.itemChanged.connect(self._on_item_changed)
         self.ui.cmb_method.currentIndexChanged.connect(self._on_method_changed)
         self.ui.btn_refine.clicked.connect(self._on_refine)
+        self.ui.btn_auto_restrict.clicked.connect(self._on_auto_restrict)
+        self.ui.btn_randomize.clicked.connect(self._on_randomize)
         self.ui.btn_apply_initial.clicked.connect(lambda: self._on_apply("initial"))
         self.ui.btn_apply_best.clicked.connect(lambda: self._on_apply("best"))
         self.ui.btn_apply_last.clicked.connect(lambda: self._on_apply("last"))
@@ -140,11 +158,72 @@ class RefinementDialog(QDialog):
                 ref.set_ref_info(maximum=value)
 
     def _on_method_changed(self, _index: int) -> None:
+        if self._updating:
+            return
+        method_index = int(self.ui.cmb_method.currentData())
+        if self._mixture is not None:
+            self._mixture.raw_properties["refine_method_index"] = method_index
+        self._build_options_form(method_index)
+
+    # ------------------------------------------------------------------
+    # Per-method options + auto-restrict / randomize (B2)
+    # ------------------------------------------------------------------
+    def _build_options_form(self, method_index: int) -> None:
+        """(Re)build the outer-method options form, seeded from the mixture's
+        stored refine_options[method] or the method defaults."""
+        self._updating = True
+        try:
+            while self._options_form.rowCount():
+                self._options_form.removeRow(0)
+            self._option_spins = {}
+            stored = self._stored_options(method_index)
+            for name, label, default, lo, hi, kind in _METHOD_OPTIONS.get(method_index, []):
+                spin = QSpinBox() if kind is int else QDoubleSpinBox()
+                if kind is float:
+                    spin.setDecimals(3)
+                spin.setRange(lo, hi)
+                spin.setValue(kind(stored.get(name, default)))
+                spin.valueChanged.connect(self._save_options)
+                self._options_form.addRow(label, spin)
+                self._option_spins[name] = (spin, kind)
+        finally:
+            self._updating = False
+
+    def _stored_options(self, method_index: int) -> dict:
+        if self._mixture is None:
+            return {}
+        opts = self._mixture.raw_properties.get("refine_options") or {}
+        value = opts.get(str(method_index))
+        return dict(value) if isinstance(value, dict) else {}
+
+    def _save_options(self, *_args) -> None:
         if self._updating or self._mixture is None:
             return
-        self._mixture.raw_properties["refine_method_index"] = int(
-            self.ui.cmb_method.currentData()
-        )
+        method_index = int(self.ui.cmb_method.currentData())
+        opts = dict(self._mixture.raw_properties.get("refine_options") or {})
+        opts[str(method_index)] = self._options()
+        self._mixture.raw_properties["refine_options"] = opts
+
+    def _on_auto_restrict(self) -> None:
+        """Set Min/Max to +/-20% of each flagged parameter's current value
+        (old RefinementModel.auto_restrict)."""
+        for ref in self._refinables:
+            if ref.refine:
+                ref.set_ref_info(minimum=ref.value * 0.8, maximum=ref.value * 1.2)
+        self._refresh_values()
+
+    def _on_randomize(self) -> None:
+        """Randomize each flagged parameter within its Min/Max (old
+        RefinementModel.randomize) and recompute so the plot shows the new
+        starting point; the user then Refines from here."""
+        for ref in self._refinables:
+            if ref.refine and ref.minimum < ref.maximum:
+                ref.value = random.uniform(ref.minimum, ref.maximum)
+        if self._mixture is not None:
+            self._mixture.calculate()
+        self._refresh_values()
+        if self._on_applied is not None:
+            self._on_applied()
 
     # ------------------------------------------------------------------
     # Running the refinement (synchronous - Phase B)
@@ -192,8 +271,8 @@ class RefinementDialog(QDialog):
             self._on_applied()
 
     def _options(self) -> dict:
-        # B1 uses each method's defaults; B2 fills this from the options form.
-        return {}
+        """The current method's options read from the options form."""
+        return {name: kind(spin.value()) for name, (spin, kind) in self._option_spins.items()}
 
     def _show_results(self, refiner) -> None:
         def fmt(value):

@@ -180,7 +180,7 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
-| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | partial (B1: refinable tree with flags/bounds, method combo, synchronous Refine, Initial/Best/Last keep-buttons. B2: per-method options + auto-restrict/randomize. Phase C: threaded Cancel + live status + progress plot) |
+| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | partial (B1+B2 done: refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, synchronous Refine, Initial/Best/Last keep-buttons. Phase C: threaded Cancel + live status + progress plot) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |
@@ -250,9 +250,13 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   Last residuals with Keep buttons (refiner.apply_*). Opened from the Edit
   Mixtures btn_refine; refreshes that editor on close. Old: refinement.glade +
   refine_results.glade.
-- [ ] Phase B2: method combo per-method options (maxfun/maxiter; niter/T/
-  stepsize) + auto_restrict (min=v*0.8,max=v*1.2) / randomize (uniform in
-  [min,max]) - disabled in B1.
+- [x] Phase B2: per-method options + helpers (refinement_dialog.py). A form
+  rebuilt per method - L-BFGS-B (maxfun/maxiter), Basin Hopping (niter/T/
+  stepsize) - seeded from and persisted to the mixture's refine_options[index]
+  (round-trips). auto_restrict sets Min/Max to v*0.8 / v*1.2 for flagged
+  params; randomize sets each flagged param to uniform(min,max) and recomputes
+  the starting pattern. (Inner optimiser limits stay fixed; the old inner_*
+  options are not exposed.)
 - [ ] Phase C (deferred): threaded live status (refine_status.glade), the
   refinement PROGRESS PLOT / results+history (refine_results.glade; the
   disabled hook is Refiner.record_history + Refiner.history, and the old
