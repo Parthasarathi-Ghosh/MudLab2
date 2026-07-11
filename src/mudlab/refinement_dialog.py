@@ -5,7 +5,8 @@ refinement.glade + refine_results.glade). Opened from the Edit Mixtures
 Refine button for the current mixture: a table of the mixture's refinable
 structural parameters (value + editable min/max + a Refine toggle), a
 method combo (0 = L-BFGS-B, 1 = Basin Hopping), a Refine button, and the
-Initial / Best / Last residuals with buttons to keep one of those solutions.
+Initial / Best / Last residuals + a GoF (best solution) readout with buttons
+to keep one of those solutions.
 
 Refine runs on a background thread (_RefineWorker + QThread): the window
 stays responsive, a live status label shows the evaluation count + best Rp,

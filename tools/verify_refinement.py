@@ -160,6 +160,37 @@ def check_project(path):
            np.isclose(ref.value, pre[0]) and np.allclose(mix.fractions, pre[1])
            and np.allclose(mix.scales, pre[2]) and np.allclose(mix.bgshifts, pre[3]))
 
+    # 4c. The stop hook (backs the Cancel button) aborts a long run promptly
+    # and keeps a finite best-so-far.
+    proj = load_mud(path)
+    mix = proj.mixtures[0]
+    ref = _first_flaggable(enumerate_refinables(mix))
+    ref.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
+    ref.value = 8.0
+    stop_calls = {"n": 0}
+
+    def _stop():
+        stop_calls["n"] += 1
+        return stop_calls["n"] > 3
+
+    from mudlab.calculations.refinement import refine_mixture as _refine
+    refiner = _refine(mix, 0, {"maxfun": 500}, stop=_stop)
+    _check(results, "stop hook aborts a long run promptly",
+           stop_calls["n"] <= 10 and np.isfinite(refiner.best_residual))
+
+    # 4d. The on_progress hook (backs the live status) fires with a rising
+    # evaluation count and a finite best.
+    proj = load_mud(path)
+    mix = proj.mixtures[0]
+    ref = _first_flaggable(enumerate_refinables(mix))
+    ref.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
+    ref.value = 8.0
+    seen = []
+    _refine(mix, 0, {"maxfun": 15}, on_progress=lambda n, best: seen.append((n, best)))
+    _check(results, "on_progress fires with rising n + finite best",
+           len(seen) > 0 and seen[0][0] >= 1 and seen[-1][0] >= seen[0][0]
+           and all(np.isfinite(b) for _, b in seen))
+
     # 5. ref_info round-trip.
     p = load_mud(path)
     m = p.mixtures[0]

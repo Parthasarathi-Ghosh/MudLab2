@@ -245,10 +245,10 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   (RefinementDialog). A table of the mixture's refinables (Parameter / Value /
   editable Min / Max / Refine toggle, bound to mixture.refinables() +
   Refinable.set_ref_info, round-trips), a method combo (0 = L-BFGS-B, 1 =
-  Basin Hopping, persisted to refine_method_index), a synchronous Refine
-  button (busy cursor + UI-boundary error dialog), and the Initial / Best /
-  Last residuals with Keep buttons (refiner.apply_*). Opened from the Edit
-  Mixtures btn_refine; refreshes that editor on close. Old: refinement.glade +
+  Basin Hopping, persisted to refine_method_index), a Refine button (made
+  threaded in Phase C - see below), and the Initial / Best / Last residuals
+  with Keep buttons (refiner.apply_*). Opened from the Edit Mixtures
+  btn_refine; refreshes that editor on close. Old: refinement.glade +
   refine_results.glade.
 - [x] Phase B2: per-method options + helpers (refinement_dialog.py). A form
   rebuilt per method - L-BFGS-B (maxfun/maxiter), Basin Hopping (niter/T/
