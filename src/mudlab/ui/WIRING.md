@@ -309,6 +309,46 @@ when a cell length / inheritance bug is reported.
   `tools/verify_linking.py` (108), `tools/verify_ucp.py` (61), plus the golden
   `verify_calc_engine` and `verify_roundtrip`.
 
+### Phase-level `based_on` inheritance (DEFERRED - purpose + implementation notes)
+
+Deferred until a sample project exercises it (no fixture uses it yet, so it
+cannot be golden-verified); recorded here so the port is ready. Old sources:
+`phases/models/phase.py`, `phases/controllers/edit_phase_controller.py`,
+`phases/controllers/component_controllers.py`.
+
+- **Purpose (domain):** model the *same clay under different treatments* -
+  air-dried / ethylene-glycol / heated (350, 550 C). The treatments change the
+  interlayer (smectite swells under EG, collapses on heating) but not the
+  mineralogy, so a treated phase is `based_on` a reference phase and inherits
+  everything treatment-independent, overriding only the d-spacing/interlayer.
+  The sample phase names show it: `IS R0 Ca-EG`, `IS R0 Ca-350`. (Those samples
+  achieve the sharing via direct component linking instead, which is why
+  `based_on = None` there.)
+- **Why it matters - refinement:** inherited structural params (sigma*, CSDS,
+  stacking probabilities, layer chemistry) are optimised ONCE and all treatments
+  follow - enforcing physical consistency and collapsing the free-parameter
+  count in a multi-pattern AD+EG+heated fit.
+- **What it inherits:** sigma*, CSDS distribution, display colour (InheritableMixin
+  `inherit_*` flags), the stacking probabilities, and the components - setting
+  `based_on` clears the child's component links and re-points each component's
+  "Linked with" at the PARENT phase's components (positional; hence the
+  same-`G` requirement).
+- **Constraints (old app):** same project (`based_on.parent == self.parent`),
+  same `G`, no cycles (`get_based_on_root`), parent serialised before child
+  (`_pre_multi_save`). Round-trips as `based_on_uuid`.
+- **Relationship to L1-L3:** `based_on` is the coarse phase-level wrapper that
+  *gates and restricts* component linking to the parent's components. Our L3
+  link/unlink UI is the freeform version (link to any component). When `based_on`
+  is ported it drives those links positionally and (old setter, phase.py:119-120)
+  supersedes manual ones - so the L3 combo should become based_on-aware then.
+- **Implementation sketch (mirrors the linking batches):** model `Phase.based_on`
+  (resolve by uuid via the existing phase map) + `inherit_sigma_star` /
+  `inherit_CSDS_distribution` / `inherit_display_color` (+ probability inherit)
+  as read-through getters; skip inherited sigma*/CSDS as refinables; wire the
+  already-present-but-disabled `phase_based_on` combo + `phase_inherit_*`
+  checkboxes; a `verify_phase_inheritance.py` harness. The component-set
+  inheritance (positional re-linking) is the part that needs the golden fixture.
+
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 
 `mudlab/edit_atom_types_dialog.py` subclasses ObjectStoreDialog (title
