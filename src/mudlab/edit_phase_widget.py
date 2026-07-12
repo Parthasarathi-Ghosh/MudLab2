@@ -79,13 +79,19 @@ class EditPhaseWidget(QWidget):
 
     # ------------------------------------------------------------------
     def bind_phase(
-        self, phase, on_changed: Callable[[], None] | None = None, atom_types=None
+        self,
+        phase,
+        on_changed: Callable[[], None] | None = None,
+        atom_types=None,
+        link_candidates=None,
     ) -> None:
         """Show and edit a real Phase model. `atom_types` feeds the component
-        atom-element combos. `on_changed` runs after every accepted edit (used
-        to recompute + redraw the pattern)."""
+        atom-element combos; `link_candidates` are (label, component) pairs
+        offered as component-linking templates. `on_changed` runs after every
+        accepted edit (used to recompute + redraw the pattern)."""
         self._phase = phase
         self._atom_types = list(atom_types or [])
+        self._link_candidates = list(link_candidates or [])
         self._on_changed = on_changed
         self.setEnabled(phase is not None)
         if phase is None:
@@ -117,7 +123,8 @@ class EditPhaseWidget(QWidget):
             self.probabilities_widget.bind_probabilities(None)
 
         self.component_widget.bind_components(
-            phase.components, atom_types=self._atom_types, on_changed=self._notify
+            phase.components, atom_types=self._atom_types, on_changed=self._notify,
+            link_candidates=self._link_candidates,
         )
 
     def _set_probabilities_tab_visible(self, visible: bool) -> None:

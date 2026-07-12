@@ -14,13 +14,13 @@ Plugged into the Edit Phases > Components tab and bound to the phase's
 Component models; editing a scalar recomputes the structure factor and,
 via the phase editor's callback, the calculated pattern.
 
-Batch L2 surfaces component linking (shared clay layers): a "Linked with"
-display + per-property inherit checkboxes. On a linked child, ticking an
-inherit box greys that field (it reads through to the template's value) and
-recomputes; the checkboxes are enabled only when the component is linked.
-Creating/changing a link needs phase "based on" (deferred), so the combo is
-display-only for now - edit the TEMPLATE component to change an inherited
-value.
+Batch L2/L3 surfaces component linking (shared clay layers): a "Linked with"
+combo listing the project's components + per-property inherit checkboxes.
+Picking a template links this component (Component.set_linked_with, self-link/
+cycle guarded); "(not linked)" unlinks and clears the inherit flags. On a
+linked component, ticking an inherit box greys that field (it reads through to
+the template's value) and recomputes; the checkboxes are enabled only when the
+component is linked.
 """
 
 from __future__ import annotations
@@ -43,6 +43,7 @@ class EditComponentWidget(QWidget):
         self._components: list = []
         self._component = None
         self._atom_types: list = []
+        self._link_candidates: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
 
@@ -89,7 +90,9 @@ class EditComponentWidget(QWidget):
             box.toggled.connect(
                 lambda checked, n=name: self._on_inherit_toggled(n, checked)
             )
-        self.ui.component_linked_with.setEnabled(False)
+        self.ui.component_linked_with.currentIndexChanged.connect(
+            self._on_linked_with_changed
+        )
         self.ui.component_inherit_d001.setEnabled(False)
         self.ui.component_inherit_atom_relations.setEnabled(False)
 
@@ -97,13 +100,19 @@ class EditComponentWidget(QWidget):
 
     # ------------------------------------------------------------------
     def bind_components(
-        self, components, atom_types=None, on_changed: Callable[[], None] | None = None
+        self,
+        components,
+        atom_types=None,
+        on_changed: Callable[[], None] | None = None,
+        link_candidates=None,
     ) -> None:
         """Show and edit a phase's Component list. `atom_types` fills the atom
-        element combos; `on_changed` runs after an accepted edit (used to
-        recompute + redraw the pattern)."""
+        element combos; `link_candidates` are (label, component) pairs offered
+        as linking templates (the whole project's components); `on_changed`
+        runs after an accepted edit (used to recompute + redraw the pattern)."""
         self._components = list(components or [])
         self._atom_types = list(atom_types or [])
+        self._link_candidates = list(link_candidates or [])
         self._on_changed = on_changed
         self.setEnabled(bool(self._components))
 
@@ -172,15 +181,23 @@ class EditComponentWidget(QWidget):
     # Component linking (inherit from a linked template layer)
     # ------------------------------------------------------------------
     def _bind_linking(self, comp) -> None:
-        """Fill the linking controls: the display-only linked_with combo, the
-        inherit checkbox states, and the greying of the fields that read
-        through to the linked template."""
-        linked = comp.linked_with is not None
+        """Fill the linking controls: the linked_with combo (project components
+        as templates), the inherit checkbox states, and the greying of the
+        fields that read through to the linked template."""
         self._updating = True
         try:
             combo = self.ui.component_linked_with
             combo.clear()
-            combo.addItem(comp.linked_with.name or "(unnamed)" if linked else "(not linked)")
+            combo.addItem("(not linked)", None)
+            current = 0
+            for label, cand in self._link_candidates:
+                if cand is comp:
+                    continue  # a component cannot link to itself
+                combo.addItem(label, cand)
+                if cand is comp.linked_with:
+                    current = combo.count() - 1
+            combo.setCurrentIndex(current)
+            linked = comp.linked_with is not None
             for name, box in self._inherit_checks:
                 box.setChecked(getattr(comp, "inherit_%s" % name))
                 box.setEnabled(linked)  # a property can only inherit when linked
@@ -190,6 +207,21 @@ class EditComponentWidget(QWidget):
         finally:
             self._updating = False
         self._apply_inheritance_ui(comp)
+
+    def _on_linked_with_changed(self, _index: int) -> None:
+        if self._component is None or self._updating:
+            return
+        target = self.ui.component_linked_with.currentData()
+        if target is self._component.linked_with:
+            return
+        if not self._component.set_linked_with(target):
+            # Rejected (self-link / cycle): revert the combo to the current link.
+            self._bind_linking(self._component)
+            return
+        # Rebind to refresh the greying, the inherit checkboxes (now en/disabled)
+        # and any newly inherited values, then recompute the pattern.
+        self._bind_one(self.ui.cmb_component.currentIndex())
+        self._notify()
 
     def _apply_inheritance_ui(self, comp) -> None:
         """Disable (grey) each field that currently reads through to the linked

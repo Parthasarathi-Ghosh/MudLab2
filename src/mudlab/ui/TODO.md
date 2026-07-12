@@ -240,15 +240,19 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   DEFERRED (unused by the samples: `based_on = None`). Harness:
   tools/verify_linking.py (108 checks - resolve/read-through/selective/
   propagation/refinable-skip/round-trip); golden calc + round-trip unchanged.
-- [x] Component linking editor (Batch L2) - component_widget.py + the
-  edit_component.ui "Component linking" group. A display-only linked_with combo
-  (shows the template name) + the per-property inherit checkboxes; on a linked
-  child, ticking a box greys the field (it reads through to the template) and
-  recomputes, and the checkboxes are enabled only when the component is linked.
-  d001 (follows the cell-c gate) + atom-relations checkboxes are read-only.
-  Creating/changing a link needs phase "based on" (deferred) - edit the
-  template component to change an inherited value. Verified: linking invariants
-  hold across all sample components; live toggles flip the model + greying;
+- [x] Component linking editor (Batch L2 + L3) - component_widget.py + the
+  edit_component.ui "Component linking" group. The linked_with combo lists every
+  component in the project ("Phase / Component" + "(not linked)"); picking one
+  links this component (Component.set_linked_with), "(not linked)" unlinks and
+  clears the inherit flags. set_linked_with refuses a self-link / cycle (a
+  rejected pick reverts the combo); candidates thread down via
+  EditPhasesDialog._link_candidates -> bind_phase -> bind_components. On a linked
+  component, ticking an inherit box greys the field (it reads through to the
+  template) and recomputes; checkboxes enable only when linked. d001 (follows
+  the cell-c gate) + atom-relations checkboxes are read-only. NOTE: more
+  permissive than the old app (which linked only within phase based_on); when
+  based_on is ported it will drive links positionally. Verified: link/unlink/
+  inherit/cycle-guard via GUI smoke; runtime-created links round-trip;
   harnesses unchanged.
 - [x] CSDS distribution component - csds.ui + csds_widget.py (mean spinbox +
   live log-normal histogram + derived range; plugged into Edit Phases CSDS

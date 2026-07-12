@@ -201,6 +201,29 @@ class Component:
             if target is not None and target is not self:
                 self.linked_with = target
 
+    def set_linked_with(self, target) -> bool:
+        """Link this component to a template (or None to unlink). Rejects a
+        self-link or one that would create a cycle. Unlinking clears the eight
+        inherit flags (old app: linked_with setter resets them). Returns True
+        if the link was applied."""
+        if target is self:
+            return False
+        # Cycle guard: walking the target's own chain must not reach self.
+        node, seen = target, set()
+        while node is not None and id(node) not in seen:
+            if node is self:
+                return False
+            seen.add(id(node))
+            node = node.linked_with
+        self.linked_with = target
+        self._linked_with_uuid = target.uuid if target is not None else ""
+        if target is None:
+            self.inherit_ucp_a = self.inherit_ucp_b = False
+            self.inherit_d001 = self.inherit_default_c = self.inherit_delta_c = False
+            self.inherit_layer_atoms = self.inherit_interlayer_atoms = False
+            self.inherit_atom_relations = False
+        return True
+
     # -- read-through c-axis / cell scalars (own value when not inherited) --
     @property
     def d001(self) -> float:

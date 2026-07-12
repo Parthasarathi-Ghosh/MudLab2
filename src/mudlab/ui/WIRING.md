@@ -231,16 +231,24 @@ the CSDS component.
   gated by `inherit_default_c`, matching the old app. `mud_project.load_mud`
   resolves the links by uuid after all phases load; `Component.is_inherited(attr)`
   gates read-only display and refinable skipping.
-  - **Editor (L2, component_widget.py):** the Components tab has a "Component
-    linking" group - a display-only `component_linked_with` combo (shows the
-    template name, or "(not linked)") and the `component_inherit_*` checkboxes.
-    On a linked child, ticking a box greys the matching field (it reads through
-    to the template) and recomputes; the six editable checkboxes (cell a/b,
-    cell c/default c, Δc, layer/interlayer atoms) are enabled only when linked.
+  - **Editor (L2/L3, component_widget.py):** the Components tab has a "Component
+    linking" group - the `component_linked_with` combo and the
+    `component_inherit_*` checkboxes. The combo lists every component in the
+    project ("Phase / Component", plus "(not linked)"); picking one sets
+    `Component.set_linked_with` (L3), picking "(not linked)" unlinks and clears
+    the inherit flags. `set_linked_with` refuses a self-link or a cycle (walks
+    the target's chain; a rejected pick reverts the combo). Candidates are
+    threaded down from the dialog (`EditPhasesDialog._link_candidates` ->
+    `bind_phase` -> `bind_components`). On a linked component, ticking an inherit
+    box greys the matching field (it reads through to the template) and
+    recomputes; the six editable checkboxes (cell a/b, cell c/default c, Δc,
+    layer/interlayer atoms) are enabled only when linked.
     `component_inherit_d001` (follows the cell-c gate) and
-    `component_inherit_atom_relations` (editor pending) are read-only. Creating
-    or changing a link needs phase "based on" (deferred), so to change an
-    inherited value you edit the TEMPLATE component (the one with no link).
+    `component_inherit_atom_relations` (editor pending) are read-only. NOTE:
+    this is more permissive than the old app, which only allowed linking to a
+    phase's `based_on` components; MudLab2 links any two components directly by
+    uuid. When phase `based_on` is ported it will drive links positionally and
+    (old setter) clear manual ones.
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
   + `phase_inherit_CSDS_distribution` (phase-level `based_on` inheritance -

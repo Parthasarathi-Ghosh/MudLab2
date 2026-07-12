@@ -60,7 +60,19 @@ class EditPhasesDialog(ObjectStoreDialog):
                 phase,
                 on_changed=lambda p=phase: self._recalculate(p),
                 atom_types=atom_types,
+                link_candidates=self._link_candidates(),
             )
+
+    def _link_candidates(self):
+        """(label, component) for every component in the project - the linking
+        templates offered in the component editor's "Linked with" combo."""
+        if self.project is None:
+            return []
+        return [
+            ("%s / %s" % (ph.name, getattr(comp, "name", "") or "component"), comp)
+            for ph in self.project.phases
+            for comp in ph.components
+        ]
 
     def _recalculate(self, phase) -> None:
         """Recompute every mixture after a phase edit (any mixture may use
