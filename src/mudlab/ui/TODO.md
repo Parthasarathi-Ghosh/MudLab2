@@ -189,6 +189,11 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   own), editing a template propagates, inherited d001/delta_c are skipped as
   refinables, and links survive a round-trip. Run after touching
   models/component.py, the phase loader, or the refinable enumeration.
+- `tools/verify_ucp.py` guards UNIT-CELL PROPERTIES - cell a/b read the stored
+  (not recomputed) value on load incl. stale UCPs, derivation sources resolve,
+  editing recomputes + cascades (pn -> cell_b -> cell_a), and value/enabled/
+  factor/constant survive a round-trip. Run after touching
+  models/unit_cell_prop.py or the component cell a/b handling.
 
 ## Recreated
 
@@ -255,7 +260,18 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   models come when a project needs them.
 - [x] Component editor - edit_component.ui + component_widget.py (selector +
   c-axis scalars + atom lists). Old: phases/glade/component.glade.
-- [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside component editor; cell a/b currently read-only)
+- [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside the
+  component editor). **Batch 1a (model, DONE):** cell a/b are UnitCellProperty
+  objects (models/unit_cell_prop.py) - fixed (typed value) or derived
+  (value = factor*prop + constant, prop = the component's cell_b or an atom pn:
+  cell_a = 0.57735*cell_b, cell_b = k*pn + const). The .mud's stored value can
+  be STALE and the old app's stored pattern used it, so the model KEEPS the
+  stored value on load and only recomputes (Component.update_ucp_values) on an
+  edit - never at load (golden calc unchanged). Derivation sources resolve by
+  uuid (mud_project builds a component+atom object map, resolve_ucp_props).
+  Harness: tools/verify_ucp.py (61 checks). **Batch 1b (UI, pending):** the
+  enabled toggle + value/factor/constant + prop combo in the component editor
+  (inherited cell a/b already grey out via L2).
 - [x] Layer / interlayer atom lists - atom_list.ui + atom_list_widget.py
   (name/Def.Z/pn + element combo + add/remove). Old: phases/glade/layer.glade.
 - [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal)

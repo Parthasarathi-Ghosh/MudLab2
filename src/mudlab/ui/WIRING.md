@@ -199,7 +199,14 @@ the CSDS component.
   selector picks one of the phase's G components; its c-axis scalars
   (name, `component_d001`, `component_default_c`, `component_delta_c`) are
   editable and bound to the Component model, with cell a/b, volume and
-  charge balance read-only. The `grpLayerAtoms` / `grpInterlayerAtoms` group
+  charge balance read-only. Cell a/b are `UnitCellProperty` objects
+  (models/unit_cell_prop.py, Batch 1a): fixed or derived
+  (`value = factor*prop + constant`, prop = cell_b or an atom pn -
+  `cell_a = 0.57735*cell_b`, `cell_b = k*pn + const`). The stored value is
+  kept on load (it can be stale, and the old app's pattern used it) and only
+  recomputed (`Component.update_ucp_values`) on an edit; `mud_project` resolves
+  each UCP's derivation source by uuid. The UCP editor UI (enabled toggle +
+  factor/constant/prop) is Batch 1b - for now cell a/b stay read-only labels. The `grpLayerAtoms` / `grpInterlayerAtoms` group
   boxes each hold an `AtomListWidget` (atom_list.ui + atom_list_widget.py):
   a table of Atom name / Def. Z / Calc. Z (read-only) / # (pn) / Element
   (an atom-type combo from the project atom types) with Add/Remove. Editing

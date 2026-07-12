@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import uuid as _uuid
 
+from mudlab.models.unit_cell_prop import UnitCellProperty
+
 
 class Atom:
     """One atom projected onto the c-axis (old Atom model, calc subset)."""
@@ -124,8 +126,10 @@ class Component:
         self._default_c = 1.0   # default d-spacing (nm)
         self._delta_c = 0.0     # d-spacing variation (nm)
         self._lattice_d = 0.0   # silicate lattice height (nm)
-        self._cell_a = 0.0      # unit-cell length a (nm), from ucp_a
-        self._cell_b = 0.0      # unit-cell length b (nm), from ucp_b
+        # Cell lengths a / b are unit-cell properties (fixed or derived from
+        # cell_b / an atom pn). cell_a / cell_b read their resolved `value`.
+        self._ucp_a = UnitCellProperty(name="cell length a")
+        self._ucp_b = UnitCellProperty(name="cell length b")
         self._layer_atoms: list[Atom] = []
         self._interlayer_atoms: list[Atom] = []
         # Full .mud component dict kept verbatim so unmodeled fields (ucp_a/b,
@@ -150,7 +154,38 @@ class Component:
                 seen.add(id(node))
                 node = nxt
                 continue
-            return getattr(node, "_" + attr)
+            return node._own_value(attr)
+
+    def _own_value(self, attr: str):
+        """This component's own (un-inherited) value of `attr`. Cell a/b live
+        on their UnitCellProperty objects; the rest are plain `_attr`."""
+        if attr == "cell_a":
+            return self._ucp_a.value
+        if attr == "cell_b":
+            return self._ucp_b.value
+        return getattr(self, "_" + attr)
+
+    # -- unit-cell properties (fixed or derived) ------------------------
+    @property
+    def ucp_a(self) -> UnitCellProperty:
+        return self._ucp_a
+
+    @property
+    def ucp_b(self) -> UnitCellProperty:
+        return self._ucp_b
+
+    def resolve_ucp_props(self, object_map: dict) -> None:
+        """Resolve the ucp_a / ucp_b derivation sources (cell_b / an atom pn)
+        against a project-wide {uuid: object} map. Does NOT recompute values -
+        the stored (possibly stale) value is kept for golden-calc fidelity."""
+        self._ucp_a.resolve_prop(object_map)
+        self._ucp_b.resolve_prop(object_map)
+
+    def update_ucp_values(self) -> None:
+        """Recompute the derived cell lengths after an edit. cell_b may derive
+        from an atom pn and cell_a from cell_b, so update b before a."""
+        self._ucp_b.update_value()
+        self._ucp_a.update_value()
 
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` currently reads through to a linked template (so it
@@ -205,7 +240,7 @@ class Component:
 
     @cell_a.setter
     def cell_a(self, value) -> None:
-        self._cell_a = float(value)
+        self._ucp_a.value = float(value)
 
     @property
     def cell_b(self) -> float:
@@ -213,7 +248,7 @@ class Component:
 
     @cell_b.setter
     def cell_b(self, value) -> None:
-        self._cell_b = float(value)
+        self._ucp_b.value = float(value)
 
     @property
     def layer_atoms(self) -> list:
@@ -249,16 +284,17 @@ class Component:
         return total
 
     @staticmethod
-    def _ucp_value(ucp) -> float:
-        """Resolved unit-cell length from a ucp_a/ucp_b entry. The .mud stores
-        the already-recalculated `value` (the old app runs update_value on
-        load), so the calc reads it directly rather than re-deriving it from
-        the factor/constant/linked-property machinery."""
-        if isinstance(ucp, dict):
-            return float(ucp.get("properties", {}).get("value", 0.0))
-        if isinstance(ucp, (int, float)):
-            return float(ucp)
-        return 0.0
+    def _make_ucp(raw, name: str) -> UnitCellProperty:
+        """Build a UnitCellProperty from a ucp_a/ucp_b entry. A dict is the full
+        UCP (fixed or derived); a bare float is the old fixed-value form. The
+        stored `value` is kept as-is (NOT recomputed) so the calc reproduces
+        the old app's stored pattern - see the UnitCellProperty docstring."""
+        if isinstance(raw, dict):
+            return UnitCellProperty.from_dict(raw)
+        ucp = UnitCellProperty(name=name)
+        if isinstance(raw, (int, float)):
+            ucp.value = float(raw)
+        return ucp
 
     def compute_charge_balance(self) -> tuple[float, float, float]:
         """(layer charge, interlayer charge, net) per unit cell = Σ pn·charge
@@ -290,6 +326,10 @@ class Component:
         props["delta_c"] = self._delta_c
         props["layer_atoms"] = [a.to_dict() for a in self._layer_atoms]
         props["interlayer_atoms"] = [a.to_dict() for a in self._interlayer_atoms]
+        # Unit-cell properties (fixed or derived cell a/b). Written from the own
+        # UCP objects; unedited they reproduce the raw dicts byte-for-byte.
+        props["ucp_a"] = self._ucp_a.to_dict()
+        props["ucp_b"] = self._ucp_b.to_dict()
         # Component linking: the eight inherit flags + the template uuid. The
         # inlined linked_with copy (if present) stays verbatim in props.
         props["inherit_ucp_a"] = self.inherit_ucp_a
@@ -317,8 +357,8 @@ class Component:
         comp.default_c = props.get("default_c", comp._d001)
         comp.delta_c = props.get("delta_c", 0.0)
         comp.lattice_d = props.get("lattice_d", 0.0)
-        comp.cell_a = cls._ucp_value(props.get("ucp_a"))
-        comp.cell_b = cls._ucp_value(props.get("ucp_b"))
+        comp._ucp_a = cls._make_ucp(props.get("ucp_a"), "cell length a")
+        comp._ucp_b = cls._make_ucp(props.get("ucp_b"), "cell length b")
         comp.layer_atoms = [
             Atom.from_dict(a, atom_type_map)
             for a in (props.get("layer_atoms") or [])

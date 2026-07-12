@@ -71,6 +71,15 @@ def _linked_children(project):
     return [c for _p, c in _all_components(project) if c.linked_with is not None]
 
 
+def _own(comp, attr):
+    """A component's own (un-inherited) value; cell a/b live on their UCPs."""
+    if attr == "cell_a":
+        return comp._ucp_a.value
+    if attr == "cell_b":
+        return comp._ucp_b.value
+    return getattr(comp, "_" + attr)
+
+
 def check_links_resolve(project, results):
     """1. Every child with a linked_with_uuid resolves to that template."""
     children = _linked_children(project)
@@ -103,7 +112,7 @@ def check_selective(project, results):
         tmpl = comp.linked_with
         for attr in _SCALARS:
             if not comp.is_inherited(attr):
-                own = getattr(comp, "_" + attr)
+                own = _own(comp, attr)
                 ok = getattr(comp, attr) == own
                 results.append(("3 %s.%s reads own" % (comp.name, attr), ok))
                 if own != getattr(tmpl, attr):
@@ -121,7 +130,7 @@ def check_propagation(project, results):
         for attr in _SCALARS:
             if comp.is_inherited(attr) and tmpl is not comp:
                 before = getattr(comp, attr)
-                bumped = getattr(tmpl, "_" + attr) + 0.0125
+                bumped = _own(tmpl, attr) + 0.0125
                 setattr(tmpl, attr, bumped)  # writes the template's own value
                 after = getattr(comp, attr)
                 setattr(tmpl, attr, before)  # restore

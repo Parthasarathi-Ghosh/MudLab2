@@ -132,12 +132,22 @@ def load_mud(path: str) -> Project:
     # a child reads its inherited cell / atoms / relations through to its
     # template. Build a project-wide {uuid: Component} map, then resolve.
     component_map = {}
+    atom_map = {}
     for phase in project.phases:
         for comp in phase.components:
             component_map[comp.uuid] = comp
+            for atom in comp._layer_atoms + comp._interlayer_atoms:
+                atom_map[atom.uuid] = atom
     for phase in project.phases:
         for comp in phase.components:
             comp.resolve_link(component_map)
+    # Resolve UCP derivation sources (cell_a from cell_b, cell_b from an atom
+    # pn) against components + atoms. Values are NOT recomputed here - the
+    # stored (possibly stale) value is kept so the calc matches the old app.
+    object_map = {**component_map, **atom_map}
+    for phase in project.phases:
+        for comp in phase.components:
+            comp.resolve_ucp_props(object_map)
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})
