@@ -205,19 +205,26 @@ the CSDS component.
   (an atom-type combo from the project atom types) with Add/Remove. Editing
   a scalar or an atom recomputes the structure factor + pattern; atom edits
   also refresh the component weight / charge balance.
-- Component linking (Batch L1, model only so far): a Component can be linked
-  to a template component in another phase (`linked_with` + eight `inherit_*`
-  flags on `models/component.py`) - the same clay layer reused across phases.
-  Inheritance is a read-time overlay (`Component._resolved_own`): an inherited
-  scalar/atom-list reads through to the template, the child keeps its own copy
-  for round-trip, and it is per-property (a glycolated smectite inherits cell
-  a/b + delta_c + layer atoms but keeps its own d001). d001 is gated by
-  `inherit_default_c`, matching the old app. `mud_project.load_mud` resolves
-  the links by uuid after all phases load; `Component.is_inherited(attr)` gates
-  read-only display and refinable skipping. The editor UI for it (a "Linked
-  with" combo + the inherit checkboxes, greying out inherited fields) is
-  Batch L2 - until then the inherited fields are still shown editable, so edit
-  the TEMPLATE component (the one with no link), not a linked child.
+- Component linking (Batch L1 model + Batch L2 editor): a Component can be
+  linked to a template component in another phase (`linked_with` + eight
+  `inherit_*` flags on `models/component.py`) - the same clay layer reused
+  across phases. Inheritance is a read-time overlay (`Component._resolved_own`):
+  an inherited scalar/atom-list reads through to the template, the child keeps
+  its own copy for round-trip, and it is per-property (a glycolated smectite
+  inherits cell a/b + delta_c + layer atoms but keeps its own d001). d001 is
+  gated by `inherit_default_c`, matching the old app. `mud_project.load_mud`
+  resolves the links by uuid after all phases load; `Component.is_inherited(attr)`
+  gates read-only display and refinable skipping.
+  - **Editor (L2, component_widget.py):** the Components tab has a "Component
+    linking" group - a display-only `component_linked_with` combo (shows the
+    template name, or "(not linked)") and the `component_inherit_*` checkboxes.
+    On a linked child, ticking a box greys the matching field (it reads through
+    to the template) and recomputes; the six editable checkboxes (cell a/b,
+    cell c/default c, Δc, layer/interlayer atoms) are enabled only when linked.
+    `component_inherit_d001` (follows the cell-c gate) and
+    `component_inherit_atom_relations` (editor pending) are read-only. Creating
+    or changing a link needs phase "based on" (deferred), so to change an
+    inherited value you edit the TEMPLATE component (the one with no link).
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
   + `phase_inherit_CSDS_distribution` (phase-level `based_on` inheritance -

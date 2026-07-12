@@ -235,8 +235,16 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   DEFERRED (unused by the samples: `based_on = None`). Harness:
   tools/verify_linking.py (108 checks - resolve/read-through/selective/
   propagation/refinable-skip/round-trip); golden calc + round-trip unchanged.
-  Next: surface it in the component editor (the "Linked with" combo + inherit
-  checkboxes, read-only display of inherited fields) - Batch L2.
+- [x] Component linking editor (Batch L2) - component_widget.py + the
+  edit_component.ui "Component linking" group. A display-only linked_with combo
+  (shows the template name) + the per-property inherit checkboxes; on a linked
+  child, ticking a box greys the field (it reads through to the template) and
+  recomputes, and the checkboxes are enabled only when the component is linked.
+  d001 (follows the cell-c gate) + atom-relations checkboxes are read-only.
+  Creating/changing a link needs phase "based on" (deferred) - edit the
+  template component to change an inherited value. Verified: linking invariants
+  hold across all sample components; live toggles flip the model + greying;
+  harnesses unchanged.
 - [x] CSDS distribution component - csds.ui + csds_widget.py (mean spinbox +
   live log-normal histogram + derived range; plugged into Edit Phases CSDS
   tab, bound to DritsCSDSDistribution). Old: phases/glade/csds.glade.

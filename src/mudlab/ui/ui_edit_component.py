@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
-    QGroupBox, QLabel, QLineEdit, QSizePolicy,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
+    QFormLayout, QGridLayout, QGroupBox, QLabel,
+    QLineEdit, QSizePolicy, QVBoxLayout, QWidget)
 
 class Ui_EditComponentWidget(object):
     def setupUi(self, EditComponentWidget):
@@ -129,6 +129,73 @@ class Ui_EditComponentWidget(object):
 
         self.componentRootLayout.addLayout(self.componentForm)
 
+        self.grpLinking = QGroupBox(EditComponentWidget)
+        self.grpLinking.setObjectName(u"grpLinking")
+        self.linkingLayout = QVBoxLayout(self.grpLinking)
+        self.linkingLayout.setObjectName(u"linkingLayout")
+        self.linkingForm = QFormLayout()
+        self.linkingForm.setObjectName(u"linkingForm")
+        self.lblLinkedWith = QLabel(self.grpLinking)
+        self.lblLinkedWith.setObjectName(u"lblLinkedWith")
+
+        self.linkingForm.setWidget(0, QFormLayout.ItemRole.LabelRole, self.lblLinkedWith)
+
+        self.component_linked_with = QComboBox(self.grpLinking)
+        self.component_linked_with.setObjectName(u"component_linked_with")
+
+        self.linkingForm.setWidget(0, QFormLayout.ItemRole.FieldRole, self.component_linked_with)
+
+
+        self.linkingLayout.addLayout(self.linkingForm)
+
+        self.inheritGrid = QGridLayout()
+        self.inheritGrid.setObjectName(u"inheritGrid")
+        self.component_inherit_ucp_a = QCheckBox(self.grpLinking)
+        self.component_inherit_ucp_a.setObjectName(u"component_inherit_ucp_a")
+
+        self.inheritGrid.addWidget(self.component_inherit_ucp_a, 0, 0, 1, 1)
+
+        self.component_inherit_ucp_b = QCheckBox(self.grpLinking)
+        self.component_inherit_ucp_b.setObjectName(u"component_inherit_ucp_b")
+
+        self.inheritGrid.addWidget(self.component_inherit_ucp_b, 0, 1, 1, 1)
+
+        self.component_inherit_default_c = QCheckBox(self.grpLinking)
+        self.component_inherit_default_c.setObjectName(u"component_inherit_default_c")
+
+        self.inheritGrid.addWidget(self.component_inherit_default_c, 1, 0, 1, 1)
+
+        self.component_inherit_delta_c = QCheckBox(self.grpLinking)
+        self.component_inherit_delta_c.setObjectName(u"component_inherit_delta_c")
+
+        self.inheritGrid.addWidget(self.component_inherit_delta_c, 1, 1, 1, 1)
+
+        self.component_inherit_layer_atoms = QCheckBox(self.grpLinking)
+        self.component_inherit_layer_atoms.setObjectName(u"component_inherit_layer_atoms")
+
+        self.inheritGrid.addWidget(self.component_inherit_layer_atoms, 2, 0, 1, 1)
+
+        self.component_inherit_interlayer_atoms = QCheckBox(self.grpLinking)
+        self.component_inherit_interlayer_atoms.setObjectName(u"component_inherit_interlayer_atoms")
+
+        self.inheritGrid.addWidget(self.component_inherit_interlayer_atoms, 2, 1, 1, 1)
+
+        self.component_inherit_d001 = QCheckBox(self.grpLinking)
+        self.component_inherit_d001.setObjectName(u"component_inherit_d001")
+
+        self.inheritGrid.addWidget(self.component_inherit_d001, 3, 0, 1, 1)
+
+        self.component_inherit_atom_relations = QCheckBox(self.grpLinking)
+        self.component_inherit_atom_relations.setObjectName(u"component_inherit_atom_relations")
+
+        self.inheritGrid.addWidget(self.component_inherit_atom_relations, 3, 1, 1, 1)
+
+
+        self.linkingLayout.addLayout(self.inheritGrid)
+
+
+        self.componentRootLayout.addWidget(self.grpLinking)
+
         self.grpLayerAtoms = QGroupBox(EditComponentWidget)
         self.grpLayerAtoms.setObjectName(u"grpLayerAtoms")
         self.layerAtomsLayout = QVBoxLayout(self.grpLayerAtoms)
@@ -172,6 +239,25 @@ class Ui_EditComponentWidget(object):
         self.component_volume.setText(QCoreApplication.translate("EditComponentWidget", u"-", None))
         self.lblCharge.setText(QCoreApplication.translate("EditComponentWidget", u"Charge balance", None))
         self.component_charge.setText(QCoreApplication.translate("EditComponentWidget", u"-", None))
+        self.grpLinking.setTitle(QCoreApplication.translate("EditComponentWidget", u"Component linking (inherit from linked layer)", None))
+        self.lblLinkedWith.setText(QCoreApplication.translate("EditComponentWidget", u"Linked with", None))
+#if QT_CONFIG(tooltip)
+        self.component_linked_with.setToolTip(QCoreApplication.translate("EditComponentWidget", u"The template component this layer inherits from (a shared clay layer). Creating/changing links needs phase \"based on\", ported later.", None))
+#endif // QT_CONFIG(tooltip)
+        self.component_inherit_ucp_a.setText(QCoreApplication.translate("EditComponentWidget", u"Cell a", None))
+        self.component_inherit_ucp_b.setText(QCoreApplication.translate("EditComponentWidget", u"Cell b", None))
+        self.component_inherit_default_c.setText(QCoreApplication.translate("EditComponentWidget", u"Cell c / default c", None))
+        self.component_inherit_delta_c.setText(QCoreApplication.translate("EditComponentWidget", u"\u0394c spacing", None))
+        self.component_inherit_layer_atoms.setText(QCoreApplication.translate("EditComponentWidget", u"Layer atoms", None))
+        self.component_inherit_interlayer_atoms.setText(QCoreApplication.translate("EditComponentWidget", u"Interlayer atoms", None))
+#if QT_CONFIG(tooltip)
+        self.component_inherit_d001.setToolTip(QCoreApplication.translate("EditComponentWidget", u"In the model, d001 inheritance follows \"Cell c / default c\" (old-app behaviour); shown for reference.", None))
+#endif // QT_CONFIG(tooltip)
+        self.component_inherit_d001.setText(QCoreApplication.translate("EditComponentWidget", u"d001 (follows cell c)", None))
+#if QT_CONFIG(tooltip)
+        self.component_inherit_atom_relations.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Enabled once the atom-relations editor is ported.", None))
+#endif // QT_CONFIG(tooltip)
+        self.component_inherit_atom_relations.setText(QCoreApplication.translate("EditComponentWidget", u"Atom relations", None))
         self.grpLayerAtoms.setTitle(QCoreApplication.translate("EditComponentWidget", u"Layer atoms", None))
         self.grpInterlayerAtoms.setTitle(QCoreApplication.translate("EditComponentWidget", u"Interlayer atoms", None))
         pass

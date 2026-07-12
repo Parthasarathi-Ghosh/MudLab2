@@ -153,6 +153,99 @@
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="grpLinking">
+     <property name="title">
+      <string>Component linking (inherit from linked layer)</string>
+     </property>
+     <layout class="QVBoxLayout" name="linkingLayout">
+      <item>
+       <layout class="QFormLayout" name="linkingForm">
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblLinkedWith">
+          <property name="text">
+           <string>Linked with</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="component_linked_with">
+          <property name="toolTip">
+           <string>The template component this layer inherits from (a shared clay layer). Creating/changing links needs phase &quot;based on&quot;, ported later.</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="inheritGrid">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="component_inherit_ucp_a">
+          <property name="text">
+           <string>Cell a</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="component_inherit_ucp_b">
+          <property name="text">
+           <string>Cell b</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="component_inherit_default_c">
+          <property name="text">
+           <string>Cell c / default c</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="component_inherit_delta_c">
+          <property name="text">
+           <string>&#916;c spacing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="component_inherit_layer_atoms">
+          <property name="text">
+           <string>Layer atoms</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QCheckBox" name="component_inherit_interlayer_atoms">
+          <property name="text">
+           <string>Interlayer atoms</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="component_inherit_d001">
+          <property name="toolTip">
+           <string>In the model, d001 inheritance follows &quot;Cell c / default c&quot; (old-app behaviour); shown for reference.</string>
+          </property>
+          <property name="text">
+           <string>d001 (follows cell c)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QCheckBox" name="component_inherit_atom_relations">
+          <property name="toolTip">
+           <string>Enabled once the atom-relations editor is ported.</string>
+          </property>
+          <property name="text">
+           <string>Atom relations</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="grpLayerAtoms">
      <property name="title">
       <string>Layer atoms</string>

@@ -11,6 +11,14 @@ group-box placeholders here).
 Plugged into the Edit Phases > Components tab and bound to the phase's
 Component models; editing a scalar recomputes the structure factor and,
 via the phase editor's callback, the calculated pattern.
+
+Batch L2 surfaces component linking (shared clay layers): a "Linked with"
+display + per-property inherit checkboxes. On a linked child, ticking an
+inherit box greys that field (it reads through to the template's value) and
+recomputes; the checkboxes are enabled only when the component is linked.
+Creating/changing a link needs phase "based on" (deferred), so the combo is
+display-only for now - edit the TEMPLATE component to change an inherited
+value.
 """
 
 from __future__ import annotations
@@ -52,6 +60,28 @@ class EditComponentWidget(QWidget):
         self.ui.component_delta_c.valueChanged.connect(
             lambda v: self._on_scalar_changed("delta_c", v)
         )
+
+        # Component-linking controls (Batch L2). The six editable inherit
+        # checkboxes toggle per-property inheritance on a linked child. The
+        # linked_with combo is display-only (creating/changing a link needs
+        # phase "based on", ported later), and the d001 / atom_relations
+        # checkboxes are read-only reflections of the model (d001 follows the
+        # "cell c" gate; the atom-relations editor is a later batch).
+        self._inherit_checks = (
+            ("ucp_a", self.ui.component_inherit_ucp_a),
+            ("ucp_b", self.ui.component_inherit_ucp_b),
+            ("default_c", self.ui.component_inherit_default_c),
+            ("delta_c", self.ui.component_inherit_delta_c),
+            ("layer_atoms", self.ui.component_inherit_layer_atoms),
+            ("interlayer_atoms", self.ui.component_inherit_interlayer_atoms),
+        )
+        for name, box in self._inherit_checks:
+            box.toggled.connect(
+                lambda checked, n=name: self._on_inherit_toggled(n, checked)
+            )
+        self.ui.component_linked_with.setEnabled(False)
+        self.ui.component_inherit_d001.setEnabled(False)
+        self.ui.component_inherit_atom_relations.setEnabled(False)
 
         self.setEnabled(False)
 
@@ -101,12 +131,62 @@ class EditComponentWidget(QWidget):
         self.interlayer_atoms_widget.bind_atoms(
             comp.interlayer_atoms, self._atom_types, on_changed=self._on_atoms_changed
         )
+        self._bind_linking(comp)
         self._refresh_derived()
 
     def _on_atoms_changed(self) -> None:
         # An atom edit changes weight / charge balance; refresh them and
         # recompute the pattern.
         self._refresh_derived()
+        self._notify()
+
+    # ------------------------------------------------------------------
+    # Component linking (inherit from a linked template layer)
+    # ------------------------------------------------------------------
+    def _bind_linking(self, comp) -> None:
+        """Fill the linking controls: the display-only linked_with combo, the
+        inherit checkbox states, and the greying of the fields that read
+        through to the linked template."""
+        linked = comp.linked_with is not None
+        self._updating = True
+        try:
+            combo = self.ui.component_linked_with
+            combo.clear()
+            combo.addItem(comp.linked_with.name or "(unnamed)" if linked else "(not linked)")
+            for name, box in self._inherit_checks:
+                box.setChecked(getattr(comp, "inherit_%s" % name))
+                box.setEnabled(linked)  # a property can only inherit when linked
+            # Read-only reflections of the model (not user-editable here).
+            self.ui.component_inherit_d001.setChecked(comp.inherit_d001)
+            self.ui.component_inherit_atom_relations.setChecked(comp.inherit_atom_relations)
+        finally:
+            self._updating = False
+        self._apply_inheritance_ui(comp)
+
+    def _apply_inheritance_ui(self, comp) -> None:
+        """Disable (grey) each field that currently reads through to the linked
+        template, so the shown value is understood as the template's."""
+        self.ui.component_cell_a.setEnabled(not comp.is_inherited("cell_a"))
+        self.ui.component_cell_b.setEnabled(not comp.is_inherited("cell_b"))
+        # d001 and default_c share the "cell c" gate (inherit_default_c).
+        c_inherited = comp.is_inherited("d001")
+        self.ui.component_d001.setDisabled(c_inherited)
+        self.ui.component_default_c.setDisabled(c_inherited)
+        self.ui.component_delta_c.setDisabled(comp.is_inherited("delta_c"))
+        self.layer_atoms_widget.setDisabled(comp.is_inherited("layer_atoms"))
+        self.interlayer_atoms_widget.setDisabled(comp.is_inherited("interlayer_atoms"))
+
+    def _on_inherit_toggled(self, name: str, checked: bool) -> None:
+        if self._component is None or self._updating:
+            return
+        setattr(self._component, "inherit_%s" % name, checked)
+        # d001 shares the "default_c" gate in the model; keep the paired flag
+        # (and its read-only checkbox) consistent, as real projects store them.
+        if name == "default_c":
+            self._component.inherit_d001 = checked
+        # Rebind to refresh the read-through values, the greying and the atom
+        # lists (own vs template), then recompute the pattern.
+        self._bind_one(self.ui.cmb_component.currentIndex())
         self._notify()
 
     # ------------------------------------------------------------------
