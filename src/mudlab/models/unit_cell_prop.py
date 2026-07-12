@@ -40,6 +40,7 @@ class UnitCellProperty:
         # None. `_prop_ref` holds the stored [uuid, attr] until resolve_prop.
         self.prop: tuple | None = None
         self._prop_ref = None
+        self._prop_dirty = False  # True once the editor rewrites the prop ref
         self.uuid = _uuid.uuid4().hex  # overwritten from the .mud on load
         # Verbatim .mud UCP dict so unmodeled fields (uuid, value_ref_info,
         # the prop reference) survive a round-trip.
@@ -71,6 +72,17 @@ class UnitCellProperty:
             if obj is not None:
                 self.prop = (obj, ref[1])
 
+    def set_prop(self, obj, attr) -> None:
+        """Point the derivation at a new source (an atom's pn, or a cell). Marks
+        the reference dirty so to_dict rewrites the [uuid, attr] pair."""
+        if obj is None:
+            self.prop = None
+            self._prop_ref = None
+        else:
+            self.prop = (obj, attr)
+            self._prop_ref = [obj.uuid, attr]
+        self._prop_dirty = True
+
     def get_prop_value(self) -> float:
         if self.prop is not None:
             obj, attr = self.prop
@@ -97,4 +109,8 @@ class UnitCellProperty:
         props["enabled"] = self.enabled
         props["factor"] = self.factor
         props["constant"] = self.constant
+        # The prop reference is kept verbatim unless the editor changed it (so
+        # an unedited UCP round-trips byte-for-byte, incl. an absent prop key).
+        if self._prop_dirty:
+            props["prop"] = self._prop_ref
         return {"type": "UnitCellProperty", "properties": props}

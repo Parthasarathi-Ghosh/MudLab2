@@ -1,12 +1,14 @@
 """Component (clay layer) editor. Design: ui/edit_component.ui.
 
 Ported from the GTK EditComponentView (phases/glade/component.glade). A
-phase has G components (clay layers); a selector picks one, and this
-sub-batch makes the c-axis scalars editable - the name, basal spacing
-(d001 / cell length c), default c length and the delta-c defect spread -
-with the derived cell a/b, volume and charge balance shown read-only.
-Layer/interlayer atom lists come with the next sub-batch (they fill the
-group-box placeholders here).
+phase has G components (clay layers); a selector picks one, and its c-axis
+scalars (name, basal spacing d001 / cell length c, default c length, delta-c
+defect spread) and layer/interlayer atom lists are editable, with cell
+volume + charge balance shown read-only.
+
+Cell lengths a/b are edited by embedded UnitCellPropWidgets (Batch 1b): each
+is fixed (a typed value) or derived (factor x property + constant); editing
+recomputes the derived values (cell_b can feed cell_a) and the pattern.
 
 Plugged into the Edit Phases > Components tab and bound to the phase's
 Component models; editing a scalar recomputes the structure factor and,
@@ -28,6 +30,7 @@ from typing import Callable
 from PySide6.QtWidgets import QWidget
 
 from mudlab.atom_list_widget import AtomListWidget
+from mudlab.ucp_widget import UnitCellPropWidget
 from mudlab.ui.ui_edit_component import Ui_EditComponentWidget
 
 
@@ -42,6 +45,13 @@ class EditComponentWidget(QWidget):
         self._atom_types: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
+
+        # Cell a/b unit-cell property editors (fixed or derived) fill the two
+        # form placeholders that used to be read-only labels.
+        self.ucp_a_widget = UnitCellPropWidget(self)
+        self.ui.ucpALayout.addWidget(self.ucp_a_widget)
+        self.ucp_b_widget = UnitCellPropWidget(self)
+        self.ui.ucpBLayout.addWidget(self.ucp_b_widget)
 
         # Layer and interlayer atom lists fill the two group-box placeholders.
         self.layer_atoms_widget = AtomListWidget(self)
@@ -125,6 +135,12 @@ class EditComponentWidget(QWidget):
             self.ui.component_delta_c.setValue(float(comp.delta_c))
         finally:
             self._updating = False
+        self.ucp_a_widget.bind_ucp(
+            comp._ucp_a, comp, "cell_b", "B cell length", on_changed=self._on_ucp_changed
+        )
+        self.ucp_b_widget.bind_ucp(
+            comp._ucp_b, comp, "cell_a", "A cell length", on_changed=self._on_ucp_changed
+        )
         self.layer_atoms_widget.bind_atoms(
             comp.layer_atoms, self._atom_types, on_changed=self._on_atoms_changed
         )
@@ -133,6 +149,18 @@ class EditComponentWidget(QWidget):
         )
         self._bind_linking(comp)
         self._refresh_derived()
+
+    def _on_ucp_changed(self) -> None:
+        # A cell a/b edit recomputes the derived cell lengths (cell_b may feed
+        # cell_a), refreshes both value displays + the derived panel, and
+        # redraws the pattern.
+        if self._component is None:
+            return
+        self._component.update_ucp_values()
+        self.ucp_a_widget.refresh_value()
+        self.ucp_b_widget.refresh_value()
+        self._refresh_derived()
+        self._notify()
 
     def _on_atoms_changed(self) -> None:
         # An atom edit changes weight / charge balance; refresh them and
@@ -166,8 +194,8 @@ class EditComponentWidget(QWidget):
     def _apply_inheritance_ui(self, comp) -> None:
         """Disable (grey) each field that currently reads through to the linked
         template, so the shown value is understood as the template's."""
-        self.ui.component_cell_a.setEnabled(not comp.is_inherited("cell_a"))
-        self.ui.component_cell_b.setEnabled(not comp.is_inherited("cell_b"))
+        self.ucp_a_widget.setEnabled(not comp.is_inherited("cell_a"))
+        self.ucp_b_widget.setEnabled(not comp.is_inherited("cell_b"))
         # d001 and default_c share the "cell c" gate (inherit_default_c).
         c_inherited = comp.is_inherited("d001")
         self.ui.component_d001.setDisabled(c_inherited)
@@ -217,8 +245,8 @@ class EditComponentWidget(QWidget):
         comp = self._component
         if comp is None:
             return
-        self.ui.component_cell_a.setText("%.4f" % comp.cell_a)
-        self.ui.component_cell_b.setText("%.4f" % comp.cell_b)
+        # cell a/b are shown by their UCP editors now; only volume + charge
+        # (which depend on a·b·c) are derived read-outs here.
         self.ui.component_volume.setText("%.5f" % comp.volume)
         layer, interlayer, net = comp.compute_charge_balance()
         self.ui.component_charge.setText(

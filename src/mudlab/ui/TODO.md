@@ -260,8 +260,8 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   models come when a project needs them.
 - [x] Component editor - edit_component.ui + component_widget.py (selector +
   c-axis scalars + atom lists). Old: phases/glade/component.glade.
-- [ ] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside the
-  component editor). **Batch 1a (model, DONE):** cell a/b are UnitCellProperty
+- [x] Unit cell property editor - phases/glade/unit_cell_prop.glade (inside the
+  component editor). **Batch 1a (model):** cell a/b are UnitCellProperty
   objects (models/unit_cell_prop.py) - fixed (typed value) or derived
   (value = factor*prop + constant, prop = the component's cell_b or an atom pn:
   cell_a = 0.57735*cell_b, cell_b = k*pn + const). The .mud's stored value can
@@ -269,9 +269,13 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   stored value on load and only recomputes (Component.update_ucp_values) on an
   edit - never at load (golden calc unchanged). Derivation sources resolve by
   uuid (mud_project builds a component+atom object map, resolve_ucp_props).
-  Harness: tools/verify_ucp.py (61 checks). **Batch 1b (UI, pending):** the
-  enabled toggle + value/factor/constant + prop combo in the component editor
-  (inherited cell a/b already grey out via L2).
+  Harness: tools/verify_ucp.py (61 checks). **Batch 1b (UI):** a reusable
+  UnitCellPropWidget (ucp.ui + ucp_widget.py) embedded twice (a, b) in the
+  component editor - an "Derived" toggle, the value spin (active when fixed),
+  and factor x prop-combo + constant (active when derived; combo = the atoms'
+  pn + the other cell). Editing recomputes + cascades (cell_b feeds cell_a) +
+  redraws; a changed prop rewrites its [uuid, attr] (dirty flag, round-trip
+  safe); inherited cell a/b disable the widget (via L2's is_inherited).
 - [x] Layer / interlayer atom lists - atom_list.ui + atom_list_widget.py
   (name/Def.Z/pn + element combo + add/remove). Old: phases/glade/layer.glade.
 - [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal)

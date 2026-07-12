@@ -205,8 +205,17 @@ the CSDS component.
   `cell_a = 0.57735*cell_b`, `cell_b = k*pn + const`). The stored value is
   kept on load (it can be stale, and the old app's pattern used it) and only
   recomputed (`Component.update_ucp_values`) on an edit; `mud_project` resolves
-  each UCP's derivation source by uuid. The UCP editor UI (enabled toggle +
-  factor/constant/prop) is Batch 1b - for now cell a/b stay read-only labels. The `grpLayerAtoms` / `grpInterlayerAtoms` group
+  each UCP's derivation source by uuid.
+  - **UCP editor (Batch 1b, ucp.ui + ucp_widget.py):** a reusable
+    `UnitCellPropWidget` is embedded twice (rows for cell a and b) in the
+    component form. It has an `ucp_enabled` "Derived" toggle, the `ucp_value`
+    spin (active when fixed), and a `box_enabled` group `ucp_factor x ucp_prop
+    + ucp_constant` (active when derived). `ucp_prop` lists the component's
+    atoms (pn) + the other cell length. An edit writes to the UnitCellProperty,
+    then `_on_ucp_changed` runs `update_ucp_values` (cell_b feeds cell_a),
+    refreshes both value displays + volume/charge, and redraws. Changing the
+    prop rewrites its `[uuid, attr]` (dirty flag, so unedited UCPs round-trip
+    verbatim). Inherited cell a/b disable the whole widget (L2's is_inherited). The `grpLayerAtoms` / `grpInterlayerAtoms` group
   boxes each hold an `AtomListWidget` (atom_list.ui + atom_list_widget.py):
   a table of Atom name / Def. Z / Calc. Z (read-only) / # (pn) / Element
   (an atom-type combo from the project atom types) with Add/Remove. Editing

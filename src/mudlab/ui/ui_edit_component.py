@@ -91,20 +91,26 @@ class Ui_EditComponentWidget(object):
 
         self.componentForm.setWidget(5, QFormLayout.ItemRole.LabelRole, self.lblCellA)
 
-        self.component_cell_a = QLabel(EditComponentWidget)
-        self.component_cell_a.setObjectName(u"component_cell_a")
+        self.ucpAContainer = QWidget(EditComponentWidget)
+        self.ucpAContainer.setObjectName(u"ucpAContainer")
+        self.ucpALayout = QVBoxLayout(self.ucpAContainer)
+        self.ucpALayout.setObjectName(u"ucpALayout")
+        self.ucpALayout.setContentsMargins(0, 0, 0, 0)
 
-        self.componentForm.setWidget(5, QFormLayout.ItemRole.FieldRole, self.component_cell_a)
+        self.componentForm.setWidget(5, QFormLayout.ItemRole.FieldRole, self.ucpAContainer)
 
         self.lblCellB = QLabel(EditComponentWidget)
         self.lblCellB.setObjectName(u"lblCellB")
 
         self.componentForm.setWidget(6, QFormLayout.ItemRole.LabelRole, self.lblCellB)
 
-        self.component_cell_b = QLabel(EditComponentWidget)
-        self.component_cell_b.setObjectName(u"component_cell_b")
+        self.ucpBContainer = QWidget(EditComponentWidget)
+        self.ucpBContainer.setObjectName(u"ucpBContainer")
+        self.ucpBLayout = QVBoxLayout(self.ucpBContainer)
+        self.ucpBLayout.setObjectName(u"ucpBLayout")
+        self.ucpBLayout.setContentsMargins(0, 0, 0, 0)
 
-        self.componentForm.setWidget(6, QFormLayout.ItemRole.FieldRole, self.component_cell_b)
+        self.componentForm.setWidget(6, QFormLayout.ItemRole.FieldRole, self.ucpBContainer)
 
         self.lblVolume = QLabel(EditComponentWidget)
         self.lblVolume.setObjectName(u"lblVolume")
@@ -232,9 +238,7 @@ class Ui_EditComponentWidget(object):
         self.component_delta_c.setToolTip(QCoreApplication.translate("EditComponentWidget", u"The variation in basal spacing due to defects.", None))
 #endif // QT_CONFIG(tooltip)
         self.lblCellA.setText(QCoreApplication.translate("EditComponentWidget", u"Cell length a [nm]", None))
-        self.component_cell_a.setText(QCoreApplication.translate("EditComponentWidget", u"-", None))
         self.lblCellB.setText(QCoreApplication.translate("EditComponentWidget", u"Cell length b [nm]", None))
-        self.component_cell_b.setText(QCoreApplication.translate("EditComponentWidget", u"-", None))
         self.lblVolume.setText(QCoreApplication.translate("EditComponentWidget", u"Cell volume [nm\u00b3]", None))
         self.component_volume.setText(QCoreApplication.translate("EditComponentWidget", u"-", None))
         self.lblCharge.setText(QCoreApplication.translate("EditComponentWidget", u"Charge balance", None))
