@@ -184,6 +184,11 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   enumerate, a flagged param perturbed then refined recovers, all three
   methods run finite, ref_info round-trips. The heaviest harness (nested
   optimize). Run after touching calculations/refinement.py.
+- `tools/verify_linking.py` guards COMPONENT LINKING - linked children resolve
+  to their template, inherited properties read through (and non-inherited read
+  own), editing a template propagates, inherited d001/delta_c are skipped as
+  refinables, and links survive a round-trip. Run after touching
+  models/component.py, the phase loader, or the refinable enumeration.
 
 ## Recreated
 
@@ -214,6 +219,24 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 ## To do
 
 ### Phase editing family
+- [x] Component linking (foundation, Batch L1) - models/component.py. A
+  component can be linked to a template component in another phase (old
+  `linked_with` + eight `inherit_*` flags): the same clay layer reused across
+  phases (e.g. an illite layer in both a discrete illite phase and an
+  illite-smectite mixed-layer phase). Inheritance is a **read-time overlay** -
+  an inherited property reads through to the template's value while the child
+  keeps its own stored copy (byte-identical round-trip) - and **per-property**:
+  a glycolated smectite inherits cell a/b + delta_c + layer atoms from its
+  2-water template but keeps its own d001 (the air-dried -> glycolated ->
+  heated swelling states). Links resolve by uuid after all phases load
+  (mud_project.load_mud builds a project-wide component map); an inherited
+  d001/delta_c is skipped as a refinable (calculations/refinement.py, old
+  is_refinable = not inherited). Phase-level `based_on` inheritance stays
+  DEFERRED (unused by the samples: `based_on = None`). Harness:
+  tools/verify_linking.py (108 checks - resolve/read-through/selective/
+  propagation/refinable-skip/round-trip); golden calc + round-trip unchanged.
+  Next: surface it in the component editor (the "Linked with" combo + inherit
+  checkboxes, read-only display of inherited fields) - Batch L2.
 - [x] CSDS distribution component - csds.ui + csds_widget.py (mean spinbox +
   live log-normal histogram + derived range; plugged into Edit Phases CSDS
   tab, bound to DritsCSDSDistribution). Old: phases/glade/csds.glade.

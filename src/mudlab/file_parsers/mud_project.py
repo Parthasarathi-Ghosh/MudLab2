@@ -127,6 +127,18 @@ def load_mud(path: str) -> Project:
         if isinstance(phase_dict, dict) and phase_dict.get("type") == "Phase":
             project.add_phase(Phase.from_dict(phase_dict, atom_type_map))
 
+    # Resolve component links now that every phase's components exist. Linked
+    # components are shared clay layers reused across phases (old linked_with):
+    # a child reads its inherited cell / atoms / relations through to its
+    # template. Build a project-wide {uuid: Component} map, then resolve.
+    component_map = {}
+    for phase in project.phases:
+        for comp in phase.components:
+            component_map[comp.uuid] = comp
+    for phase in project.phases:
+        for comp in phase.components:
+            comp.resolve_link(component_map)
+
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})
         specimen = Specimen()

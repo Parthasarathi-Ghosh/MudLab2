@@ -205,11 +205,25 @@ the CSDS component.
   (an atom-type combo from the project atom types) with Add/Remove. Editing
   a scalar or an atom recomputes the structure factor + pattern; atom edits
   also refresh the component weight / charge balance.
+- Component linking (Batch L1, model only so far): a Component can be linked
+  to a template component in another phase (`linked_with` + eight `inherit_*`
+  flags on `models/component.py`) - the same clay layer reused across phases.
+  Inheritance is a read-time overlay (`Component._resolved_own`): an inherited
+  scalar/atom-list reads through to the template, the child keeps its own copy
+  for round-trip, and it is per-property (a glycolated smectite inherits cell
+  a/b + delta_c + layer atoms but keeps its own d001). d001 is gated by
+  `inherit_default_c`, matching the old app. `mud_project.load_mud` resolves
+  the links by uuid after all phases load; `Component.is_inherited(attr)` gates
+  read-only display and refinable skipping. The editor UI for it (a "Linked
+  with" combo + the inherit checkboxes, greying out inherited fields) is
+  Batch L2 - until then the inherited fields are still shown editable, so edit
+  the TEMPLATE component (the one with no link), not a linked child.
 - Disabled until later batches: `phase_display_color` +
   `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
-  + `phase_inherit_CSDS_distribution` (phase inheritance / visuals not
-  modeled), the object-store Add/Remove/Import/Export buttons (structural),
-  and the component unit-cell a/b editors (read-only for now).
+  + `phase_inherit_CSDS_distribution` (phase-level `based_on` inheritance -
+  distinct from component linking above - deferred; unused by the samples),
+  the object-store Add/Remove/Import/Export buttons (structural), and the
+  component unit-cell a/b editors (read-only for now).
 - Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
   `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
   keeps non-Phase entries (e.g. RawPatternPhase) untouched.

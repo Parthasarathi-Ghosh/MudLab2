@@ -163,18 +163,23 @@ def _phase_refinables(phase) -> list[Refinable]:
             ))
     for comp in phase.components:
         craw = comp.raw_properties
-        out.append(Refinable(
-            "%s | %s | d001" % (phase.name, comp.name),
-            lambda c=comp: c.d001,
-            lambda v, c=comp: setattr(c, "d001", v),
-            craw, "d001_ref_info", default_bounds=(0.0, 5.0),
-        ))
-        out.append(Refinable(
-            "%s | %s | delta_c" % (phase.name, comp.name),
-            lambda c=comp: c.delta_c,
-            lambda v, c=comp: setattr(c, "delta_c", v),
-            craw, "delta_c_ref_info", default_bounds=(0.0, 0.05),
-        ))
+        # An inherited scalar follows its linked template - refining it on the
+        # child would be a no-op (the read-through overrides the write), so it
+        # is not an independent refinable here (old is_refinable = not inherited).
+        if not comp.is_inherited("d001"):
+            out.append(Refinable(
+                "%s | %s | d001" % (phase.name, comp.name),
+                lambda c=comp: c.d001,
+                lambda v, c=comp: setattr(c, "d001", v),
+                craw, "d001_ref_info", default_bounds=(0.0, 5.0),
+            ))
+        if not comp.is_inherited("delta_c"):
+            out.append(Refinable(
+                "%s | %s | delta_c" % (phase.name, comp.name),
+                lambda c=comp: c.delta_c,
+                lambda v, c=comp: setattr(c, "delta_c", v),
+                craw, "delta_c_ref_info", default_bounds=(0.0, 0.05),
+            ))
     return out
 
 

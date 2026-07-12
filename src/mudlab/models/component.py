@@ -71,22 +71,165 @@ class Atom:
 
 
 class Component:
-    """One clay layer (old Component model, calc subset)."""
+    """One clay layer (old Component model, calc subset).
+
+    A component may be *linked* to a template component in another phase (the
+    old ``linked_with`` + per-property ``inherit_*`` flags): the same clay
+    layer reused across phases (e.g. an illite layer appearing both in a
+    discrete illite phase and inside an illite-smectite mixed-layer phase).
+
+    Inheritance is a **read-time overlay** - an inherited property reads
+    through to the template's value, while the component keeps its own stored
+    copy for serialisation (so round-trips stay byte-identical). It is
+    **per-property**: a smectite child typically inherits cell a/b + delta_c +
+    layer atoms from its 2-water template but keeps its own d001 / interlayer
+    atoms (the air-dried -> glycolated -> heated swelling states).
+    """
+
+    #: read-through attr -> the inherit flag that gates it. NOTE: d001 is
+    #: gated by inherit_default_c, matching the old app (its separate
+    #: inherit_d001 flag is carried for round-trip but does not gate d001
+    #: there either; the two always move together in real projects).
+    _INHERIT_MAP = {
+        "cell_a": "inherit_ucp_a",
+        "cell_b": "inherit_ucp_b",
+        "d001": "inherit_default_c",
+        "default_c": "inherit_default_c",
+        "delta_c": "inherit_delta_c",
+        "lattice_d": "inherit_layer_atoms",
+        "layer_atoms": "inherit_layer_atoms",
+        "interlayer_atoms": "inherit_interlayer_atoms",
+    }
 
     def __init__(self, name: str = "") -> None:
         self.name = name
-        self.d001 = 1.0        # actual d-spacing / cell length c (nm)
-        self.default_c = 1.0   # default d-spacing (nm)
-        self.delta_c = 0.0     # d-spacing variation (nm)
-        self.lattice_d = 0.0   # silicate lattice height (nm)
-        self.cell_a = 0.0      # unit-cell length a (nm), from ucp_a
-        self.cell_b = 0.0      # unit-cell length b (nm), from ucp_b
-        self.layer_atoms: list[Atom] = []
-        self.interlayer_atoms: list[Atom] = []
+        self.uuid = _uuid.uuid4().hex  # overwritten from the .mud on load
+        # Component linking (old linked_with + inherit_* flags). linked_with is
+        # resolved from _linked_with_uuid once every phase's components exist
+        # (see mud_project.load_mud); the eight flags pick which properties
+        # read through to the template.
+        self.linked_with: "Component | None" = None
+        self._linked_with_uuid = ""
+        self.inherit_ucp_a = False
+        self.inherit_ucp_b = False
+        self.inherit_d001 = False
+        self.inherit_default_c = False
+        self.inherit_delta_c = False
+        self.inherit_layer_atoms = False
+        self.inherit_interlayer_atoms = False
+        self.inherit_atom_relations = False
+        # Own stored values (overlaid by the read-through getters below when
+        # the matching inherit flag is set and a template is resolved).
+        self._d001 = 1.0        # actual d-spacing / cell length c (nm)
+        self._default_c = 1.0   # default d-spacing (nm)
+        self._delta_c = 0.0     # d-spacing variation (nm)
+        self._lattice_d = 0.0   # silicate lattice height (nm)
+        self._cell_a = 0.0      # unit-cell length a (nm), from ucp_a
+        self._cell_b = 0.0      # unit-cell length b (nm), from ucp_b
+        self._layer_atoms: list[Atom] = []
+        self._interlayer_atoms: list[Atom] = []
         # Full .mud component dict kept verbatim so unmodeled fields (ucp_a/b,
-        # atom_relations, inherit flags, linked_with, ref_info, uuid, and -
-        # until the atom lists are wired - the atoms) survive a round-trip.
+        # atom_relations, ref_info, the inlined linked_with copy, and - until
+        # they are wired - the atoms) survive a round-trip.
         self.raw_properties: dict = {}
+
+    # ------------------------------------------------------------------
+    # Component linking (read-through overlay)
+    # ------------------------------------------------------------------
+    def _resolved_own(self, attr: str):
+        """Walk the linked_with chain until a component that does NOT inherit
+        `attr`, then return that component's own stored value. Iterative and
+        cycle-guarded, so a broken or looping link degrades to a local value
+        instead of recursing forever."""
+        node = self
+        seen: set[int] = set()
+        while True:
+            flag = getattr(node, self._INHERIT_MAP[attr])
+            nxt = node.linked_with
+            if flag and nxt is not None and nxt is not node and id(node) not in seen:
+                seen.add(id(node))
+                node = nxt
+                continue
+            return getattr(node, "_" + attr)
+
+    def is_inherited(self, attr: str) -> bool:
+        """True when `attr` currently reads through to a linked template (so it
+        is not independently editable / refinable on this component)."""
+        flag = getattr(self, self._INHERIT_MAP.get(attr, ""), False)
+        return bool(flag) and self.linked_with is not None and self.linked_with is not self
+
+    def resolve_link(self, component_map: dict) -> None:
+        """Resolve linked_with from the stored template uuid against a
+        project-wide {uuid: Component} map (call after all phases load)."""
+        if self._linked_with_uuid:
+            target = component_map.get(self._linked_with_uuid)
+            if target is not None and target is not self:
+                self.linked_with = target
+
+    # -- read-through c-axis / cell scalars (own value when not inherited) --
+    @property
+    def d001(self) -> float:
+        return self._resolved_own("d001")
+
+    @d001.setter
+    def d001(self, value) -> None:
+        self._d001 = float(value)
+
+    @property
+    def default_c(self) -> float:
+        return self._resolved_own("default_c")
+
+    @default_c.setter
+    def default_c(self, value) -> None:
+        self._default_c = float(value)
+
+    @property
+    def delta_c(self) -> float:
+        return self._resolved_own("delta_c")
+
+    @delta_c.setter
+    def delta_c(self, value) -> None:
+        self._delta_c = float(value)
+
+    @property
+    def lattice_d(self) -> float:
+        return self._resolved_own("lattice_d")
+
+    @lattice_d.setter
+    def lattice_d(self, value) -> None:
+        self._lattice_d = float(value)
+
+    @property
+    def cell_a(self) -> float:
+        return self._resolved_own("cell_a")
+
+    @cell_a.setter
+    def cell_a(self, value) -> None:
+        self._cell_a = float(value)
+
+    @property
+    def cell_b(self) -> float:
+        return self._resolved_own("cell_b")
+
+    @cell_b.setter
+    def cell_b(self, value) -> None:
+        self._cell_b = float(value)
+
+    @property
+    def layer_atoms(self) -> list:
+        return self._resolved_own("layer_atoms")
+
+    @layer_atoms.setter
+    def layer_atoms(self, value) -> None:
+        self._layer_atoms = value
+
+    @property
+    def interlayer_atoms(self) -> list:
+        return self._resolved_own("interlayer_atoms")
+
+    @interlayer_atoms.setter
+    def interlayer_atoms(self, value) -> None:
+        self._interlayer_atoms = value
 
     @property
     def volume(self) -> float:
@@ -133,16 +276,34 @@ class Component:
 
     def to_dict(self) -> dict:
         """Serialize back to a .mud component dict, overwriting the modeled
-        fields (name, c-axis scalars, layer + interlayer atom lists) on top of
-        the verbatim raw properties. Cell a/b (ucp), atom relations, inherit
-        flags and uuid are preserved (their editors come later)."""
+        fields (name, c-axis scalars, layer + interlayer atom lists, and the
+        component-linking state) on top of the verbatim raw properties.
+
+        The scalars/atoms are written from this component's OWN stored values
+        (``_d001`` etc.), never the inherited read-through values, so a linked
+        child round-trips byte-identically. Cell a/b (ucp), atom relations and
+        the inlined ``linked_with`` copy are preserved verbatim."""
         props = dict(self.raw_properties)
         props["name"] = self.name
-        props["d001"] = self.d001
-        props["default_c"] = self.default_c
-        props["delta_c"] = self.delta_c
-        props["layer_atoms"] = [a.to_dict() for a in self.layer_atoms]
-        props["interlayer_atoms"] = [a.to_dict() for a in self.interlayer_atoms]
+        props["d001"] = self._d001
+        props["default_c"] = self._default_c
+        props["delta_c"] = self._delta_c
+        props["layer_atoms"] = [a.to_dict() for a in self._layer_atoms]
+        props["interlayer_atoms"] = [a.to_dict() for a in self._interlayer_atoms]
+        # Component linking: the eight inherit flags + the template uuid. The
+        # inlined linked_with copy (if present) stays verbatim in props.
+        props["inherit_ucp_a"] = self.inherit_ucp_a
+        props["inherit_ucp_b"] = self.inherit_ucp_b
+        props["inherit_d001"] = self.inherit_d001
+        props["inherit_default_c"] = self.inherit_default_c
+        props["inherit_delta_c"] = self.inherit_delta_c
+        props["inherit_layer_atoms"] = self.inherit_layer_atoms
+        props["inherit_interlayer_atoms"] = self.inherit_interlayer_atoms
+        props["inherit_atom_relations"] = self.inherit_atom_relations
+        props["linked_with_uuid"] = (
+            self.linked_with.uuid if self.linked_with is not None
+            else self._linked_with_uuid
+        )
         return {"type": "Component", "properties": props}
 
     @classmethod
@@ -150,8 +311,10 @@ class Component:
         props = data.get("properties", {})
         comp = cls(name=props.get("name", ""))
         comp.raw_properties = dict(props)
+        if "uuid" in props:
+            comp.uuid = props["uuid"]
         comp.d001 = props.get("d001", 1.0)
-        comp.default_c = props.get("default_c", comp.d001)
+        comp.default_c = props.get("default_c", comp._d001)
         comp.delta_c = props.get("delta_c", 0.0)
         comp.lattice_d = props.get("lattice_d", 0.0)
         comp.cell_a = cls._ucp_value(props.get("ucp_a"))
@@ -166,6 +329,17 @@ class Component:
             for a in (props.get("interlayer_atoms") or [])
             if isinstance(a, dict)
         ]
+        # Component-linking state. linked_with is resolved later (once every
+        # phase's components exist); the flags gate the read-through overlay.
+        comp._linked_with_uuid = props.get("linked_with_uuid", "") or ""
+        comp.inherit_ucp_a = bool(props.get("inherit_ucp_a", False))
+        comp.inherit_ucp_b = bool(props.get("inherit_ucp_b", False))
+        comp.inherit_d001 = bool(props.get("inherit_d001", False))
+        comp.inherit_default_c = bool(props.get("inherit_default_c", False))
+        comp.inherit_delta_c = bool(props.get("inherit_delta_c", False))
+        comp.inherit_layer_atoms = bool(props.get("inherit_layer_atoms", False))
+        comp.inherit_interlayer_atoms = bool(props.get("inherit_interlayer_atoms", False))
+        comp.inherit_atom_relations = bool(props.get("inherit_atom_relations", False))
         return comp
 
     def get_factors(self, range_stl):
