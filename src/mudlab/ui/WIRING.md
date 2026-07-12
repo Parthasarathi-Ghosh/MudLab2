@@ -264,6 +264,51 @@ the CSDS component.
   (`raw_pattern_phase.glade`), and the atom ratio/contents dialogs
   (`ratio.glade`, `contents.glade`).
 
+### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
+
+Behaviours that are correct but non-obvious, and known gaps - read this first
+when a cell length / inheritance bug is reported.
+
+- **The first UCP edit "de-stales" both cells.** Any UCP edit calls
+  `Component.update_ucp_values`, which recomputes BOTH cell_b (from its pn/other
+  source) and cell_a (from cell_b). Stored UCP `value`s in the .mud can be stale
+  (`factor*prop+constant` != stored, e.g. Illite/Tri-Smectite cell_a), and we
+  deliberately keep the stale value on load (golden-calc fidelity). So the first
+  edit to *either* cell can shift a cell the user did not directly touch - this
+  is expected recompute-on-edit, not a bug. Editing cell_b's constant also moves
+  cell_a (a = factor*b): also expected (cascade), not a bug.
+- **GAP: atom-pn edits do NOT recompute derived cell lengths.**
+  `component_widget._on_atoms_changed` recomputes the structure factor + pattern
+  but does not call `update_ucp_values`. So editing an octahedral cation's `pn`
+  leaves a `b = k*pn + const` UCP (and the `a = f*b` after it) stale until a UCP
+  field is touched. The old app recomputes UCPs on any atom change
+  (`Component._on_data_model_changed -> _update_ucp_values`). FIX WHEN WIRING
+  ATOM RELATIONS (Batch 2): call `self._component.update_ucp_values()` + refresh
+  both UCP widgets in `_on_atoms_changed`. The cascade itself works (verified:
+  pn +0.2 -> cell_b 0.90215 -> 0.90301 after update_ucp_values).
+- **UCP `prop` resolves against a global {uuid: object} map.** Shared atoms
+  (same uuid across linked components) collide there - last loaded wins. For
+  standalone components the prop resolves to their own atom (verified for
+  Illite); for a template whose atoms are shared with linked children the
+  resolved atom could be a child's copy (identical value, so load/calc are
+  unaffected; only an edit-time cascade could touch the wrong copy). IMPROVEMENT
+  (Batch 2): prefer the component's own atoms in `resolve_ucp_props`.
+- **Setting `cell_a`/`cell_b` writes the UCP `value` directly**, bypassing the
+  derivation - it is overwritten on the next `update_ucp_values`. Fine for the
+  read-through propagation tests; refinement never refines cell a/b.
+- **`inherit_d001` is vestigial** (d001 inheritance is gated by
+  `inherit_default_c`, matching the old app). Carried for round-trip, kept in
+  sync with `inherit_default_c` on toggle, shown read-only.
+- **Manual links are unrestricted** (any component, not just phase-`based_on`
+  ones). Cycle/self-link guarded in `set_linked_with`; round-trips by uuid.
+  Linking structurally different layers is allowed (user's responsibility).
+- **Round-trip fidelity rests on writing OWN values, not read-through ones:**
+  `Component.to_dict` writes `_d001`/`_ucp_a.value`/own atom lists (never the
+  inherited values), and `UnitCellProperty.to_dict` keeps `prop` verbatim
+  unless the editor set the dirty flag. Regression guards:
+  `tools/verify_linking.py` (108), `tools/verify_ucp.py` (61), plus the golden
+  `verify_calc_engine` and `verify_roundtrip`.
+
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 
 `mudlab/edit_atom_types_dialog.py` subclasses ObjectStoreDialog (title
