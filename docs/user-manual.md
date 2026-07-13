@@ -4,7 +4,67 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 
 ## Contents
 
+- [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
+
+---
+
+## Phase inheritance ("based on")
+
+### What it is
+
+The same clay is normally measured under several **treatments** — air-dried,
+ethylene-glycol solvated, and heated. The treatments change the interlayer (a
+smectite swells under glycol and collapses on heating) but *not* the mineral
+itself: its crystallite size, orientation and stacking order are the same clay.
+
+So you model one phase per treatment and **base the treated phases on a
+reference phase** (usually the air-dried one). The treated phase then *inherits*
+the treatment-independent parameters, and you only adjust what the treatment
+actually changed.
+
+The pay-off is in fitting: an inherited parameter exists **once**. Refine it on
+the reference phase and every treatment follows — the same clay cannot come out
+with a different structure per treatment, and you are not fitting the same
+number three times.
+
+### Where to find it
+
+**Edit → Edit Phases**, select a phase. The **Based on** drop-down is at the top
+of the phase properties.
+
+### Basing one phase on another
+
+1. In **Based on**, choose the reference phase.
+   Only phases with the **same number of components** are offered — the layer
+   stacking parameters pair up one-to-one, so the counts must match.
+2. The inherit check-boxes become enabled. Nothing is inherited yet.
+
+### Choosing what to inherit
+
+- **σ\*** — tick *Inherit* next to the σ\* box.
+- **CSDS distribution** — tick *Inherit from the "based on" phase* on the CSDS
+  tab.
+- **Stacking probabilities** — on the Probabilities tab each **F** parameter has
+  its own *Inherit* box, so you can share some and keep others.
+
+A ticked box greys the field and shows the **reference phase's** value. Untick it
+and the phase goes back to its own value. The pattern recalculates either way.
+
+> **The stacking F parameters matter most.** They control the layer proportions
+> and therefore the shape of the pattern. If a treated phase should have the
+> same illite/smectite ratio as the reference, inherit its F — otherwise the two
+> can drift apart and no longer describe the same clay.
+
+### Changing an inherited value
+
+An inherited field is greyed on the treated phase. Edit it on the **reference
+phase** (the one showing *(not based on)*) and every phase based on it updates.
+
+### Detaching
+
+Choose **(not based on)**. The link is removed, all inherit boxes for that phase
+are cleared, and every field returns to that phase's own values.
 
 ---
 

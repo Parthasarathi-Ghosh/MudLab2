@@ -59,21 +59,27 @@ class EditPhaseWidget(QWidget):
         self.ui.componentsLayout.addWidget(self.component_widget)
         self.ui.lblComponentsPlaceholder.hide()
 
-        # Not modeled yet: phase inheritance (based-on chains), the display
-        # colour and every inherit flag. Disable them so the UI reads
-        # honestly; they come with the phase-visuals / inheritance batch.
+        # The display colour is a visuals-only property that is not modeled yet.
         for control, why in (
             (self.ui.phase_display_color, "Phase display colour is not modeled yet."),
-            (self.ui.phase_inherit_display_color, "Phase inheritance is not ported yet."),
-            (self.ui.phase_based_on, "Phase inheritance (based-on) is not ported yet."),
-            (self.ui.phase_inherit_sigma_star, "Phase inheritance is not ported yet."),
-            (self.ui.phase_inherit_CSDS_distribution, "Phase inheritance is not ported yet."),
+            (self.ui.phase_inherit_display_color,
+             "Phase display colour is not modeled yet."),
         ):
             control.setEnabled(False)
             control.setToolTip(why)
 
         self.ui.phase_name.editingFinished.connect(self._on_name_edited)
         self.ui.phase_sigma_star.valueChanged.connect(self._on_sigma_changed)
+
+        # Phase-level inheritance (old based_on): pick a reference phase, then
+        # tick which properties to take from it.
+        self.ui.phase_based_on.currentIndexChanged.connect(self._on_based_on_changed)
+        self.ui.phase_inherit_sigma_star.toggled.connect(
+            lambda checked: self._on_phase_inherit_toggled("sigma_star", checked)
+        )
+        self.ui.phase_inherit_CSDS_distribution.toggled.connect(
+            lambda checked: self._on_phase_inherit_toggled("CSDS_distribution", checked)
+        )
 
         self.setEnabled(False)
 
@@ -84,6 +90,7 @@ class EditPhaseWidget(QWidget):
         on_changed: Callable[[], None] | None = None,
         atom_types=None,
         link_candidates=None,
+        phase_candidates=None,
     ) -> None:
         """Show and edit a real Phase model. `atom_types` feeds the component
         atom-element combos; `link_candidates` are (label, component) pairs
@@ -92,6 +99,7 @@ class EditPhaseWidget(QWidget):
         self._phase = phase
         self._atom_types = list(atom_types or [])
         self._link_candidates = list(link_candidates or [])
+        self._phase_candidates = list(phase_candidates or [])
         self._on_changed = on_changed
         self.setEnabled(phase is not None)
         if phase is None:
@@ -117,15 +125,87 @@ class EditPhaseWidget(QWidget):
         if has_probabilities:
             labels = [getattr(c, "name", "") for c in phase.components]
             self.probabilities_widget.bind_probabilities(
-                phase.probabilities, labels=labels, on_changed=self._notify
+                phase.probabilities, labels=labels, on_changed=self._notify,
+                can_inherit=phase.based_on is not None,
             )
         else:
             self.probabilities_widget.bind_probabilities(None)
+
+        self._bind_based_on(phase)
 
         self.component_widget.bind_components(
             phase.components, atom_types=self._atom_types, on_changed=self._notify,
             link_candidates=self._link_candidates,
         )
+
+    # ------------------------------------------------------------------
+    # Phase-level inheritance (based_on)
+    # ------------------------------------------------------------------
+    def _bind_based_on(self, phase) -> None:
+        """Fill the "based on" combo (phases with the SAME G - the F params pair
+        up one-to-one, as in the old app), the inherit check-boxes, and grey the
+        fields that read through to the reference phase."""
+        self._updating = True
+        try:
+            combo = self.ui.phase_based_on
+            combo.clear()
+            combo.addItem("(not based on)", None)
+            current = 0
+            for label, cand in self._phase_candidates:
+                if cand is phase or cand.G != phase.G:
+                    continue
+                combo.addItem(label, cand)
+                if cand is phase.based_on:
+                    current = combo.count() - 1
+            combo.setCurrentIndex(current)
+
+            based = phase.based_on is not None
+            self.ui.phase_inherit_sigma_star.setChecked(phase.inherit_sigma_star)
+            self.ui.phase_inherit_sigma_star.setEnabled(based)
+            self.ui.phase_inherit_CSDS_distribution.setChecked(
+                phase.inherit_CSDS_distribution
+            )
+            self.ui.phase_inherit_CSDS_distribution.setEnabled(based)
+        finally:
+            self._updating = False
+        self._apply_phase_inheritance(phase)
+
+    def _apply_phase_inheritance(self, phase) -> None:
+        """Grey each field that currently reads through to the based_on phase."""
+        self.ui.phase_sigma_star.setDisabled(phase.is_inherited("sigma_star"))
+        self.csds_widget.setDisabled(phase.is_inherited("CSDS"))
+
+    def _on_based_on_changed(self, _index: int) -> None:
+        if self._phase is None or self._updating:
+            return
+        target = self.ui.phase_based_on.currentData()
+        if target is self._phase.based_on:
+            return
+        if not self._phase.set_based_on(target):
+            self._bind_based_on(self._phase)  # rejected (self / cycle) - revert
+            return
+        # Rebind so the inherit boxes, the greying and any newly inherited
+        # values (sigma*, CSDS, the F params) refresh, then recompute.
+        self.bind_phase(
+            self._phase, on_changed=self._on_changed, atom_types=self._atom_types,
+            link_candidates=self._link_candidates,
+            phase_candidates=self._phase_candidates,
+        )
+        self._notify()
+
+    def _on_phase_inherit_toggled(self, name: str, checked: bool) -> None:
+        if self._phase is None or self._updating:
+            return
+        setattr(self._phase, "inherit_%s" % name, checked)
+        self._updating = True
+        try:
+            # An inherited field shows the reference phase's value.
+            self.ui.phase_sigma_star.setValue(float(self._phase.sigma_star))
+        finally:
+            self._updating = False
+        self.csds_widget.bind_csds(self._phase.CSDS, on_changed=self._notify)
+        self._apply_phase_inheritance(self._phase)
+        self._notify()
 
     def _set_probabilities_tab_visible(self, visible: bool) -> None:
         tabs = self.ui.book_wrapper

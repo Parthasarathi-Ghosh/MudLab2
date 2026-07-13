@@ -79,6 +79,42 @@ class Phase:
         self.based_on = parent
         self.probabilities.set_based_on(parent.probabilities)
 
+    def set_based_on(self, target) -> bool:
+        """Base this phase on another (or None to detach). Refuses a self-
+        reference, a cycle, or a phase with a different G (the F params pair up
+        one-to-one, as in the old app). Detaching clears the inherit flags.
+        Returns True if applied.
+
+        NOTE (deviation): the old setter also cleared every component's
+        linked_with, because its component-link combo was restricted to the
+        based_on parent's components. MudLab2 links components freely by uuid
+        (see the component-linking notes), so the links are left alone here.
+        """
+        if target is self:
+            return False
+        if target is not None:
+            if target.G != self.G:
+                return False
+            node, seen = target, set()
+            while node is not None and id(node) not in seen:
+                if node is self:
+                    return False  # would create a cycle
+                seen.add(id(node))
+                node = node.based_on
+        self.based_on = target
+        self._based_on_uuid = target.uuid if target is not None else ""
+        self.probabilities.set_based_on(
+            target.probabilities if target is not None else None
+        )
+        if target is None:
+            self.inherit_sigma_star = False
+            self.inherit_CSDS_distribution = False
+            self.inherit_display_color = False
+            self.probabilities.inherit_F = [
+                False for _ in range(self.probabilities.n_independents)
+            ]
+        return True
+
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` reads through to the based_on phase (so it is not
         independently editable / refinable here)."""

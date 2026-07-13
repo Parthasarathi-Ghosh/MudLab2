@@ -61,7 +61,15 @@ class EditPhasesDialog(ObjectStoreDialog):
                 on_changed=lambda p=phase: self._recalculate(p),
                 atom_types=atom_types,
                 link_candidates=self._link_candidates(),
+                phase_candidates=self._phase_candidates(),
             )
+
+    def _phase_candidates(self):
+        """(label, phase) for every phase - the reference phases offered in the
+        editor's "based on" combo (it filters to matching G)."""
+        if self.project is None:
+            return []
+        return [(ph.name or "phase", ph) for ph in self.project.phases]
 
     def _link_candidates(self):
         """(label, component) for every component in the project - the linking

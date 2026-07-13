@@ -347,8 +347,22 @@ writes OWN values** (`_sigma_star`, `_CSDS.average`, `own_f_params()`) so a
 child round-trips its stale stored F byte-identically. Inherited sigma* / CSDS /
 F are skipped as refinables (they follow the parent).
 
-STILL TO DO: the phase-editor UI (the disabled `phase_based_on` combo +
-`phase_inherit_*` checkboxes) - mirror the component-linking L2/L3 wiring.
+**Editor (edit_phase_widget.py + probabilities_widget.py):** the `phase_based_on`
+combo lists the project's phases **with the same G** (the F params pair up
+one-to-one, as the old app required) plus "(not based on)"; picking one calls
+`Phase.set_based_on` (self/cycle/G guarded, a rejected pick reverts the combo),
+"(not based on)" detaches and clears the inherit flags. `phase_inherit_sigma_star`
+/ `phase_inherit_CSDS_distribution` are enabled only when based on something;
+ticking one greys the sigma* spin / the CSDS component (it now shows the
+reference phase's value) and recomputes. The **per-F "Inherit" check-boxes** live
+next to each F spinbox in the probabilities widget (old `inherit_F<i>`): ticking
+greys the spin and shows the parent's F. Candidates are threaded from
+`EditPhasesDialog._phase_candidates` -> `bind_phase`.
+DEVIATION: the old `based_on` setter also cleared every component's
+`linked_with` (its component-link combo was restricted to the parent's
+components); MudLab2 links components freely by uuid, so `set_based_on` leaves
+them alone. `phase_display_color` + its inherit box stay disabled (the colour is
+a visuals-only property that is not modeled yet).
 
 - **Purpose (domain):** model the *same clay under different treatments* -
   air-dried / ethylene-glycol / heated (350, 550 C). The treatments change the
