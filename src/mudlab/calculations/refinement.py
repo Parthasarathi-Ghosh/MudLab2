@@ -137,24 +137,30 @@ def _nested(raw: dict, *keys: str) -> dict:
 
 def _phase_refinables(phase) -> list[Refinable]:
     raw = phase.raw_properties
-    out = [
-        Refinable(
+    # A phase-level inherited parameter follows its based_on parent - refining
+    # it on the child would be a no-op (the read-through overrides the write),
+    # so only the parent's copy is an independent refinable.
+    out = []
+    if not phase.is_inherited("sigma_star"):
+        out.append(Refinable(
             "%s | sigma*" % phase.name,
             lambda p=phase: p.sigma_star,
             lambda v, p=phase: setattr(p, "sigma_star", v),
             raw, "sigma_star_ref_info", default_bounds=(0.0, 90.0),
-        ),
-        Refinable(
+        ))
+    if not phase.is_inherited("CSDS"):
+        out.append(Refinable(
             "%s | CSDS mean" % phase.name,
             lambda p=phase: p.CSDS.average,
             lambda v, p=phase: setattr(p.CSDS, "average", v),
             _nested(raw, "CSDS_distribution", "properties"),
             "average_ref_info", default_bounds=(1.0, 200.0),
-        ),
-    ]
+        ))
     if phase.G >= 2:
         prob_props = _nested(raw, "probabilities", "properties")
         for i in range(phase.probabilities.n_independents):
+            if phase.probabilities.is_f_inherited(i):
+                continue
             out.append(Refinable(
                 "%s | F%d" % (phase.name, i + 1),
                 lambda p=phase, i=i: p.probabilities.f_value(i),

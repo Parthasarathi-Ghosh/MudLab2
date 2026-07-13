@@ -309,12 +309,41 @@ when a cell length / inheritance bug is reported.
   `tools/verify_linking.py` (108), `tools/verify_ucp.py` (61), plus the golden
   `verify_calc_engine` and `verify_roundtrip`.
 
-### Phase-level `based_on` inheritance (DEFERRED - purpose + implementation notes)
+### Phase-level `based_on` inheritance (IMPLEMENTED - model; UI pending)
 
-Deferred until a sample project exercises it (no fixture uses it yet, so it
-cannot be golden-verified); recorded here so the port is ready. Old sources:
-`phases/models/phase.py`, `phases/controllers/edit_phase_controller.py`,
+Old sources: `phases/models/phase.py`,
+`phases/controllers/edit_phase_controller.py`,
 `phases/controllers/component_controllers.py`.
+
+**This was a correctness BUG, not just a missing feature.** Until it was
+implemented, any project using phase inheritance computed WRONG patterns: the
+`Dh2040A 14Jul26 r1.mud` fixture's EG/400 specimens missed the old app's stored
+pattern (corr 0.83 / 0.97). With the read-through they match to floating point
+(corr 1.000000). `tools/verify_calc_engine.py` + `tools/verify_phase_inheritance.py`
+guard it. **The load-bearing part is the stacking probabilities**, not sigma*/CSDS:
+
+- `probabilities` are SEPARATE objects per phase carrying `inherit_F<i>` flags.
+  The child stores its OWN, usually STALE, `F<i>` and must read the parent's
+  (in the refined fixture: parent F1 = 0.17, children still store 0.8). W and P
+  are therefore derived on demand from the EFFECTIVE F (`R0Probability._weights`),
+  so a parent edit / refinement step propagates at once.
+- `CSDS_distribution` is a SHARED object (same uuid across the phases), so it is
+  already stored pre-resolved - which is why only F diverged.
+- `sigma_star` was unrefined (3.0 everywhere) in the fixture, so its
+  inheritance is untested by the golden pattern (the read-through is correct by
+  construction and covered by the propagation check).
+
+Implementation: `Phase.based_on` + `inherit_sigma_star` /
+`inherit_CSDS_distribution` / `inherit_display_color`, read-through via
+`Phase._resolved` (cycle-guarded) and `R0Probability.f_value`;
+`Phase.resolve_based_on` wires the child's probabilities to the parent's;
+`mud_project.load_mud` resolves it before the component links. **Serialisation
+writes OWN values** (`_sigma_star`, `_CSDS.average`, `own_f_params()`) so a
+child round-trips its stale stored F byte-identically. Inherited sigma* / CSDS /
+F are skipped as refinables (they follow the parent).
+
+STILL TO DO: the phase-editor UI (the disabled `phase_based_on` combo +
+`phase_inherit_*` checkboxes) - mirror the component-linking L2/L3 wiring.
 
 - **Purpose (domain):** model the *same clay under different treatments* -
   air-dried / ethylene-glycol / heated (350, 550 C). The treatments change the

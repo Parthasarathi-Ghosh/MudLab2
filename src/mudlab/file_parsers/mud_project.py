@@ -127,6 +127,14 @@ def load_mud(path: str) -> Project:
         if isinstance(phase_dict, dict) and phase_dict.get("type") == "Phase":
             project.add_phase(Phase.from_dict(phase_dict, atom_type_map))
 
+    # Resolve phase-level inheritance (old based_on): a treated phase
+    # (glycolated / heated) is based on a reference phase and inherits its
+    # treatment-independent parameters - crucially the stacking probabilities,
+    # whose F params the child stores stale and reads through to the parent.
+    phase_map = {p.uuid: p for p in project.phases}
+    for phase in project.phases:
+        phase.resolve_based_on(phase_map)
+
     # Resolve component links now that every phase's components exist. Linked
     # components are shared clay layers reused across phases (old linked_with):
     # a child reads its inherited cell / atoms / relations through to its

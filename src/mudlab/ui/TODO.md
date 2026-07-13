@@ -194,6 +194,27 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   editing recomputes + cascades (pn -> cell_b -> cell_a), and value/enabled/
   factor/constant survive a round-trip. Run after touching
   models/unit_cell_prop.py or the component cell a/b handling.
+- `tools/verify_phase_inheritance.py` guards PHASE-LEVEL `based_on` - based_on
+  resolves, an inherited stacking F reads the PARENT's value (the child's stored
+  F is stale), W/P follow, a parent edit propagates, inherited sigma*/CSDS/F are
+  skipped as refinables, and the child re-serialises its OWN stale F. Also
+  asserts a *discriminating* fixture exists (else the read-through could be
+  silently broken). Run after touching models/phase.py or models/probabilities.py.
+
+**Sample fixtures (2026-07-14):** `Dh2040A.mud` was withdrawn (faulty) and
+replaced by `Dh2040A 14Jul26.mud` + `Dh2040A 14Jul26 r1.mud`, which USE phase-level
+`based_on`. The `r1` (refined) one is the discriminating fixture - it is the only
+project where an inherited value differs from the child's stored one, and it
+exposed the phase-inheritance correctness bug.
+
+**KNOWN ISSUE - optimizer cold-start (pre-existing, unrelated to inheritance):**
+`tools/verify_optimizer.py` shows 2 failures on the new fixtures - from a
+perturbed start (scales -> 1, bg -> 0) L-BFGS-B lands in a worse local minimum
+than the old app's stored solution (64.14 vs 61.99; 33.81 vs 29.52). Proven NOT
+caused by the inheritance work (the unrefined fixture fails identically with and
+without it). Our single-start inner optimiser simply cannot recover that optimum
+from a cold start on these projects. Needs an optimiser-robustness fix (better
+initial scale/bg guess, or a multi-start) - tracked, not yet done.
 
 ## Recreated
 
