@@ -48,7 +48,7 @@ _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
 
 
 def _default_projects():
-    names = ["308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud"]
+    names = ["308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud", "Dh2040A 14Jul26 r2.mud"]
     projects = []
     for name in names:
         in_repo = os.path.join(_FIXTURES, name)

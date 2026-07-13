@@ -6,12 +6,16 @@ glycolated / heated phase is `based_on` an air-dried reference phase and
 inherits its treatment-independent parameters.
 
 This is load-bearing for the calculated pattern. The child stores its OWN -
-often stale - stacking F params but carries `inherit_F<i>` flags; the value
-that must be used is the PARENT's (in a refined project the parent's F is the
-refined one). Reading the child's stale value produces a visibly wrong pattern:
-before this was implemented, the refined fixture's EG/400 specimens missed the
-old app's stored pattern (corr 0.83 / 0.97); with it they match to floating
-point.
+often stale - stacking F params but carries `inherit_F<i>` flags; when a flag is
+set the value that must be used is the PARENT's. Reading the child's stale value
+produces a visibly wrong pattern: before this was implemented, the r1 fixture's
+EG/400 specimens missed the old app's stored pattern (corr 0.83 / 0.97); with it
+they match to floating point.
+
+Inheriting where you should NOT is just as wrong, so the fixtures pin both
+directions: `... r1.mud` keeps the links intact (a child must take the parent's
+F1=0.17 over its own stale 0.8), while `... r2.mud` unlinks per-flag (EG must use
+its OWN F1=0.3 and ignore the parent, while 350 still inherits).
 
 Checks per sample project:
 
@@ -54,7 +58,7 @@ _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
 
 def _default_projects():
     out = []
-    for name in ("308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud"):
+    for name in ("308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud", "Dh2040A 14Jul26 r2.mud"):
         in_repo = os.path.join(_FIXTURES, name)
         dl = os.path.join(os.path.expanduser("~"), "Downloads", name)
         out.append(in_repo if os.path.isfile(in_repo) else dl)

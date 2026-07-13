@@ -201,11 +201,18 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   asserts a *discriminating* fixture exists (else the read-through could be
   silently broken). Run after touching models/phase.py or models/probabilities.py.
 
-**Sample fixtures (2026-07-14):** `Dh2040A.mud` was withdrawn (faulty) and
-replaced by `Dh2040A 14Jul26.mud` + `Dh2040A 14Jul26 r1.mud`, which USE phase-level
-`based_on`. The `r1` (refined) one is the discriminating fixture - it is the only
-project where an inherited value differs from the child's stored one, and it
-exposed the phase-inheritance correctness bug.
+**Sample fixtures (2026-07-14).** `Dh2040A.mud` was withdrawn (faulty). The four
+in use, and what each is for:
+
+| Fixture | What it is | Why it matters |
+|---|---|---|
+| `308 r1.mud` | a normal project, after refinement | the long-standing baseline; no phase-level `based_on` (component linking only) |
+| `Dh2040A 14Jul26.mud` | phases + a mixture assigned; NO manual adjustments, not refined. The Illite phase is not required by the experimental data (fraction 0) | uses `based_on`, but every inherited value coincides with the child's stored one, so inheritance is INVISIBLE here - a "does it still load" case |
+| `Dh2040A 14Jul26 r1.mud` | same, with MANUAL phase-property adjustments, inheritance links left INTACT. Not refined | **discriminating (positive)**: parent F1 = 0.17 while the children still store a stale 0.8, so the read-through is observable. This is the file that exposed the phase-inheritance correctness bug |
+| `Dh2040A 14Jul26 r2.mud` | same manual adjustments, but inheritance intentionally UNLINKED (per-flag: EG's `inherit_F1` off, 350's left on) | **discriminating (negative + positive in one file)**: EG must use its OWN F1 = 0.3 and ignore the parent, while 350 must use the PARENT's 0.17 and ignore its stale 0.8. Catches inheritance being applied where it should NOT be |
+
+Together r1 + r2 pin the per-flag read-through in BOTH directions; a bug either
+way breaks the golden patterns.
 
 **KNOWN ISSUE - optimizer cold-start (pre-existing, unrelated to inheritance):**
 `tools/verify_optimizer.py` shows 2 failures on the new fixtures - from a

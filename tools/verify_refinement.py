@@ -45,7 +45,7 @@ _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
 
 def _default_projects():
     projects = []
-    for name in ("308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud"):
+    for name in ("308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud", "Dh2040A 14Jul26 r2.mud"):
         in_repo = os.path.join(_FIXTURES, name)
         downloads = os.path.join(os.path.expanduser("~"), "Downloads", name)
         projects.append(in_repo if os.path.isfile(in_repo) else downloads)

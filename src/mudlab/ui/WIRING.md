@@ -320,7 +320,12 @@ implemented, any project using phase inheritance computed WRONG patterns: the
 `Dh2040A 14Jul26 r1.mud` fixture's EG/400 specimens missed the old app's stored
 pattern (corr 0.83 / 0.97). With the read-through they match to floating point
 (corr 1.000000). `tools/verify_calc_engine.py` + `tools/verify_phase_inheritance.py`
-guard it. **The load-bearing part is the stacking probabilities**, not sigma*/CSDS:
+guard it, and the fixtures pin it in BOTH directions: **r1** keeps the links
+intact (a child must use the parent's F1=0.17 over its own stale 0.8), while
+**r2** unlinks per-flag (EG must use its OWN F1=0.3 and ignore the parent, while
+350 still inherits). Inheriting where you should not is as wrong as not
+inheriting - r2 catches that. **The load-bearing part is the stacking
+probabilities**, not sigma*/CSDS:
 
 - `probabilities` are SEPARATE objects per phase carrying `inherit_F<i>` flags.
   The child stores its OWN, usually STALE, `F<i>` and must read the parent's
