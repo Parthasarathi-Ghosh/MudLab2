@@ -16,8 +16,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
-    QFormLayout, QGridLayout, QGroupBox, QLabel,
-    QLineEdit, QSizePolicy, QVBoxLayout, QWidget)
+    QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QSizePolicy,
+    QVBoxLayout, QWidget)
 
 class Ui_EditComponentWidget(object):
     def setupUi(self, EditComponentWidget):
@@ -216,6 +217,45 @@ class Ui_EditComponentWidget(object):
 
         self.componentRootLayout.addWidget(self.grpInterlayerAtoms)
 
+        self.grpRelations = QGroupBox(EditComponentWidget)
+        self.grpRelations.setObjectName(u"grpRelations")
+        self.relationsRootLayout = QVBoxLayout(self.grpRelations)
+        self.relationsRootLayout.setObjectName(u"relationsRootLayout")
+        self.relationsBar = QHBoxLayout()
+        self.relationsBar.setObjectName(u"relationsBar")
+        self.cmb_relation = QComboBox(self.grpRelations)
+        self.cmb_relation.setObjectName(u"cmb_relation")
+
+        self.relationsBar.addWidget(self.cmb_relation)
+
+        self.btn_add_ratio = QPushButton(self.grpRelations)
+        self.btn_add_ratio.setObjectName(u"btn_add_ratio")
+
+        self.relationsBar.addWidget(self.btn_add_ratio)
+
+        self.btn_del_relation = QPushButton(self.grpRelations)
+        self.btn_del_relation.setObjectName(u"btn_del_relation")
+
+        self.relationsBar.addWidget(self.btn_del_relation)
+
+
+        self.relationsRootLayout.addLayout(self.relationsBar)
+
+        self.ratioLayout = QVBoxLayout()
+        self.ratioLayout.setObjectName(u"ratioLayout")
+
+        self.relationsRootLayout.addLayout(self.ratioLayout)
+
+        self.lblRelationInfo = QLabel(self.grpRelations)
+        self.lblRelationInfo.setObjectName(u"lblRelationInfo")
+        self.lblRelationInfo.setEnabled(False)
+        self.lblRelationInfo.setWordWrap(True)
+
+        self.relationsRootLayout.addWidget(self.lblRelationInfo)
+
+
+        self.componentRootLayout.addWidget(self.grpRelations)
+
 
         self.retranslateUi(EditComponentWidget)
 
@@ -264,6 +304,13 @@ class Ui_EditComponentWidget(object):
         self.component_inherit_atom_relations.setText(QCoreApplication.translate("EditComponentWidget", u"Atom relations", None))
         self.grpLayerAtoms.setTitle(QCoreApplication.translate("EditComponentWidget", u"Layer atoms", None))
         self.grpInterlayerAtoms.setTitle(QCoreApplication.translate("EditComponentWidget", u"Interlayer atoms", None))
+        self.grpRelations.setTitle(QCoreApplication.translate("EditComponentWidget", u"Atom relations", None))
+#if QT_CONFIG(tooltip)
+        self.cmb_relation.setToolTip(QCoreApplication.translate("EditComponentWidget", u"The atom relations of this component (ratios drive atom occupancies).", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_add_ratio.setText(QCoreApplication.translate("EditComponentWidget", u"Add ratio", None))
+        self.btn_del_relation.setText(QCoreApplication.translate("EditComponentWidget", u"Remove", None))
+        self.lblRelationInfo.setText("")
         pass
     # retranslateUi
 

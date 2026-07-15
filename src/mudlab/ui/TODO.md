@@ -330,9 +330,14 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   old app's pattern); `apply_atom_relations` runs only on an edit and then
   cascades pn -> cell_b -> cell_a (fixes the audit's atom-pn -> UCP gap).
   `atom_relations` is a read-through property (inherit_atom_relations). Harness:
-  tools/verify_relations.py (104 checks). **Batch 2b (UI, pending):** the
-  relations list in the component editor + the AtomRatio editor dialog
-  (ratio.ui); inherited relations read-only.
+  tools/verify_relations.py (104 checks). **Batch 2b (UI, DONE):** the component
+  editor's "Atom relations" group - a `cmb_relation` selector + Add ratio /
+  Remove + the embedded AtomRatioWidget (ratio.ui + ratio_widget.py: name,
+  enabled, atom1/atom2 combos, value, sum). Editing re-applies the relation
+  (sets the atoms' pn) and cascades pn -> cell_b -> cell_a + recomputes; the
+  atom lists refresh. AtomContents / chained relations are listed but not
+  editable yet (Batch 3); inherited relations are read-only. Also fixed the
+  audit's atom-pn -> UCP gap: `_on_atoms_changed` now calls `update_ucp_values`.
 - [ ] Edit Atom Contents dialog - phases/glade/contents.glade (modal)
 - [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
 

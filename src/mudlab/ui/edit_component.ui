@@ -283,6 +283,56 @@
      <layout class="QVBoxLayout" name="interlayerAtomsLayout"/>
     </widget>
    </item>
+   <item>
+    <widget class="QGroupBox" name="grpRelations">
+     <property name="title">
+      <string>Atom relations</string>
+     </property>
+     <layout class="QVBoxLayout" name="relationsRootLayout">
+      <item>
+       <layout class="QHBoxLayout" name="relationsBar">
+        <item>
+         <widget class="QComboBox" name="cmb_relation">
+          <property name="toolTip">
+           <string>The atom relations of this component (ratios drive atom occupancies).</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_add_ratio">
+          <property name="text">
+           <string>Add ratio</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_del_relation">
+          <property name="text">
+           <string>Remove</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="ratioLayout"/>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblRelationInfo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

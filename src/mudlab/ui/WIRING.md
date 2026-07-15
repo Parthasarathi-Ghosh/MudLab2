@@ -221,6 +221,17 @@ the CSDS component.
   (an atom-type combo from the project atom types) with Add/Remove. Editing
   a scalar or an atom recomputes the structure factor + pattern; atom edits
   also refresh the component weight / charge balance.
+- Atom relations group (Batch 2b, component_widget.py + ratio.ui/ratio_widget.py):
+  `cmb_relation` lists the component's relations; `btn_add_ratio` / `btn_del_relation`
+  add/remove. An **AtomRatio** (substitution: `atom1.pn = value*sum`,
+  `atom2.pn = (1-value)*sum`) is edited by the embedded `AtomRatioWidget`
+  (`ratio_name`, `ratio_enabled`, `ratio_atom1`/`ratio_atom2` combos over the
+  component's atoms, `ratio_value` 0-1, `ratio_sum`). An edit calls
+  `Component.apply_atom_relations` (sets the atoms' pn, then `update_ucp_values`
+  so cell_b/cell_a follow), refreshes the atom lists + derived read-outs and
+  recomputes. AtomContents / chained (relation-to-relation) entries are listed
+  but not editable yet (Batch 3); inherited relations (inherit_atom_relations)
+  are read-only.
 - Component linking (Batch L1 model + Batch L2 editor): a Component can be
   linked to a template component in another phase (`linked_with` + eight
   `inherit_*` flags on `models/component.py`) - the same clay layer reused
@@ -277,15 +288,11 @@ when a cell length / inheritance bug is reported.
   edit to *either* cell can shift a cell the user did not directly touch - this
   is expected recompute-on-edit, not a bug. Editing cell_b's constant also moves
   cell_a (a = factor*b): also expected (cascade), not a bug.
-- **GAP: atom-pn edits do NOT recompute derived cell lengths.**
-  `component_widget._on_atoms_changed` recomputes the structure factor + pattern
-  but does not call `update_ucp_values`. So editing an octahedral cation's `pn`
-  leaves a `b = k*pn + const` UCP (and the `a = f*b` after it) stale until a UCP
-  field is touched. The old app recomputes UCPs on any atom change
-  (`Component._on_data_model_changed -> _update_ucp_values`). FIX WHEN WIRING
-  ATOM RELATIONS (Batch 2): call `self._component.update_ucp_values()` + refresh
-  both UCP widgets in `_on_atoms_changed`. The cascade itself works (verified:
-  pn +0.2 -> cell_b 0.90215 -> 0.90301 after update_ucp_values).
+- **atom-pn edits recompute derived cell lengths (FIXED in Batch 2b).**
+  `component_widget._on_atoms_changed` now calls `update_ucp_values` and refreshes
+  the UCP widgets, so editing an octahedral cation's `pn` moves a `b = k*pn`
+  UCP (and the `a = f*b` after it). Editing an AtomRatio does the same via
+  `apply_atom_relations` (which applies the relation then `update_ucp_values`).
 - **UCP `prop` resolves against a global {uuid: object} map.** Shared atoms
   (same uuid across linked components) collide there - last loaded wins. For
   standalone components the prop resolves to their own atom (verified for

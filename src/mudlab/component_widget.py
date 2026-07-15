@@ -10,6 +10,12 @@ Cell lengths a/b are edited by embedded UnitCellPropWidgets (Batch 1b): each
 is fixed (a typed value) or derived (factor x property + constant); editing
 recomputes the derived values (cell_b can feed cell_a) and the pattern.
 
+The Atom relations group (Batch 2b) lists the component's relations; an
+AtomRatio (substitution between two atoms) is edited by an embedded
+AtomRatioWidget - editing re-applies the relation (setting the atoms' pn) and
+cascades to the derived cell lengths + pattern. AtomContents / chained
+relations are shown but edited later; inherited relations are read-only.
+
 Plugged into the Edit Phases > Components tab and bound to the phase's
 Component models; editing a scalar recomputes the structure factor and,
 via the phase editor's callback, the calculated pattern.
@@ -30,6 +36,8 @@ from typing import Callable
 from PySide6.QtWidgets import QWidget
 
 from mudlab.atom_list_widget import AtomListWidget
+from mudlab.models.atom_relations import AtomRatio
+from mudlab.ratio_widget import AtomRatioWidget
 from mudlab.ucp_widget import UnitCellPropWidget
 from mudlab.ui.ui_edit_component import Ui_EditComponentWidget
 
@@ -59,6 +67,13 @@ class EditComponentWidget(QWidget):
         self.ui.layerAtomsLayout.addWidget(self.layer_atoms_widget)
         self.interlayer_atoms_widget = AtomListWidget(self)
         self.ui.interlayerAtomsLayout.addWidget(self.interlayer_atoms_widget)
+
+        # The Atom relations group: a relation selector + the AtomRatio editor.
+        self.ratio_widget = AtomRatioWidget(self)
+        self.ui.ratioLayout.addWidget(self.ratio_widget)
+        self.ui.cmb_relation.currentIndexChanged.connect(self._on_relation_selected)
+        self.ui.btn_add_ratio.clicked.connect(self._on_add_ratio)
+        self.ui.btn_del_relation.clicked.connect(self._on_del_relation)
 
         self.ui.cmb_component.currentIndexChanged.connect(self._on_component_selected)
         self.ui.component_name.editingFinished.connect(self._on_name_edited)
@@ -157,6 +172,7 @@ class EditComponentWidget(QWidget):
             comp.interlayer_atoms, self._atom_types, on_changed=self._on_atoms_changed
         )
         self._bind_linking(comp)
+        self._bind_relations(comp)
         self._refresh_derived()
 
     def _on_ucp_changed(self) -> None:
@@ -172,8 +188,119 @@ class EditComponentWidget(QWidget):
         self._notify()
 
     def _on_atoms_changed(self) -> None:
-        # An atom edit changes weight / charge balance; refresh them and
-        # recompute the pattern.
+        # An atom edit changes weight / charge balance; a pn edit may also drive
+        # a derived cell length (cell_b = k*pn), so recompute the UCPs too.
+        if self._component is not None:
+            self._component.update_ucp_values()
+            self.ucp_a_widget.refresh_value()
+            self.ucp_b_widget.refresh_value()
+        self._refresh_derived()
+        self._notify()
+
+    # ------------------------------------------------------------------
+    # Atom relations (AtomRatio) - drive atom occupancies
+    # ------------------------------------------------------------------
+    def _bind_relations(self, comp) -> None:
+        """Fill the relation selector and bind the editor for the current one.
+        Ratios drive atom pn; AtomContents / chained relations are shown but
+        edited in a later batch. Inherited relations are read-only."""
+        inherited = comp.is_inherited("atom_relations")
+        self._updating = True
+        try:
+            combo = self.ui.cmb_relation
+            combo.clear()
+            for r in comp.atom_relations:  # read-through (template's when inherited)
+                name = getattr(r, "name", None)
+                if name is None and isinstance(r, dict):
+                    name = r.get("properties", {}).get("name")
+                rtype = getattr(r, "type", None) or (
+                    r.get("type") if isinstance(r, dict) else "?"
+                )
+                combo.addItem("%s  [%s]" % (name or "relation", rtype), r)
+        finally:
+            self._updating = False
+        self.ui.btn_add_ratio.setEnabled(not inherited)
+        self.ui.btn_del_relation.setEnabled(not inherited and combo.count() > 0)
+        self._bind_selected_relation()
+
+    def _bind_selected_relation(self) -> None:
+        comp = self._component
+        if comp is None:
+            return
+        inherited = comp.is_inherited("atom_relations")
+        relation = self.ui.cmb_relation.currentData()
+        atoms = list(comp.layer_atoms) + list(comp.interlayer_atoms)
+        if isinstance(relation, AtomRatio):
+            self.ratio_widget.setVisible(True)
+            self.ratio_widget.bind_ratio(relation, atoms, on_changed=self._on_ratio_changed)
+            self.ratio_widget.setEnabled(not inherited)
+            self.ui.lblRelationInfo.setText(
+                "Inherited from the linked component (read-only)." if inherited else ""
+            )
+        else:
+            self.ratio_widget.bind_ratio(None, [])
+            self.ratio_widget.setVisible(False)
+            rtype = relation.get("type") if isinstance(relation, dict) else None
+            self.ui.lblRelationInfo.setText(
+                "%s is edited in a later batch." % rtype if rtype else ""
+            )
+
+    def _on_relation_selected(self, _index: int) -> None:
+        if not self._updating:
+            self._bind_selected_relation()
+
+    def _on_add_ratio(self) -> None:
+        comp = self._component
+        if comp is None or comp.is_inherited("atom_relations"):
+            return
+        comp._atom_relations.append(
+            AtomRatio(name="New ratio", value=0.5, sum=1.0, enabled=True)
+        )
+        self._bind_relations(comp)
+        self.ui.cmb_relation.setCurrentIndex(self.ui.cmb_relation.count() - 1)
+
+    def _on_del_relation(self) -> None:
+        comp = self._component
+        if comp is None or comp.is_inherited("atom_relations"):
+            return
+        relation = self.ui.cmb_relation.currentData()
+        if relation in comp._atom_relations:
+            comp._atom_relations.remove(relation)
+            comp.apply_atom_relations()
+            self._bind_relations(comp)
+            self._refresh_after_relation_edit()
+
+    def _on_ratio_changed(self) -> None:
+        comp = self._component
+        if comp is None:
+            return
+        comp.apply_atom_relations()  # set the atoms' pn + cascade to cell_b/cell_a
+        # keep the selector label in step with a renamed ratio
+        relation = self.ui.cmb_relation.currentData()
+        if isinstance(relation, AtomRatio):
+            self._updating = True
+            try:
+                self.ui.cmb_relation.setItemText(
+                    self.ui.cmb_relation.currentIndex(),
+                    "%s  [AtomRatio]" % (relation.name or "relation"),
+                )
+            finally:
+                self._updating = False
+        self._refresh_after_relation_edit()
+
+    def _refresh_after_relation_edit(self) -> None:
+        comp = self._component
+        if comp is None:
+            return
+        # atom pn changed -> refresh the atom lists; the cell may have moved.
+        self.layer_atoms_widget.bind_atoms(
+            comp.layer_atoms, self._atom_types, on_changed=self._on_atoms_changed
+        )
+        self.interlayer_atoms_widget.bind_atoms(
+            comp.interlayer_atoms, self._atom_types, on_changed=self._on_atoms_changed
+        )
+        self.ucp_a_widget.refresh_value()
+        self.ucp_b_widget.refresh_value()
         self._refresh_derived()
         self._notify()
 
