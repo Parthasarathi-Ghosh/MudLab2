@@ -151,6 +151,28 @@ def check_cascade(project, results):
     results.append(("4 cascade exercised", done))
 
 
+def check_own_identity(project, results):
+    """I. A resolved relation atom is the OWNING component's OWN atom object,
+    not a shared copy with the same uuid. Linked components share atom uuids and
+    each loads its own copy, so if a relation resolved to another component's
+    copy an edit would update the wrong object and the calc would not see it."""
+    checked = 0
+    for phase in project.phases:
+        for comp in phase.components:
+            own = set(id(a) for a in comp._layer_atoms + comp._interlayer_atoms)
+            for r in comp._atom_relations:
+                atoms = []
+                if isinstance(r, AtomRatio):
+                    atoms = [t[0] for t in (r.atom1, r.atom2) if t and t[0] is not None]
+                elif isinstance(r, AtomContents):
+                    atoms = [row.atom for row in r.atom_rows if row.atom is not None]
+                for a in atoms:
+                    results.append(("I %s.%s atom is own object" % (comp.name, r.name),
+                                    id(a) in own))
+                    checked += 1
+    results.append(("I own-atom identity exercised", checked > 0))
+
+
 def _comps_with_contents(project):
     for phase in project.phases:
         for comp in phase.components:
@@ -253,6 +275,7 @@ def run(path):
     check_apply_on_edit(project, results)
     check_cascade(project, results)
     check_contents(project, results)
+    check_own_identity(project, results)
     check_roundtrip(path, results)
     passed = sum(1 for _l, ok in results if ok)
     for label, ok in results:

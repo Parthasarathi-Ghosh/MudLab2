@@ -316,8 +316,49 @@ when a cell length / inheritance bug is reported.
   `Component.to_dict` writes `_d001`/`_ucp_a.value`/own atom lists (never the
   inherited values), and `UnitCellProperty.to_dict` keeps `prop` verbatim
   unless the editor set the dirty flag. Regression guards:
-  `tools/verify_linking.py` (108), `tools/verify_ucp.py` (61), plus the golden
+  `tools/verify_linking.py`, `tools/verify_ucp.py`, plus the golden
   `verify_calc_engine` and `verify_roundtrip`.
+
+### Audit notes: phase inheritance, atom relations, optimizer (2026-07-16)
+
+- **FIXED - shared-atom identity in relation / UCP resolution.** Linked
+  components share atom uuids and each loads its OWN copy. The load-time
+  resolution used a project-wide `atom_map` (last-loaded wins), so a relation /
+  UCP prop could resolve to a DIFFERENT component's copy than the one the owner's
+  calc iterates. Editing such a relation then updated the wrong object and the
+  pattern did not change. Fix (`mud_project.load_mud`): resolve each UCP prop /
+  relation atom against the component's OWN atoms first, then the global map.
+  Guard: `verify_relations.py` "own-atom identity" check + `verify_ucp`. Keep
+  this precedence if that resolution is ever refactored.
+- **Chaining relations are NOT applied.** A relation whose target is another
+  relation (`atom1`/`atom2` or an AtomContents row with `prop` = "value" /
+  "__internal_sum__") is preserved + round-trips but is skipped on apply and not
+  shown in the editors. Editing the chain SOURCE does not propagate to the
+  driven relation (the old app's `driven_by_other` machinery is not ported).
+  Low impact: the samples' chained relations only affect the calc through their
+  already-applied stored pn, which is kept.
+- **Overlapping relations apply in list order (last wins).** If two relations
+  drove the same atom, order would matter; the samples have zero overlap
+  (checked). The old app's conflict resolution is not ported.
+- **Inherited relations propagate through the atom read-through, not apply.** A
+  child that inherits `atom_relations` keeps its own (stub) relations; editing
+  is disabled. Because it also inherits `layer_atoms`, its calc reads the
+  TEMPLATE's atoms, so editing the template's relation (which updates the
+  template's own atoms) is reflected in the child - correct once the identity
+  fix above is in place.
+- **`inherit_display_color` is carried but inert** (the phase display colour is
+  a visuals-only property not modeled yet); only `sigma_star` / `CSDS` /
+  probability `F` read through at the phase level.
+- **Probability F read-through follows the phase `based_on` chain**, which is
+  cycle-guarded at resolve time, so `R0Probability.f_value`'s recursion cannot
+  loop even though it has no guard of its own.
+- **Optimizer multi-start is standalone-only.** `Mixture.optimize` uses
+  `n_starts=4` (exact-current + least-squares scale/bg + random-fraction
+  restarts, deterministic seed); the refinement inner loop calls
+  `optimize_mixture` with `n_starts=1` (unchanged, fast). The LS warm start
+  assumes the calc is linear in scale + bg-shift (it is: `scale*signal +
+  bgshift*correction`). Never regress the `n_starts=1` path or refinement slows
+  ~4x. Guard: `verify_optimizer` (cold-start recovery) + `verify_refinement`.
 
 ### Phase-level `based_on` inheritance (IMPLEMENTED - model; UI pending)
 

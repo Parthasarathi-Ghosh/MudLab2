@@ -155,10 +155,16 @@ def load_mud(path: str) -> Project:
     object_map = {**component_map, **atom_map}
     for phase in project.phases:
         for comp in phase.components:
-            comp.resolve_ucp_props(object_map)
-            # Atom relations (AtomRatio) reference atoms by uuid. Resolve only;
-            # they are NOT applied (the stored pn is kept - golden-safe).
-            comp.resolve_relations(atom_map)
+            # Resolve a UCP prop / relation atom against THIS component's OWN
+            # atoms first, then the project-wide map. Linked components share
+            # atom uuids, so the global map (last-loaded wins) can otherwise
+            # resolve to a different copy than the one the component's calc
+            # iterates - which would make an edit update the wrong object.
+            own = {a.uuid: a for a in comp._layer_atoms + comp._interlayer_atoms}
+            comp.resolve_ucp_props({**object_map, **own})
+            # Atom relations reference atoms by uuid. Resolve only; they are NOT
+            # applied on load (the stored pn is kept - golden-safe).
+            comp.resolve_relations({**atom_map, **own})
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})
