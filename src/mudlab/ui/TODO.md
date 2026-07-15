@@ -194,10 +194,10 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   editing recomputes + cascades (pn -> cell_b -> cell_a), and value/enabled/
   factor/constant survive a round-trip. Run after touching
   models/unit_cell_prop.py or the component cell a/b handling.
-- `tools/verify_relations.py` guards ATOM RELATIONS (AtomRatio) - the atom refs
-  resolve, the stored pn is kept on load (not applied - golden-safe), editing a
-  ratio re-derives the atoms' pn and cascades to cell_b -> cell_a, and the
-  AtomRatio fields survive a round-trip (AtomContents kept verbatim). Run after
+- `tools/verify_relations.py` guards ATOM RELATIONS (AtomRatio + AtomContents) -
+  the atom refs resolve, the stored pn is kept on load (not applied -
+  golden-safe), editing a relation re-derives the atoms' pn and cascades to
+  cell_b -> cell_a, and the relation fields survive a round-trip. Run after
   touching models/atom_relations.py or the component relation handling.
 - `tools/verify_phase_inheritance.py` guards PHASE-LEVEL `based_on` - based_on
   resolves, an inherited stacking F reads the PARENT's value (the child's stored
@@ -338,7 +338,16 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   atom lists refresh. AtomContents / chained relations are listed but not
   editable yet (Batch 3); inherited relations are read-only. Also fixed the
   audit's atom-pn -> UCP gap: `_on_atoms_changed` now calls `update_ucp_values`.
-- [ ] Edit Atom Contents dialog - phases/glade/contents.glade (modal)
+- [x] Edit Atom Contents dialog - phases/glade/contents.glade. **Batch 3:**
+  AtomContents (models/atom_relations.py: AtomContents + AtomContent rows) scales
+  a set of atoms by one value - `atom.pn = amount*value` per row (interlayer K /
+  Ca / H2O content). Modeled + golden-safe (resolved but not applied on load).
+  Editor: contents.ui + contents_widget.py (name, enabled, value + a table of
+  atom/amount rows with Add/Remove), embedded in the component editor's Atom
+  relations group next to the AtomRatio editor (one shown per selected relation;
+  "Add contents" button). Editing re-applies + cascades pn -> cell_b -> cell_a.
+  Chained rows (`prop` = "value"/"__internal_sum__") are preserved but not
+  listed; inherited relations read-only. Harness: verify_relations.py extended.
 - [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
 
 ### Markers (done - editors)

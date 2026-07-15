@@ -306,6 +306,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="btn_add_contents">
+          <property name="text">
+           <string>Add contents</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="btn_del_relation">
           <property name="text">
            <string>Remove</string>

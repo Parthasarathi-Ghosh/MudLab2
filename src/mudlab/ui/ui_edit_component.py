@@ -233,6 +233,11 @@ class Ui_EditComponentWidget(object):
 
         self.relationsBar.addWidget(self.btn_add_ratio)
 
+        self.btn_add_contents = QPushButton(self.grpRelations)
+        self.btn_add_contents.setObjectName(u"btn_add_contents")
+
+        self.relationsBar.addWidget(self.btn_add_contents)
+
         self.btn_del_relation = QPushButton(self.grpRelations)
         self.btn_del_relation.setObjectName(u"btn_del_relation")
 
@@ -309,6 +314,7 @@ class Ui_EditComponentWidget(object):
         self.cmb_relation.setToolTip(QCoreApplication.translate("EditComponentWidget", u"The atom relations of this component (ratios drive atom occupancies).", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_add_ratio.setText(QCoreApplication.translate("EditComponentWidget", u"Add ratio", None))
+        self.btn_add_contents.setText(QCoreApplication.translate("EditComponentWidget", u"Add contents", None))
         self.btn_del_relation.setText(QCoreApplication.translate("EditComponentWidget", u"Remove", None))
         self.lblRelationInfo.setText("")
         pass

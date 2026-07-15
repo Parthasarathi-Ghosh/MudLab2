@@ -229,9 +229,12 @@ the CSDS component.
   component's atoms, `ratio_value` 0-1, `ratio_sum`). An edit calls
   `Component.apply_atom_relations` (sets the atoms' pn, then `update_ucp_values`
   so cell_b/cell_a follow), refreshes the atom lists + derived read-outs and
-  recomputes. AtomContents / chained (relation-to-relation) entries are listed
-  but not editable yet (Batch 3); inherited relations (inherit_atom_relations)
-  are read-only.
+  recomputes. An **AtomContents** (Batch 3, contents.ui/contents_widget.py:
+  name, enabled, value + a table of atom/amount rows, `atom.pn = amount*value`)
+  is edited the same way ("Add contents" button; the ratio / contents editor is
+  shown per the selected relation's type). Chained (relation-to-relation)
+  entries are listed but not editable yet; inherited relations
+  (inherit_atom_relations) are read-only.
 - Component linking (Batch L1 model + Batch L2 editor): a Component can be
   linked to a template component in another phase (`linked_with` + eight
   `inherit_*` flags on `models/component.py`) - the same clay layer reused

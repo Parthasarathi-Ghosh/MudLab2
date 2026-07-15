@@ -33,7 +33,7 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from mudlab.file_parsers.mud_project import load_mud, save_mud  # noqa: E402
-from mudlab.models.atom_relations import AtomRatio  # noqa: E402
+from mudlab.models.atom_relations import AtomContents, AtomRatio  # noqa: E402
 
 _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
 
@@ -151,6 +151,62 @@ def check_cascade(project, results):
     results.append(("4 cascade exercised", done))
 
 
+def _comps_with_contents(project):
+    for phase in project.phases:
+        for comp in phase.components:
+            cs = [r for r in comp._atom_relations if isinstance(r, AtomContents)]
+            if cs:
+                yield comp, cs
+
+
+def _contents_state(project):
+    out = {}
+    for phase in project.phases:
+        for comp in phase.components:
+            for r in comp._atom_relations:
+                if isinstance(r, AtomContents):
+                    out[r.uuid] = (r.value, r.enabled, tuple(
+                        (row.atom.uuid if row.atom is not None else row._ref,
+                         row.prop, row.amount)
+                        for row in r.atom_contents
+                    ))
+    return out
+
+
+def check_contents(project, results):
+    """C. AtomContents: golden-safe (stored pn = amount*value) + apply on edit."""
+    n = 0
+    for comp, cs in _comps_with_contents(project):
+        for c in cs:
+            for row in c.atom_rows:
+                if row.atom is not None:
+                    ok = abs(row.atom.pn - row.amount * c.value) < 1e-6
+                    results.append(("C %s.%s row pn consistent" % (comp.name, c.name), ok))
+                    n += 1
+    results.append(("C modeled AtomContents rows exist", n > 0))
+    # apply on edit
+    done = False
+    for comp, cs in _comps_with_contents(project):
+        for c in cs:
+            rows = [r for r in c.atom_rows if r.atom is not None]
+            if not rows:
+                continue
+            v0 = c.value
+            saved = [(r, r.atom.pn) for r in rows]
+            c.value = 0.7
+            c.apply_relation()
+            ok = all(abs(r.atom.pn - r.amount * 0.7) < 1e-9 for r in rows)
+            results.append(("C %s.%s applies amount*value" % (comp.name, c.name), ok))
+            c.value = v0
+            for r, pn in saved:
+                r.atom.pn = pn
+            done = True
+            break
+        if done:
+            break
+    results.append(("C apply-on-edit exercised", done))
+
+
 def check_roundtrip(path, results):
     """5. AtomRatio fields survive; other relation types stay verbatim."""
     project = load_mud(path)
@@ -177,13 +233,9 @@ def check_roundtrip(path, results):
         results.append(("5 same AtomRatio count", len(after) == len(before)))
         ok = all(after.get(k) == v for k, v in before.items())
         results.append(("5 AtomRatio fields survive", ok))
-        # AtomContents (opaque) entries preserved verbatim
-        def contents(proj):
-            return [r for ph in proj.phases for c in ph.components
-                    for r in c._atom_relations
-                    if isinstance(r, dict) and r.get("type") == "AtomContents"]
-        results.append(("5 AtomContents kept verbatim",
-                        contents(project) == contents(reloaded)))
+        # AtomContents are now modeled: their value/enabled/rows must round-trip.
+        results.append(("5 AtomContents round-trip",
+                        _contents_state(project) == _contents_state(reloaded)))
     finally:
         for p in (tmp, tmp + "~"):
             if os.path.exists(p):
@@ -200,6 +252,7 @@ def run(path):
     check_golden_safe(project, results)
     check_apply_on_edit(project, results)
     check_cascade(project, results)
+    check_contents(project, results)
     check_roundtrip(path, results)
     passed = sum(1 for _l, ok in results if ok)
     for label, ok in results:

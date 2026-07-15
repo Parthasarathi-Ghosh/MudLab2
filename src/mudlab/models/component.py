@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import uuid as _uuid
 
-from mudlab.models.atom_relations import AtomRatio
+from mudlab.models.atom_relations import AtomContents, AtomRatio
 from mudlab.models.unit_cell_prop import UnitCellProperty
 
 
@@ -430,10 +430,12 @@ class Component:
             for a in (props.get("interlayer_atoms") or [])
             if isinstance(a, dict)
         ]
-        # Atom relations: model AtomRatio; keep any other type (AtomContents
-        # until Batch 3) as a verbatim dict so it round-trips untouched.
+        # Atom relations: model AtomRatio + AtomContents; keep any other type
+        # as a verbatim dict so it round-trips untouched.
+        _rel_models = {"AtomRatio": AtomRatio, "AtomContents": AtomContents}
         comp._atom_relations = [
-            AtomRatio.from_dict(r) if isinstance(r, dict) and r.get("type") == "AtomRatio"
+            _rel_models[r["type"]].from_dict(r)
+            if isinstance(r, dict) and r.get("type") in _rel_models
             else r
             for r in (props.get("atom_relations") or [])
         ]
