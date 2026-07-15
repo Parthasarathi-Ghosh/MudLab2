@@ -194,6 +194,11 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   editing recomputes + cascades (pn -> cell_b -> cell_a), and value/enabled/
   factor/constant survive a round-trip. Run after touching
   models/unit_cell_prop.py or the component cell a/b handling.
+- `tools/verify_relations.py` guards ATOM RELATIONS (AtomRatio) - the atom refs
+  resolve, the stored pn is kept on load (not applied - golden-safe), editing a
+  ratio re-derives the atoms' pn and cascades to cell_b -> cell_a, and the
+  AtomRatio fields survive a round-trip (AtomContents kept verbatim). Run after
+  touching models/atom_relations.py or the component relation handling.
 - `tools/verify_phase_inheritance.py` guards PHASE-LEVEL `based_on` - based_on
   resolves, an inherited stacking F reads the PARENT's value (the child's stored
   F is stale), W/P follow, a parent edit propagates, inherited sigma*/CSDS/F are
@@ -315,7 +320,19 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   safe); inherited cell a/b disable the widget (via L2's is_inherited).
 - [x] Layer / interlayer atom lists - atom_list.ui + atom_list_widget.py
   (name/Def.Z/pn + element combo + add/remove). Old: phases/glade/layer.glade.
-- [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal)
+- [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal). **Batch 2a
+  (model, DONE):** AtomRatio (models/atom_relations.py) splits an occupancy
+  between two atoms - `atom1.pn = value*sum`, `atom2.pn = (1-value)*sum` (the
+  OctFe octahedral Fe/Mg substitution). The component holds a modeled
+  `_atom_relations` list (AtomRatio objects; AtomContents + relation-to-relation
+  chaining entries kept VERBATIM until Batch 3). Golden-safe: relations resolve
+  by uuid but are NOT applied on load (the stored pn is kept and reproduces the
+  old app's pattern); `apply_atom_relations` runs only on an edit and then
+  cascades pn -> cell_b -> cell_a (fixes the audit's atom-pn -> UCP gap).
+  `atom_relations` is a read-through property (inherit_atom_relations). Harness:
+  tools/verify_relations.py (104 checks). **Batch 2b (UI, pending):** the
+  relations list in the component editor + the AtomRatio editor dialog
+  (ratio.ui); inherited relations read-only.
 - [ ] Edit Atom Contents dialog - phases/glade/contents.glade (modal)
 - [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
 

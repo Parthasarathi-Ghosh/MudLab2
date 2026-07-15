@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import uuid as _uuid
 
+from mudlab.models.atom_relations import AtomRatio
 from mudlab.models.unit_cell_prop import UnitCellProperty
 
 
@@ -101,6 +102,7 @@ class Component:
         "lattice_d": "inherit_layer_atoms",
         "layer_atoms": "inherit_layer_atoms",
         "interlayer_atoms": "inherit_interlayer_atoms",
+        "atom_relations": "inherit_atom_relations",
     }
 
     def __init__(self, name: str = "") -> None:
@@ -132,9 +134,13 @@ class Component:
         self._ucp_b = UnitCellProperty(name="cell length b")
         self._layer_atoms: list[Atom] = []
         self._interlayer_atoms: list[Atom] = []
+        # Atom relations (AtomRatio objects; AtomContents + any other type kept
+        # as verbatim dicts until Batch 3). They derive atom pn values; applied
+        # only on an edit (the stored pn is used on load - golden-safe).
+        self._atom_relations: list = []
         # Full .mud component dict kept verbatim so unmodeled fields (ucp_a/b,
-        # atom_relations, ref_info, the inlined linked_with copy, and - until
-        # they are wired - the atoms) survive a round-trip.
+        # ref_info, the inlined linked_with copy, and unmodeled relations)
+        # survive a round-trip.
         self.raw_properties: dict = {}
 
     # ------------------------------------------------------------------
@@ -186,6 +192,34 @@ class Component:
         from an atom pn and cell_a from cell_b, so update b before a."""
         self._ucp_b.update_value()
         self._ucp_a.update_value()
+
+    # -- atom relations (derive atom pn) --------------------------------
+    @property
+    def atom_relations(self) -> list:
+        return self._resolved_own("atom_relations")
+
+    @atom_relations.setter
+    def atom_relations(self, value) -> None:
+        self._atom_relations = value
+
+    def resolve_relations(self, atom_map: dict) -> None:
+        """Resolve the modeled relations' atom references against a {uuid: Atom}
+        map (call once every atom exists). Does NOT apply them - the stored pn
+        is kept for golden-calc fidelity."""
+        for relation in self._atom_relations:
+            resolve = getattr(relation, "resolve", None)
+            if callable(resolve):
+                resolve(atom_map)
+
+    def apply_atom_relations(self) -> None:
+        """Re-apply the modeled relations in order (setting their atoms' pn),
+        then recompute the derived cell lengths (a pn may drive cell_b). Called
+        after a relation edit, not on load."""
+        for relation in self._atom_relations:
+            apply = getattr(relation, "apply_relation", None)
+            if callable(apply):
+                apply()
+        self.update_ucp_values()
 
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` currently reads through to a linked template (so it
@@ -353,6 +387,10 @@ class Component:
         # UCP objects; unedited they reproduce the raw dicts byte-for-byte.
         props["ucp_a"] = self._ucp_a.to_dict()
         props["ucp_b"] = self._ucp_b.to_dict()
+        # Atom relations: AtomRatio via to_dict, other types verbatim.
+        props["atom_relations"] = [
+            r.to_dict() if hasattr(r, "to_dict") else r for r in self._atom_relations
+        ]
         # Component linking: the eight inherit flags + the template uuid. The
         # inlined linked_with copy (if present) stays verbatim in props.
         props["inherit_ucp_a"] = self.inherit_ucp_a
@@ -391,6 +429,13 @@ class Component:
             Atom.from_dict(a, atom_type_map)
             for a in (props.get("interlayer_atoms") or [])
             if isinstance(a, dict)
+        ]
+        # Atom relations: model AtomRatio; keep any other type (AtomContents
+        # until Batch 3) as a verbatim dict so it round-trips untouched.
+        comp._atom_relations = [
+            AtomRatio.from_dict(r) if isinstance(r, dict) and r.get("type") == "AtomRatio"
+            else r
+            for r in (props.get("atom_relations") or [])
         ]
         # Component-linking state. linked_with is resolved later (once every
         # phase's components exist); the flags gate the read-through overlay.

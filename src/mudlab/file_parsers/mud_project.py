@@ -156,6 +156,9 @@ def load_mud(path: str) -> Project:
     for phase in project.phases:
         for comp in phase.components:
             comp.resolve_ucp_props(object_map)
+            # Atom relations (AtomRatio) reference atoms by uuid. Resolve only;
+            # they are NOT applied (the stored pn is kept - golden-safe).
+            comp.resolve_relations(atom_map)
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})
