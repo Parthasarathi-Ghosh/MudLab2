@@ -214,14 +214,19 @@ in use, and what each is for:
 Together r1 + r2 pin the per-flag read-through in BOTH directions; a bug either
 way breaks the golden patterns.
 
-**KNOWN ISSUE - optimizer cold-start (pre-existing, unrelated to inheritance):**
-`tools/verify_optimizer.py` shows 2 failures on the new fixtures - from a
-perturbed start (scales -> 1, bg -> 0) L-BFGS-B lands in a worse local minimum
-than the old app's stored solution (64.14 vs 61.99; 33.81 vs 29.52). Proven NOT
-caused by the inheritance work (the unrefined fixture fails identically with and
-without it). Our single-start inner optimiser simply cannot recover that optimum
-from a cold start on these projects. Needs an optimiser-robustness fix (better
-initial scale/bg guess, or a multi-start) - tracked, not yet done.
+**Optimizer cold-start robustness (FIXED 2026-07-16).** The standalone mixture
+Optimise is now a **multi-start** search (`optimize_mixture(mixture, n_starts)`;
+`Mixture.optimize` defaults to `n_starts=4`): start 1 is the exact current
+solution (so the result never worsens), start 2 is a least-squares scale/bg warm
+start (obs ~= scale*signal + bgshift*correction is a 2-param linear fit for the
+current fractions), and the rest are random-fraction restarts (deterministic
+seed), keeping the best. This recovers <= the stored optimum on all four
+fixtures from a cold start (was 2 failures). Diagnosis en route: the unrefined
+`Dh2040A 14Jul26.mud`'s stored solution is itself SUBOPTIMAL (we now reach ~59.8
+vs its stored 61.99). The structural-refinement inner loop still calls
+`optimize_mixture` with the single-start fast path (`n_starts=1`, unchanged), so
+refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
+`tools/verify_optimizer.py` 32/32.
 
 ## Recreated
 

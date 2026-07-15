@@ -69,13 +69,19 @@ class Mixture:
 
         return get_current_residual(self)
 
-    def optimize(self) -> float:
+    def optimize(self, n_starts: int = 4) -> float:
         """Refine fractions / scales / background shifts to minimise the mean
         Rp residual (L-BFGS-B), then recompute the stored patterns. Returns
-        the achieved residual."""
+        the achieved residual.
+
+        Uses a multi-start search (least-squares scale/bg warm start + random-
+        fraction restarts) so the standalone Optimise is robust to a poor
+        starting point; the first start is the current solution, so the result
+        is never worse. The structural refinement inner loop calls
+        `optimize_mixture` directly with the single-start fast path."""
         from mudlab.calculations.mixture import optimize_mixture
 
-        residual = optimize_mixture(self)
+        residual = optimize_mixture(self, n_starts=n_starts)
         self.calculate()
         return residual
 

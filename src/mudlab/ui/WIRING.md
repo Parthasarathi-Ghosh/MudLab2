@@ -444,6 +444,12 @@ modeless by `actionEditMixtures`.
   fails loud; this is the only safety net). On success it re-populates the
   matrix with the refined solution and updates the `lbl_residual`
   "Residual (Rp)" label (also shown on bind via `Mixture.current_residual`).
+  `Mixture.optimize` uses a **multi-start** search (`n_starts=4`, 2026-07-16):
+  the exact current solution + a least-squares scale/bg warm start + random-
+  fraction restarts, keeping the best - robust to a poor starting point and
+  never worse than the current solution. The structural-refinement inner loop
+  calls `optimize_mixture` directly with the single-start fast path
+  (`n_starts=1`), so refinement runtime is unchanged.
   The `mixture_auto_run/scales/bg` checkboxes are editable and persisted
   (stored in `raw_properties`); they select which variables Optimize frees
   (fractions_mask from the .mud gates fractions). F5 Refresh Graph calls

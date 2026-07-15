@@ -34,6 +34,9 @@ from mudlab.calculations.statistics import Rp
 INNER_MAXFUN = 250
 INNER_MAXITER = 150
 
+# Deterministic seed for the multi-start random-fraction restarts.
+_MULTISTART_SEED = 1
+
 # Finite penalty substituted for a non-finite residual so the optimiser
 # never sees NaN/inf (which would abort L-BFGS-B).
 _PENALTY = 1.0e6
@@ -188,32 +191,106 @@ def get_current_residual(mixture) -> float:
     return problem.residual(problem.get_solution())
 
 
-def optimize_mixture(mixture) -> float:
+def _ls_scale_bg(problem, fractions):
+    """A per-free-specimen least-squares warm start for the scales / bg-shifts.
+
+    For a given (normalised) ``fractions`` vector each specimen's calculated
+    pattern is ``scale * signal + bgshift * correction``, where both are known
+    basis curves - so the L2-optimal (scale, bgshift) is a 2-parameter linear
+    fit of the observed pattern. It is an excellent starting point for the L1
+    (Rp) optimum that L-BFGS-B then finds. Excluded 2theta points are dropped.
+    Returns copies of the scale / bg arrays with the free entries filled in.
+    """
+    scales = problem.scales.copy()
+    bgshifts = problem.bgshifts.copy()
+    for ctx in problem.contexts:
+        signal = np.sum(
+            (fractions * ctx.phase_intensities.transpose()).transpose(), axis=0
+        )
+        sel = ctx.selected
+        basis = np.vstack([signal[sel], ctx.correction[sel]]).T
+        try:
+            (scale, bg), *_ = np.linalg.lstsq(basis, ctx.observed[sel], rcond=None)
+        except (np.linalg.LinAlgError, ValueError):
+            continue
+        if ctx.index in problem.free_scales and np.isfinite(scale):
+            scales[ctx.index] = max(float(scale), 1e-3)
+        if ctx.index in problem.free_bgshifts and np.isfinite(bg):
+            bgshifts[ctx.index] = max(float(bg), 0.0)
+    return scales, bgshifts
+
+
+def optimize_mixture(mixture, n_starts: int = 1) -> float:
     """Optimise the mixture's fractions / scales / background shifts in place
     (L-BFGS-B on the free variables) and return the achieved mean residual.
 
-    The objective is guarded to stay finite (see _PENALTY), and a diverged
-    solve (non-finite result) leaves the model at its current solution. Any
-    OTHER exception is deliberately NOT swallowed here - it is a bug to fix,
-    and the GUI wraps this call to keep the app alive without hiding it.
+    ``n_starts == 1`` is a single L-BFGS-B solve from the mixture's current
+    solution - the fast path used by the structural-refinement inner loop
+    (unchanged behaviour). ``n_starts > 1`` also tries a least-squares scale/bg
+    warm start and ``n_starts - 2`` random-fraction restarts (deterministic
+    seed), keeping the best - a more robust global search for the standalone
+    Optimise (each extra start adds ~0.2 s). The FIRST start is always the exact
+    current solution, so the result is never worse than the current residual.
+
+    The objective is guarded to stay finite (see _PENALTY); a diverged solve
+    falls back to that start's own residual. Any OTHER exception is deliberately
+    NOT swallowed here - it is a bug to fix, and the GUI wraps this call.
     """
     problem = _Problem(mixture)
-    x0 = problem.get_solution()
+    if not problem.contexts:
+        return 0.0
+    if (problem.nf + problem.ns + problem.nb) == 0:
+        # Nothing free to refine: leave as-is.
+        return problem.residual(problem.get_solution())
 
-    if len(x0) == 0 or not problem.contexts:
-        # Nothing free to refine (or nothing to fit against): leave as-is.
-        return problem.residual(x0) if problem.contexts else 0.0
+    orig_fractions = problem.fractions.copy()
+    orig_scales = problem.scales.copy()
+    orig_bgshifts = problem.bgshifts.copy()
 
-    # scipy 1.18's fmin_l_bfgs_b is silent by default (no iprint/disp arg).
-    best_x, residual, _info = fmin_l_bfgs_b(
-        problem.residual, x0,
-        approx_grad=True, bounds=problem.get_bounds(),
-        maxfun=INNER_MAXFUN, maxiter=INNER_MAXITER,
+    def solve_from(fractions, scales, bgshifts):
+        """One L-BFGS-B solve from the given start; returns (residual, fractions,
+        free-variable vector). scipy 1.18's fmin_l_bfgs_b is silent by default."""
+        problem.fractions = fractions
+        problem.scales = scales
+        problem.bgshifts = bgshifts
+        x0 = problem.get_solution()
+        best_x, residual, _info = fmin_l_bfgs_b(
+            problem.residual, x0,
+            approx_grad=True, bounds=problem.get_bounds(),
+            maxfun=INNER_MAXFUN, maxiter=INNER_MAXITER,
+        )
+        if not np.isfinite(residual):  # diverged: fall back to the start
+            residual, best_x = problem.residual(x0), x0
+        return residual, fractions, best_x
+
+    # Start 1: the exact current solution (so the result never worsens).
+    best_r, best_fr, best_x = solve_from(
+        orig_fractions.copy(), orig_scales.copy(), orig_bgshifts.copy()
     )
 
-    if not np.isfinite(residual):
-        return problem.residual(x0)  # diverged: keep the current solution
+    if n_starts >= 2:
+        # Start 2: current fractions + least-squares scale/bg warm start.
+        problem.fractions = orig_fractions.copy()
+        norm_fr = problem.parse_solution(problem.get_solution())[0]
+        sc, bg = _ls_scale_bg(problem, norm_fr)
+        r, fr, x = solve_from(orig_fractions.copy(), sc, bg)
+        if r < best_r:
+            best_r, best_fr, best_x = r, fr, x
+        # Starts 3..n: random free fractions + least-squares scale/bg.
+        rng = np.random.default_rng(_MULTISTART_SEED)
+        for _ in range(n_starts - 2):
+            fr = orig_fractions.copy()
+            if problem.nf:
+                np.put(fr, problem.free_fractions, rng.random(problem.nf))
+            problem.fractions = fr
+            norm_fr = problem.parse_solution(problem.get_solution())[0]
+            sc, bg = _ls_scale_bg(problem, norm_fr)
+            r, fr2, x = solve_from(fr, sc, bg)
+            if r < best_r:
+                best_r, best_fr, best_x = r, fr2, x
 
+    # Apply the best solution found.
+    problem.fractions = best_fr
     fractions, scales, bgshifts = problem.parse_solution(best_x)
     fractions = fractions.flatten()
     sum_frac = float(np.sum(fractions))
@@ -226,4 +303,4 @@ def optimize_mixture(mixture) -> float:
     mixture.fractions = fractions
     mixture.scales = scales
     mixture.bgshifts = bgshifts
-    return float(residual)
+    return float(best_r)
