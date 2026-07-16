@@ -567,6 +567,51 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
   type on load. The R1G2 path is complete end-to-end: model, calc, inheritance,
   serialization, refinement, editor, and creation.
 
+### Audit notes: R1 (2026-07-17)
+
+Audited R1a-d after the fact, probing the dimensions the R1 harness did not:
+remove_phase on an R1 based_on chain, a FULL refine, ref_info round-trip,
+valid/invalid edges, UI detach, optimize(), and the higher-R load path.
+
+**Clean (no R1 defect):**
+- `remove_phase` on the AD parent detaches EG/350 correctly - their R1
+  inherit flags clear (via `set_based_on(None)` -> `clear_inheritance`) and
+  they fall back to their own stored W1 (1.0000 / 0.6211). The R1c-2 UI detach
+  (based_on combo -> "(not based on)") clears the R1 flags too.
+- `n_independents` is used only inside R0's own methods; nothing external
+  assumes `== G-1`, so R1G2 returning 2 leaks nowhere.
+- R1 refine flag + bounds round-trip through `W1_ref_info` /
+  `P11_or_P22_ref_info`. `optimize()` (fractions/scales/bg) is not worsened.
+- Edge params: `W1` 0 or 1 are valid-but-degenerate; `P` or `W1` out of
+  [0,1] -> `valid` False; the `_pmatrix` zero-denominator guards hold (no
+  divide-by-zero, all finite).
+- Higher-R types (R1G3 / R2 / R3) still silently degrade to R0 on load
+  (documented gap; no crash).
+
+**FINDING - refinement can leave the model worse than it started
+(PRE-EXISTING, param-agnostic; R1 only exposed it).** `optimize_mixture`
+warm-starts its inner fraction/scale/bg fit from the mixture's CURRENT
+fractions, so its result depends on call history. During the outer search
+`best_residual` is recorded at whatever warm-start was current then;
+`refine_mixture` ends with `apply_best()`, which re-runs `optimize_mixture`
+from the search's FINAL warm-start and can land at a different (worse) inner
+local optimum. Consequences, both real:
+  1. `refiner.best_residual` **overstates** the applied fit - the Refinement
+     window shows Best 19.12977 while the applied state is 19.13111. Present
+     for R0 too (34.00989 shown vs 34.01048 applied).
+  2. When the flagged structural param cannot net-improve, refine can leave
+     the model **worse than initial** (19.13033 -> 19.13111). R1's fixture is
+     already near-optimal, which is why W1 triggered it where R0 F1 (a big
+     genuine improvement) masked it.
+Not caused by R1 - it is a property of the warm-started multi-start optimiser
+plus `apply_best`. **Proposed fix** (deferred - refinement core, needs its
+own batch + guard): after `apply_best`, re-measure; if the applied residual
+exceeds `initial_residual`, `apply_initial()` instead and set
+`best_residual`/`best_solution` to the initial (guarantee non-worsening),
+and set `best_residual` to the actually-applied value so the window number
+is truthful. Add a harness check that refine is never worse than a plain
+optimize.
+
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 
 `mudlab/edit_atom_types_dialog.py` subclasses ObjectStoreDialog (title
