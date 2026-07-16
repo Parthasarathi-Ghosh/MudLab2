@@ -229,6 +229,37 @@ def check_contents(project, results):
     results.append(("C apply-on-edit exercised", done))
 
 
+def check_new_relation_identity(path, results):
+    """N. A NEWLY CREATED relation keeps its uuid across a save/reload. The
+    editors let a user add a ratio / contents; if to_dict omitted the uuid the
+    relation would be handed a fresh one on every load - identity would not be
+    stable and nothing could reference it."""
+    project = load_mud(path)
+    comp = next((c for ph in project.phases for c in ph.components
+                 if c.linked_with is None), None)
+    if comp is None:
+        results.append(("N a standalone component exists to test", False))
+        return
+    made = [AtomRatio(name="__uuid probe ratio__", value=0.5, sum=1.0),
+            AtomContents(name="__uuid probe contents__", value=1.0)]
+    comp._atom_relations.extend(made)
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_relid_%d.mud" % os.getpid())
+    try:
+        save_mud(project, tmp)
+        reloaded = load_mud(tmp)
+        for orig in made:
+            found = next((r for ph in reloaded.phases for c in ph.components
+                          for r in c._atom_relations
+                          if getattr(r, "name", None) == orig.name), None)
+            results.append(("N new %s keeps its uuid across save/reload"
+                            % type(orig).__name__,
+                            found is not None and found.uuid == orig.uuid))
+    finally:
+        for p in (tmp, tmp + "~"):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def check_roundtrip(path, results):
     """5. AtomRatio fields survive; other relation types stay verbatim."""
     project = load_mud(path)
@@ -276,6 +307,7 @@ def run(path):
     check_cascade(project, results)
     check_contents(project, results)
     check_own_identity(project, results)
+    check_new_relation_identity(path, results)
     check_roundtrip(path, results)
     passed = sum(1 for _l, ok in results if ok)
     for label, ok in results:

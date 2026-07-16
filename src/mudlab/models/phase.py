@@ -180,6 +180,7 @@ class Phase:
         properties. The CSDS mean is nested in CSDS_distribution.properties,
         whose other keys (uuid, average_ref_info) are preserved."""
         props = dict(self.raw_properties)
+        props["uuid"] = self.uuid  # persist identity (based_on resolves by it)
         props["name"] = self.name
         # OWN values, never the inherited read-through ones, so a based_on
         # child round-trips byte-identically (it may store a stale value).

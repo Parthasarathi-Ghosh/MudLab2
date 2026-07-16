@@ -377,6 +377,7 @@ class Component:
         child round-trips byte-identically. Cell a/b (ucp), atom relations and
         the inlined ``linked_with`` copy are preserved verbatim."""
         props = dict(self.raw_properties)
+        props["uuid"] = self.uuid  # persist identity (linked_with resolves by it)
         props["name"] = self.name
         props["d001"] = self._d001
         props["default_c"] = self._default_c

@@ -319,6 +319,46 @@ when a cell length / inheritance bug is reported.
   `tools/verify_linking.py`, `tools/verify_ucp.py`, plus the golden
   `verify_calc_engine` and `verify_roundtrip`.
 
+### UUID management (no registry - transient per-load maps)
+
+MudLab2 has **no global object pool**. Every model carries `self.uuid`
+(`uuid4().hex` at construction, overwritten from the .mud on load), and
+references are resolved by maps built once in `mud_project.load_mud` and then
+discarded - the links live on as ordinary object pointers:
+`atom_type_map` (atom -> element), `phase_map` (`based_on`, mixture slots),
+`component_map` (`linked_with`), `atom_map` + a per-component **own** overlay
+(relation atoms, UCP `prop`), `specimen_map` (mixture rows).
+
+- **Loading never interacts with anything already in memory.** Each load builds
+  an isolated graph; loading the SAME project twice gives two graphs with
+  identical uuid sets but distinct objects and zero interference (verified).
+  There is nothing to collide with, so none of the old app's collision
+  machinery is needed.
+- **Saving does not renumber.** uuids are written as-is; identity is stable
+  across save/load. (The old app calls `object_pool.change_all_uuids()` AFTER
+  `save_phases`/`save_components` and BEFORE `load_phases`/`load_atom_types`/
+  `load_components`, renumbering EVERY object so an import cannot clash - a
+  consequence of its global pool, which also forces the pool-lookup hack in its
+  `Component.__init__` for shared atoms.)
+- **uuids are NOT unique in memory** - and that is expected. Linked components
+  each load their own copy of the shared sub-objects, so e.g. 118 atoms carry 76
+  distinct uuids (also UCPs 18/10, relations 30/26). Phases, components, atom
+  types and specimens ARE unique. This is why resolution must prefer the
+  component's OWN atoms (see the identity fix above).
+- **to_dict must persist `uuid`.** `AtomRatio` / `AtomContents` /
+  `UnitCellProperty` / `Phase` / `Component` write `props["uuid"] = self.uuid`
+  (a no-op for a loaded object - it re-writes the uuid it came from, so the JSON
+  stays byte-identical; without it a user-CREATED relation was saved with no
+  uuid and got a fresh one on every reload). Guard: `verify_relations.py`
+  "new ... keeps its uuid across save/reload".
+- **FUTURE - import needs a collision policy.** The Add/Import buttons for
+  phases / atom types / components are disabled. When import lands, an incoming
+  object whose uuid already exists IN THE PROJECT would collide in the per-load
+  maps (`phase_map` / `component_map` / `atom_map` dedup) and mis-resolve
+  `based_on` / `linked_with` / relation atoms. We do NOT need the old global
+  renumber - regenerate only the COLLIDING incoming uuids at import time (and
+  re-point the imported object's internal references to the new ids).
+
 ### Audit notes: phase inheritance, atom relations, optimizer (2026-07-16)
 
 - **Probe the key that CARRIES the link, not the inlined object.** A phase's

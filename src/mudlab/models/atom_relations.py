@@ -96,6 +96,10 @@ class AtomRatio:
         fields on top of the verbatim raw properties (value_ref_info and uuid
         are preserved)."""
         props = dict(self.raw_properties)
+        # Persist the identity: a loaded relation re-writes the uuid it came
+        # from (byte-identical), a newly created one would otherwise be saved
+        # without any uuid and get a fresh one on every reload.
+        props["uuid"] = self.uuid
         props["name"] = self.name
         props["value"] = self.value
         props["sum"] = self.sum
@@ -182,6 +186,7 @@ class AtomContents:
 
     def to_dict(self) -> dict:
         props = dict(self.raw_properties)
+        props["uuid"] = self.uuid  # persist identity (see AtomRatio.to_dict)
         props["name"] = self.name
         props["value"] = self.value
         props["enabled"] = self.enabled

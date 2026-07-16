@@ -105,6 +105,7 @@ class UnitCellProperty:
         The prop reference, uuid and value_ref_info are preserved verbatim (the
         editor rewrites prop when the derivation source changes)."""
         props = dict(self.raw_properties)
+        props["uuid"] = self.uuid  # persist identity (new UCPs would lose it)
         props["value"] = self.value
         props["enabled"] = self.enabled
         props["factor"] = self.factor
