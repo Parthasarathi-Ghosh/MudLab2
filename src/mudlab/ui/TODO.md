@@ -211,7 +211,7 @@ in use, and what each is for:
 
 | Fixture | What it is | Why it matters |
 |---|---|---|
-| `308 r1.mud` | a normal project, after refinement | the long-standing baseline; no phase-level `based_on` (component linking only) |
+| `308 r1.mud` | a normal project, after refinement | the long-standing baseline. DOES use phase-level `based_on` (IS EG/350 based on IS AD, inheriting sigma*/CSDS/colour + `inherit_F1`) - but non-discriminating: its inherited values coincide with the children's stored ones, so it cannot detect a broken read-through |
 | `Dh2040A 14Jul26.mud` | phases + a mixture assigned; NO manual adjustments, not refined. The Illite phase is not required by the experimental data (fraction 0) | uses `based_on`, but every inherited value coincides with the child's stored one, so inheritance is INVISIBLE here - a "does it still load" case |
 | `Dh2040A 14Jul26 r1.mud` | same, with MANUAL phase-property adjustments, inheritance links left INTACT. Not refined | **discriminating (positive)**: parent F1 = 0.17 while the children still store a stale 0.8, so the read-through is observable. This is the file that exposed the phase-inheritance correctness bug |
 | `Dh2040A 14Jul26 r2.mud` | same manual adjustments, but inheritance intentionally UNLINKED (per-flag: EG's `inherit_F1` off, 350's left on) | **discriminating (negative + positive in one file)**: EG must use its OWN F1 = 0.3 and ignore the parent, while 350 must use the PARENT's 0.17 and ignore its stale 0.8. Catches inheritance being applied where it should NOT be |
@@ -274,10 +274,10 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   heated swelling states). Links resolve by uuid after all phases load
   (mud_project.load_mud builds a project-wide component map); an inherited
   d001/delta_c is skipped as a refinable (calculations/refinement.py, old
-  is_refinable = not inherited). Phase-level `based_on` inheritance stays
-  DEFERRED (unused by the samples: `based_on = None`). Harness:
-  tools/verify_linking.py (108 checks - resolve/read-through/selective/
-  propagation/refinable-skip/round-trip); golden calc + round-trip unchanged.
+  is_refinable = not inherited). Phase-level `based_on` inheritance was deferred
+  at this point and implemented later (see the phase-inheritance entry). Harness:
+  tools/verify_linking.py (resolve/read-through/selective/propagation/
+  refinable-skip/round-trip); golden calc + round-trip unchanged.
 - [x] Component linking editor (Batch L2 + L3) - component_widget.py + the
   edit_component.ui "Component linking" group. The linked_with combo lists every
   component in the project ("Phase / Component" + "(not linked)"); picking one

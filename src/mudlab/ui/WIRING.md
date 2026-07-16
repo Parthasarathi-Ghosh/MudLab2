@@ -263,12 +263,12 @@ the CSDS component.
     phase's `based_on` components; MudLab2 links any two components directly by
     uuid. When phase `based_on` is ported it will drive links positionally and
     (old setter) clear manual ones.
-- Disabled until later batches: `phase_display_color` +
-  `phase_inherit_display_color`, `phase_based_on` + `phase_inherit_sigma_star`
-  + `phase_inherit_CSDS_distribution` (phase-level `based_on` inheritance -
-  distinct from component linking above - deferred; unused by the samples),
-  the object-store Add/Remove/Import/Export buttons (structural), and the
-  component unit-cell a/b editors (read-only for now).
+- Still disabled: `phase_display_color` + `phase_inherit_display_color` (the
+  phase display colour is a visuals-only property that is not modeled yet) and
+  the object-store Add/Remove/Import/Export buttons (structural). NOTE:
+  `phase_based_on` + `phase_inherit_sigma_star` + `phase_inherit_CSDS_distribution`
+  ARE now wired (see the phase-`based_on` section below), and the component
+  unit-cell a/b editors are editable (Batch 1b).
 - Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
   `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
   keeps non-Phase entries (e.g. RawPatternPhase) untouched.
@@ -320,6 +320,17 @@ when a cell length / inheritance bug is reported.
   `verify_calc_engine` and `verify_roundtrip`.
 
 ### Audit notes: phase inheritance, atom relations, optimizer (2026-07-16)
+
+- **Probe the key that CARRIES the link, not the inlined object.** A phase's
+  `based_on` key is serialised as `null` even when the phase IS based on another;
+  the link lives in **`based_on_uuid`**. An early probe checked `based_on` and so
+  reported "no fixture uses phase inheritance", which is FALSE - every fixture
+  (308 included) has `IS R0 Ca-EG`/`IS R0 Ca-350` based on `IS R0 Ca-AD`. The
+  same shape applies to components (`linked_with` inlines a copy;
+  `linked_with_uuid` is canonical). 308 is nonetheless NON-discriminating for
+  inheritance (its parent's values coincide with the children's stored ones), so
+  `Dh2040A 14Jul26 r1/r2` remain the fixtures that can actually detect a broken
+  read-through - hence the harness's "a discriminating fixture exists" check.
 
 - **FIXED - shared-atom identity in relation / UCP resolution.** Linked
   components share atom uuids and each loads its OWN copy. The load-time
@@ -420,9 +431,9 @@ a visuals-only property that is not modeled yet).
   interlayer (smectite swells under EG, collapses on heating) but not the
   mineralogy, so a treated phase is `based_on` a reference phase and inherits
   everything treatment-independent, overriding only the d-spacing/interlayer.
-  The sample phase names show it: `IS R0 Ca-EG`, `IS R0 Ca-350`. (Those samples
-  achieve the sharing via direct component linking instead, which is why
-  `based_on = None` there.)
+  The sample phase names show it: `IS R0 Ca-EG` / `IS R0 Ca-350` are `based_on`
+  `IS R0 Ca-AD` in EVERY fixture (308 included), on top of the per-layer
+  component linking.
 - **Why it matters - refinement:** inherited structural params (sigma*, CSDS,
   stacking probabilities, layer chemistry) are optimised ONCE and all treatments
   follow - enforcing physical consistency and collapsing the free-parameter

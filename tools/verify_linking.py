@@ -162,6 +162,55 @@ def check_refinables_skip_inherited(project, results):
     results.append(("5 inherited-skip exercised", checked))
 
 
+def _comp_state(c):
+    return (c.cell_a, c.cell_b, c.d001, c.default_c, c.delta_c,
+            tuple(a.pn for a in list(c.layer_atoms) + list(c.interlayer_atoms)))
+
+
+def _links_to(c, target):
+    """True when c inherits from `target` through the linked_with chain."""
+    node, seen = c.linked_with, set()
+    while node is not None and id(node) not in seen:
+        if node is target:
+            return True
+        seen.add(id(node))
+        node = node.linked_with
+    return False
+
+
+def check_isolation(path, results):
+    """7. Editing an UNLINKED component (linked_with = None) moves only the
+    components that link to it - never an independent one. Guards against a
+    read-through, a shared atom copy, or a relation resolving across components
+    and leaking a value between unrelated layers."""
+    n = len([c for ph in load_mud(path).phases for c in ph.components
+             if c.linked_with is None])
+    wrong = []
+    for i in range(n):
+        project = load_mud(path)  # fresh per target: edits must not accumulate
+        c0 = [c for ph in project.phases for c in ph.components
+              if c.linked_with is None][i]
+        before = {id(c): _comp_state(c)
+                  for ph in project.phases for c in ph.components if c is not c0}
+        c0.d001 = c0.d001 + 0.05
+        c0.delta_c = c0.delta_c + 0.001
+        if c0._layer_atoms:
+            c0._layer_atoms[0].pn = c0._layer_atoms[0].pn + 0.25
+        c0.update_ucp_values()
+        for ph in project.phases:
+            for c in ph.components:
+                if c is c0 or _comp_state(c) == before[id(c)]:
+                    continue
+                if not _links_to(c, c0):
+                    wrong.append("%s/%s moved when %s was edited"
+                                 % (ph.name, c.name, c0.name))
+    for w in wrong:
+        results.append(("7 ISOLATION VIOLATED: %s" % w, False))
+    results.append(("7 isolation exercised (%d unlinked components edited)" % n, n > 0))
+    results.append(("7 editing an unlinked component never moves an independent one",
+                    not wrong))
+
+
 def check_roundtrip(path, results):
     """6. Save -> reload preserves the links and inherited values."""
     project = load_mud(path)
@@ -199,6 +248,7 @@ def run(path):
     check_selective(project, results)
     check_propagation(project, results)
     check_refinables_skip_inherited(project, results)
+    check_isolation(path, results)
     check_roundtrip(path, results)
 
     passed = 0

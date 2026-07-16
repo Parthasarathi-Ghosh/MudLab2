@@ -167,6 +167,47 @@ def check_refinables_skip(project, results):
     results.append(("5 inherited-skip exercised", checked))
 
 
+def _phase_state(p):
+    return (p.sigma_star, p.CSDS.average, tuple(p.probabilities.f_params()))
+
+
+def _depends_on(p, target):
+    """True when p inherits from `target` through the based_on chain."""
+    node, seen = p.based_on, set()
+    while node is not None and id(node) not in seen:
+        if node is target:
+            return True
+        seen.add(id(node))
+        node = node.based_on
+    return False
+
+
+def check_isolation(path, results):
+    """7. Editing an UNLINKED phase (based_on = None) moves only the phases that
+    depend on it - never an independent one. Guards against a read-through or a
+    shared object leaking a parameter between unrelated phases."""
+    n = len([p for p in load_mud(path).phases if p.based_on is None])
+    wrong = []
+    for i in range(n):
+        project = load_mud(path)  # fresh per target: edits must not accumulate
+        p0 = [p for p in project.phases if p.based_on is None][i]
+        before = {id(p): _phase_state(p) for p in project.phases if p is not p0}
+        p0.sigma_star += 1.0
+        p0.CSDS.average += 2.0
+        if p0.probabilities.n_independents:
+            p0.probabilities.set_f(0, min(p0.probabilities.f_value(0) + 0.1, 1.0))
+        for p in project.phases:
+            if p is p0 or _phase_state(p) == before[id(p)]:
+                continue
+            if not _depends_on(p, p0):
+                wrong.append("%s moved when %s was edited" % (p.name, p0.name))
+    for w in wrong:
+        results.append(("7 ISOLATION VIOLATED: %s" % w, False))
+    results.append(("7 isolation exercised (%d unlinked phases edited)" % n, n > 0))
+    results.append(("7 editing an unlinked phase never moves an independent phase",
+                    not wrong))
+
+
 def check_roundtrip(path, results):
     """6. based_on + flags survive; the child re-serialises its OWN stale F."""
     project = load_mud(path)
@@ -216,6 +257,7 @@ def run(path):
     check_matrices_follow(project, results)
     check_propagation(project, results)
     check_refinables_skip(project, results)
+    check_isolation(path, results)
     check_roundtrip(path, results)
     passed = 0
     for label, ok in results:
