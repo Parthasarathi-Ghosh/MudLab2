@@ -609,21 +609,62 @@ structural-parameter refinement, distinct from `btn_optimize`
 
 `mudlab/add_phase_dialog.py` (`AddPhaseDialog`), modal, old
 `phases/glade/addphase.glade` AddPhaseView. Opened by the Edit Phases
-shell's Add button; on accept a placeholder row is appended (real
-creation of empty/default/raw phases comes with the phase model port).
+shell's Add button (`EditPhasesDialog._on_add_phase`); on accept the
+handler builds a real phase and appends it (Batch P2).
 
 - Three radio choices (old ids kept): `rdb_empty_phase` (with `G` spin
-  1-6 and `R` spin 0-4), `rdb_default_phase` (with `cmb_default_phases` +
+  1-6 and `R` spin), `rdb_default_phase` (with `cmb_default_phases` +
   `btn_generate_phases`), `rdb_raw_pattern`. Radios enable their own
   container (old `update_sensitivities`).
 - Result accessors mirror the old view: `phase_type`
   ("empty"/"default"/"raw"), `G`, `R`, `default_phase`.
-- R is forced to 0 and disabled while G == 1 (Reichweite needs >1
-  component).
-- The default-phase catalog is a placeholder list; the old app filled it
-  from the default phases directory (.phs files) and could regenerate
-  them (`btn_generate_phases`, with spinner + progress bar) - port with
-  the phase model.
+- **Only the empty-phase path is wired.** `rdb_default_phase` and
+  `rdb_raw_pattern` are disabled with a tooltip: the default catalog needs
+  the generator ported (old `generate_default_phases.py`), and
+  RawPatternPhase is not modeled (the loader skips it). `rdb_empty_phase`
+  is preselected.
+- **R is locked to 0** (disabled, tooltip), because MudLab2 models only R0
+  (random) stacking - `get_correct_probability_model(R, G)` is not ported
+  for R>0, so a higher-R phase would build an invalid model. The old app's
+  "R needs G>1" enable rule is therefore gone; R is simply always 0.
+
+### Add / Remove wiring (Batch P2)
+
+Add and Remove live on `EditPhasesDialog`, not the generic shell (they
+need the project + the phase model). `button_load_object` /
+`button_save_object` (Import/Export .phs) stay disabled - they need the
+phase-file parser and the import uuid-collision policy.
+
+- **Add** (`_on_add_phase`): runs `AddPhaseDialog`; on accept builds the
+  phase via `Phase.create_empty(G=..., name="New Phase")` - which creates
+  the **G blank components** ("Component 1".."Component G") and the R0
+  probabilities, mirroring the old `Phase.__init__` (MudLab2's plain
+  `__init__` does not, since it is also the base for `from_dict`). Then
+  `project.add_phase`, append the row, select it (so the editor binds it
+  and the based_on / linked_with candidate combos, rebuilt on selection,
+  pick it up).
+- **Remove** (`_on_remove_phase`): confirms first (old "Deleting a phase
+  is irreversible!"), then `project.remove_phase` (which cascades every
+  reference - see the phase-CRUD model notes), then `project.calculate()`
+  because a mixture that used the phase now has an empty cell and its
+  stored calculated pattern still carries the removed phase's contribution
+  until a recompute. Reselects a neighbour.
+- **Three views must stay in lock-step**: `project.phases`, the dialog's
+  `self._phases` snapshot, and the tree rows. `_phases[index.row()]` is
+  how a selection resolves to a phase, so any drift binds the editor to
+  the wrong phase. The handlers mutate all three together. Guard:
+  `tools/verify_phase_dialogs.py`.
+- The dialog is rebuilt per open (`main_window._show_edit_phases`), so the
+  snapshot starts fresh each time; the in-session sync only has to hold
+  while one dialog is open.
+
+### The default-phase catalog is still a placeholder
+
+`cmb_default_phases` holds demo strings that map to nothing. The old app
+filled it from the default phases directory (.phs files) and could
+regenerate them (`btn_generate_phases`, spinner + progress bar) - port
+with `generate_default_phases.py`. Until then `rdb_default_phase` is
+disabled, so the placeholder is never reachable.
 
 ## Goniometer component: goniometer.ui
 

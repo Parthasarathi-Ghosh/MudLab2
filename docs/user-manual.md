@@ -4,9 +4,57 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 
 ## Contents
 
+- [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
 - [Preparing experimental data](#preparing-experimental-data)
+
+---
+
+## Adding and removing phases
+
+A **phase** is one diffracting clay in your model. Phases live in the project
+and are edited in **Edit → Edit Phases**; the list on the left is the project's
+phases, and the buttons beneath it add and remove them.
+
+### Adding a phase
+
+Press **Add** to open the Add Phase dialog.
+
+- Choose the number of **components** (G) — the clay layers the phase is built
+  from. You get that many blank components, named *Component 1*, *Component 2*,
+  … which you then fill in on the Components tab.
+- Press OK. The new phase appears in the list, selected and ready to edit. It
+  starts empty — give it a name and define its components, atoms, stacking and
+  CSDS.
+
+Only **empty** phases can be created at the moment. Two options are visible but
+disabled:
+
+- **Default phase** — copying a ready-made clay from a catalog is not available
+  yet.
+- **Raw pattern phase** — not supported yet.
+
+**Reichweite (R) is fixed at 0** (random, independent layer stacking). Ordered
+stacking (R1–R3) is not available yet.
+
+### Removing a phase
+
+Select a phase and press **Remove**. Because deleting a phase cannot be undone,
+MudLab2 asks you to confirm.
+
+Removing a phase also cleans up everything that pointed at it, so nothing is
+left dangling:
+
+- any phase that was **based on** the removed one stops inheriting and keeps the
+  values it currently shows (it falls back to its own stored numbers);
+- any component **linked** to one of the removed phase's components is unlinked;
+- the phase is cleared from every **mixture** — its slot stays, but the cell
+  that named it becomes empty, so you can assign a different phase there.
+
+The removal takes effect immediately in the calculated pattern. As with every
+edit, nothing is written to disk until you save the project, so a removal you
+did not mean can be undone by closing without saving.
 
 ---
 

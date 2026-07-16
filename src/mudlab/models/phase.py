@@ -58,6 +58,26 @@ class Phase:
         self.raw_properties: dict = {}
 
     # ------------------------------------------------------------------
+    # Construction of a new (empty) phase
+    # ------------------------------------------------------------------
+    @classmethod
+    def create_empty(cls, G: int = 1, name: str = "New Phase") -> "Phase":
+        """A fresh phase with G blank components and R0 stacking.
+
+        Mirrors the old Phase.__init__, which auto-fills G components named
+        "Component 1".."Component G" (MudLab2's plain __init__ does not, since
+        it is also the base for from_dict, which supplies the loaded ones).
+        Only R0 stacking is modeled, so the probabilities the __init__ already
+        built (F = 0.8 for each of the G-1 independents) are what a new phase
+        gets; higher Reichweite is not offered by the Add dialog.
+        """
+        phase = cls(name=name, G=max(int(G), 1))
+        phase.components = [
+            Component(name="Component %d" % (i + 1)) for i in range(phase.G)
+        ]
+        return phase
+
+    # ------------------------------------------------------------------
     # Phase-level inheritance (based_on)
     # ------------------------------------------------------------------
     def resolve_based_on(self, phase_map: dict) -> None:

@@ -1,8 +1,21 @@
 """Add Phase dialog. Design: ui/add_phase.ui.
 
 Ported from the GTK AddPhaseView (phases/glade/addphase.glade). Modal,
-like the old view: choose between a new empty phase (G 1-6, R 0-4), a
-default phase from the catalog, or a raw pattern phase.
+like the old view: choose between a new empty phase, a default phase from
+the catalog, or a raw pattern phase.
+
+Only the **empty-phase** path is wired (Batch P2). The other two are
+honestly disabled, not left inert:
+
+- the default-phase catalog needs the default-phases generator ported
+  (old generate_default_phases.py); until then the combo holds placeholder
+  names that map to nothing, so the radio is disabled;
+- RawPatternPhase is not modeled at all (the loader skips it), so it is
+  disabled too.
+
+Reichweite is locked to R0: MudLab2 only models R0 (random) stacking, so
+a new phase cannot be higher-R. The spin is disabled with a tooltip rather
+than silently building an invalid model.
 """
 
 from __future__ import annotations
@@ -29,16 +42,33 @@ class AddPhaseDialog(QDialog):
 
         self.ui.cmb_default_phases.addItems(_DEMO_DEFAULT_PHASES)
 
+        # Only the empty-phase path is ported; the other two are disabled with
+        # a reason so the dialog does not offer an option that does nothing.
+        self.ui.rdb_empty_phase.setChecked(True)
+        self.ui.rdb_default_phase.setEnabled(False)
+        self.ui.rdb_default_phase.setToolTip(
+            "The default-phase catalog is not ported yet."
+        )
+        self.ui.rdb_raw_pattern.setEnabled(False)
+        self.ui.rdb_raw_pattern.setToolTip(
+            "Raw pattern phases are not modeled yet."
+        )
+        self.ui.btn_generate_phases.setEnabled(False)
+
         for radio in (
             self.ui.rdb_empty_phase,
             self.ui.rdb_default_phase,
             self.ui.rdb_raw_pattern,
         ):
             radio.toggled.connect(self._update_sensitivities)
-        # R > 0 requires more than one component.
-        self.ui.G.valueChanged.connect(self._update_R_enabled)
+        # Only R0 stacking is modeled: lock Reichweite to 0.
+        self.ui.R.setValue(0)
+        self.ui.R.setEnabled(False)
+        self.ui.R.setToolTip(
+            "Only R0 (random) stacking is modeled; higher Reichweite is not "
+            "ported yet."
+        )
         self._update_sensitivities()
-        self._update_R_enabled(self.ui.G.value())
 
         self.ui.buttonBox.accepted.connect(self.accept)
         self.ui.buttonBox.rejected.connect(self.reject)
@@ -69,8 +99,3 @@ class AddPhaseDialog(QDialog):
     def _update_sensitivities(self) -> None:
         self.ui.cont_empty_phase.setEnabled(self.ui.rdb_empty_phase.isChecked())
         self.ui.cont_default_phase.setEnabled(self.ui.rdb_default_phase.isChecked())
-
-    def _update_R_enabled(self, G: int) -> None:
-        if G <= 1:
-            self.ui.R.setValue(0)
-        self.ui.R.setEnabled(G > 1)

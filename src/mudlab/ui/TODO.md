@@ -218,6 +218,18 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   for a long time looking finished while applying nothing - and that every
   refusal path leaves the data alone, keeps the dialog open, and says why. Run
   after touching line_dialogs.py or specimen_dialogs.py.
+- `tools/verify_phase_crud.py` guards ADD/REMOVE PHASE at the MODEL layer -
+  the four cascade rules of remove_phase (own based_on, dependants' based_on,
+  linked_with components, mixture cells) plus persistence (add and remove must
+  survive save/reload), and remove_specimen unsetting the specimen from
+  mixtures. Run after touching project.py / mixture.py / the phase part of the
+  saver.
+- `tools/verify_phase_dialogs.py` guards the ADD/REMOVE dialog WIRING (offscreen
+  Qt): button state (Add/Remove on, Import/Export off with a reason), the Add
+  dialog offering only the ported empty-phase path (R locked to 0), and the
+  three views (project.phases / the dialog's _phases snapshot / the tree rows)
+  staying in lock-step through add, remove, decline and add-then-remove. Run
+  after touching edit_phases_dialog.py or add_phase_dialog.py.
 
 **Sample fixtures (2026-07-14).** `Dh2040A.mud` was withdrawn (faulty). The four
 in use, and what each is for:
@@ -254,13 +266,13 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Edit Project | edit_project.ui, edit_project_dialog.py | project/glade/project.glade (nbk_edit_project) | done (layout-mode combo is temporary) |
 | Edit Specimen | edit_specimen.ui, edit_specimen_dialog.py | specimen/glade/specimen.glade | done (hosts line properties + goniometer components) |
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
-| Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (buttons not yet connected) |
-| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; unit-cell a/b, phase inheritance, colour, Add/Remove phase still to wire) |
+| Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (Add/Remove wired by the Edit Phases subclass; Import/Export still per-subclass) |
+| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; Add (empty phase, G blank components) + Remove (cascades based_on/linked_with/mixture refs) wired; unit-cell a/b, phase inheritance, colour, Import/Export (.phs) still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
-| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
+| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase, G 1-6; R locked to 0 = only R0 modeled; default-catalog + raw-pattern options honestly disabled until ported; wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
 | Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (applies: all 6 types; Show Original overlay needs the plot-controller port) |
