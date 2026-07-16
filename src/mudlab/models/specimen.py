@@ -161,3 +161,120 @@ class Specimen(QObject):
             raise ValueError("x and y must have the same length")
         self._calc_x, self._calc_y = x, y
         self.data_changed.emit()
+
+    # ------------------------------------------------------------------
+    # Pattern operations (old ExperimentalLine methods; numerics live in
+    # calculations/pattern_ops.py). Each mutates the experimental pattern in
+    # place and emits data_changed once, so the plot and the fit statistics
+    # refresh. All are destructive - the old app has no undo either.
+    # ------------------------------------------------------------------
+    def remove_background(
+        self, bg_type=0, bg_position=0.0, bg_pattern=None, bg_scale=0.0
+    ) -> None:
+        from mudlab.calculations import pattern_ops
+
+        self._exp_y = pattern_ops.remove_background(
+            self._exp_y, bg_type, bg_position, bg_pattern, bg_scale
+        )
+        self.data_changed.emit()
+
+    def smooth_data(self, smooth_type=0, smooth_degree=0.0) -> None:
+        from mudlab.calculations import pattern_ops
+
+        self._exp_y = pattern_ops.smooth_data(self._exp_y, smooth_type, smooth_degree)
+        self.data_changed.emit()
+
+    def add_noise(self, noise_fraction=0.0) -> None:
+        from mudlab.calculations import pattern_ops
+
+        self._exp_y = pattern_ops.add_noise(self._exp_y, noise_fraction)
+        self.data_changed.emit()
+
+    def detect_shift(self, shift_position: float) -> float:
+        """The offset of a reference reflection from its expected position
+        (a measurement; nothing is changed)."""
+        from mudlab.calculations import pattern_ops
+
+        return pattern_ops.detect_shift(
+            self._exp_x, self._exp_y, shift_position, self.wavelength
+        )
+
+    def apply_shift(self, shift_value: float, shift_position: float = 0.0) -> None:
+        """Correct the 2-theta axis by `shift_value`.
+
+        In Linear mode the whole axis moves by a constant, so the markers move
+        with it to stay on their reflections (old commit_shift). The
+        Displacement correction is angle-dependent, so the old app leaves the
+        markers alone there.
+        """
+        from mudlab.calculations import pattern_ops
+
+        if shift_value == 0.0:
+            return
+        radius = self.goniometer.radius if self.goniometer is not None else 24.0
+        if pattern_ops.PATTERN_SHIFT_TYPE == "Linear":
+            for marker in self._markers:
+                marker.position = marker.position - shift_value
+        self._exp_x = pattern_ops.apply_shift(
+            self._exp_x, shift_value, shift_position, radius, self.wavelength
+        )
+        self.data_changed.emit()
+
+    def compute_strip_pattern(self, startx, endx, noise_level=None):
+        """Preview the line that would replace a peak (nothing is changed)."""
+        from mudlab.calculations import pattern_ops
+
+        return pattern_ops.compute_strip_pattern(
+            self._exp_x, self._exp_y, startx, endx, noise_level
+        )
+
+    def apply_strip(self, strip) -> None:
+        from mudlab.calculations import pattern_ops
+
+        if strip is None:
+            return
+        self._exp_y = pattern_ops.apply_strip(self._exp_x, self._exp_y, strip)
+        self.data_changed.emit()
+
+    def compute_peak_properties(self, startx, endx):
+        """Area and FWHM of the peak between two positions (a measurement)."""
+        from mudlab.calculations import pattern_ops
+
+        return pattern_ops.compute_peak_properties(
+            self._exp_x, self._exp_y, startx, endx
+        )
+
+    def trim(self, min_2theta: float, max_2theta: float) -> bool:
+        """Permanently clip the specimen to [min_2theta, max_2theta].
+
+        Also clips the calculated pattern (it lives on its own x-grid), drops
+        markers that fall outside, and drops exclusion ranges that touch or
+        cross a boundary - a range straddling the new edge would silently
+        change meaning, so it is removed rather than clamped (old
+        Specimen.trim).
+
+        Returns False (changing nothing) when fewer than 2 points would remain.
+        """
+        mask = (self._exp_x >= min_2theta) & (self._exp_x <= max_2theta)
+        if mask.sum() < 2:
+            return False
+        self._exp_x, self._exp_y = self._exp_x[mask], self._exp_y[mask]
+
+        if self.has_calculated_data:
+            cmask = (self._calc_x >= min_2theta) & (self._calc_x <= max_2theta)
+            if cmask.sum() >= 2:
+                self._calc_x, self._calc_y = self._calc_x[cmask], self._calc_y[cmask]
+            else:
+                self._calc_x, self._calc_y = np.empty(0), np.empty(0)
+
+        for marker in list(self._markers):
+            if marker.position < min_2theta or marker.position > max_2theta:
+                self.remove_marker(marker)
+
+        self._exclusion_ranges = [
+            (a, b) for a, b in self._exclusion_ranges
+            if min(a, b) >= min_2theta and max(a, b) <= max_2theta
+        ]
+
+        self.data_changed.emit()
+        return True

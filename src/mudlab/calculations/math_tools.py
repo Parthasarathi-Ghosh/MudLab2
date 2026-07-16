@@ -27,6 +27,20 @@ def mmult(A, B):
     return np.einsum("ijk,ikl->ijl", A, B)
 
 
+def add_noise(x: np.ndarray, noise_fraction: float = 0.05) -> np.ndarray:
+    """Add Gaussian noise scaled to a fraction of the signal maximum.
+
+    Ported as-is from the old math_tools.add_noise: the standard deviation is
+    ``noise_fraction * max(x)``, so the noise scales with the pattern's
+    strongest reflection rather than with each point's own counts.
+    """
+    x = np.asarray(x, dtype=float)
+    if x.size > 0:
+        abs_value = noise_fraction * np.amax(x)
+        return x + np.random.standard_normal(x.shape) * abs_value
+    return x
+
+
 def smooth(x: np.ndarray, half_window_len: int = 3, window: str = "blackman") -> np.ndarray:
     """Smooth a 1D signal by convolving it with a scaled window.
 
