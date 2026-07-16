@@ -48,7 +48,11 @@ _FIXTURES = os.path.join(_REPO, "tools", "sample_projects")
 
 
 def _default_projects():
-    names = ["308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud", "Dh2040A 14Jul26 r2.mud"]
+    # Dh537A.mud is the R1G2 fixture (three IS R1 Ca-* phases): it is the
+    # golden-calc proof that R1 stacking is modeled - the R0-fallback failed it
+    # at corr 0.984, the R1G2 model reproduces it at corr 1.000000.
+    names = ["308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud",
+             "Dh2040A 14Jul26 r2.mud", "Dh537A.mud"]
     projects = []
     for name in names:
         in_repo = os.path.join(_FIXTURES, name)

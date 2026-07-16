@@ -230,6 +230,15 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   three views (project.phases / the dialog's _phases snapshot / the tree rows)
   staying in lock-step through add, remove, decline and add-then-remove. Run
   after touching edit_phases_dialog.py or add_phase_dialog.py.
+- `tools/verify_r1.py` guards R1 (Reichweite-1) STACKING - the R1G2 probability
+  model added in Batch R1a. Dispatch, analytic W/P (re-derived independently),
+  P-rows-differ (genuinely R1, not an R0 collapse), per-parameter inheritance
+  read-through (W1/P11 through to the based_on parent), discrimination vs R0,
+  and byte-identical round-trip. Fixture: `Dh537A.mud`. NOTE: every R1 phase
+  there has W1 ~ 0.73, so the golden calc only exercises the W1>0.5 branch - the
+  W1<=0.5 branch is guarded only by the synthetic `2b` check. Run after touching
+  models/probabilities.py. The golden-calc proof itself is in
+  `verify_calc_engine.py` (Dh537A added to its default set).
 
 **Sample fixtures (2026-07-14).** `Dh2040A.mud` was withdrawn (faulty). The four
 in use, and what each is for:

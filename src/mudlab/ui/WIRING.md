@@ -499,6 +499,48 @@ a visuals-only property that is not modeled yet).
   checkboxes; a `verify_phase_inheritance.py` harness. The component-set
   inheritance (positional re-linking) is the part that needs the golden fixture.
 
+### R1 (Reichweite-1) stacking (Batch R1a - MODEL + calc)
+
+R = "reach": how many preceding layers influence the next. R0 = independent
+(every P row identical = the weight fractions); R1 = nearest-neighbour
+ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
+- `calculations/phases.py` reads `rank = P.shape[1]; reps = rank // G` and
+  expands with `np.repeat`, so it consumes any W/P. R1a only added the MODEL
+  that produces the R1 matrices.
+
+- `models/probabilities.py` `R1G2Probability` (old R1G2Model): two params
+  `W1`, `P11_or_P22`; `_pmatrix()` ports `R1G2Model.update` verbatim (two
+  branches on `W1<=0.5`, the other three P entries from row-stochasticity +
+  detailed balance `Wi·Pij = Wj·Pji`). For R1G2 the matrix is 2×2, so
+  `reps == 1` - the higher-`reps` path (R2/R3) is still unexercised.
+- `probabilities_from_dict` now DISPATCHES on the type string: `R1G2Model` ->
+  `R1G2Probability`, `R0G*` -> `R0Probability`. **Any other higher-R type still
+  falls back to R0 and is silently mis-modeled** - there is no fixture for one,
+  so a project using e.g. R1G3/R2 must be caught before it reaches the calc
+  (a guard is TODO with R1c).
+- Inheritance parallels R0's per-F flags: `inherit_W1` / `inherit_P11_or_P22`
+  read the effective value through to the based_on parent (`w1_value()` /
+  `p11_value()`), so a refined/edited parent propagates at once. Wired by the
+  existing `Phase.resolve_based_on` -> `probabilities.set_based_on`.
+- **Serialization is verbatim so far**: `Phase.to_dict`'s F-write-back is
+  guarded by `getattr(..., "own_f_params", None)`, which `R1G2Probability`
+  lacks, so the R1 probabilities dict round-trips byte-identical through
+  `raw_properties`. This means an EDIT to an R1 param is not yet persisted -
+  that is Batch R1b (model the write-back).
+- Fixture `Dh537A.mud` (three `IS R1 Ca-*`, EG/350 inherit from AD). The
+  R0-fallback failed its golden calc at corr 0.984; R1a reproduces it at
+  corr 1.000000. Guards: `verify_r1.py` (model internals) + `Dh537A` in
+  `verify_calc_engine.py` (integration). **Branch-coverage caveat**: every R1
+  phase there has W1 ~ 0.73, so the golden calc exercises only the `W1>0.5`
+  branch; the `W1<=0.5` branch is guarded solely by the synthetic `2b` check
+  in `verify_r1.py`.
+- **Still to do**: R1b serialization write-back (persist edited W1/P11 + the
+  R1 inherit flags; also fix `Phase.set_based_on`'s detach path, which clears
+  `inherit_F` - a no-op on R1 - but not `inherit_W1`/`inherit_P11_or_P22`);
+  R1c the probabilities editor adapting per-R + refinement enumerating R1
+  params; R1d unlocking R in the Add dialog with per-R G bounds (old
+  `RGbounds`: R1 -> G2-4). R1G3/G4 need their own golden fixtures.
+
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 
 `mudlab/edit_atom_types_dialog.py` subclasses ObjectStoreDialog (title
