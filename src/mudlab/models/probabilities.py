@@ -384,17 +384,36 @@ class R1G2Probability:
         )
 
 
+class UnsupportedProbabilityModel(ValueError):
+    """Raised when a .mud carries a layer-stacking model MudLab2 does not
+    model yet (any higher-R type other than R0* / R1G2Model). Loading it as R0
+    would produce a WRONG pattern with no warning, so the load is refused
+    instead. The message is user-facing (shown by the open-project handler)."""
+
+    def __init__(self, prob_type: str) -> None:
+        self.prob_type = prob_type
+        super().__init__(
+            "This project uses the '%s' layer-stacking model, which MudLab2 "
+            "does not support yet (only R0, and R1 for 2 components, are "
+            "modeled)." % prob_type
+        )
+
+
 def probabilities_from_dict(data: dict, G: int):
     """Build a probability model from a .mud probabilities dict.
 
-    Dispatches on the stored type string. R0 (any G) and R1G2 are modeled;
-    other higher-R types are not ported yet and fall back to R0 - which
-    silently mis-models them, so a project using an unported type must be
-    caught before this point (there is no fixture for one yet)."""
+    Dispatches on the stored type string. R0 (any G) and R1G2 are modeled. A
+    NEW phase passes an empty dict -> R0 default. Any OTHER recognised type is
+    a higher-R model we have not ported: raise UnsupportedProbabilityModel
+    rather than silently degrade it to R0 (which would produce a wrong pattern
+    - the calc has no way to tell it apart from a real R0 phase)."""
     prob_type = data.get("type", "") if isinstance(data, dict) else ""
     if prob_type == "R1G2Model":
         return R1G2Probability.from_dict(data, G)
     if prob_type.startswith("R0G"):
         return R0Probability.from_dict(data, G)
-    # Fallback: treat as R0 (independent) until higher-R models are ported.
-    return R0Probability.from_dict(data, G)
+    if prob_type == "":
+        # No stored type: a freshly created phase (Phase.__init__ /
+        # create_empty). Default to R0 - the modeled, safe baseline.
+        return R0Probability.from_dict(data, G)
+    raise UnsupportedProbabilityModel(prob_type)

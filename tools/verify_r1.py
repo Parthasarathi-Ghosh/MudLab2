@@ -335,6 +335,67 @@ def check_editor(project, results):
                         abs(w2._param_spins[0].value() - own_before) < 1e-4))
 
 
+def check_load_guard(path, results):
+    """12. An unported higher-R type is REFUSED on load, not silently degraded
+    to R0 (which would produce a wrong pattern the calc cannot distinguish
+    from a real R0 phase). R0 / R1G2 / a new phase's empty dict must not
+    raise."""
+    from mudlab.models.probabilities import (
+        UnsupportedProbabilityModel, probabilities_from_dict,
+    )
+
+    # Unit: the dispatcher refuses the unported types and accepts the modeled.
+    for t in ("R1G3Model", "R1G4Model", "R2G2Model", "R3G2Model"):
+        try:
+            probabilities_from_dict({"type": t, "properties": {}}, 3)
+            results.append(("12 %s refused" % t, False))
+        except UnsupportedProbabilityModel:
+            results.append(("12 %s refused" % t, True))
+    ok = True
+    try:
+        probabilities_from_dict({}, 2)  # new phase
+        probabilities_from_dict({"type": "R0G2Model", "properties": {}}, 2)
+        probabilities_from_dict({"type": "R1G2Model", "properties": {}}, 2)
+    except Exception:
+        ok = False
+    results.append(("12 modeled types (empty / R0 / R1G2) still load", ok))
+
+    # Integration: a real .mud whose phase carries an R1G3 model is refused by
+    # load_mud (synthesised from this fixture so no R1G3 file is needed).
+    src = zipfile.ZipFile(path)
+    parts = {n: src.read(n) for n in src.namelist()}
+    phases = json.loads(parts["phases"].decode("utf-8"))
+    items = phases if isinstance(phases, list) else [phases]
+    patched = False
+    for it in items:
+        pr = it.get("properties", {}).get("probabilities")
+        if isinstance(pr, dict) and pr.get("type", "").startswith("R1G2"):
+            pr["type"] = "R1G3Model"  # a type we do not model
+            patched = True
+            break
+    results.append(("12 could synthesise an R1G3 project", patched))
+    if not patched:
+        return
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_r1g3.mud")
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as out:
+            for name, blob in parts.items():
+                if name == "phases":
+                    blob = json.dumps(phases).encode("utf-8")
+                out.writestr(name, blob)
+        try:
+            load_mud(tmp)
+            results.append(("12 load_mud refuses an R1G3 project", False))
+        except UnsupportedProbabilityModel as err:
+            results.append(("12 load_mud refuses an R1G3 project", True))
+            results.append(("12 refusal message names the model",
+                            "R1G3Model" in str(err)))
+    finally:
+        for p in (tmp, tmp + "~"):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def check_create_new(path, results):
     """11 (R1d). A newly created R1G2 phase persists as R1G2, and a new R0
     phase persists its edited F - a new phase had no stored probabilities dict,
@@ -440,6 +501,7 @@ def run(path):
     check_refinement(path, results)
     check_editor(load_mud(path), results)
     check_create_new(path, results)
+    check_load_guard(path, results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

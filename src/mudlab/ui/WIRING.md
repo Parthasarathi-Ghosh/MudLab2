@@ -562,10 +562,19 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
   R0 or R1 - lost its probabilities on save: it reloaded as default R0 with
   F=0.8 (a latent P2 bug that only surfaced once R1 phases could be created).
   A loaded phase keeps its stored `type` verbatim, so byte-identity holds.
-- **Still to do**: R1G3/G4 (their own model classes + golden fixtures);
-  R2/R3; a guard that refuses (not silently R0-degrades) an unported higher-R
-  type on load. The R1G2 path is complete end-to-end: model, calc, inheritance,
-  serialization, refinement, editor, and creation.
+- **Unported higher-R types are REFUSED on load** (not silently R0-degraded).
+  `probabilities_from_dict` raises `UnsupportedProbabilityModel` for any
+  recognised type other than R0*/R1G2Model (an empty dict is a new phase ->
+  R0). The message is user-facing; the open-project handler already wraps
+  `load_mud` in a try/except that shows it and keeps the current project. So a
+  project with e.g. an R1G3 phase is rejected with "... the 'R1G3Model' ...
+  model, which MudLab2 does not support yet" rather than loaded as a wrong
+  R0 pattern. Guard: `verify_r1.py` check 12 (unit + a synthesised R1G3 .mud
+  that `load_mud` refuses).
+- **Still to do**: R1G3/G4 (their own model classes + golden fixtures) and
+  R2/R3 - once modeled, they drop out of the refusal set automatically. The
+  R1G2 path is complete end-to-end: model, calc, inheritance, serialization,
+  refinement, editor, and creation.
 
 ### Audit notes: R1 (2026-07-17)
 
