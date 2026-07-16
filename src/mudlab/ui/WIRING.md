@@ -661,35 +661,96 @@ SaveGraphSize). Old sources: `generic/views/glade/lines/*.glade` and
 main-window actions open them (`actionRemoveBackground`,
 `actionSmoothData`, `actionShiftPattern`, `actionAddNoise`,
 `actionStripPeak`, `actionPeakProperties`, `actionTrimData`,
-`actionSaveGraph`); OK currently applies nothing - the operations hook up
-with the specimen model port.
+`actionSaveGraph`).
+
+**IMPLEMENTED (Batches D1/D2).** Numerics:
+`mudlab/calculations/pattern_ops.py` (pure functions, ported verbatim from
+the old `generic/models/lines/experimental_line.py`); mutation + signal:
+the `Specimen` methods (`remove_background`, `smooth_data`, `add_noise`,
+`detect_shift`/`apply_shift`, `compute_strip_pattern`/`apply_strip`,
+`compute_peak_properties`, `trim`). Each emits `data_changed` once, which
+refreshes the plot and invalidates the statistics cache. Harness:
+`tools/verify_pattern_ops.py`.
+
+Every dialog derives from `_SpecimenDialog`, which holds the bound
+specimen and **refuses to accept when nothing is bound** (so a mis-wired
+action cannot silently no-op). The old app opened these from the Edit
+Specimen controller, so a specimen was always present; here they live on
+the main-window menu, so `_update_data_op_actions` greys them out unless
+exactly one specimen with data is selected.
 
 - **Remove Background** (`background.ui`): `bg_type` Linear/Pattern
   switches `bg_view_stack` (old swapped tables into bg_view_container).
-  Linear: `bg_position`. Pattern: file row (`bg_pattern_file` +
-  `btn_browse_bg`, native file dialog; filters come with the parser
-  port), `bg_scale`, `bg_offset`. Old extra: bg_type change triggered
-  `find_bg_position` (auto-suggest); port with model.
+  Linear: `bg_position` (pre-filled from `find_bg_position` = min(y), the
+  old auto-suggest). Pattern: `bg_pattern_file` + `btn_browse_bg`,
+  `bg_scale`, `bg_offset`; the chosen file is parsed with `parse_xy` and
+  **interpolated onto the specimen's x-grid** (`interp1d`,
+  `fill_value=0` outside its range) exactly as the old
+  `line_controllers.py` did - a background measured on its own grid does
+  not line up otherwise.
 - **Smooth Data** (`smoothing.ui`): `smooth_type` (Moving Triangle,
   Savitzky-Golay, Gaussian, Moving Average, Smoothing Spline, Butterworth
-  - `SMOOTH_TYPES` map), `spin_degree` 1-600 (default 3),
-  `smooth_show_original`.
+  - `SMOOTH_TYPES` map), `spin_degree` (re-filled per type from
+  `SMOOTH_DEFAULT_DEGREES`, old `setup_smooth_variables`). Each type
+  reads the degree differently (window half-width / sigma / spline factor).
+  `smooth_show_original` is **disabled**: its live overlay needs the
+  plot-controller port.
 - **Shift Pattern** (`shifting.ui`): `shift_position` reference list
   (Quartz/Silicon/Zincite/Corundum/Goethite/Gibbsite/Manual;
-  `SHIFT_POSITIONS` maps to d-spacings in nm), `spin_shift_value` ±10 nm;
-  selecting a reference fills the value and locks the spin, Manual
-  unlocks it.
-- **Add Noise** (`add_noise.ui`): `spin_fraction` 0-1 (default 0.10).
+  `SHIFT_POSITIONS` = d-spacings in nm), `spin_shift_value`.
+  - **`spin_shift_value` is a °2θ OFFSET, not a d-spacing.** The `.ui`
+    originally suffixed it " nm" and the placeholder pre-filled it with
+    the reference d-spacing - both wrong, fixed in D2. Selecting a
+    reference **auto-detects** the offset from the data
+    (`Specimen.detect_shift`: the strongest point within ±0.5° of the
+    reference's theoretical position); Manual unlocks the spin and
+    **resets it to 0.0** (old `setup_shift_variables`).
+  - A reference outside the scanned range detects `0.0` - it has nothing
+    to measure against (old try/except). Zincite/Corundum do this on the
+    308 fixture, which only reaches 35°2θ. A detected `0.0` on an
+    *in-range* reference is also legitimate: `308 AD`'s quartz line sits
+    at its theoretical position to 8e-6°, i.e. already shift-corrected.
+    **Do not read a zero here as a broken detector.**
+  - `PATTERN_SHIFT_TYPE` (pattern_ops) is `"Displacement"`, the old
+    default: it models the sample sitting off the focusing circle, so the
+    correction shrinks as 2θ grows. `"Linear"` subtracts a constant and
+    (only then) moves the markers with the data, as the old app did.
+- **Add Noise** (`add_noise.ui`): `spin_fraction` 0-1. Noise sigma is
+  `fraction * max(y)` - scaled to the strongest reflection, not per-point.
 - **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` +
-  `cmd_sample_start`/`cmd_sample_end` (eye-dropper sampling on the
-  pattern - connect with the plot controller), `noise_level`.
-- **Peak Properties** (`peak_properties.ui`): start/end + sample buttons,
-  result labels `peak_area_result`/`peak_fwhm_result`
-  (`set_results(area, fwhm)`), `btn_copy_results` copies both to the
-  clipboard.
+  `cmd_sample_start`/`cmd_sample_end` (eye-dropper), `noise_level`
+  (re-estimated whenever an endpoint moves; the user can override it,
+  which is why `compute_strip_pattern` takes an optional level). Live
+  plot preview still needs the plot-controller port.
+- **Peak Properties** (`peak_properties.ui`): start/end + sample buttons;
+  area/FWHM recompute **live** on every position change. Read-only - it
+  never touches the pattern, hence no OK button.
 - **Trim Data** (`trim_dialog.ui`): irreversibility warning, `cmb_scope`
   (This specimen only / All loaded specimens -> `TRIM_SCOPES`),
-  `spin_min_2theta`/`spin_max_2theta` 0-180.
+  `spin_min_2theta`/`spin_max_2theta` 0-180. Switching to "all" pre-fills
+  the range **shared** by every specimen (widest lower / narrowest upper
+  bound), since a wider range would fail on some. `lbl_removal_warning`
+  names the markers / exclusion ranges that will also go. Trim drops
+  exclusion ranges that *straddle* a new boundary rather than clamping
+  them (a clamped range would silently change meaning).
+
+### Data operations: notes
+
+- **All destructive, no undo** - same as the old app; nothing is written
+  to the .mud until the user saves. Deliberately no extra confirmation
+  the old app never had.
+- **No golden reference exists** for these ops: the old app applies them
+  destructively and stores only the result, so a processed pattern
+  carries no record of what produced it. `verify_pattern_ops.py` leans on
+  (1) the **live old code** - old `math_tools.py` is pure numpy, so it is
+  loaded *by path* (the old tree's numpy is a MinGW build that will not
+  import here) and its `smooth`/`add_noise` are diffed point-for-point;
+  (2) **analytic ground truth** - Gaussian area/FWHM in closed form, the
+  displacement formula re-derived; (3) invariants on fixture data. The
+  harness is mutation-tested; see the commit for the four mutations.
+- Old quirk preserved in `compute_strip_pattern`: **both** endpoint noise
+  ratios divide by `avg_starty` (not each by its own endpoint). Looks
+  like an old-app bug; kept for parity.
 - **Statistics** (`statistics.ui`): read-only χ², R², Rp, Rwp, Re, data
   points via `set_statistics(...)`. NOT yet reachable from the UI - the
   old `view_statistics` action lives in the future specimens context

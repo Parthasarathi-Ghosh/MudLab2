@@ -249,13 +249,13 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (G 1-6, R 0-4; placeholder default-phase catalog; wired to Edit Phases Add button) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
-| Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (op applies with model port) |
-| Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (op applies with model port) |
-| Shift Pattern | shifting.ui, line_dialogs.py | lines/shifting.glade | done (reference presets working; op applies with model port) |
-| Add Noise | add_noise.ui, line_dialogs.py | lines/add_noise.glade | done (op applies with model port) |
-| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (modeless; Sample buttons pick start/end on the plot; strip op with model port) |
-| Peak Properties | peak_properties.ui, line_dialogs.py | lines/peak_properties.glade | done (modeless; Sample buttons + copy-to-clipboard; area/FWHM computation with model port) |
-| Trim Data | trim_dialog.ui, specimen_dialogs.py | specimen/glade/trim_dialog.glade | done (op applies with model port) |
+| Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
+| Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (applies: all 6 types; Show Original overlay needs the plot-controller port) |
+| Shift Pattern | shifting.ui, line_dialogs.py | lines/shifting.glade | done (applies: auto-detect vs reference + manual; linear/displacement) |
+| Add Noise | add_noise.ui, line_dialogs.py | lines/add_noise.glade | done (applies) |
+| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (applies; modeless; Sample buttons pick start/end; live plot preview needs the plot-controller port) |
+| Peak Properties | peak_properties.ui, line_dialogs.py | lines/peak_properties.glade | done (live area/FWHM; read-only; modeless; Sample buttons + copy-to-clipboard) |
+| Trim Data | trim_dialog.ui, specimen_dialogs.py | specimen/glade/trim_dialog.glade | done (applies; scope specimen/all, shared-range prefill, marker/exclusion removal warning) |
 | Statistics | statistics.ui, specimen_dialogs.py | specimen/glade/statistics.glade | done (unwired until the specimens context menu exists) |
 | Save Graph size | save_graph_size.ui, specimen_dialogs.py | specimen/glade/save_graph_size.glade | done (runs before the native save dialog; export with plot-controller port) |
 

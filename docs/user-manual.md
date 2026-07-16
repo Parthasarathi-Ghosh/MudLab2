@@ -6,6 +6,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
+- [Preparing experimental data](#preparing-experimental-data)
 
 ---
 
@@ -149,3 +150,122 @@ this component's own values.
 - **You can link any two components.** MudLab2 does not restrict templates to a
   particular parent phase, so take care to link layers that really are the same
   clay layer.
+
+---
+
+## Preparing experimental data
+
+Before fitting phases to a measured pattern you often need to clean it up:
+remove the background, smooth counting noise, correct a specimen-height shift,
+strip a contaminant peak, or cut the pattern down to the range you care about.
+
+All of these live on the **Actions toolbar**, and Remove Background, Smooth Data
+and Shift Pattern are also on the **View** menu.
+
+Every one of them acts on the **selected specimen**. Select exactly one specimen
+with experimental data in the specimens list first — otherwise the buttons stay
+greyed out.
+
+> **These operations are permanent and cannot be undone.** They rewrite the
+> specimen's experimental pattern in place. Nothing is written to disk until you
+> save the project, so if an operation goes wrong, close the project **without
+> saving** and reopen it. If you are unsure, save a copy first.
+
+### Remove Background
+
+Subtracts a background so only the diffracted signal remains.
+
+- **Linear** — subtracts one flat value across the whole pattern. The field is
+  pre-filled with the lowest intensity in the pattern, which is usually a good
+  starting guess.
+- **Pattern** — subtracts a measured background pattern (a blank scan). Browse
+  to the file; it is automatically re-sampled onto your specimen's 2θ values, so
+  it does not need to have been measured on the same step size. Beyond the
+  background file's own range it contributes nothing.
+  - **Scale factor** multiplies the background pattern before subtracting
+    (use it when the blank was measured for a different counting time).
+  - **Offset value** adds a constant on top of the scaled pattern.
+
+### Smooth Data
+
+Reduces point-to-point scatter. Choose a **Type**, and the **Degree** field
+fills with a sensible default for that method — a higher degree smooths harder.
+
+| Type | What it does |
+| --- | --- |
+| Moving Triangle | Blackman-window average — a good general-purpose default |
+| Savitzky-Golay | Fits a local polynomial; preserves peak height and width better than a plain average |
+| Gaussian | Gaussian blur; degree is the width (sigma) |
+| Moving Average | Plain box average; simplest and most aggressive on sharp peaks |
+| Smoothing Spline | Fits a spline; degree sets how loosely it follows the data |
+| Butterworth | Low-pass filter; removes high-frequency noise |
+
+Smooth cautiously: over-smoothing broadens peaks and will bias a refinement's
+crystallite-size (CSDS) result.
+
+### Shift Pattern
+
+Corrects a 2θ offset, usually caused by the specimen surface sitting slightly
+above or below the correct height.
+
+1. Pick the **Position** — a reference mineral present in your sample whose peak
+   position is known exactly (quartz is the usual internal standard).
+2. MudLab2 finds that mineral's peak in your data and shows the offset, in °2θ,
+   between where it should be and where it actually is.
+3. Press OK to correct the pattern by that amount.
+
+Choose **Manual** to type an offset yourself; the value resets to zero so a
+previously detected offset is never reused by accident.
+
+**A value of 0.000 means no correction is needed** — either the reference peak
+already sits exactly where it should (your pattern is already aligned), or that
+reference lies outside your scanned range and could not be measured. Check that
+the reference you picked is actually within your scan.
+
+### Strip Peak
+
+Removes a contaminant peak (e.g. a quartz reflection overlapping a clay peak) by
+replacing it with the background beneath it.
+
+1. Set **Start position** and **End position** to bracket the peak — use the
+   **Sample** buttons to click the positions directly on the pattern.
+2. MudLab2 joins the two endpoints with a straight line and estimates a
+   **Noise level** so the patched section blends in rather than looking
+   artificially flat. You can override this value.
+3. Press OK. Only the data between the two positions changes.
+
+### Peak Properties
+
+Measures a peak's **area** and **FWHM** (full width at half maximum). This is
+the only Data operation that changes nothing — it just measures.
+
+Bracket the peak with the start/end positions (or the **Sample** buttons); the
+results update as you move them. The straight line between your two endpoints is
+treated as the local background, so place them on clean background either side
+of the peak. **Copy Results** puts both numbers on the clipboard.
+
+### Add Noise
+
+Adds synthetic noise to the pattern. This is a testing tool — use it to check
+how robust a refinement is against counting statistics, not on data you intend
+to keep. The **Fraction** is relative to the strongest peak, so 0.05 adds noise
+of about 5% of the tallest reflection.
+
+### Trim Data
+
+Permanently cuts the pattern down to a 2θ range — for trimming a noisy tail, or
+making several specimens share one range.
+
+- **Scope** — *This specimen only*, or *All loaded specimens*. Choosing "all"
+  pre-fills the range that **every** specimen shares, since a wider range would
+  fail on the ones that do not reach it.
+- **Min/Max °2θ** — the range to keep.
+
+Trimming also removes anything that falls outside the new range: markers, and
+exclusion ranges. The dialog tells you what will go before you commit. An
+exclusion range that only *partly* overlaps the new boundary is removed rather
+than cut short, since a shortened exclusion range would no longer mean what you
+set it to mean.
+
+A trim that would leave fewer than two data points is refused, and MudLab2 names
+the specimens it could not trim.

@@ -63,8 +63,11 @@
      </item>
      <item row="1" column="1">
       <widget class="QDoubleSpinBox" name="spin_shift_value">
+       <property name="toolTip">
+        <string>The offset between the reference reflection's theoretical position and where it actually peaks. Detected automatically unless Position is Manual.</string>
+       </property>
        <property name="suffix">
-        <string> nm</string>
+        <string> °2θ</string>
        </property>
        <property name="decimals">
         <number>5</number>

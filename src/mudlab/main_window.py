@@ -122,25 +122,37 @@ class MainWindow(QMainWindow):
         self.ui.actionAddSpecimen.triggered.connect(self._add_specimen)
         self.ui.actionImportSpecimens.triggered.connect(self._import_specimens)
 
-        # Specimen-operation dialogs (modal; the actual data operations
-        # connect to these once the calculation ports land).
+        # Specimen-operation dialogs (modal). Each binds the selected specimen
+        # and applies its operation on OK. The old app opened these from the
+        # Edit Specimen controller, so they always had a specimen; here they
+        # live on the menu, so they are disabled unless exactly one specimen
+        # with data is selected (_update_data_op_actions).
+        self._data_op_actions = []
         for action, dialog_cls in (
             (self.ui.actionRemoveBackground, RemoveBackgroundDialog),
             (self.ui.actionSmoothData, SmoothDataDialog),
             (self.ui.actionShiftPattern, ShiftPatternDialog),
             (self.ui.actionAddNoise, AddNoiseDialog),
-            (self.ui.actionTrimData, TrimDataDialog),
-            (self.ui.actionSaveGraph, SaveGraphSizeDialog),
         ):
             action.triggered.connect(
-                lambda _=False, cls=dialog_cls: cls(self).exec()
+                lambda _=False, cls=dialog_cls: self._run_data_op(cls)
             )
+            self._data_op_actions.append(action)
+        # Trim takes the whole specimen list too (it can trim all of them).
+        self.ui.actionTrimData.triggered.connect(self._show_trim_data)
+        self._data_op_actions.append(self.ui.actionTrimData)
+        self.ui.actionSaveGraph.triggered.connect(
+            lambda: SaveGraphSizeDialog(self).exec()
+        )
         # Strip Peak / Peak Properties are modeless: their Sample buttons
         # pick positions on the plot, so the plot must stay clickable.
         self._strip_peak_dialog: StripPeakDialog | None = None
         self._peak_props_dialog: PeakPropertiesDialog | None = None
         self.ui.actionStripPeak.triggered.connect(self._show_strip_peak)
         self.ui.actionPeakProperties.triggered.connect(self._show_peak_properties)
+        self._data_op_actions.append(self.ui.actionStripPeak)
+        self._data_op_actions.append(self.ui.actionPeakProperties)
+        self._update_data_op_actions()
 
         # Model -> view plumbing.
         self._connect_project_signals(self.project)
@@ -208,6 +220,10 @@ class MainWindow(QMainWindow):
             self.select_specimen_row(0)
         else:
             self.show_specimen_plots([])
+        # Explicitly, not via the selection signal: swapping to a project with
+        # no specimens changes no selection, so nothing would fire and the data
+        # operations would stay enabled with nothing to act on.
+        self._update_data_op_actions()
         self._dirty = False
 
     def _confirm_discard_unsaved(self, question: str) -> bool:
@@ -571,6 +587,7 @@ class MainWindow(QMainWindow):
 
     def _on_specimen_selection_changed(self, *_args) -> None:
         self.show_specimen_plots(self._selected_specimens())
+        self._update_data_op_actions()
 
     def _on_specimen_double_clicked(self, index) -> None:
         if index.column() != 0:
@@ -707,16 +724,63 @@ class MainWindow(QMainWindow):
         self._edit_mixtures_dialog.raise_()
         self._edit_mixtures_dialog.activateWindow()
 
+    # ------------------------------------------------------------------
+    # Data operations (old: the Edit Specimen controller's line dialogs)
+    # ------------------------------------------------------------------
+    def _data_op_specimen(self):
+        """The specimen the data operations target: the selected one, when
+        exactly one with experimental data is selected."""
+        specimens = self._selected_specimens()
+        if len(specimens) == 1 and specimens[0].has_experimental_data:
+            return specimens[0]
+        return None
+
+    def _update_data_op_actions(self) -> None:
+        """Grey out the data operations when there is nothing to operate on -
+        an enabled button that silently does nothing is worse than a disabled
+        one."""
+        enabled = self._data_op_specimen() is not None
+        for action in self._data_op_actions:
+            action.setEnabled(enabled)
+            action.setToolTip(
+                "" if enabled
+                else "Select a single specimen with experimental data first."
+            )
+
+    def _run_data_op(self, dialog_cls) -> None:
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        dialog_cls(self, specimen=specimen).exec()
+
+    def _show_trim_data(self) -> None:
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        TrimDataDialog(
+            self, specimen=specimen, specimens=list(self.project.specimens)
+        ).exec()
+
     def _show_strip_peak(self) -> None:
-        if self._strip_peak_dialog is None:
-            self._strip_peak_dialog = StripPeakDialog(self)
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        # Rebuilt per open so it binds the current selection (the modeless
+        # dialog would otherwise keep operating on a stale specimen).
+        if self._strip_peak_dialog is not None:
+            self._strip_peak_dialog.close()
+        self._strip_peak_dialog = StripPeakDialog(self, specimen=specimen)
         self._strip_peak_dialog.show()
         self._strip_peak_dialog.raise_()
         self._strip_peak_dialog.activateWindow()
 
     def _show_peak_properties(self) -> None:
-        if self._peak_props_dialog is None:
-            self._peak_props_dialog = PeakPropertiesDialog(self)
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        if self._peak_props_dialog is not None:
+            self._peak_props_dialog.close()
+        self._peak_props_dialog = PeakPropertiesDialog(self, specimen=specimen)
         self._peak_props_dialog.show()
         self._peak_props_dialog.raise_()
         self._peak_props_dialog.activateWindow()
