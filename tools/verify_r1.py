@@ -277,6 +277,64 @@ def check_refinement(path, results):
                         abs(mixture.current_residual() - base) < 1e-9))
 
 
+def check_editor(project, results):
+    """10 (R1c-2). The probabilities editor adapts to R1: it shows W1 / P11
+    controls (not F), editing recomputes W/P, and an inherited parameter is
+    shown read-through and greyed."""
+    from mudlab.probabilities_widget import ProbabilitiesWidget
+
+    def _row_labels(widget):
+        form = widget.ui.independentsForm
+        return [
+            form.itemAt(r, form.ItemRole.LabelRole).widget().text()
+            for r in range(form.rowCount())
+        ]
+
+    r1 = _r1_phases(project)
+    owner = next((p for p in r1 if not p.probabilities.inherit_W1), None)
+    inh = next((p for p in r1 if p.probabilities.inherit_W1), None)
+    if owner is None:
+        return
+
+    # Non-inheriting R1 phase: W1 + P11 rows, both editable.
+    w = ProbabilitiesWidget()
+    fired = []
+    w.bind_probabilities(owner.probabilities,
+                         labels=[c.name for c in owner.components],
+                         on_changed=lambda: fired.append(1),
+                         can_inherit=owner.based_on is not None)
+    labels = _row_labels(w)
+    results.append(("10 R1 editor shows W1 + P11 rows (not F)",
+                    labels == ["W1", "P11 / P22"]))
+    results.append(("10 W1 spin shows the model value",
+                    abs(w._param_spins[0].value() - owner.probabilities.W1) < 1e-4))
+    w._param_spins[0].setValue(0.42)
+    results.append(("10 editing W1 writes the model + fires on_changed",
+                    abs(owner.probabilities.W1 - 0.42) < 1e-9 and len(fired) > 0))
+
+    # Inheriting R1 phase: boxes checked, spins greyed, showing the parent's
+    # value; unticking hands the value back to the child's own.
+    if inh is not None:
+        parent_w1 = inh.based_on.probabilities.w1_value()
+        w2 = ProbabilitiesWidget()
+        w2.bind_probabilities(inh.probabilities,
+                              labels=[c.name for c in inh.components],
+                              on_changed=lambda: None,
+                              can_inherit=inh.based_on is not None)
+        results.append(("10 inherited W1: box checked + spin disabled",
+                        w2._param_inherits[0].isChecked()
+                        and not w2._param_spins[0].isEnabled()))
+        results.append(("10 inherited W1 spin shows the PARENT value",
+                        abs(w2._param_spins[0].value() - parent_w1) < 1e-4))
+        own_before = inh.probabilities.W1
+        w2._param_inherits[0].setChecked(False)
+        results.append(("10 unticking re-enables the spin + clears the flag",
+                        w2._param_spins[0].isEnabled()
+                        and not inh.probabilities.inherit_W1))
+        results.append(("10 untick shows the child's OWN W1",
+                        abs(w2._param_spins[0].value() - own_before) < 1e-4))
+
+
 def check_roundtrip(path, results):
     """6. R1 probabilities survive save/reload byte-identical."""
     def _phase_probs(mud_path):
@@ -339,6 +397,7 @@ def run(path):
     check_edit_persists(path, results)
     check_detach_clears_flags(load_mud(path), results)
     check_refinement(path, results)
+    check_editor(load_mud(path), results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

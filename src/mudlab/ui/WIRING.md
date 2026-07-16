@@ -537,12 +537,23 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
   phase there has W1 ~ 0.73, so the golden calc exercises only the `W1>0.5`
   branch; the `W1<=0.5` branch is covered by the synthetic `2b` check and the
   edit-persistence check (`W1=0.4237`) in `verify_r1.py`.
-- **Still to do**: R1c the probabilities editor adapting per-R (W1 / P11
-  controls instead of F spins) + refinement enumerating R1 params (currently
-  `_phase_refinables` is F-specific: `is_f_inherited` / `f_value`); R1d
-  unlocking R in the Add dialog with per-R G bounds (old `RGbounds`: R1 ->
-  G2-4). R1G3/G4 need their own golden fixtures. Also still TODO: a guard that
-  refuses (not silently R0-degrades) an unported higher-R type on load.
+- **Refinement + editor are model-agnostic (Batch R1c)**. Each model exposes
+  two descriptor lists so neither the refiner nor the editor hard-codes F:
+    - `refinable_params()` -> (label, get, set, ref_info_key, bounds,
+      inherited); `refinement._phase_refinables` iterates it and skips the
+      inherited ones. R0 -> F1..Fn, R1G2 -> W1 / P11_or_P22. On Dh537A only
+      the non-inheriting AD contributes W1/P11 (EG/350 read through).
+    - `editable_params()` -> dicts (label, tooltip, get effective, set own,
+      inherited, set_inherited, inherit_tooltip); `probabilities_widget`
+      builds one spin + Inherit checkbox per entry and shows W/P below. The
+      R1 tab therefore shows **W1 and "P11 / P22"** rows, not F. can_inherit
+      (= `phase.based_on is not None`) gates the Inherit boxes; ticking greys
+      the spin and shows the parent's value, unticking restores the child's
+      own. R0 output is unchanged (same F labels / ref_info keys / bounds).
+- **Still to do**: R1d unlocking R in the Add dialog with per-R G bounds (old
+  `RGbounds`: R1 -> G2-4). R1G3/G4 need their own golden fixtures. Also still
+  TODO: a guard that refuses (not silently R0-degrades) an unported higher-R
+  type on load.
 
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 

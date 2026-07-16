@@ -157,6 +157,29 @@ class R0Probability:
             ))
         return out
 
+    def _set_f_inherited(self, index: int, value: bool) -> None:
+        while len(self.inherit_F) <= index:
+            self.inherit_F.append(False)
+        self.inherit_F[index] = bool(value)
+
+    def editable_params(self) -> list:
+        """Descriptors for the probabilities editor, model-agnostic. Each is a
+        dict: label, tooltip, get (effective value), set (own value),
+        inherited (bool), set_inherited, inherit_tooltip. The editor builds one
+        spin + Inherit checkbox per entry and shows the derived W/P below."""
+        out = []
+        for i in range(self.n_independents):
+            out.append({
+                "label": "F%d" % (i + 1),
+                "tooltip": "W%d / sum(W%d..W%d)" % (i + 1, i + 1, self.G),
+                "get": (lambda i=i: self.f_value(i)),
+                "set": (lambda v, i=i: self.set_f(i, v)),
+                "inherited": self.is_f_inherited(i),
+                "set_inherited": (lambda b, i=i: self._set_f_inherited(i, b)),
+                "inherit_tooltip": 'Take F%d from the "based on" phase.' % (i + 1),
+            })
+        return out
+
     @classmethod
     def from_dict(cls, data: dict, G: int) -> "R0Probability":
         props = data.get("properties", {}) if isinstance(data, dict) else {}
@@ -311,6 +334,33 @@ class R1G2Probability:
                 (0.0, 1.0),
                 self._inherited("P11_or_P22"),
             ),
+        ]
+
+    def editable_params(self) -> list:
+        """Descriptors for the probabilities editor (see R0Probability). Two
+        rows: W1 and the free junction probability P11/P22."""
+        return [
+            {
+                "label": "W1",
+                "tooltip": "Weight fraction of layer 1 (W2 = 1 - W1).",
+                "get": (lambda: self.w1_value()),
+                "set": (lambda v: setattr(self, "W1", float(v))),
+                "inherited": self._inherited("W1"),
+                "set_inherited": (
+                    lambda b: setattr(self, "inherit_W1", bool(b))),
+                "inherit_tooltip": 'Take W1 from the "based on" phase.',
+            },
+            {
+                "label": "P11 / P22",
+                "tooltip": "Junction probability: P11 when W1 <= 0.5, else P22 "
+                           "(the other entries follow from detailed balance).",
+                "get": (lambda: self.p11_value()),
+                "set": (lambda v: setattr(self, "P11_or_P22", float(v))),
+                "inherited": self._inherited("P11_or_P22"),
+                "set_inherited": (
+                    lambda b: setattr(self, "inherit_P11_or_P22", bool(b))),
+                "inherit_tooltip": 'Take P11/P22 from the "based on" phase.',
+            },
         ]
 
     @classmethod
