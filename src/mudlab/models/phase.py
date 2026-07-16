@@ -130,9 +130,13 @@ class Phase:
             self.inherit_sigma_star = False
             self.inherit_CSDS_distribution = False
             self.inherit_display_color = False
-            self.probabilities.inherit_F = [
-                False for _ in range(self.probabilities.n_independents)
-            ]
+            # Delegate to the probability model so the RIGHT flags clear -
+            # R0's inherit_F, R1G2's inherit_W1 / inherit_P11_or_P22. The old
+            # code set inherit_F directly, which silently did nothing on an R1
+            # model (a stray attribute) and left its real flags set.
+            clear = getattr(self.probabilities, "clear_inheritance", None)
+            if callable(clear):
+                clear()
         return True
 
     def is_inherited(self, attr: str) -> bool:
@@ -223,21 +227,17 @@ class Phase:
         props["inherit_sigma_star"] = self.inherit_sigma_star
         props["inherit_CSDS_distribution"] = self.inherit_CSDS_distribution
         props["inherit_display_color"] = self.inherit_display_color
-        # R0 stacking: write the (G-1) independent F variables back into the
-        # probabilities dict (keeping its uuid / ref_info). Own values again -
-        # an inherited F keeps its stored (stale) number, as the old app does.
-        own_f = getattr(self.probabilities, "own_f_params", None)
+        # Stacking probabilities: each model writes its OWN modeled params
+        # back into the probabilities dict (keeping its uuid / ref_info),
+        # preserving the rest verbatim. R0 writes F1..Fn + inherit_F<i>; R1G2
+        # writes W1 / P11_or_P22 + their inherit flags. Own (not read-through)
+        # values, so a based_on child round-trips byte-identically and keeps
+        # its stored stale value, as the old app does.
+        writer = getattr(self.probabilities, "write_properties", None)
         probs = props.get("probabilities")
-        if callable(own_f) and isinstance(probs, dict):
+        if callable(writer) and isinstance(probs, dict):
             probs = dict(probs)
-            probs_props = dict(probs.get("properties") or {})
-            for i, value in enumerate(own_f()):
-                probs_props["F%d" % (i + 1)] = value
-                probs_props["inherit_F%d" % (i + 1)] = bool(
-                    self.probabilities.inherit_F[i]
-                    if i < len(self.probabilities.inherit_F) else False
-                )
-            probs["properties"] = probs_props
+            probs["properties"] = writer(dict(probs.get("properties") or {}))
             props["probabilities"] = probs
         return {"type": "Phase", "properties": props}
 

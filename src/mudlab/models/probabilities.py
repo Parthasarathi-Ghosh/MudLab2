@@ -121,6 +121,25 @@ class R0Probability:
         # Independent stacking: every row of P is the weight-fraction vector.
         return np.tile(self._weights(), (self.G, 1))
 
+    # -- serialization / inheritance (used by Phase.to_dict / set_based_on) --
+    def write_properties(self, props: dict) -> dict:
+        """Write the OWN F values + per-F inherit flags into a probabilities
+        properties dict, preserving its other keys (uuid, ref_info). Own (not
+        read-through) values, so a based_on child round-trips byte-identically
+        and keeps its stored stale F - as the old app does."""
+        props = dict(props)
+        for i in range(self.n_independents):
+            props["F%d" % (i + 1)] = self.own_f_value(i)
+            props["inherit_F%d" % (i + 1)] = bool(
+                self.inherit_F[i] if i < len(self.inherit_F) else False
+            )
+        return props
+
+    def clear_inheritance(self) -> None:
+        """Drop every inherit flag (old detach: a phase no longer based_on
+        anything inherits nothing)."""
+        self.inherit_F = [False for _ in range(self.n_independents)]
+
     @classmethod
     def from_dict(cls, data: dict, G: int) -> "R0Probability":
         props = data.get("properties", {}) if isinstance(data, dict) else {}
@@ -236,6 +255,23 @@ class R1G2Probability:
 
     def get_probability_matrix(self) -> np.ndarray:
         return self._pmatrix()
+
+    # -- serialization / inheritance (same contract as R0Probability) --
+    def write_properties(self, props: dict) -> dict:
+        """Write the OWN W1 / P11_or_P22 + their inherit flags into a
+        probabilities properties dict, preserving its other keys (uuid,
+        ref_info). Own (not read-through) values, so an inherited child
+        round-trips byte-identically and keeps its stored stale value."""
+        props = dict(props)
+        props["W1"] = self.W1
+        props["P11_or_P22"] = self.P11_or_P22
+        props["inherit_W1"] = bool(self.inherit_W1)
+        props["inherit_P11_or_P22"] = bool(self.inherit_P11_or_P22)
+        return props
+
+    def clear_inheritance(self) -> None:
+        self.inherit_W1 = False
+        self.inherit_P11_or_P22 = False
 
     @classmethod
     def from_dict(cls, data: dict, G: int = 2) -> "R1G2Probability":

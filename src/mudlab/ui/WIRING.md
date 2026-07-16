@@ -522,24 +522,27 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
   read the effective value through to the based_on parent (`w1_value()` /
   `p11_value()`), so a refined/edited parent propagates at once. Wired by the
   existing `Phase.resolve_based_on` -> `probabilities.set_based_on`.
-- **Serialization is verbatim so far**: `Phase.to_dict`'s F-write-back is
-  guarded by `getattr(..., "own_f_params", None)`, which `R1G2Probability`
-  lacks, so the R1 probabilities dict round-trips byte-identical through
-  `raw_properties`. This means an EDIT to an R1 param is not yet persisted -
-  that is Batch R1b (model the write-back).
+- **Serialization is model-delegated (Batch R1b)**: `Phase.to_dict` no longer
+  hard-codes F params - it calls `self.probabilities.write_properties(props)`,
+  which each model implements (R0 writes F1..Fn + inherit_F<i>; R1G2 writes
+  W1 / P11_or_P22 + their inherit flags). OWN values, so a loaded project is
+  byte-identical AND an edit persists. `Phase.set_based_on`'s detach likewise
+  delegates to `probabilities.clear_inheritance()` (R0 clears inherit_F, R1G2
+  clears inherit_W1 / inherit_P11_or_P22) - the old code set inherit_F
+  directly, a no-op stray attribute on R1 that left its real flags set.
 - Fixture `Dh537A.mud` (three `IS R1 Ca-*`, EG/350 inherit from AD). The
   R0-fallback failed its golden calc at corr 0.984; R1a reproduces it at
   corr 1.000000. Guards: `verify_r1.py` (model internals) + `Dh537A` in
   `verify_calc_engine.py` (integration). **Branch-coverage caveat**: every R1
   phase there has W1 ~ 0.73, so the golden calc exercises only the `W1>0.5`
-  branch; the `W1<=0.5` branch is guarded solely by the synthetic `2b` check
-  in `verify_r1.py`.
-- **Still to do**: R1b serialization write-back (persist edited W1/P11 + the
-  R1 inherit flags; also fix `Phase.set_based_on`'s detach path, which clears
-  `inherit_F` - a no-op on R1 - but not `inherit_W1`/`inherit_P11_or_P22`);
-  R1c the probabilities editor adapting per-R + refinement enumerating R1
-  params; R1d unlocking R in the Add dialog with per-R G bounds (old
-  `RGbounds`: R1 -> G2-4). R1G3/G4 need their own golden fixtures.
+  branch; the `W1<=0.5` branch is covered by the synthetic `2b` check and the
+  edit-persistence check (`W1=0.4237`) in `verify_r1.py`.
+- **Still to do**: R1c the probabilities editor adapting per-R (W1 / P11
+  controls instead of F spins) + refinement enumerating R1 params (currently
+  `_phase_refinables` is F-specific: `is_f_inherited` / `f_value`); R1d
+  unlocking R in the Add dialog with per-R G bounds (old `RGbounds`: R1 ->
+  G2-4). R1G3/G4 need their own golden fixtures. Also still TODO: a guard that
+  refuses (not silently R0-degrades) an unported higher-R type on load.
 
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 

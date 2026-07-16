@@ -174,6 +174,70 @@ def check_discrimination(project, results):
                         not np.allclose(P_r1, P_r0, atol=1e-6)))
 
 
+def check_edit_persists(path, results):
+    """7 (R1b). An edited W1 / P11 survives save/reload.
+
+    Until R1b the R1 dict round-tripped verbatim, so an edit was silently
+    lost. to_dict now writes each model's OWN modeled params back, so an edit
+    persists AND a loaded (unedited) project stays byte-identical.
+    """
+    project = load_mud(path)
+    r1 = _r1_phases(project)
+    # Edit a phase that owns its W1 (not inheriting), so the edit is its own.
+    owner = next((p for p in r1 if not p.probabilities.inherit_W1), r1[0])
+    name = owner.name
+    owner.probabilities.W1 = 0.4237
+    owner.probabilities.P11_or_P22 = 0.1234
+
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_r1_edit.mud")
+    try:
+        save_mud(project, tmp)
+        reloaded = load_mud(tmp)
+        r = next(p for p in reloaded.phases if p.name == name)
+        results.append(("7 edited W1 persists (%.4f)" % r.probabilities.W1,
+                        abs(r.probabilities.W1 - 0.4237) < 1e-9))
+        results.append(("7 edited P11 persists (%.4f)" % r.probabilities.P11_or_P22,
+                        abs(r.probabilities.P11_or_P22 - 0.1234) < 1e-9))
+        # The recomputed matrix reflects the edit (0.4237 < 0.5 -> IF branch,
+        # so this ALSO exercises the branch the fixture otherwise never hits).
+        _, P_ref = _r1_g2_reference(0.4237, 0.1234)
+        results.append(("7 P matrix reflects the edited params",
+                        np.allclose(r.probabilities.get_probability_matrix(),
+                                    P_ref, atol=1e-12)))
+    finally:
+        for p in (tmp, tmp + "~"):
+            if os.path.exists(p):
+                os.remove(p)
+
+
+def check_detach_clears_flags(project, results):
+    """8 (R1b). Detaching an R1 child clears its R1 inherit flags.
+
+    Regression guard: Phase.set_based_on(None) used to set inherit_F on the
+    model - a no-op stray attribute on R1G2Probability - and left the real
+    inherit_W1 / inherit_P11_or_P22 flags set, so a detached R1 child kept
+    reading through to a parent it no longer had.
+    """
+    r1 = _r1_phases(project)
+    child = next(
+        (p for p in r1 if p.based_on is not None
+         and (p.probabilities.inherit_W1 or p.probabilities.inherit_P11_or_P22)),
+        None,
+    )
+    if child is None:
+        return
+    own_w1_before = child.probabilities.W1
+    child.set_based_on(None)
+    results.append(("8 detach drops based_on", child.based_on is None))
+    results.append(("8 detach clears inherit_W1",
+                    not child.probabilities.inherit_W1))
+    results.append(("8 detach clears inherit_P11_or_P22",
+                    not child.probabilities.inherit_P11_or_P22))
+    # With nothing to read through to, the effective value is its own again.
+    results.append(("8 detached child reads its OWN W1",
+                    abs(child.probabilities.w1_value() - own_w1_before) < 1e-12))
+
+
 def check_roundtrip(path, results):
     """6. R1 probabilities survive save/reload byte-identical."""
     def _phase_probs(mud_path):
@@ -233,6 +297,8 @@ def run(path):
     check_inheritance(project, results)
     check_discrimination(project, results)
     check_roundtrip(path, results)
+    check_edit_persists(path, results)
+    check_detach_clears_flags(load_mud(path), results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))
