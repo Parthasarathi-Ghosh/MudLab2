@@ -344,6 +344,81 @@ def check_trim(path, results):
                         and np.array_equal(before, spec.experimental_pattern[0])))
 
 
+def check_ops_x_calc_engine(path, results):
+    """3. The calculation engine survives an op reshaping a specimen.
+
+    The ops change a specimen's shape (trim) or its 2-theta axis (shift); the
+    calc path, the mixture and the refiner all hold assumptions about that
+    shape. calculate_specimen_pattern follows the experimental grid when
+    present, so a trimmed specimen must recalculate onto the trimmed grid
+    rather than the goniometer's full range.
+    """
+    project = load_mud(path)
+    if not project.mixtures:
+        return
+    mixture = project.mixtures[0]
+    targets = [
+        s for s in mixture.specimens
+        if s is not None and s.has_experimental_data
+    ]
+    if not targets:
+        return
+    spec = targets[0]
+    others = [s for s in targets if s is not spec]
+
+    x, _ = spec.experimental_pattern
+    spec.trim(float(x[len(x) // 4]), float(x[3 * len(x) // 4]))
+    results.append(("3 residual computable on a trimmed specimen",
+                    np.isfinite(mixture.current_residual())))
+
+    mixture.calculate()
+    ex, _ = spec.experimental_pattern
+    cx, cy = spec.calculated_pattern
+    results.append(("3 recalc lands on the TRIMMED grid, not the goniometer range",
+                    np.array_equal(ex, cx)))
+    results.append(("3 recalculated intensities are finite",
+                    bool(np.all(np.isfinite(cy)))))
+    results.append(("3 trimmed specimen still yields a real Rp (not 0.0)",
+                    spec.statistics.Rp > 0))
+    # One specimen's trim must not disturb its neighbours in the mixture.
+    results.append(("3 trimming one specimen leaves the others intact",
+                    all(len(s.experimental_pattern[0])
+                        == len(s.calculated_pattern[0]) for s in others)))
+
+    # The refiner enumerates structural parameters off the phases, not the
+    # patterns, so a trim must not change the refinable set - and the residual
+    # must still respond to one.
+    from mudlab.calculations.refinement import enumerate_refinables
+
+    refinables = enumerate_refinables(mixture)
+    results.append(("3 refinables still enumerate after a trim",
+                    len(refinables) > 0))
+    if refinables:
+        base = mixture.current_residual()
+        # At least ONE refinable must move the residual - not any given one.
+        # A phase at fraction 0 contributes nothing to the pattern, so its
+        # parameters correctly move nothing (Dh2040A 14Jul26.mud carries an
+        # Illite phase at fraction 0.0 for exactly this reason), and a
+        # zero-valued parameter is unmoved by a multiplicative nudge.
+        responsive = 0
+        restored_ok = True
+        for ref in refinables:
+            original = ref.value
+            ref.value = (original * 1.05) if original else 0.05
+            if abs(mixture.current_residual() - base) > 1e-9:
+                responsive += 1
+            ref.value = original
+            if abs(mixture.current_residual() - base) > 1e-9:
+                restored_ok = False
+                break
+        results.append(
+            ("3 residual responds to a refinable on a trimmed grid (%d/%d live)"
+             % (responsive, len(refinables)), responsive > 0)
+        )
+        results.append(("3 restoring every refinable restores the residual",
+                        restored_ok))
+
+
 def check_specimen_wiring(path, results):
     """3. The Specimen methods mutate the pattern and emit data_changed once
     (the plot and the fit statistics both hang off that signal)."""
@@ -470,6 +545,7 @@ def run(path, old):
     check_strip(project, results)
     check_trim(path, results)
     check_trim_persistence(path, results)
+    check_ops_x_calc_engine(path, results)
     check_specimen_wiring(path, results)
     passed = 0
     for label, ok in results:

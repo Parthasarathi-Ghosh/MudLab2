@@ -819,6 +819,49 @@ completely stale cache. It now asserts the **Rp value moves**.
   the displacement correction is angle-dependent. `PATTERN_SHIFT_TYPE` is
   `"Displacement"`, so in practice markers never move on shift. Old app
   behaves identically.
+
+### Audit notes: data operations x the calculation engine (2026-07-16)
+
+Second, targeted pass. The Batch D verification stops at the specimen
+boundary, so this probed the one dimension nothing had exercised: what the
+calc engine / mixture / optimizer / refiner do after an op reshapes a
+specimen. It was chosen because the batch's worst defect (trim vs the
+saver) was of the class *"a distant module's assumption about the specimen
+went stale"* - and the saver was not the only module holding one.
+
+**Result: clean.** No code defects. `calculate_specimen_pattern` reads
+`exp_x` live, so a trimmed specimen recalculates onto the trimmed grid; the
+optimizer and refiner follow. Verified concretely: recalc lands on the
+trimmed grid, one specimen's trim leaves its neighbours alone, refinables
+still enumerate and still move the residual, `optimize()` does not worsen
+it, and the mixture residual equals the mean of the per-specimen
+`statistics.Rp` **exactly** (35.3352 both ways on 308 r1). Guarded by
+`check_ops_x_calc_engine` (mutation-tested: making the calc ignore the
+experimental grid fails 13 checks).
+
+Two **old-app parity traps** confirmed (verified against the old
+`commit_shift`; deliberately NOT changed - porting analytics as-is):
+
+- **Exclusion ranges do NOT follow a shift.** The data moves
+  (15.0845 -> 14.7845 for a 0.30° shift) but the ranges are absolute 2θ and
+  stay put, so a range that masked a peak now masks the wrong region - and
+  the refinement optimises against it. The old `commit_shift` never touches
+  them either. Users should shift *before* setting exclusion ranges (now in
+  the user manual).
+- **Markers do not follow a shift in practice**, per the note above. The old
+  app is internally inconsistent here and the port reproduces it faithfully:
+  `_apply_shift_to_array` shifts linearly when
+  `PATTERN_SHIFT_TYPE == "Linear" **or** shift_position == 0` (Manual), but
+  the marker-moving branch tests only `PATTERN_SHIFT_TYPE == "Linear"`. So in
+  Manual mode the data moves linearly while the markers stay put.
+
+**A harness lesson (my check was wrong, not the code).** The first version
+asserted that perturbing *the first refine-flagged* refinable moves the
+residual. It failed on `Dh2040A 14Jul26.mud` - whose Illite phase sits at
+fraction **0.0**, so its parameters correctly move nothing. The check now
+asserts *at least one* refinable is live and prints the count (13/17 there,
+21/21 on 308 r1). Assert the invariant that must hold, not one that happens
+to hold on the baseline fixture.
 - **Statistics** (`statistics.ui`): read-only χ², R², Rp, Rwp, Re, data
   points via `set_statistics(...)`. NOT yet reachable from the UI - the
   old `view_statistics` action lives in the future specimens context

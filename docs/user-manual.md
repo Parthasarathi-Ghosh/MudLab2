@@ -217,6 +217,13 @@ above or below the correct height.
 Choose **Manual** to type an offset yourself; the value resets to zero so a
 previously detected offset is never reused by accident.
 
+> **Shift before you set exclusion ranges or markers.** Shifting moves the
+> pattern, but exclusion ranges stay where you put them — they are fixed 2θ
+> positions, not features of the data. A range you set to mask a peak will no
+> longer sit over that peak after a shift, and the refinement will exclude the
+> wrong region without warning. Markers do not move either. If you have already
+> shifted, check both before fitting.
+
 **A value of 0.000 means no correction is needed** — either the reference peak
 already sits exactly where it should (your pattern is already aligned), or that
 reference lies outside your scanned range and could not be measured. Check that
