@@ -156,16 +156,19 @@ def _phase_refinables(phase) -> list[Refinable]:
             _nested(raw, "CSDS_distribution", "properties"),
             "average_ref_info", default_bounds=(1.0, 200.0),
         ))
-    if phase.G >= 2:
+    # Stacking probabilities: the model lists its own independent parameters
+    # (R0 -> F1..Fn, R1G2 -> W1 / P11_or_P22), so the refiner does not need to
+    # know which model it is. An inherited parameter follows its based_on
+    # parent, so it is skipped here (only the parent's copy is independent).
+    prob_params = phase.probabilities.refinable_params()
+    if prob_params:
         prob_props = _nested(raw, "probabilities", "properties")
-        for i in range(phase.probabilities.n_independents):
-            if phase.probabilities.is_f_inherited(i):
+        for label, getter, setter, ref_key, bounds, inherited in prob_params:
+            if inherited:
                 continue
             out.append(Refinable(
-                "%s | F%d" % (phase.name, i + 1),
-                lambda p=phase, i=i: p.probabilities.f_value(i),
-                lambda v, p=phase, i=i: p.probabilities.set_f(i, v),
-                prob_props, "F%d_ref_info" % (i + 1), default_bounds=(0.0, 1.0),
+                "%s | %s" % (phase.name, label),
+                getter, setter, prob_props, ref_key, default_bounds=bounds,
             ))
     for comp in phase.components:
         craw = comp.raw_properties

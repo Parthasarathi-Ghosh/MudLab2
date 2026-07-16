@@ -238,6 +238,45 @@ def check_detach_clears_flags(project, results):
                     abs(child.probabilities.w1_value() - own_w1_before) < 1e-12))
 
 
+def check_refinement(path, results):
+    """9 (R1c-1). The refiner enumerates R1 params (W1 / P11), skips the
+    inherited ones, and a flagged R1 param actually moves the fit."""
+    from mudlab.calculations.refinement import enumerate_refinables
+
+    project = load_mud(path)
+    if not project.mixtures:
+        return
+    mixture = project.mixtures[0]
+    labels = [r.label for r in enumerate_refinables(mixture)]
+    r1 = _r1_phases(project)
+    # The non-inheriting R1 phase must contribute W1 and P11 as refinables.
+    owner = next((p for p in r1 if not p.probabilities.inherit_W1), None)
+    if owner is not None:
+        results.append(("9 %s | W1 is refinable" % owner.name,
+                        "%s | W1" % owner.name in labels))
+        results.append(("9 %s | P11_or_P22 is refinable" % owner.name,
+                        "%s | P11_or_P22" % owner.name in labels))
+    # An inheriting R1 phase must NOT (its W1/P11 read through to the parent).
+    inh = next((p for p in r1 if p.probabilities.inherit_W1), None)
+    if inh is not None:
+        results.append(("9 inherited %s | W1 is NOT refinable" % inh.name,
+                        "%s | W1" % inh.name not in labels))
+
+    # Refining a flagged R1 param must be able to move the residual.
+    refs = enumerate_refinables(mixture)
+    target = next((r for r in refs if r.label.endswith("| W1")), None)
+    if target is not None:
+        base = mixture.current_residual()
+        v0 = target.value
+        target.value = min(max(v0 * 1.1, 0.01), 0.99)
+        moved = mixture.current_residual()
+        target.value = v0
+        results.append(("9 residual responds to an R1 W1 (%.4f -> %.4f)"
+                        % (base, moved), abs(moved - base) > 1e-9))
+        results.append(("9 restoring W1 restores the residual",
+                        abs(mixture.current_residual() - base) < 1e-9))
+
+
 def check_roundtrip(path, results):
     """6. R1 probabilities survive save/reload byte-identical."""
     def _phase_probs(mud_path):
@@ -299,6 +338,7 @@ def run(path):
     check_roundtrip(path, results)
     check_edit_persists(path, results)
     check_detach_clears_flags(load_mud(path), results)
+    check_refinement(path, results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

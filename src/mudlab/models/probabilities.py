@@ -140,6 +140,23 @@ class R0Probability:
         anything inherits nothing)."""
         self.inherit_F = [False for _ in range(self.n_independents)]
 
+    def refinable_params(self) -> list:
+        """The independent parameters exposed to the refiner, model-agnostic:
+        (label, getter, setter, ref_info_key, default_bounds, inherited). An
+        inherited parameter is flagged so the caller skips it (refining a
+        read-through value is a no-op)."""
+        out = []
+        for i in range(self.n_independents):
+            out.append((
+                "F%d" % (i + 1),
+                (lambda i=i: self.f_value(i)),
+                (lambda v, i=i: self.set_f(i, v)),
+                "F%d_ref_info" % (i + 1),
+                (0.0, 1.0),
+                self.is_f_inherited(i),
+            ))
+        return out
+
     @classmethod
     def from_dict(cls, data: dict, G: int) -> "R0Probability":
         props = data.get("properties", {}) if isinstance(data, dict) else {}
@@ -272,6 +289,29 @@ class R1G2Probability:
     def clear_inheritance(self) -> None:
         self.inherit_W1 = False
         self.inherit_P11_or_P22 = False
+
+    def refinable_params(self) -> list:
+        """Same contract as R0Probability.refinable_params. The setter writes
+        the OWN value; only non-inherited params are refined (the caller skips
+        the inherited ones), so own == effective there."""
+        return [
+            (
+                "W1",
+                (lambda: self.w1_value()),
+                (lambda v: setattr(self, "W1", float(v))),
+                "W1_ref_info",
+                (0.0, 1.0),
+                self._inherited("W1"),
+            ),
+            (
+                "P11_or_P22",
+                (lambda: self.p11_value()),
+                (lambda v: setattr(self, "P11_or_P22", float(v))),
+                "P11_or_P22_ref_info",
+                (0.0, 1.0),
+                self._inherited("P11_or_P22"),
+            ),
+        ]
 
     @classmethod
     def from_dict(cls, data: dict, G: int = 2) -> "R1G2Probability":
