@@ -71,14 +71,19 @@ class _SpecimenDialog(QDialog):
     def _on_specimen_bound(self) -> None:
         """Hook: pre-fill the dialog from the specimen's data."""
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
+        """Run the operation. Return False to refuse (the dialog stays open);
+        an implementation that refuses must say why first."""
         raise NotImplementedError
 
     def _on_accept(self) -> None:
+        # Only close when the operation actually ran: closing on a refusal
+        # would look exactly like success, which is how these dialogs got
+        # their "looks done, does nothing" reputation in the first place.
         if self._specimen is None:
             return  # nothing bound: refuse rather than pretend it worked
-        self._apply()
-        self.accept()
+        if self._apply():
+            self.accept()
 
 
 class RemoveBackgroundDialog(_SpecimenDialog):
@@ -126,14 +131,14 @@ class RemoveBackgroundDialog(_SpecimenDialog):
         self._bg_pattern = interp1d(bg_x, bg_y, bounds_error=False, fill_value=0)(x)
         self.ui.bg_pattern_file.setText(filename)
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
         bg_type = BG_TYPES[self.ui.bg_type.currentIndex()]
         if bg_type == pattern_ops.BG_PATTERN:
             if self._bg_pattern is None:
                 QMessageBox.warning(
                     self, "Remove background", "Select a background pattern file first."
                 )
-                return
+                return False
             self._specimen.remove_background(
                 bg_type,
                 self.ui.bg_offset.value(),
@@ -142,6 +147,7 @@ class RemoveBackgroundDialog(_SpecimenDialog):
             )
         else:
             self._specimen.remove_background(bg_type, self.ui.bg_position.value())
+        return True
 
 
 class SmoothDataDialog(_SpecimenDialog):
@@ -164,11 +170,25 @@ class SmoothDataDialog(_SpecimenDialog):
             int(pattern_ops.default_smooth_degree(SMOOTH_TYPES[index]))
         )
 
-    def _apply(self) -> None:
-        self._specimen.smooth_data(
-            SMOOTH_TYPES[self.ui.smooth_type.currentIndex()],
-            self.ui.spin_degree.value(),
-        )
+    def _apply(self) -> bool:
+        try:
+            self._specimen.smooth_data(
+                SMOOTH_TYPES[self.ui.smooth_type.currentIndex()],
+                self.ui.spin_degree.value(),
+            )
+        except ValueError as err:
+            # Moving Triangle and Savitzky-Golay need the smoothing window to
+            # fit inside the pattern; the degree spin allows up to 600, which a
+            # trimmed pattern may not accommodate. The old app let this escape
+            # as a traceback - report it instead and stay open so the degree
+            # can be lowered.
+            QMessageBox.warning(
+                self, "Smooth data",
+                "That degree is too large for this pattern (%d points).\n\n%s"
+                % (len(self._specimen.experimental_pattern[0]), err),
+            )
+            return False
+        return True
 
 
 class ShiftPatternDialog(_SpecimenDialog):
@@ -201,11 +221,12 @@ class ShiftPatternDialog(_SpecimenDialog):
                 self._specimen.detect_shift(SHIFT_POSITIONS[index])
             )
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
         index = self.ui.shift_position.currentIndex()
         self._specimen.apply_shift(
             self.ui.spin_shift_value.value(), SHIFT_POSITIONS[index]
         )
+        return True
 
 
 class AddNoiseDialog(_SpecimenDialog):
@@ -215,8 +236,9 @@ class AddNoiseDialog(_SpecimenDialog):
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_AddNoiseDialog, parent, specimen)
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
         self._specimen.add_noise(self.ui.spin_fraction.value())
+        return True
 
 
 def _arm_sample(dialog: QDialog, spinbox) -> None:
@@ -260,7 +282,7 @@ class StripPeakDialog(_SpecimenDialog):
         if strip is not None:
             self.ui.noise_level.setValue(strip.noise_level)
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
         strip = self._specimen.compute_strip_pattern(
             self.ui.strip_startx.value(),
             self.ui.strip_endx.value(),
@@ -271,8 +293,9 @@ class StripPeakDialog(_SpecimenDialog):
                 self, "Strip peak",
                 "Set a start and end position at least two data points apart.",
             )
-            return
+            return False
         self._specimen.apply_strip(strip)
+        return True
 
 
 class PeakPropertiesDialog(_SpecimenDialog):
@@ -295,8 +318,9 @@ class PeakPropertiesDialog(_SpecimenDialog):
         self.ui.peak_startx.valueChanged.connect(self._recalculate)
         self.ui.peak_endx.valueChanged.connect(self._recalculate)
 
-    def _apply(self) -> None:
+    def _apply(self) -> bool:
         """A measurement: nothing to apply."""
+        return True
 
     def _recalculate(self, *_args) -> None:
         if self._specimen is None:

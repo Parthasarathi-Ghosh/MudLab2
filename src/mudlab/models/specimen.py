@@ -8,6 +8,7 @@ display switches and labels.
 
 from __future__ import annotations
 
+import json
 import uuid as _uuid
 
 import numpy as np
@@ -244,6 +245,44 @@ class Specimen(QObject):
             self._exp_x, self._exp_y, startx, endx
         )
 
+    def _trim_raw_calculated(self, min_2theta: float, max_2theta: float) -> None:
+        """Clip the raw .mud calculated-pattern rows to the same range.
+
+        The calculated line is the one part of the specimen the saver keeps
+        VERBATIM from raw_properties: its stored rows may carry extra
+        per-phase intensity columns, and this model only keeps the first two,
+        so re-encoding it from _calc_x/_calc_y would silently drop the
+        per-phase curves. Trim is the only operation that changes the
+        calculated pattern, so it clips the raw rows itself and keeps the two
+        in step. Without this the trim is lost on save and a reloaded project
+        pairs a trimmed experimental pattern with a full-range calculated one
+        - which reads as a *perfect* fit (Rp 0.00), not as an error.
+        """
+        line = self.raw_properties.get("calculated_pattern")
+        if not isinstance(line, dict):
+            return
+        props = line.get("properties")
+        if not isinstance(props, dict) or not props.get("data"):
+            return
+        try:
+            rows = json.loads(props["data"])
+        except (ValueError, TypeError):
+            return
+        kept = [
+            row for row in rows
+            if len(row) >= 2 and min_2theta <= float(row[0]) <= max_2theta
+        ]
+        # Fewer than 2 points is not a pattern: drop the line entirely, which
+        # matches _calc_x/_calc_y being cleared above.
+        props = dict(props)
+        if len(kept) >= 2:
+            props["data"] = json.dumps(kept, separators=(",", ":"))
+            self.raw_properties["calculated_pattern"] = {
+                **line, "properties": props,
+            }
+        else:
+            self.raw_properties.pop("calculated_pattern", None)
+
     def trim(self, min_2theta: float, max_2theta: float) -> bool:
         """Permanently clip the specimen to [min_2theta, max_2theta].
 
@@ -266,6 +305,7 @@ class Specimen(QObject):
                 self._calc_x, self._calc_y = self._calc_x[cmask], self._calc_y[cmask]
             else:
                 self._calc_x, self._calc_y = np.empty(0), np.empty(0)
+            self._trim_raw_calculated(min_2theta, max_2theta)
 
         for marker in list(self._markers):
             if marker.position < min_2theta or marker.position > max_2theta:

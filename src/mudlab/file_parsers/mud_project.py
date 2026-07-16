@@ -306,8 +306,14 @@ def _specimen_to_dict(specimen: Specimen) -> dict:
         "properties": exp_props,
     }
 
-    # Calculated pattern: MudLab2 never modifies it yet, and the raw data
-    # may carry extra per-phase columns - keep it verbatim when present.
+    # Calculated pattern: kept VERBATIM when the .mud carried one, because its
+    # rows may hold extra per-phase intensity columns that the Specimen model
+    # does not keep (_parse_pattern_data takes the first two). Re-encoding it
+    # from the model would drop the per-phase curves.
+    # This means an operation that changes the calculated pattern must clip the
+    # raw rows itself, or the change is lost on save: Specimen.trim does
+    # (_trim_raw_calculated). It is the only such operation - the line ops all
+    # touch the experimental pattern only. Add one and it must do the same.
     if not isinstance(props.get("calculated_pattern"), dict) and specimen.has_calculated_data:
         cx, cy = specimen.calculated_pattern
         props["calculated_pattern"] = {

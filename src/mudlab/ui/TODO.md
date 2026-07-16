@@ -205,6 +205,19 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   skipped as refinables, and the child re-serialises its OWN stale F. Also
   asserts a *discriminating* fixture exists (else the read-through could be
   silently broken). Run after touching models/phase.py or models/probabilities.py.
+- `tools/verify_pattern_ops.py` guards the DATA OPERATIONS' numerics
+  (background / smooth / noise / shift / strip / peak area+FWHM / trim). These
+  are destructive and the old app stores only the result, so there is no golden
+  .mud: it diffs against the LIVE old `math_tools.py` (loaded by path), against
+  analytic ground truth (Gaussian area/FWHM, the displacement formula), and
+  against invariants. Includes the trim-persistence regression guard (a trim
+  must survive save/reload, per-phase calc columns intact). Run after touching
+  calculations/pattern_ops.py or models/specimen.py.
+- `tools/verify_data_op_dialogs.py` guards the DATA-OP DIALOGS themselves
+  (offscreen Qt). Asserts each one *actually changes* the pattern - they shipped
+  for a long time looking finished while applying nothing - and that every
+  refusal path leaves the data alone, keeps the dialog open, and says why. Run
+  after touching line_dialogs.py or specimen_dialogs.py.
 
 **Sample fixtures (2026-07-14).** `Dh2040A.mud` was withdrawn (faulty). The four
 in use, and what each is for:

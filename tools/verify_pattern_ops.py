@@ -37,6 +37,7 @@ import importlib.util
 import math
 import os
 import sys
+import tempfile
 
 import numpy as np
 
@@ -375,12 +376,84 @@ def check_specimen_wiring(path, results):
                     len(fired) == 0))
 
     # Statistics must be invalidated by an operation (they hang off
-    # data_changed) - a stale Rp after smoothing would be a silent wrong answer.
-    stats = spec.statistics
-    fired.clear()
-    spec.add_noise(0.01)
-    results.append(("3 an operation invalidates the statistics cache",
-                    spec.statistics is stats and len(fired) == 1))
+    # data_changed) - a stale Rp after an op would be a silent wrong answer.
+    # Check the VALUE moves: merely re-reading .statistics would pass even
+    # with a completely stale cache.
+    if spec.has_calculated_data:
+        rp_before = spec.statistics.Rp
+        spec.add_noise(0.2)  # large enough to shift Rp well past rounding
+        rp_after = spec.statistics.Rp
+        results.append(
+            ("3 statistics recomputed after an op (Rp %.3f -> %.3f)"
+             % (rp_before, rp_after),
+             rp_before > 0 and abs(rp_after - rp_before) > 1e-6)
+        )
+
+
+def check_trim_persistence(path, results):
+    """3. A trim survives save/reload - including the RAW calculated pattern.
+
+    Regression guard: the saver keeps the calculated line verbatim from
+    raw_properties (its rows may carry per-phase columns the model drops), so
+    trim must clip those rows itself. When it did not, a reloaded project
+    paired a trimmed experimental pattern with a full-range calculated one,
+    and the size-mismatch guard in SpecimenStatistics reported Rp = 0.00 - a
+    *perfect fit*, not an error.
+    """
+    import json
+
+    from mudlab.file_parsers.mud_project import save_mud
+
+    project = load_mud(path)
+    targets = [
+        s for s in project.specimens
+        if s.has_experimental_data and s.has_calculated_data
+    ]
+    if not targets:
+        return
+    spec = targets[0]
+    raw_line = spec.raw_properties.get("calculated_pattern")
+    n_cols_before = 0
+    if isinstance(raw_line, dict):
+        rows = json.loads(raw_line.get("properties", {}).get("data") or "[]")
+        n_cols_before = len(rows[0]) if rows else 0
+
+    x, _ = spec.experimental_pattern
+    lo, hi = float(x[len(x) // 4]), float(x[3 * len(x) // 4])
+    spec.trim(lo, hi)
+    rp_trimmed = spec.statistics.Rp
+    n_exp, n_calc = len(spec.experimental_pattern[0]), len(spec.calculated_pattern[0])
+    results.append(("3 trim clips exp and calc to the same length",
+                    n_exp == n_calc))
+
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_trim_persist.mud")
+    try:
+        save_mud(project, tmp)
+        reloaded = load_mud(tmp)
+        names = [s.name for s in reloaded.specimens]
+        spec2 = reloaded.specimens[names.index(spec.name)]
+        n_exp2 = len(spec2.experimental_pattern[0])
+        n_calc2 = len(spec2.calculated_pattern[0])
+        results.append(("3 trimmed exp survives save/reload", n_exp2 == n_exp))
+        results.append(("3 trimmed CALC survives save/reload (not full-range)",
+                        n_calc2 == n_calc))
+        results.append(("3 reloaded Rp %.3f == pre-save Rp %.3f (not a fake 0.0)"
+                        % (spec2.statistics.Rp, rp_trimmed),
+                        abs(spec2.statistics.Rp - rp_trimmed) < 1e-6
+                        and spec2.statistics.Rp > 0))
+        # The per-phase columns are the reason the raw line is kept verbatim.
+        raw2 = spec2.raw_properties.get("calculated_pattern")
+        if isinstance(raw2, dict) and n_cols_before:
+            rows2 = json.loads(raw2.get("properties", {}).get("data") or "[]")
+            results.append(
+                ("3 per-phase calc columns preserved through trim (%d)"
+                 % n_cols_before,
+                 bool(rows2) and len(rows2[0]) == n_cols_before)
+            )
+    finally:
+        for p in (tmp, tmp + "~"):
+            if os.path.exists(p):
+                os.remove(p)
 
 
 def run(path, old):
@@ -396,6 +469,7 @@ def run(path, old):
     check_smooth_types(project, results)
     check_strip(project, results)
     check_trim(path, results)
+    check_trim_persistence(path, results)
     check_specimen_wiring(path, results)
     passed = 0
     for label, ok in results:

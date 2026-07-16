@@ -751,6 +751,74 @@ exactly one specimen with data is selected.
 - Old quirk preserved in `compute_strip_pattern`: **both** endpoint noise
   ratios divide by `avg_starty` (not each by its own endpoint). Looks
   like an old-app bug; kept for parity.
+
+### Audit notes: data operations (Batch D, 2026-07-16)
+
+Audited D1+D2 after the fact. Four defects found; all fixed and guarded.
+
+**1. Trim was lost on save, and reported a FAKE PERFECT FIT.** (worst one)
+
+`_specimen_to_dict` keeps the calculated line **verbatim** from
+`raw_properties`, because its rows carry extra per-phase intensity columns
+(6 in the 308 fixture) that the model does not keep - `_parse_pattern_data`
+takes only the first two, so re-encoding from `_calc_x/_calc_y` would
+silently drop the per-phase curves. Its comment said *"MudLab2 never
+modifies it yet"*, which **D1's trim made false**.
+
+Result: trim clipped both patterns in memory, but only the experimental one
+was saved. A reloaded project then paired a trimmed experimental pattern
+(1163 pts) with a full-range calculated one (2323 pts) - and
+`SpecimenStatistics.has_data` refuses to compute on a size mismatch, so
+every R-factor came back **0.00**. Rp 0 reads as a *perfect fit*, not as an
+error. Silent wrong science, which is the worst failure mode this app has.
+
+Fix: `Specimen._trim_raw_calculated` clips the raw rows (preserving all
+columns) so raw and model stay in step. **Trim is the only operation that
+touches the calculated pattern - any new one must do the same**; the
+saver's comment now says so. Guarded by `check_trim_persistence`
+(mutation-tested: reverting the fix fails 8 checks, printing the fake
+`Rp 0.000` explicitly).
+
+**2. Dialogs closed on a refusal**, i.e. looked exactly like success - the
+very failure this batch removes. `_on_accept` called `accept()`
+unconditionally, so `_apply` implementations that warned and returned early
+(background-with-no-file, strip-with-no-range) still closed the dialog.
+`_apply` now returns bool and `_on_accept` only closes on True.
+
+**3. Smoothing crashed on a too-large degree.** `spin_degree` allows up to
+600; Moving Triangle and Savitzky-Golay raise ValueError when the window
+exceeds the pattern - reachable by trimming hard, then smoothing. The old
+app let this escape as a traceback. Caught in `SmoothDataDialog._apply`
+(warn + stay open). The numerics are untouched: this is UI robustness, not
+an analytics change.
+
+**4. Data ops stayed enabled after New Project.** A project with no
+specimens changes no selection, so `selectionChanged` never fired and the
+stale enabled state persisted. `_set_project` now calls
+`_update_data_op_actions()` explicitly.
+
+Also fixed in the harness itself: the statistics check asserted
+`spec.statistics is stats` (object identity), which passes even with a
+completely stale cache. It now asserts the **Rp value moves**.
+
+**Sharp edges to know:**
+
+- **`SpecimenStatistics` returns 0.0, not an error, when it cannot
+  compute** (no calculated pattern, or an exp/calc size mismatch). For Rp
+  that is indistinguishable from a perfect fit. Normally unreachable -
+  `calculate_specimen_pattern` computes on the experimental grid, so the
+  sizes always match - and defect 1 above was the only way to persist a
+  mismatch. If R-factors ever read exactly 0.00, suspect this before
+  believing the fit.
+- **After Shift, the stored calculated pattern is stale**: `apply_shift`
+  moves `_exp_x` but not `_calc_x`, so until the next `calculate()` the
+  statistics compare intensities at shifted positions. Same as the old app
+  (its `commit_shift` also only touches the experimental data), so this is
+  parity, not a regression - but it is a real trap.
+- **Markers only follow a Linear shift**, never a Displacement one, because
+  the displacement correction is angle-dependent. `PATTERN_SHIFT_TYPE` is
+  `"Displacement"`, so in practice markers never move on shift. Old app
+  behaves identically.
 - **Statistics** (`statistics.ui`): read-only χ², R², Rp, Rwp, Re, data
   points via `set_statistics(...)`. NOT yet reachable from the UI - the
   old `view_statistics` action lives in the future specimens context
