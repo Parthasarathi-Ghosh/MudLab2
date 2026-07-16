@@ -19,6 +19,10 @@ class Project(QObject):
     data_changed = Signal()
     visuals_changed = Signal()
     specimens_changed = Signal()
+    #: The phase LIST changed (added / removed) - the phase editor rebuilds
+    #: its list and its based_on / linked_with candidate combos, which name
+    #: every phase in the project.
+    phases_changed = Signal()
 
     name = Prop("New Project", "visuals_changed")
     author = Prop("", "data_changed")
@@ -107,7 +111,51 @@ class Project(QObject):
 
     def add_phase(self, phase) -> "object":
         self._phases.append(phase)
+        self.phases_changed.emit()
         return phase
+
+    def remove_phase(self, phase) -> None:
+        """Remove a phase and clear every reference to it.
+
+        Ported from the old Project.on_phase_removed, which **cascade-clears
+        rather than refusing**: a phase can always be deleted, and whatever
+        pointed at it silently falls back to its own stored values. Concretely:
+
+        1. the removed phase's own `based_on` link,
+        2. any phase based_on the removed one (the dependant keeps the values
+           it had stored - inheritance is a read-time overlay, so it simply
+           stops reading through),
+        3. any component elsewhere linked_with one of the removed phase's
+           components (the old app does this via its removed-signal broadcast;
+           MudLab2 has no object pool, so the project walks the graph),
+        4. every mixture cell holding the phase (the slot stays, the cell
+           empties).
+
+        Deleting a phase is irreversible in the old app too - there is no undo,
+        and nothing is written until the user saves.
+        """
+        if phase not in self._phases:
+            return
+        self._phases.remove(phase)
+
+        phase.set_based_on(None)
+        for other in self._phases:
+            if other.based_on is phase:
+                other.set_based_on(None)
+
+        removed_components = {id(c) for c in phase.components}
+        if removed_components:
+            for other in self._phases:
+                for comp in other.components:
+                    if (comp.linked_with is not None
+                            and id(comp.linked_with) in removed_components):
+                        comp.set_linked_with(None)
+
+        for mixture in self._mixtures:
+            mixture.unset_phase(phase)
+
+        self.phases_changed.emit()
+        self.data_changed.emit()
 
     def phase_uuid_map(self) -> dict:
         """uuid -> Phase, for resolving a mixture's phase-slot grid."""
@@ -163,7 +211,16 @@ class Project(QObject):
             specimen.data_changed.disconnect(self.data_changed)
             specimen.visuals_changed.disconnect(self.visuals_changed)
             self._specimens.remove(specimen)
+            # Clear the specimen out of every mixture (old
+            # Project.on_specimen_removed -> mixture.unset_specimen). Without
+            # this the mixture keeps a row pointing at a specimen that is no
+            # longer in the project: calculate() writes patterns onto the
+            # removed object and, worse, the optimiser keeps fitting against
+            # it - so deleting a bad specimen would not change the refinement.
+            for mixture in self._mixtures:
+                mixture.unset_specimen(specimen)
             specimen.project = None
             specimen.setParent(None)
             specimen.deleteLater()
             self.specimens_changed.emit()
+            self.data_changed.emit()

@@ -227,20 +227,34 @@ def save_mud(project: Project, path: str) -> None:
     if project.mixtures:
         properties["mixtures"] = [mix.to_dict() for mix in project.mixtures]
     # Phases: only regular "Phase" entries are modeled (the parser skips
-    # others), so replace each raw "Phase" entry with its model by uuid and
-    # keep everything else (e.g. RawPatternPhase) verbatim.
-    if project.phases:
-        model_by_uuid = {p.uuid: p for p in project.phases}
-        rebuilt = []
-        for entry in properties.get("phases") or []:
-            if isinstance(entry, dict) and entry.get("type") == "Phase":
-                uid = entry.get("properties", {}).get("uuid")
-                model = model_by_uuid.get(uid)
-                if model is not None:
-                    rebuilt.append(model.to_dict())
-                    continue
-            rebuilt.append(entry)
-        properties["phases"] = rebuilt
+    # others), so the raw list is walked to keep unmodeled entries (e.g.
+    # RawPatternPhase) verbatim and in place, while the modeled ones are
+    # written from their live models.
+    #
+    # The live list is authoritative for which Phases exist:
+    #   - a raw "Phase" entry with no live model was REMOVED -> drop it.
+    #     (Every "Phase" entry is modeled on load, so a missing model can
+    #     only mean removal - it is not an unmodeled type.)
+    #   - a live phase with no raw entry was ADDED -> append it.
+    # Without both halves, Project.add_phase / remove_phase would appear to
+    # work in-session and silently revert on reload.
+    model_by_uuid = {p.uuid: p for p in project.phases}
+    seen_uuids = set()
+    rebuilt = []
+    for entry in properties.get("phases") or []:
+        if isinstance(entry, dict) and entry.get("type") == "Phase":
+            uid = entry.get("properties", {}).get("uuid")
+            model = model_by_uuid.get(uid)
+            if model is None:
+                continue  # removed from the project
+            seen_uuids.add(uid)
+            rebuilt.append(model.to_dict())
+            continue
+        rebuilt.append(entry)  # unmodeled type: keep verbatim
+    for phase in project.phases:
+        if phase.uuid not in seen_uuids:
+            rebuilt.append(phase.to_dict())  # newly added
+    properties["phases"] = rebuilt
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
 

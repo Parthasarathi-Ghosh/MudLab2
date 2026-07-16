@@ -49,6 +49,36 @@ class Mixture:
         """Number of phase slots (columns)."""
         return len(self.phase_labels)
 
+    # ------------------------------------------------------------------
+    # Reference integrity (old Mixture.unset_phase / unset_specimen)
+    # ------------------------------------------------------------------
+    # NOTE: the grid is held twice - `phase_matrix` / `specimens` (resolved
+    # objects, what the calc reads) and `phase_uuids` / `specimen_uuids` (what
+    # to_dict writes). Both must be updated together or the change is lost on
+    # save. The old app avoids this by deriving the uuids from the objects at
+    # save time, which we deliberately do NOT copy: MudLab2 only models
+    # `type == "Phase"` entries, so a RawPatternPhase loads verbatim with NO
+    # model object - its matrix cell is None while its uuid is live. Deriving
+    # would silently blank that reference and lose the phase from the mixture.
+    def unset_phase(self, phase) -> None:
+        """Clear every grid cell holding `phase`. The slot (column) stays -
+        only the cells empty, exactly as the old unset_phase did, so the
+        fractions and labels keep their meaning."""
+        for i, row in enumerate(self.phase_matrix):
+            for j, held in enumerate(row):
+                if held is phase:
+                    row[j] = None
+                    if i < len(self.phase_uuids) and j < len(self.phase_uuids[i]):
+                        self.phase_uuids[i][j] = ""  # old app's empty cell
+
+    def unset_specimen(self, specimen) -> None:
+        """Clear every row holding `specimen` (old unset_specimen)."""
+        for i, held in enumerate(self.specimens):
+            if held is specimen:
+                self.specimens[i] = None
+                if i < len(self.specimen_uuids):
+                    self.specimen_uuids[i] = ""
+
     def calculate(self) -> None:
         """Compute and store every specimen's calculated pattern."""
         for i, specimen in enumerate(self.specimens):
