@@ -335,6 +335,47 @@ def check_editor(project, results):
                         abs(w2._param_spins[0].value() - own_before) < 1e-4))
 
 
+def check_create_new(path, results):
+    """11 (R1d). A newly created R1G2 phase persists as R1G2, and a new R0
+    phase persists its edited F - a new phase had no stored probabilities dict,
+    so to_dict must emit one (with the model's type) or the phase silently
+    reloads as default R0."""
+    from mudlab.models.phase import Phase
+
+    project = load_mud(path)
+
+    r1 = Phase.create_empty(G=2, R=1, name="Harness New R1")
+    results.append(("11 create_empty(R=1) builds R1G2Probability",
+                    isinstance(r1.probabilities, R1G2Probability)))
+    results.append(("11 create_empty(R=1) forces G=2 + 2 components",
+                    r1.G == 2 and len(r1.components) == 2))
+    r1.probabilities.W1 = 0.62
+    r1.probabilities.P11_or_P22 = 0.28
+    project.add_phase(r1)
+
+    r0 = Phase.create_empty(G=2, R=0, name="Harness New R0")
+    r0.probabilities.set_f(0, 0.35)
+    project.add_phase(r0)
+
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_r1_create.mud")
+    try:
+        save_mud(project, tmp)
+        reloaded = load_mud(tmp)
+        a = next(p for p in reloaded.phases if p.name == "Harness New R1")
+        b = next(p for p in reloaded.phases if p.name == "Harness New R0")
+        results.append(("11 new R1 phase reloads as R1G2 (not R0)",
+                        isinstance(a.probabilities, R1G2Probability)))
+        results.append(("11 new R1 W1/P11 persist",
+                        abs(a.probabilities.W1 - 0.62) < 1e-9
+                        and abs(a.probabilities.P11_or_P22 - 0.28) < 1e-9))
+        results.append(("11 new R0 phase's edited F1 persists (not the 0.8 default)",
+                        abs(b.probabilities.own_f_params()[0] - 0.35) < 1e-9))
+    finally:
+        for p in (tmp, tmp + "~"):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 def check_roundtrip(path, results):
     """6. R1 probabilities survive save/reload byte-identical."""
     def _phase_probs(mud_path):
@@ -398,6 +439,7 @@ def run(path):
     check_detach_clears_flags(load_mud(path), results)
     check_refinement(path, results)
     check_editor(load_mud(path), results)
+    check_create_new(path, results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

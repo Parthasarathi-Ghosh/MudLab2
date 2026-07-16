@@ -63,8 +63,8 @@ class EditPhasesDialog(ObjectStoreDialog):
         if dialog.exec() != AddPhaseDialog.DialogCode.Accepted:
             return
         # Only the empty-phase path is offered by the dialog for now; the model
-        # factory builds the G blank components and the R0 probabilities.
-        phase = Phase.create_empty(G=dialog.G, name="New Phase")
+        # factory builds the blank components and the R0 / R1G2 probabilities.
+        phase = Phase.create_empty(G=dialog.G, R=dialog.R, name="New Phase")
         self.project.add_phase(phase)
         self._phases.append(phase)
         self.add_object_row(

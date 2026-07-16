@@ -140,6 +140,12 @@ class R0Probability:
         anything inherits nothing)."""
         self.inherit_F = [False for _ in range(self.n_independents)]
 
+    @property
+    def type_name(self) -> str:
+        """The .mud store id (old R0G<g>Model), used when a newly created
+        phase has no stored probabilities dict yet."""
+        return "R0G%dModel" % self.G
+
     def refinable_params(self) -> list:
         """The independent parameters exposed to the refiner, model-agnostic:
         (label, getter, setter, ref_info_key, default_bounds, inherited). An
@@ -312,6 +318,10 @@ class R1G2Probability:
     def clear_inheritance(self) -> None:
         self.inherit_W1 = False
         self.inherit_P11_or_P22 = False
+
+    @property
+    def type_name(self) -> str:
+        return "R1G2Model"
 
     def refinable_params(self) -> list:
         """Same contract as R0Probability.refinable_params. The setter writes

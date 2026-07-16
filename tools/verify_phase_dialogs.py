@@ -101,7 +101,8 @@ def check_button_state(project, results):
 
 
 def check_add_dialog_restrictions(results):
-    """2. The Add dialog offers only the ported empty-phase path."""
+    """2. The Add dialog offers only the ported empty-phase path, with the
+    modeled stacking range (R 0-1; R1 locks G to 2 since only R1G2 exists)."""
     dialog = AddPhaseDialog(None)
     results.append(("2 empty phase preselected",
                     dialog.ui.rdb_empty_phase.isChecked()))
@@ -109,10 +110,21 @@ def check_add_dialog_restrictions(results):
                     not dialog.ui.rdb_default_phase.isEnabled()))
     results.append(("2 raw-pattern option disabled",
                     not dialog.ui.rdb_raw_pattern.isEnabled()))
-    results.append(("2 R locked to 0", dialog.ui.R.value() == 0
-                    and not dialog.ui.R.isEnabled()))
     results.append(("2 phase_type resolves to 'empty'",
                     dialog.phase_type == "empty"))
+    # R is modeled for 0-1 only (R2+ unported).
+    results.append(("2 R range is 0-1",
+                    dialog.ui.R.minimum() == 0 and dialog.ui.R.maximum() == 1))
+    results.append(("2 R=0 allows G 1-6",
+                    dialog.ui.G.minimum() == 1 and dialog.ui.G.maximum() == 6
+                    and dialog.ui.G.isEnabled()))
+    dialog.ui.R.setValue(1)
+    results.append(("2 R=1 locks G to 2 (only R1G2 modeled)",
+                    dialog.ui.G.value() == 2 and not dialog.ui.G.isEnabled()
+                    and dialog.G == 2 and dialog.R == 1))
+    dialog.ui.R.setValue(0)
+    results.append(("2 back to R=0 re-enables G 1-6",
+                    dialog.ui.G.maximum() == 6 and dialog.ui.G.isEnabled()))
     dialog.deleteLater()
 
 

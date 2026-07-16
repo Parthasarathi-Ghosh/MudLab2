@@ -13,9 +13,10 @@ honestly disabled, not left inert:
 - RawPatternPhase is not modeled at all (the loader skips it), so it is
   disabled too.
 
-Reichweite is locked to R0: MudLab2 only models R0 (random) stacking, so
-a new phase cannot be higher-R. The spin is disabled with a tooltip rather
-than silently building an invalid model.
+Reichweite offers R0 (random, any component count) and R1 (nearest-
+neighbour ordering). Only R1G2 is modeled, so choosing R1 locks G to 2;
+R2+ is not ported. The empty-phase factory (Phase.create_empty) builds the
+matching probability model.
 """
 
 from __future__ import annotations
@@ -61,14 +62,17 @@ class AddPhaseDialog(QDialog):
             self.ui.rdb_raw_pattern,
         ):
             radio.toggled.connect(self._update_sensitivities)
-        # Only R0 stacking is modeled: lock Reichweite to 0.
+        # Modeled stacking: R0 (any G) and R1G2. Offer R 0-1; R2+ is not
+        # ported, and R1 exists only for 2 components (R1G2), so R=1 locks G=2.
+        self.ui.R.setRange(0, 1)
         self.ui.R.setValue(0)
-        self.ui.R.setEnabled(False)
         self.ui.R.setToolTip(
-            "Only R0 (random) stacking is modeled; higher Reichweite is not "
-            "ported yet."
+            "R0 (random, any component count) and R1 (nearest-neighbour "
+            "ordering, 2 components) are modeled. R2+ is not ported yet."
         )
+        self.ui.R.valueChanged.connect(self._on_R_changed)
         self._update_sensitivities()
+        self._on_R_changed(self.ui.R.value())
 
         self.ui.buttonBox.accepted.connect(self.accept)
         self.ui.buttonBox.rejected.connect(self.reject)
@@ -99,3 +103,16 @@ class AddPhaseDialog(QDialog):
     def _update_sensitivities(self) -> None:
         self.ui.cont_empty_phase.setEnabled(self.ui.rdb_empty_phase.isChecked())
         self.ui.cont_default_phase.setEnabled(self.ui.rdb_default_phase.isChecked())
+
+    def _on_R_changed(self, R: int) -> None:
+        """R1 is modeled only for 2 components (R1G2), so R=1 locks G to 2;
+        R0 allows the full 1-6 range."""
+        if R >= 1:
+            self.ui.G.setRange(2, 2)
+            self.ui.G.setValue(2)
+            self.ui.G.setEnabled(False)
+            self.ui.G.setToolTip("R1 is modeled for 2 components only (R1G2).")
+        else:
+            self.ui.G.setRange(1, 6)
+            self.ui.G.setEnabled(True)
+            self.ui.G.setToolTip("")

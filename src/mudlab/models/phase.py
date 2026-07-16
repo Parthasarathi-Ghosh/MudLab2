@@ -18,7 +18,7 @@ import uuid as _uuid
 
 from mudlab.models.component import Component
 from mudlab.models.csds import DritsCSDSDistribution
-from mudlab.models.probabilities import probabilities_from_dict
+from mudlab.models.probabilities import R1G2Probability, probabilities_from_dict
 
 
 class Phase:
@@ -61,20 +61,26 @@ class Phase:
     # Construction of a new (empty) phase
     # ------------------------------------------------------------------
     @classmethod
-    def create_empty(cls, G: int = 1, name: str = "New Phase") -> "Phase":
-        """A fresh phase with G blank components and R0 stacking.
+    def create_empty(cls, G: int = 1, R: int = 0, name: str = "New Phase") -> "Phase":
+        """A fresh phase with blank components and the chosen stacking model.
 
         Mirrors the old Phase.__init__, which auto-fills G components named
         "Component 1".."Component G" (MudLab2's plain __init__ does not, since
         it is also the base for from_dict, which supplies the loaded ones).
-        Only R0 stacking is modeled, so the probabilities the __init__ already
-        built (F = 0.8 for each of the G-1 independents) are what a new phase
-        gets; higher Reichweite is not offered by the Add dialog.
+
+        Stacking: R0 (any G, the default from __init__) or R1G2. Only those
+        two models exist, so R1 forces G = 2 (R1G3/G4 are not ported) - the
+        Add dialog constrains this, and create_empty enforces it defensively.
         """
+        R = int(R)
+        if R == 1:
+            G = 2  # only R1G2 is modeled
         phase = cls(name=name, G=max(int(G), 1))
         phase.components = [
             Component(name="Component %d" % (i + 1)) for i in range(phase.G)
         ]
+        if R == 1:
+            phase.probabilities = R1G2Probability()
         return phase
 
     # ------------------------------------------------------------------
@@ -234,9 +240,15 @@ class Phase:
         # values, so a based_on child round-trips byte-identically and keeps
         # its stored stale value, as the old app does.
         writer = getattr(self.probabilities, "write_properties", None)
-        probs = props.get("probabilities")
-        if callable(writer) and isinstance(probs, dict):
-            probs = dict(probs)
+        if callable(writer):
+            probs = props.get("probabilities")
+            probs = dict(probs) if isinstance(probs, dict) else {}
+            # A newly created phase has no stored probabilities dict; give it
+            # the model's type so from_dict dispatches to the right model
+            # (else a new R1 phase would silently reload as R0). A loaded phase
+            # keeps its stored type verbatim (byte-identical round-trip).
+            if "type" not in probs:
+                probs["type"] = self.probabilities.type_name
             probs["properties"] = writer(dict(probs.get("properties") or {}))
             props["probabilities"] = probs
         return {"type": "Phase", "properties": props}

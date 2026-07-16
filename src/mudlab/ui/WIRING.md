@@ -550,10 +550,22 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
       (= `phase.based_on is not None`) gates the Inherit boxes; ticking greys
       the spin and shows the parent's value, unticking restores the child's
       own. R0 output is unchanged (same F labels / ref_info keys / bounds).
-- **Still to do**: R1d unlocking R in the Add dialog with per-R G bounds (old
-  `RGbounds`: R1 -> G2-4). R1G3/G4 need their own golden fixtures. Also still
-  TODO: a guard that refuses (not silently R0-degrades) an unported higher-R
-  type on load.
+- **Add dialog unlocks R (Batch R1d)**: `add_phase_dialog` offers R 0-1
+  (R2+ unported); `_on_R_changed` locks G to 2 when R=1 (only R1G2 exists) and
+  restores G 1-6 for R0. `Phase.create_empty(G, R)` builds the matching model
+  - R0 (any G) or `R1G2Probability` (forces G=2) - and `_on_add_phase` passes
+  `dialog.R` through.
+- **New-phase probability serialization (fixed in R1d)**: `Phase.to_dict` now
+  emits a probabilities dict even when `raw_properties` had none (a freshly
+  created phase), stamping the model's `type_name` (`R0G<g>Model` /
+  `R1G2Model`) so `from_dict` dispatches correctly. Before this a NEW phase -
+  R0 or R1 - lost its probabilities on save: it reloaded as default R0 with
+  F=0.8 (a latent P2 bug that only surfaced once R1 phases could be created).
+  A loaded phase keeps its stored `type` verbatim, so byte-identity holds.
+- **Still to do**: R1G3/G4 (their own model classes + golden fixtures);
+  R2/R3; a guard that refuses (not silently R0-degrades) an unported higher-R
+  type on load. The R1G2 path is complete end-to-end: model, calc, inheritance,
+  serialization, refinement, editor, and creation.
 
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 

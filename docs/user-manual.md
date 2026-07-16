@@ -21,12 +21,15 @@ phases, and the buttons beneath it add and remove them.
 
 Press **Add** to open the Add Phase dialog.
 
-- Choose the number of **components** (G) — the clay layers the phase is built
-  from. You get that many blank components, named *Component 1*, *Component 2*,
-  … which you then fill in on the Components tab.
+- Choose the **stacking order (R)** and the number of **components** (G):
+  - **R0** — random, independent layer stacking. Available for 1–6 components.
+  - **R1** — nearest-neighbour ordering (each layer depends on the one before
+    it). Available for 2 components; choosing R1 fixes G at 2.
+- You get that many blank components, named *Component 1*, *Component 2*, …
+  which you then fill in on the Components tab.
 - Press OK. The new phase appears in the list, selected and ready to edit. It
-  starts empty — give it a name and define its components, atoms, stacking and
-  CSDS.
+  starts empty — give it a name and define its components, atoms, stacking
+  parameters and CSDS.
 
 Only **empty** phases can be created at the moment. Two options are visible but
 disabled:
@@ -35,8 +38,8 @@ disabled:
   yet.
 - **Raw pattern phase** — not supported yet.
 
-**Reichweite (R) is fixed at 0** (random, independent layer stacking). Ordered
-stacking (R1–R3) is not available yet.
+Longer-range ordering (**R2, R3**) and R1 with more than two components are not
+available yet.
 
 ### Removing a phase
 
@@ -94,16 +97,20 @@ of the phase properties.
 - **σ\*** — tick *Inherit* next to the σ\* box.
 - **CSDS distribution** — tick *Inherit from the "based on" phase* on the CSDS
   tab.
-- **Stacking probabilities** — on the Probabilities tab each **F** parameter has
-  its own *Inherit* box, so you can share some and keep others.
+- **Stacking probabilities** — on the Probabilities tab each stacking parameter
+  has its own *Inherit* box, so you can share some and keep others. The
+  parameters shown depend on the phase's stacking order: an **R0** phase lists
+  its **F** parameters; an **R1** phase lists **W1** and the junction
+  probability **P11 / P22**.
 
 A ticked box greys the field and shows the **reference phase's** value. Untick it
 and the phase goes back to its own value. The pattern recalculates either way.
 
-> **The stacking F parameters matter most.** They control the layer proportions
-> and therefore the shape of the pattern. If a treated phase should have the
-> same illite/smectite ratio as the reference, inherit its F — otherwise the two
-> can drift apart and no longer describe the same clay.
+> **The stacking parameters matter most.** They control the layer proportions
+> and ordering, and therefore the shape of the pattern. If a treated phase
+> should have the same illite/smectite ratio as the reference, inherit its
+> stacking parameters — otherwise the two can drift apart and no longer describe
+> the same clay.
 
 ### Changing an inherited value
 
