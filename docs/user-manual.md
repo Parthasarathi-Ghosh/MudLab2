@@ -4,10 +4,29 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 
 ## Contents
 
+- [Opening projects (including PyXRD files)](#opening-projects-including-pyxrd-files)
 - [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
 - [Preparing experimental data](#preparing-experimental-data)
+
+---
+
+## Opening projects (including PyXRD files)
+
+**Project → Open** loads a MudLab project (`.mud`). It also opens **PyXRD
+projects (`.pyxrd`)** directly — pick either type in the file dialog.
+
+A `.pyxrd` opens as a **conversion**: MudLab2 reads it, but the next **Save**
+writes a new `.mud` file next to it (your original `.pyxrd` is never changed).
+The project is marked unsaved when it opens, to remind you to save the `.mud`.
+
+> **One caveat for PyXRD files.** A pattern *calculated by PyXRD* has a
+> different absolute intensity scale from MudLab2's (the peak *shape* is the
+> same — only the overall height differs, and the fit scales it automatically).
+> So if you need a reference pattern to check MudLab2's calculation against,
+> recompute it in MudLab2 (**Refresh**) after opening, rather than trusting the
+> stored PyXRD pattern.
 
 ---
 

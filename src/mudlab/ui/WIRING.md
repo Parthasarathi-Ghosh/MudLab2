@@ -47,13 +47,35 @@ byte-identical against both sample projects). New files carry version
 "0.1.10"; loaded files keep their own version tag. The MudLab2-only
 `source` field is not written (the old loader would not accept it).
 
+**PyXRD `.pyxrd` open (2026-07-18).** A `.pyxrd` is a PyXRD project in the
+SAME ZIP+JSON container, and its modeled data is already `.mud`-standard
+(all `type` strings are the modern short names - `Phase`, `R0G2Model`, ...;
+the only `pyxrd`/`PyXRD` token is prose in the project description). So
+`load_mud` reads it as-is - MudLab2's schema loader needs none of the old
+app's "slip" step, which is just a `pyxrd.`->`mudlab.` class-PATH remap
+(`generic/io/json_codec.py`) that only its class-registry codec required.
+The one structural gap (no `version` part) is filled by `save_mud`, which
+always writes version "0.1.10". So opening a `.pyxrd` and saving yields a
+proper `.mud` (verified: 6 parts incl. `version`, zero `pyxrd.` leakage,
+reloads + calc intact). The open dialog offers both (`OPEN_PROJECT_FILTERS`
+= `*.mud *.pyxrd`); Save is `.mud`-only (`SAVE_PROJECT_FILTERS`). Opening a
+`.pyxrd` is treated as a CONVERSION: `_open_project` retargets
+`project.filename` to the `.mud` sibling and marks the project dirty, so
+the original `.pyxrd` is never overwritten and Save produces the `.mud`.
+NOTE: a PyXRD-computed calculated pattern is ~2x MudLab2's (a PyXRD-vs-
+mudlab absolute-intensity convention; shape matches to corr 0.999997, and
+scale is a free fit param so it does not affect fitting) - do NOT treat a
+`.pyxrd`'s stored pattern as a machine-precision golden. For golden
+fixtures, recompute in the app (or the old app) and save as `.mud`.
+
 Main-window wiring (old AppController equivalents): `actionNewProject`
 (confirm-discard, then opens Edit Project like the old app),
-`actionOpenProject` (confirm-discard + error dialog on parse failure),
-`actionSaveProject` (Save As when no filename), `actionSaveProjectAs`.
-Dirty tracking sets on any project data/visuals/specimens signal and
-clears on load/save; `closeEvent` guards quitting with unsaved changes.
-Not yet ported: the old last-folder persistence
+`actionOpenProject` (confirm-discard + error dialog on parse failure;
+accepts `.mud`/`.pyxrd`), `actionSaveProject` (Save As when no filename),
+`actionSaveProjectAs` (`.mud` only). Dirty tracking sets on any project
+data/visuals/specimens signal and clears on load/save; `closeEvent` guards
+quitting with unsaved changes. Not yet ported: the old last-folder
+persistence
 (user_data_dir/last_folder.txt) and the `check_for_changes()` hash-based
 dirty detection (ours is signal-based and slightly more eager).
 

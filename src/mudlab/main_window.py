@@ -67,7 +67,15 @@ NAV_HINTS = (
 ZOOM_STEP = 1.25  # Ctrl++ / Ctrl+- menu zoom
 
 IMPORT_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
-PROJECT_FILTERS = "MudLab projects (*.mud);;All files (*.*)"
+# Open accepts .mud and PyXRD .pyxrd (same ZIP+JSON container; MudLab2's
+# schema loader reads both). Save is always .mud - opening a .pyxrd converts.
+OPEN_PROJECT_FILTERS = (
+    "MudLab / PyXRD projects (*.mud *.pyxrd);;"
+    "MudLab projects (*.mud);;"
+    "PyXRD projects (*.pyxrd);;"
+    "All files (*.*)"
+)
+SAVE_PROJECT_FILTERS = "MudLab projects (*.mud);;All files (*.*)"
 
 
 class MainWindow(QMainWindow):
@@ -257,7 +265,7 @@ class MainWindow(QMainWindow):
         ):
             return
         path, _ = QFileDialog.getOpenFileName(
-            self, "Load project", "", PROJECT_FILTERS
+            self, "Load project", "", OPEN_PROJECT_FILTERS
         )
         if not path:
             return
@@ -269,8 +277,24 @@ class MainWindow(QMainWindow):
                 f"An error has occurred:\n{error}\nYour project was not loaded!",
             )
             return
+        # A .pyxrd is a PyXRD project in the same container - MudLab2 reads it
+        # directly (its schema loader needs none of the old app's "slip"
+        # class-path remap; the modeled data is already .mud-standard). Treat
+        # opening one as a CONVERSION: retarget the save to the .mud sibling so
+        # the original .pyxrd is never overwritten and Save writes a proper
+        # .mud (save_mud adds the version part), and mark it unsaved.
+        is_pyxrd = path.lower().endswith(".pyxrd")
+        if is_pyxrd:
+            project.filename = os.path.splitext(path)[0] + ".mud"
         self._set_project(project)
-        self.ui.statusBar.showMessage(f"Loaded {path}", 5000)
+        if is_pyxrd:
+            self._dirty = True  # the conversion is not yet written
+            self.ui.statusBar.showMessage(
+                "Imported %s - Save to convert it to a .mud project"
+                % os.path.basename(path), 8000
+            )
+        else:
+            self.ui.statusBar.showMessage(f"Loaded {path}", 5000)
 
     def _save_project(self) -> None:
         if self.project.filename:
@@ -280,7 +304,7 @@ class MainWindow(QMainWindow):
 
     def _save_project_as(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save project", self.project.filename or "", PROJECT_FILTERS
+            self, "Save project", self.project.filename or "", SAVE_PROJECT_FILTERS
         )
         if not path:
             return
