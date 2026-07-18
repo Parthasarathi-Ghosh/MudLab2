@@ -610,22 +610,40 @@ R2G2 validates it at corr 1.000000 (`verify_calc_engine` on
   the four pair weights and eight 3-layer junction probabilities via detailed
   balance, assembled into the 4×4 diagonal W and the block-sparse 4×4 P
   (state order x = 2i+j; a transition from (i,j) is only allowed to (j,k)).
-- Dispatch: `probabilities_from_dict` maps `R2G2Model` -> `R2G2Probability`.
+- Every higher-R model is now this shape - a `PARAMS` list + a `_matrices()`
+  port on `_MarkovProbability`, one dispatch line, validated against its
+  golden. Modeled: **R1G3** (3×3, reps 1), **R2G2** (4×4, reps 2), **R2G3**
+  (9×9, reps 3), **R3G2** (8×8, reps 4). Each ports the corresponding old
+  `RxGyModel.update` verbatim (pair/triplet weights + junction probabilities
+  via detailed balance), assembling the g^R×g^R diagonal W and block-sparse P
+  where a state's transition only reaches the states sharing its trailing
+  layers.
+- **Validity for zero-weight states**: `_MarkovProbability.valid` checks P
+  rows stochastic only for states with nonzero weight. R2G3's restrictions
+  forbid consecutive expandable layers, so several pair-states have zero
+  weight and legitimately all-zero P rows - the calc multiplies those rows by
+  0, so they are unconstrained. (An all-rows check would wrongly report the
+  phase invalid -> the calc would blank it.)
 - **`get_absolute_scale` note**: it takes `np.diag(phase.W)` and indexes by
-  component, so for R2 it reads the first G *pair* weights, not the G marginal
-  single-layer weights. This is IDENTICAL to the old app (the calc is a
-  verbatim port), so reproducing it is CORRECT for matching goldens; and it is
-  a per-phase scalar, absorbed by the scale fit (harmless for single-phase
+  component, so for R>=2 it reads the first G *pair/triplet* weights, not the G
+  marginal single-layer weights. This is IDENTICAL to the old app (the calc is
+  a verbatim port), so reproducing it is CORRECT for matching goldens; and it
+  is a per-phase scalar, absorbed by the scale fit (harmless for single-phase
   fixtures). Do NOT "fix" it - it would diverge from the golden.
-- Guard: `verify_r2.py` (24 checks: dispatch, W/P vs an INDEPENDENT
-  re-derivation for the fixture + 4 synthetic branch cases, the R2 pair
-  structure, per-parameter inheritance, refiner/editor enumeration,
-  byte-identical round-trip + edit persistence). Mutation-tested.
+- Guards: `verify_calc_engine.py` (golden proof, all fixtures + MPDO twins,
+  corr 1.000000) and `verify_higher_r.py` (43 checks: dispatch, shape/reps,
+  validity, per-parameter inheritance, editor/refiner enumeration,
+  byte-identical round-trip + edit persist, across all four models; plus an
+  INDEPENDENT re-derivation of R2G2 and R2G3 matrices). **Fixture-coverage
+  gap recorded**: the `R2 G3` fixtures pin G1-G4 at 0.5 (where G <-> 1-G is
+  invisible), so the golden does NOT discriminate the four G ratios - they are
+  guarded ONLY by the `verify_higher_r` re-derivation at G=0.6 (both W1
+  branches). R1G3's fixture G-params (0.8/0.7) ARE discriminating, but its
+  W1=0.5 leaves the W1>0.5 branch golden-untested (a discriminating R2G3 /
+  high-W1 R1G3 fixture would close both, if wanted).
 
-- **Still to do**: R1G3/G4, R2G3, R3G2 (each a `PARAMS` + `_matrices()` on
-  `_MarkovProbability`, validated against its golden - all fixtures now clean).
-  R3G2 next-easiest (2 params, but g³×g³ = reps 4); R2G3 / R1G3 have 6 params.
-  Once modeled each drops out of the refusal set. R1G4 still lacks a fixture.
+- **Still to do**: R1G4 (12 params) - the only unported model, and it still
+  lacks a golden fixture. Once modeled it drops out of the refusal set.
 
 ### Audit notes: R1 (2026-07-17)
 

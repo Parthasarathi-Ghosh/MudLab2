@@ -377,26 +377,27 @@ def check_load_guard(path, results):
         UnsupportedProbabilityModel, probabilities_from_dict,
     )
 
-    # Unit: the dispatcher refuses the STILL-unported types (R2G2 is modeled
-    # now, so it is no longer in this set) and accepts the modeled ones.
-    for t in ("R1G3Model", "R1G4Model", "R2G3Model", "R3G2Model"):
+    # Unit: the dispatcher refuses the STILL-unported types (only R1G4 and any
+    # unrecognised type remain) and accepts every modeled one.
+    for t in ("R1G4Model", "R4G2Model", "NonsenseModel"):
         try:
-            probabilities_from_dict({"type": t, "properties": {}}, 3)
+            probabilities_from_dict({"type": t, "properties": {}}, 4)
             results.append(("12 %s refused" % t, False))
         except UnsupportedProbabilityModel:
             results.append(("12 %s refused" % t, True))
     ok = True
     try:
         probabilities_from_dict({}, 2)  # new phase
-        probabilities_from_dict({"type": "R0G2Model", "properties": {}}, 2)
-        probabilities_from_dict({"type": "R1G2Model", "properties": {}}, 2)
-        probabilities_from_dict({"type": "R2G2Model", "properties": {}}, 2)
+        for t in ("R0G2Model", "R1G2Model", "R1G3Model",
+                  "R2G2Model", "R2G3Model", "R3G2Model"):
+            probabilities_from_dict({"type": t, "properties": {}}, 3)
     except Exception:
         ok = False
-    results.append(("12 modeled types (empty / R0 / R1G2 / R2G2) still load", ok))
+    results.append(("12 all modeled types (R0/R1G2/R1G3/R2G2/R2G3/R3G2) load", ok))
 
-    # Integration: a real .mud whose phase carries an R1G3 model is refused by
-    # load_mud (synthesised from this fixture so no R1G3 file is needed).
+    # Integration: a real .mud whose phase carries a STILL-unported model
+    # (R1G4) is refused by load_mud (synthesised from this fixture, no R1G4
+    # file needed).
     src = zipfile.ZipFile(path)
     parts = {n: src.read(n) for n in src.namelist()}
     phases = json.loads(parts["phases"].decode("utf-8"))
@@ -405,13 +406,13 @@ def check_load_guard(path, results):
     for it in items:
         pr = it.get("properties", {}).get("probabilities")
         if isinstance(pr, dict) and pr.get("type", "").startswith("R1G2"):
-            pr["type"] = "R1G3Model"  # a type we do not model
+            pr["type"] = "R1G4Model"  # a type we do not model yet
             patched = True
             break
-    results.append(("12 could synthesise an R1G3 project", patched))
+    results.append(("12 could synthesise an R1G4 project", patched))
     if not patched:
         return
-    tmp = os.path.join(tempfile.gettempdir(), "mudlab_r1g3.mud")
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_r1g4.mud")
     try:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as out:
             for name, blob in parts.items():
@@ -420,11 +421,11 @@ def check_load_guard(path, results):
                 out.writestr(name, blob)
         try:
             load_mud(tmp)
-            results.append(("12 load_mud refuses an R1G3 project", False))
+            results.append(("12 load_mud refuses an R1G4 project", False))
         except UnsupportedProbabilityModel as err:
-            results.append(("12 load_mud refuses an R1G3 project", True))
+            results.append(("12 load_mud refuses an R1G4 project", True))
             results.append(("12 refusal message names the model",
-                            "R1G3Model" in str(err)))
+                            "R1G4Model" in str(err)))
     finally:
         for p in (tmp, tmp + "~"):
             if os.path.exists(p):

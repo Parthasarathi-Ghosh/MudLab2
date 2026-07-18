@@ -55,8 +55,13 @@ def _default_projects():
     # exercise of the calc's reps>1 path; MPDO is a second, extreme-parameter
     # discriminating case.
     names = ["308 r1.mud", "Dh2040A 14Jul26.mud", "Dh2040A 14Jul26 r1.mud",
-             "Dh2040A 14Jul26 r2.mud", "Dh537A.mud",
-             "Illite-Smectite R2 G2.mud", "Illite-Smectite R2 G2 MPDO.mud"]
+             "Dh2040A 14Jul26 r2.mud", "Dh537A.mud"]
+    # The Illite-Smectite R/G series (each with an extreme-parameter MPDO twin)
+    # is the golden proof for every ported stacking model: R2G2/R2G3 (reps 3),
+    # R3G2 (reps 4), R1G3 (reps 1). All reproduce at corr 1.000000.
+    for rg in ("R1 G3", "R2 G2", "R2 G3", "R3 G2"):
+        names.append("Illite-Smectite %s.mud" % rg)
+        names.append("Illite-Smectite %s MPDO.mud" % rg)
     projects = []
     for name in names:
         in_repo = os.path.join(_FIXTURES, name)

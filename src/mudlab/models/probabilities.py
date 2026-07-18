@@ -440,7 +440,12 @@ class _MarkovProbability:
             return False
         if np.any(P < -1e-9) or np.any(P > 1.0 + 1e-9):
             return False
-        return bool(np.allclose(P.sum(axis=1), 1.0))
+        # P rows must be stochastic only for states with nonzero weight: a
+        # zero-weight state never occurs in the stack (its row is multiplied by
+        # 0 in the intensity sum), so its transitions are unconstrained and may
+        # legitimately be all-zero (e.g. the forbidden pair-states in R2G3).
+        active = w > 1e-9
+        return bool(np.allclose(P[active].sum(axis=1), 1.0))
 
     def get_distribution_matrix(self) -> np.ndarray:
         return self._matrices()[0]
@@ -560,6 +565,190 @@ class R2G2Probability(_MarkovProbability):
         return W, P
 
 
+class R3G2Probability(_MarkovProbability):
+    """Reichweite-3, 2-component stacking (old R3G2Model). The state is a
+    TRIPLET of layers, so W and P are g³×g³ = 8×8 (the calc's reps = 8//2 = 4).
+    Two independent parameters (W1 constrained > 2/3 so the (0,0,0) triplet
+    weight 3*W1-2 stays >= 0); most junctions are forced (a 1-1 pair cannot be
+    followed by another 1 - illite has no such stacking), leaving only the
+    (0,0,0)->(0,0,x) / (1,0,0)->(0,0,x) block free (ported from
+    R3G2Model.update)."""
+
+    G = 2
+    R = 3
+    PARAMS = (
+        ("W1", 0.85, "W1", "Weight fraction of layer 1 (> 2/3)."),
+        ("P1111_or_P2112", 0.75, "P1111 / P2112",
+         "Junction P1111 when W1 <= 3/4, else P2112."),
+    )
+    type_name = "R3G2Model"
+
+    def _matrices(self):
+        W1 = self.value("W1")
+        P = self.value("P1111_or_P2112")
+        W2 = 1.0 - W1
+
+        def clamp(x):
+            return max(min(x, 1.0), 0.0)
+
+        # Free block: (0,0,0)->(0,0,x) and (1,0,0)->(0,0,x).
+        if W1 <= 0.75:  # P0000 (=P1111) is given
+            P0000 = P
+            P0001 = clamp(1.0 - P0000)
+            P1000 = clamp(P0001 * (W1 - 2.0 * W2) / W2) if W2 != 0 else 0.0
+            P1001 = clamp(1.0 - P1000)
+        else:  # P1001 (=P2112) is given
+            P1001 = P
+            P1000 = clamp(1.0 - P1001)
+            denom = W1 - 2.0 * W2  # = 3*W1 - 2
+            P0000 = clamp(1.0 - P1000 * W2 / denom) if denom != 0 else 0.0
+            P0001 = clamp(1.0 - P0000)
+
+        # Triplet weights (mW[i,j,k]); state x = 4i + 2j + k.
+        w000 = clamp(3.0 * W1 - 2.0)
+        w_edge = clamp(1.0 - W1)  # (0,0,1) (0,1,0) (1,0,0)
+        W = np.diag([w000, w_edge, w_edge, 0.0, w_edge, 0.0, 0.0, 0.0])
+
+        # P[4i+2j+k, 4j+2k+l] = P_ijkl, else 0. Forced junctions: any state
+        # whose first pair is not (0,0) transitions with certainty (P..0 = 1).
+        P8 = np.zeros((8, 8), dtype=float)
+        P8[0, 0], P8[0, 1] = P0000, P0001        # (000)->(00x)
+        P8[1, 2], P8[1, 3] = 1.0, 0.0            # (001)->(01x)
+        P8[2, 4], P8[2, 5] = 1.0, 0.0            # (010)->(10x)
+        P8[3, 6], P8[3, 7] = 1.0, 0.0            # (011)->(11x)
+        P8[4, 0], P8[4, 1] = P1000, P1001        # (100)->(00x)
+        P8[5, 2], P8[5, 3] = 1.0, 0.0            # (101)->(01x)
+        P8[6, 4], P8[6, 5] = 1.0, 0.0            # (110)->(10x)
+        P8[7, 6], P8[7, 7] = 1.0, 0.0            # (111)->(11x)
+        return W, P8
+
+
+class R1G3Probability(_MarkovProbability):
+    """Reichweite-1, 3-component stacking (old R1G3Model). State = one previous
+    layer, so W and P are 3×3 (reps = 1). Six parameters (W1, P11_or_P22 and
+    four G ratios) fix the single-layer weights and the 3×3 junction matrix via
+    detailed balance (ported from R1G3Model.update)."""
+
+    G = 3
+    R = 1
+    PARAMS = (
+        ("W1", 0.8, "W1", "Weight fraction of layer 1."),
+        ("P11_or_P22", 0.7, "P11 / P22", "Junction P11 (W1<=1/2) or P22."),
+        ("G1", 0.7, "G1", "W2 / (W2 + W3)."),
+        ("G2", 0.7, "G2", "(W11+W12) / (W11+W12+W21+W22)."),
+        ("G3", 0.7, "G3", "W11 / (W11 + W12)."),
+        ("G4", 0.7, "G4", "W21 / (W21 + W22)."),
+    )
+    type_name = "R1G3Model"
+
+    def _matrices(self):
+        W1 = self.value("W1")
+        P11_or_P22 = self.value("P11_or_P22")
+        G1, G2, G3, G4 = (self.value(n) for n in ("G1", "G2", "G3", "G4"))
+        mW0 = W1
+        mW1 = (1.0 - mW0) * G1
+        mW2 = 1.0 - mW0 - mW1
+        W0inv = 1.0 / mW0 if mW0 > 0.0 else 0.0
+        if mW0 <= 0.5:  # P00 given
+            P00 = P11_or_P22
+            Wxx = mW0 * (P00 - 1.0) + mW1 + mW2
+        else:  # Pxx given; P00 solved after the off-diagonals
+            P00 = None
+            Wxx = (1.0 - mW0) * P11_or_P22
+        W11 = Wxx * G2 * G3
+        W12 = Wxx * G2 * (1.0 - G3)
+        W21 = Wxx * (1.0 - G2) * G4
+        W22 = Wxx * (1.0 - G2) * (1.0 - G4)
+        P11 = W11 / mW1 if mW1 > 0.0 else 0.0
+        P12 = W12 / mW1 if mW1 > 0.0 else 0.0
+        P10 = 1.0 - P11 - P12
+        P21 = W21 / mW2 if mW2 > 0.0 else 0.0
+        P22 = W22 / mW2 if mW2 > 0.0 else 0.0
+        P20 = 1.0 - P21 - P22
+        P01 = (mW1 - W11 - W21) * W0inv
+        P02 = (mW2 - W12 - W22) * W0inv
+        if mW0 > 0.5:
+            P00 = 1.0 - P01 - P02
+        W = np.diag([mW0, mW1, mW2])
+        P = np.array([[P00, P01, P02],
+                      [P10, P11, P12],
+                      [P20, P21, P22]], dtype=float)
+        return W, P
+
+
+class R2G3Probability(_MarkovProbability):
+    """Reichweite-2, 3-component stacking (old R2G3Model). State = a pair of
+    layers, so W and P are g²×g² = 9×9 (reps = 9//3 = 3). Illite-smectite
+    restrictions forbid consecutive expandable layers, so most pair-states have
+    zero weight; six parameters set the rest (ported from R2G3Model.update)."""
+
+    G = 3
+    R = 2
+    _TWOTHIRDS = 2.0 / 3.0
+    PARAMS = (
+        ("W1", 0.8, "W1", "Weight fraction of layer 1."),
+        ("P111_or_P212", 0.9, "P111 / P212", "Junction P111 (W1<2/3) or P212."),
+        ("G1", 0.9, "G1", "W2 / (W2 + W3)."),
+        ("G2", 0.9, "G2", "share of the x0x weight going to layer 1."),
+        ("G3", 0.9, "G3", "W101 / W10x."),
+        ("G4", 0.9, "G4", "W201 / W20x."),
+    )
+    type_name = "R2G3Model"
+
+    def _matrices(self):
+        W1 = self.value("W1")
+        P111_or_P212 = self.value("P111_or_P212")
+        G1, G2, G3, G4 = (self.value(n) for n in ("G1", "G2", "G3", "G4"))
+        # Single-layer weights.
+        W0, W1w, W2w = W1, (1.0 - W1) * G1, None
+        W2w = 1.0 - W0 - W1w
+        # Pair weights (mW[i,j]); state x = 3i + j. Restrictions zero out the
+        # consecutive-expandable pairs.
+        pairW = {}
+        pairW[(1, 1)] = pairW[(1, 2)] = pairW[(2, 1)] = pairW[(2, 2)] = 0.0
+        pairW[(0, 1)] = pairW[(1, 0)] = W1w
+        pairW[(0, 2)] = pairW[(2, 0)] = W2w
+        pairW[(0, 0)] = W0 - pairW[(0, 1)] - pairW[(0, 2)]
+        # 3-layer weights on the x0x path.
+        Wx = W1w + W2w
+        if W0 < self._TWOTHIRDS:
+            P000 = P111_or_P212
+            Px0x = (1.0 - (W0 - Wx) / Wx * (1.0 - P000)) if Wx != 0 else 0.0
+        else:
+            Px0x = P111_or_P212
+            P000 = (1.0 - Wx / (W0 - Wx) * (1.0 - Px0x)) if (W0 - Wx) != 0 else 0.0
+        Wx0x = Wx * Px0x
+        W10x = G2 * Wx0x
+        W20x = Wx0x - W10x
+        tW = {}  # triplet weights mW[i,j,k]
+        tW[(1, 0, 1)] = G3 * W10x
+        tW[(1, 0, 2)] = (1.0 - G3) * W10x
+        tW[(1, 0, 0)] = pairW[(1, 0)] - tW[(1, 0, 1)] - tW[(1, 0, 2)]
+        tW[(2, 0, 1)] = G4 * W20x
+        tW[(2, 0, 2)] = (1.0 - G4) * W20x
+        tW[(2, 0, 0)] = pairW[(2, 0)] - tW[(2, 0, 1)] - tW[(2, 0, 2)]
+        tW[(0, 0, 0)] = pairW[(0, 0)] * P000
+        tW[(0, 0, 1)] = pairW[(0, 1)] - tW[(1, 0, 1)] - tW[(2, 0, 1)]
+        tW[(0, 0, 2)] = pairW[(0, 2)] - tW[(1, 0, 2)] - tW[(2, 0, 2)]
+        # The (i,1,*) and (i,2,*) triplets: after an expandable layer only a
+        # non-expandable (0) may follow, so (i,j,0) inherits the pair weight.
+        tW[(0, 1, 0)] = pairW[(0, 1)]
+        tW[(0, 2, 0)] = pairW[(0, 2)]
+        # Assemble W (9x9 diag) and P[3i+j, 3j+k] = mW[i,j,k] / mW[i,j].
+        W = np.zeros((9, 9), dtype=float)
+        for (i, j), w in pairW.items():
+            W[3 * i + j, 3 * i + j] = w
+        P = np.zeros((9, 9), dtype=float)
+        for i in range(3):
+            for j in range(3):
+                wij = pairW.get((i, j), 0.0)
+                if wij <= 0.0:
+                    continue
+                for k in range(3):
+                    P[3 * i + j, 3 * j + k] = tW.get((i, j, k), 0.0) / wij
+        return W, P
+
+
 class UnsupportedProbabilityModel(ValueError):
     """Raised when a .mud carries a layer-stacking model MudLab2 does not
     model yet (any higher-R type other than R0* / R1G2Model). Loading it as R0
@@ -570,7 +759,8 @@ class UnsupportedProbabilityModel(ValueError):
         self.prob_type = prob_type
         super().__init__(
             "This project uses the '%s' layer-stacking model, which MudLab2 "
-            "does not support yet (modeled: R0 any G, R1G2, R2G2)." % prob_type
+            "does not support yet (modeled: R0 any G, R1G2, R1G3, R2G2, R2G3, "
+            "R3G2)." % prob_type
         )
 
 
@@ -587,6 +777,12 @@ def probabilities_from_dict(data: dict, G: int):
         return R1G2Probability.from_dict(data, G)
     if prob_type == "R2G2Model":
         return R2G2Probability.from_dict(data, G)
+    if prob_type == "R3G2Model":
+        return R3G2Probability.from_dict(data, G)
+    if prob_type == "R1G3Model":
+        return R1G3Probability.from_dict(data, G)
+    if prob_type == "R2G3Model":
+        return R2G3Probability.from_dict(data, G)
     if prob_type.startswith("R0G"):
         return R0Probability.from_dict(data, G)
     if prob_type == "":
