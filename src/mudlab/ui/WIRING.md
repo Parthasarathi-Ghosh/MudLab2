@@ -613,13 +613,24 @@ local optimum. Consequences, both real:
      already near-optimal, which is why W1 triggered it where R0 F1 (a big
      genuine improvement) masked it.
 Not caused by R1 - it is a property of the warm-started multi-start optimiser
-plus `apply_best`. **Proposed fix** (deferred - refinement core, needs its
-own batch + guard): after `apply_best`, re-measure; if the applied residual
-exceeds `initial_residual`, `apply_initial()` instead and set
-`best_residual`/`best_solution` to the initial (guarantee non-worsening),
-and set `best_residual` to the actually-applied value so the window number
-is truthful. Add a harness check that refine is never worse than a plain
-optimize.
+plus `apply_best`.
+
+**FIXED (2026-07-18).** `refine_mixture` now snapshots the exact pre-refine
+state (structural values + fractions/scales/background) and its genuine
+"before" residual `pre_residual = get_current_residual(mixture)`. After the
+search it measures what `apply_best()` actually achieved (the `apply_*`
+methods now return their achieved residual); if that is not finite or is
+worse than `pre_residual`, it restores the snapshot exactly (not
+`apply_initial`, which would re-optimise from the wrong warm-start and could
+not reproduce the before-state either). Either way `best_residual` is set to
+the residual that is genuinely APPLIED, so the Refinement window's number
+matches the model's real state. Net: refine is never worse than it started,
+and `best_residual` never overstates. Guard: `verify_r1.py` check 13 (flags
+Dh537A's already-optimal W1, asserts after <= before and
+`best_residual == applied`); mutation-tested - reverting to the unguarded
+`apply_best` reproduces 19.13033 -> 19.13111. The R0 fixtures do not exercise
+it (there refine genuinely improves, so "never worse" is trivial), which is
+why the guard lives in the R1 harness.
 
 ## Edit Atom Types: EditAtomTypesDialog + edit_atom_type.ui
 

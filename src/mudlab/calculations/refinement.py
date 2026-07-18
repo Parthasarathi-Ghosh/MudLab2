@@ -51,7 +51,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.optimize import basinhopping, fmin_l_bfgs_b
 
-from mudlab.calculations.mixture import optimize_mixture
+from mudlab.calculations.mixture import get_current_residual, optimize_mixture
 
 _PENALTY = 1.0e6  # finite substitute for a non-finite residual
 
@@ -289,17 +289,20 @@ class Refiner:
     # The Refinement window's Initial / Best / Last buttons apply one of the
     # three tracked solutions; each sets the structural params then inner-fits
     # fractions/scales/background so the mixture lands at that solution's fit.
-    def apply_best(self) -> None:
+    # They return the ACTUALLY-ACHIEVED residual (which, because the inner fit
+    # warm-starts from the mixture's current fractions, need not equal the
+    # residual recorded for that solution during the search).
+    def apply_best(self) -> float:
         self.apply_solution(self.best_solution)
-        optimize_mixture(self.mixture)
+        return float(optimize_mixture(self.mixture))
 
-    def apply_last(self) -> None:
+    def apply_last(self) -> float:
         self.apply_solution(self.last_solution)
-        optimize_mixture(self.mixture)
+        return float(optimize_mixture(self.mixture))
 
-    def apply_initial(self) -> None:
+    def apply_initial(self) -> float:
         self.apply_solution(self.initial_solution)
-        optimize_mixture(self.mixture)
+        return float(optimize_mixture(self.mixture))
 
 
 # ----------------------------------------------------------------------
@@ -366,11 +369,23 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None,
 
     # Snapshot the full mutable state before the search (the flagged structural
     # values plus the mixture's fractions/scales/background, which the inner
-    # optimise rewrites every trial) so an error can restore it.
+    # optimise rewrites every trial) so it can be restored exactly.
     saved_values = [ref.value for ref in refiner.refinables]
     saved_fractions = np.array(mixture.fractions, dtype=float)
     saved_scales = np.array(mixture.scales, dtype=float)
     saved_bgshifts = np.array(mixture.bgshifts, dtype=float)
+    # The genuine "before" fit - the residual the user had when they pressed
+    # Refine. Measured on the untouched snapshot (get_current_residual does
+    # not mutate), so it is the exact number the non-worsening guard compares
+    # against below.
+    pre_residual = float(get_current_residual(mixture))
+
+    def _restore_snapshot() -> None:
+        for ref, value in zip(refiner.refinables, saved_values):
+            ref.value = value
+        mixture.fractions = saved_fractions
+        mixture.scales = saved_scales
+        mixture.bgshifts = saved_bgshifts
 
     try:
         # Seed the best/initial with the starting point, then run the search.
@@ -380,12 +395,23 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None,
     except _RefinementStopped:
         pass  # cancelled: fall through and apply the best solution so far
     except Exception:
-        for ref, value in zip(refiner.refinables, saved_values):
-            ref.value = value
-        mixture.fractions = saved_fractions
-        mixture.scales = saved_scales
-        mixture.bgshifts = saved_bgshifts
-        raise  # fail loud, but with the model back to its pre-refine state
+        _restore_snapshot()  # back to the pre-refine state
+        raise  # fail loud
 
-    refiner.apply_best()
+    # Non-worsening guarantee. apply_best re-optimises the inner fractions/
+    # scales/background from the search's FINAL warm-start, so it can land at a
+    # worse inner local optimum than the pre-refine state - i.e. Refine could
+    # leave the fit worse than it started, and best_residual (recorded
+    # mid-search at a warm-start apply_best cannot reproduce) can overstate the
+    # achieved fit. So measure what apply_best actually achieved and, if it is
+    # not at least as good as the snapshot, restore the snapshot. Either way
+    # best_residual is set to the residual that is genuinely APPLIED, so the
+    # Refinement window's number matches the model's real state.
+    applied = refiner.apply_best()
+    if not np.isfinite(applied) or applied > pre_residual:
+        _restore_snapshot()
+        refiner.best_solution = np.array(saved_values, dtype=float)
+        refiner.best_residual = pre_residual
+    else:
+        refiner.best_residual = applied
     return refiner

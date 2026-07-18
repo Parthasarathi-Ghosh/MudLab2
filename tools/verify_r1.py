@@ -277,6 +277,39 @@ def check_refinement(path, results):
                         abs(mixture.current_residual() - base) < 1e-9))
 
 
+def check_refine_non_worsening(path, results):
+    """13. Refining an ALREADY-OPTIMAL R1 param must not leave the fit worse,
+    and best_residual must equal the applied state.
+
+    This is the regression guard for the R1-audit finding: Dh537A's W1 is
+    already near-optimal, so the outer search finds no structural gain, and
+    apply_best used to re-optimise the inner fractions from a worse warm-start
+    - leaving the model WORSE than before (19.13033 -> 19.13111) while
+    best_residual (19.12977) overstated the fit. The fix restores the
+    pre-refine snapshot when apply_best cannot beat it. R0 fixtures do not
+    exercise this (there refine genuinely improves, so 'never worse' is
+    trivial); only an already-optimal param does.
+    """
+    from mudlab.calculations.refinement import enumerate_refinables, refine_mixture
+
+    project = load_mud(path)
+    if not project.mixtures:
+        return
+    mixture = project.mixtures[0]
+    target = next((r for r in enumerate_refinables(mixture)
+                   if r.label.endswith("| W1")), None)
+    if target is None:
+        return
+    before = mixture.current_residual()
+    target.set_ref_info(minimum=0.3, maximum=0.95, refine=True)
+    refiner = refine_mixture(mixture, method_index=0)
+    after = mixture.current_residual()
+    results.append(("13 refine never leaves the fit worse (%.5f -> %.5f)"
+                    % (before, after), after <= before + 1e-9))
+    results.append(("13 best_residual matches the applied state (not overstated)",
+                    abs(refiner.best_residual - after) < 1e-6))
+
+
 def check_editor(project, results):
     """10 (R1c-2). The probabilities editor adapts to R1: it shows W1 / P11
     controls (not F), editing recomputes W/P, and an inherited parameter is
@@ -499,6 +532,7 @@ def run(path):
     check_edit_persists(path, results)
     check_detach_clears_flags(load_mud(path), results)
     check_refinement(path, results)
+    check_refine_non_worsening(path, results)
     check_editor(load_mud(path), results)
     check_create_new(path, results)
     check_load_guard(path, results)
