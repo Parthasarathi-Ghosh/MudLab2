@@ -140,6 +140,99 @@ def _r2g3_reference(W1, P111_or_P212, G1, G2, G3, G4):
     return np.diag(W), P
 
 
+def _r1g4_reference(W1, P11_or_P22, R1, R2, G1, G2,
+                    G11, G12, G21, G22, G31, G32):
+    """Independent re-derivation of R1G4Model.update. R1G4 has NO golden
+    fixture, so this is the ONLY correctness check beyond the transcription
+    itself - it catches a typo that differs between the two transcriptions,
+    but NOT a shared misreading of the source. R1G4 stays provisional."""
+    mW0 = W1
+    mW1 = (1.0 - mW0) * R1
+    mW2 = (1.0 - mW0 - mW1) * R2
+    mW3 = 1.0 - mW0 - mW1 - mW2
+    W0inv = 1.0 / mW0 if mW0 > 0 else 0.0
+    if mW0 < 0.5:
+        P00 = P11_or_P22
+        Wxx = mW0 * (P00 - 1) + mW1 + mW2 + mW3
+    else:
+        P00 = None
+        Wxx = P11_or_P22 * (mW1 + mW2 + mW3)
+    W1x = Wxx * G1
+    Wyx = Wxx - W1x
+    W2x = Wyx * G2
+    W3x = Wyx - W2x
+    W = [mW0, mW1, mW2, mW3]
+    w = {(1, 1): G11 * W1x}
+    w[(1, 2)] = G12 * (W1x - w[(1, 1)])
+    w[(1, 3)] = W1x - w[(1, 1)] - w[(1, 2)]
+    w[(2, 1)] = G21 * W2x
+    w[(2, 2)] = G22 * (W2x - w[(2, 1)])
+    w[(2, 3)] = W2x - w[(2, 1)] - w[(2, 2)]
+    w[(3, 1)] = G31 * W3x
+    w[(3, 2)] = G32 * (W3x - w[(3, 1)])
+    w[(3, 3)] = W3x - w[(3, 1)] - w[(3, 2)]
+    P = np.zeros((4, 4))
+    for i in range(1, 4):
+        P[i, 0] = 1.0
+        for j in range(1, 4):
+            P[i, j] = w[(i, j)] / W[i] if W[i] > 0 else 0.0
+            P[i, 0] -= P[i, j]
+    P[0, 1] = (mW1 - w[(1, 1)] - w[(2, 1)] - w[(3, 1)]) * W0inv
+    P[0, 2] = (mW2 - w[(1, 2)] - w[(2, 2)] - w[(3, 2)]) * W0inv
+    P[0, 3] = (mW3 - w[(1, 3)] - w[(2, 3)] - w[(3, 3)]) * W0inv
+    if mW0 >= 0.5:
+        P[0, 0] = 1 - P[0, 1] - P[0, 2] - P[0, 3]
+    else:
+        P[0, 0] = P00
+    return np.array(W), P
+
+
+def check_r1g4(results):
+    """R1G4 has NO golden fixture: check dispatch, validity and BOTH W1
+    branches against the independent re-derivation, plus the generic
+    inheritance / serialization / descriptor behaviour synthetically. Clearly
+    provisional (see R1G4Probability's docstring)."""
+    from mudlab.models.probabilities import R1G4Probability
+
+    results.append(("R1G4Model: dispatch -> R1G4Probability (loads, unverified)",
+                    isinstance(probabilities_from_dict(
+                        {"type": "R1G4Model", "properties": {}}, 4),
+                        R1G4Probability)))
+    # Both W1 branches, valid + discriminating, vs the independent re-derivation.
+    for tag, (W1, P, R1, R2, G1, G2) in [
+        ("W1<0.5", (0.3, 0.2, 0.4, 0.4, 0.6, 0.4)),
+        ("W1>=0.5", (0.6, 0.2, 0.4, 0.4, 0.4, 0.4)),
+    ]:
+        kw = dict(W1=W1, P11_or_P22=P, R1=R1, R2=R2, G1=G1, G2=G2,
+                  G11=0.5, G12=0.5, G21=0.8, G22=0.75, G31=0.7, G32=0.5)
+        m = R1G4Probability(**kw)
+        w_ref, P_ref = _r1g4_reference(**kw)
+        results.append(("R1G4Model: %s matches re-derivation + valid" % tag,
+                        np.allclose(m.get_distribution_array(), w_ref, atol=1e-12)
+                        and np.allclose(m.get_probability_matrix(), P_ref, atol=1e-12)
+                        and m.valid))
+    # Generic: 4x4/reps 1, 12 params, inheritance, round-trip via write/from.
+    m = R1G4Probability(**dict(W1=0.6, P11_or_P22=0.25, R1=0.5, R2=0.5,
+                               G1=0.5, G2=0.4, G11=0.5, G12=0.5, G21=0.8,
+                               G22=0.75, G31=0.7, G32=0.5))
+    results.append(("R1G4Model: 4x4 (reps 1), 12 params",
+                    m.get_probability_matrix().shape == (4, 4)
+                    and m.n_independents == 12
+                    and len(m.editable_params()) == 12
+                    and len(m.refinable_params()) == 12))
+    child = R1G4Probability(W1=0.9)
+    child.inherit_W1 = True
+    child.set_based_on(m)
+    results.append(("R1G4Model: inheritance reads through + clears",
+                    abs(child.value("W1") - m.value("W1")) < 1e-12
+                    and (child.clear_inheritance() or not child.inherit_W1)))
+    props = m.write_properties({})
+    back = R1G4Probability.from_dict({"properties": props})
+    results.append(("R1G4Model: write_properties -> from_dict preserves params",
+                    all(abs(getattr(back, n) - getattr(m, n)) < 1e-12
+                        for n, *_ in R1G4Probability.PARAMS)))
+
+
 def _phase_of(project, cls):
     for ph in project.phases:
         if isinstance(ph.probabilities, cls):
@@ -277,6 +370,17 @@ def main(argv):
     if ran == 0:
         print("No higher-R fixtures found; skipping (exit 2).")
         return 2
+
+    # R1G4 has no golden fixture - checked synthetically (self-consistency +
+    # an independent re-derivation). PROVISIONAL: see R1G4Probability.
+    print("=" * 72)
+    print("R1G4Model - NO golden fixture (provisional, self-consistency only)")
+    print("=" * 72)
+    n_before = len(results)
+    check_r1g4(results)
+    for label, ok in results[n_before:]:
+        print("  %s  %s" % ("PASS" if ok else "FAIL", label))
+    print()
     passed = sum(1 for _, ok in results if ok)
     print("=" * 72)
     print("Higher-R harness: %d/%d checks across %d models: %s"

@@ -642,8 +642,23 @@ R2G2 validates it at corr 1.000000 (`verify_calc_engine` on
   W1=0.5 leaves the W1>0.5 branch golden-untested (a discriminating R2G3 /
   high-W1 R1G3 fixture would close both, if wanted).
 
-- **Still to do**: R1G4 (12 params) - the only unported model, and it still
-  lacks a golden fixture. Once modeled it drops out of the refusal set.
+### R1G4: ported but PROVISIONAL (no golden fixture)
+
+`R1G4Probability` (4×4, reps 1, 12 params) ports `R1G4Model.update` verbatim
+from PyXRD (`C:\Users\pxgho\PyXRD`; confirmed byte-identical to old mudlab's).
+It DISPATCHES and loads like the others, so R1G4 projects are usable - **but
+it is NOT golden-validated**: there is no R1G4 test project, so unlike every
+other model it has never been checked against the old app's computed pattern.
+Its only checks are internal self-consistency + an INDEPENDENT matrix
+re-derivation (`verify_higher_r.py check_r1g4`, both W1 branches at valid
+discriminating params), which catches a transcription typo but NOT a shared
+misreading of the source. Treat R1G4 output as provisional; to promote it,
+make an R1G4 project in the (fixed) old app and add it to
+`verify_calc_engine`. The class docstring carries the same warning.
+
+**All PyXRD R/G stacking models are now present** (R0 any G; R1 G2-G4;
+R2 G2-G3; R3 G2), R1G4 provisionally. The dispatch refuses only genuinely
+non-PyXRD types (e.g. R4/G, R2G4).
 
 ### Audit notes: R1 (2026-07-17)
 

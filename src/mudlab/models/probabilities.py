@@ -749,6 +749,93 @@ class R2G3Probability(_MarkovProbability):
         return W, P
 
 
+class R1G4Probability(_MarkovProbability):
+    """Reichweite-1, 4-component stacking (PyXRD/old-mudlab R1G4Model). State =
+    one previous layer, so W and P are 4×4 (reps = 1). Twelve independent
+    parameters set the four single-layer weights (via the R1/R2 ratios) and the
+    4×4 junction matrix (nested G ratios), ported VERBATIM from
+    R1G4Model.update (PyXRD's and old mudlab's are byte-identical).
+
+    !!! NOT VALIDATED against a golden fixture !!!
+    Unlike every other stacking model here, there is no R1G4 test project, so
+    this port has only been checked for INTERNAL self-consistency (an
+    independent matrix re-derivation in verify_higher_r.py) and against the
+    source it was transcribed from - NOT against the old app's computed
+    pattern. A transcription that is self-consistent but subtly misreads the
+    source would pass those checks. Treat R1G4 output as provisional until a
+    golden R1G4 project is made in the (now-fixed) old app and run through
+    verify_calc_engine. See the R1G4 note in ui/WIRING.md.
+    """
+
+    G = 4
+    R = 1
+    PARAMS = (
+        ("W1", 0.6, "W1", "Weight fraction of layer 1."),
+        ("P11_or_P22", 0.25, "P11 / P22", "Junction P11 (W1<1/2) or P22."),
+        ("R1", 0.5, "R1", "W2 / (W2 + W3 + W4)."),
+        ("R2", 0.5, "R2", "W3 / (W3 + W4)."),
+        ("G1", 0.5, "G1", "(W11+W12+W13) / Wxx."),
+        ("G2", 0.4, "G2", "(W21+W22+W23) / (Wxx - W1x)."),
+        ("G11", 0.5, "G11", "W11 / W1x."),
+        ("G12", 0.5, "G12", "W12 / (W1x - W11)."),
+        ("G21", 0.8, "G21", "W21 / W2x."),
+        ("G22", 0.75, "G22", "W22 / (W2x - W21)."),
+        ("G31", 0.7, "G31", "W31 / W3x."),
+        ("G32", 0.5, "G32", "W32 / (W3x - W31)."),
+    )
+    type_name = "R1G4Model"
+
+    def _matrices(self):
+        v = self.value
+        W1 = v("W1")
+        P11_or_P22 = v("P11_or_P22")
+        R1r, R2r = v("R1"), v("R2")
+        G1, G2 = v("G1"), v("G2")
+        G11, G12, G21, G22, G31, G32 = (
+            v("G11"), v("G12"), v("G21"), v("G22"), v("G31"), v("G32"))
+        mW0 = W1
+        mW1 = (1.0 - mW0) * R1r
+        mW2 = (1.0 - mW0 - mW1) * R2r
+        mW3 = 1.0 - mW0 - mW1 - mW2
+        W0inv = 1.0 / mW0 if mW0 > 0.0 else 0.0
+        if mW0 < 0.5:  # P00 given
+            P00 = P11_or_P22
+            Wxx = mW0 * (P00 - 1.0) + mW1 + mW2 + mW3
+        else:  # Pxx given; P00 solved after the off-diagonals
+            P00 = None
+            Wxx = P11_or_P22 * (mW1 + mW2 + mW3)
+        W1x = Wxx * G1
+        Wyx = Wxx - W1x
+        W2x = Wyx * G2
+        W3x = Wyx - W2x
+        # Nested junction weights.
+        W = [mW0, mW1, mW2, mW3]
+        Wij = {}
+        Wij[(1, 1)] = G11 * W1x
+        Wij[(1, 2)] = G12 * (W1x - Wij[(1, 1)])
+        Wij[(1, 3)] = W1x - Wij[(1, 1)] - Wij[(1, 2)]
+        Wij[(2, 1)] = G21 * W2x
+        Wij[(2, 2)] = G22 * (W2x - Wij[(2, 1)])
+        Wij[(2, 3)] = W2x - Wij[(2, 1)] - Wij[(2, 2)]
+        Wij[(3, 1)] = G31 * W3x
+        Wij[(3, 2)] = G32 * (W3x - Wij[(3, 1)])
+        Wij[(3, 3)] = W3x - Wij[(3, 1)] - Wij[(3, 2)]
+        P = np.zeros((4, 4), dtype=float)
+        for i in range(1, 4):
+            P[i, 0] = 1.0
+            for j in range(1, 4):
+                P[i, j] = Wij[(i, j)] / W[i] if W[i] > 0.0 else 0.0
+                P[i, 0] -= P[i, j]
+        P[0, 1] = (mW1 - Wij[(1, 1)] - Wij[(2, 1)] - Wij[(3, 1)]) * W0inv
+        P[0, 2] = (mW2 - Wij[(1, 2)] - Wij[(2, 2)] - Wij[(3, 2)]) * W0inv
+        P[0, 3] = (mW3 - Wij[(1, 3)] - Wij[(2, 3)] - Wij[(3, 3)]) * W0inv
+        if mW0 >= 0.5:
+            P[0, 0] = 1.0 - P[0, 1] - P[0, 2] - P[0, 3]
+        else:
+            P[0, 0] = P00
+        return np.diag(W), P
+
+
 class UnsupportedProbabilityModel(ValueError):
     """Raised when a .mud carries a layer-stacking model MudLab2 does not
     model yet (any higher-R type other than R0* / R1G2Model). Loading it as R0
@@ -759,8 +846,8 @@ class UnsupportedProbabilityModel(ValueError):
         self.prob_type = prob_type
         super().__init__(
             "This project uses the '%s' layer-stacking model, which MudLab2 "
-            "does not support yet (modeled: R0 any G, R1G2, R1G3, R2G2, R2G3, "
-            "R3G2)." % prob_type
+            "does not support (modeled: R0 any G, and R1/R2/R3 up to the "
+            "component counts PyXRD supports)." % prob_type
         )
 
 
@@ -783,6 +870,11 @@ def probabilities_from_dict(data: dict, G: int):
         return R1G3Probability.from_dict(data, G)
     if prob_type == "R2G3Model":
         return R2G3Probability.from_dict(data, G)
+    if prob_type == "R1G4Model":
+        # NOTE: R1G4 is ported but NOT golden-validated (no fixture). It loads
+        # so R1G4 projects are usable, but the pattern is provisional - see
+        # R1G4Probability's docstring.
+        return R1G4Probability.from_dict(data, G)
     if prob_type.startswith("R0G"):
         return R0Probability.from_dict(data, G)
     if prob_type == "":
