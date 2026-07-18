@@ -377,8 +377,9 @@ def check_load_guard(path, results):
         UnsupportedProbabilityModel, probabilities_from_dict,
     )
 
-    # Unit: the dispatcher refuses the unported types and accepts the modeled.
-    for t in ("R1G3Model", "R1G4Model", "R2G2Model", "R3G2Model"):
+    # Unit: the dispatcher refuses the STILL-unported types (R2G2 is modeled
+    # now, so it is no longer in this set) and accepts the modeled ones.
+    for t in ("R1G3Model", "R1G4Model", "R2G3Model", "R3G2Model"):
         try:
             probabilities_from_dict({"type": t, "properties": {}}, 3)
             results.append(("12 %s refused" % t, False))
@@ -389,9 +390,10 @@ def check_load_guard(path, results):
         probabilities_from_dict({}, 2)  # new phase
         probabilities_from_dict({"type": "R0G2Model", "properties": {}}, 2)
         probabilities_from_dict({"type": "R1G2Model", "properties": {}}, 2)
+        probabilities_from_dict({"type": "R2G2Model", "properties": {}}, 2)
     except Exception:
         ok = False
-    results.append(("12 modeled types (empty / R0 / R1G2) still load", ok))
+    results.append(("12 modeled types (empty / R0 / R1G2 / R2G2) still load", ok))
 
     # Integration: a real .mud whose phase carries an R1G3 model is refused by
     # load_mud (synthesised from this fixture so no R1G3 file is needed).

@@ -239,6 +239,14 @@ Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
   W1<=0.5 branch is guarded only by the synthetic `2b` check. Run after touching
   models/probabilities.py. The golden-calc proof itself is in
   `verify_calc_engine.py` (Dh537A added to its default set).
+- `tools/verify_r2.py` guards R2 (Reichweite-2) STACKING - the R2G2 model,
+  the FIRST with g²×g² (4×4) matrices and hence the first exercise of the
+  calc's `reps>1` path. W/P vs an INDEPENDENT re-derivation (fixture + 4
+  synthetic branch cases), the R2 block-sparse pair structure, per-parameter
+  inheritance, refiner/editor enumeration, byte-identical round-trip + edit
+  persistence. Fixtures: `Illite-Smectite R2 G2[.mud / MPDO]` (in
+  `verify_calc_engine`'s default set too, at corr 1.000000). Run after
+  touching models/probabilities.py.
 
 **Sample fixtures (2026-07-14).** `Dh2040A.mud` was withdrawn (faulty). The four
 in use, and what each is for:

@@ -384,6 +384,182 @@ class R1G2Probability:
         )
 
 
+# Per-parameter inheritance is the same shape for every higher-R model (a set
+# of named float params, each with an inherit_<name> flag that reads through to
+# a based_on model), so it is factored out here. Each model lists its own
+# PARAMS (name, default) and implements _matrices() (its update() port).
+class _MarkovProbability:
+    """Shared base for the multi-parameter Markovian (R>=1) models. Subclasses
+    set G, R and PARAMS, and implement _matrices() -> (W, P). Everything else -
+    read-through inheritance, validity, serialization, the editor/refiner
+    descriptors - is generic over PARAMS."""
+
+    G = 2
+    R = 1
+    PARAMS: tuple = ()   # ((name, default, label, tooltip), ...)
+
+    def __init__(self, **values) -> None:
+        self.based_on_probs = None
+        for name, default, _label, _tip in self.PARAMS:
+            setattr(self, name, float(values.get(name, default)))
+            setattr(self, "inherit_" + name,
+                    bool(values.get("inherit_" + name, False)))
+
+    # -- inheritance ---------------------------------------------------
+    def set_based_on(self, parent_probs) -> None:
+        self.based_on_probs = parent_probs if parent_probs is not self else None
+
+    def _inherited(self, name: str) -> bool:
+        return (bool(getattr(self, "inherit_" + name))
+                and self.based_on_probs is not None)
+
+    def value(self, name: str) -> float:
+        """Effective value of a parameter, read through to the based_on model
+        when inherited."""
+        if self._inherited(name):
+            return self.based_on_probs.value(name)
+        return float(getattr(self, name))
+
+    def clear_inheritance(self) -> None:
+        for name, *_ in self.PARAMS:
+            setattr(self, "inherit_" + name, False)
+
+    @property
+    def n_independents(self) -> int:
+        return len(self.PARAMS)
+
+    # -- matrices (subclass ports update()) ----------------------------
+    def _matrices(self):
+        raise NotImplementedError
+
+    @property
+    def valid(self) -> bool:
+        W, P = self._matrices()
+        w = np.diag(W)
+        if np.any(w < -1e-9) or np.any(w > 1.0 + 1e-9) or not np.isclose(w.sum(), 1.0):
+            return False
+        if np.any(P < -1e-9) or np.any(P > 1.0 + 1e-9):
+            return False
+        return bool(np.allclose(P.sum(axis=1), 1.0))
+
+    def get_distribution_matrix(self) -> np.ndarray:
+        return self._matrices()[0]
+
+    def get_distribution_array(self) -> np.ndarray:
+        return np.diag(self._matrices()[0])
+
+    def get_probability_matrix(self) -> np.ndarray:
+        return self._matrices()[1]
+
+    # -- serialization / descriptors (generic over PARAMS) -------------
+    def write_properties(self, props: dict) -> dict:
+        props = dict(props)
+        for name, *_ in self.PARAMS:
+            props[name] = float(getattr(self, name))          # OWN value
+            props["inherit_" + name] = bool(getattr(self, "inherit_" + name))
+        return props
+
+    def refinable_params(self) -> list:
+        out = []
+        for name, _default, label, _tip in self.PARAMS:
+            out.append((
+                label,
+                (lambda n=name: self.value(n)),
+                (lambda v, n=name: setattr(self, n, float(v))),
+                "%s_ref_info" % name,
+                (0.0, 1.0),
+                self._inherited(name),
+            ))
+        return out
+
+    def editable_params(self) -> list:
+        out = []
+        for name, _default, label, tip in self.PARAMS:
+            out.append({
+                "label": label,
+                "tooltip": tip,
+                "get": (lambda n=name: self.value(n)),
+                "set": (lambda v, n=name: setattr(self, n, float(v))),
+                "inherited": self._inherited(name),
+                "set_inherited": (
+                    lambda b, n=name: setattr(self, "inherit_" + n, bool(b))),
+                "inherit_tooltip": 'Take %s from the "based on" phase.' % label,
+            })
+        return out
+
+    @classmethod
+    def from_dict(cls, data: dict, G: int = None):
+        props = data.get("properties", {}) if isinstance(data, dict) else {}
+        kwargs = {}
+        for name, default, *_ in cls.PARAMS:
+            kwargs[name] = props.get(name, default)
+            kwargs["inherit_" + name] = bool(props.get("inherit_" + name, False))
+        return cls(**kwargs)
+
+
+class R2G2Probability(_MarkovProbability):
+    """Reichweite-2, 2-component stacking (old R2G2Model). The state is a PAIR
+    of layers, so W and P are g²×g² = 4×4 (the calc's reps = 4//2 = 2 path).
+    Four independent parameters; the other pair-weights and 3-layer junction
+    probabilities follow from detailed balance (ported verbatim from
+    R2G2Model.update)."""
+
+    G = 2
+    R = 2
+    _TWOTHIRDS = 2.0 / 3.0
+    PARAMS = (
+        ("W1", 0.75, "W1", "Weight fraction of layer 1 (> 0.5)."),
+        ("P112_or_P211", 0.75, "P112 / P211",
+         "Junction P112 when W1 <= 2/3, else P211."),
+        ("P21", 0.75, "P21", "Two-layer junction probability P21."),
+        ("P122_or_P221", 0.75, "P122 / P221",
+         "Junction P122 when P21 <= 1/2, else P221."),
+    )
+    #: .mud state order for the 4 pair-states is x = 2*i + j:
+    #: 0=(0,0) 1=(0,1) 2=(1,0) 3=(1,1).
+    type_name = "R2G2Model"
+
+    def _matrices(self):
+        W1 = self.value("W1")
+        P21 = self.value("P21")
+        P112_or_P211 = self.value("P112_or_P211")
+        P122_or_P221 = self.value("P122_or_P221")
+        W2 = 1.0 - W1
+        P22 = 1.0 - P21
+        # Pair weights (mW[i,j]).
+        W10 = W2 * P21
+        W11 = W2 * P22
+        W01 = W10
+        W00 = W1 - W10
+        # First triplet: P00x / P10x (the free one is P112 or P211 by W1).
+        if W1 <= self._TWOTHIRDS:
+            P001 = P112_or_P211
+            P100 = (P001 * W00 / W10) if W10 != 0.0 else 0.0
+        else:
+            P100 = P112_or_P211
+            P001 = (P100 * W10 / W00) if W00 != 0.0 else 0.0
+        P101 = 1.0 - P100
+        P000 = 1.0 - P001
+        # Second triplet: P01x / P11x (the free one is P122 or P221 by P21).
+        if P21 <= 0.5:
+            P011 = P122_or_P221
+            P110 = (P011 * W01 / W11) if W11 != 0.0 else 0.0
+        else:
+            P110 = P122_or_P221
+            P011 = (P110 * W11 / W01) if W01 != 0.0 else 0.0
+        P010 = 1.0 - P011
+        P111 = 1.0 - P110
+        # W is the 4x4 diagonal of pair weights; P[2i+j, 2j+k] = P_ijk, else 0.
+        W = np.diag([W00, W01, W10, W11])
+        P = np.array([
+            [P000, P001, 0.0,  0.0],
+            [0.0,  0.0,  P010, P011],
+            [P100, P101, 0.0,  0.0],
+            [0.0,  0.0,  P110, P111],
+        ], dtype=float)
+        return W, P
+
+
 class UnsupportedProbabilityModel(ValueError):
     """Raised when a .mud carries a layer-stacking model MudLab2 does not
     model yet (any higher-R type other than R0* / R1G2Model). Loading it as R0
@@ -394,8 +570,7 @@ class UnsupportedProbabilityModel(ValueError):
         self.prob_type = prob_type
         super().__init__(
             "This project uses the '%s' layer-stacking model, which MudLab2 "
-            "does not support yet (only R0, and R1 for 2 components, are "
-            "modeled)." % prob_type
+            "does not support yet (modeled: R0 any G, R1G2, R2G2)." % prob_type
         )
 
 
@@ -410,6 +585,8 @@ def probabilities_from_dict(data: dict, G: int):
     prob_type = data.get("type", "") if isinstance(data, dict) else ""
     if prob_type == "R1G2Model":
         return R1G2Probability.from_dict(data, G)
+    if prob_type == "R2G2Model":
+        return R2G2Probability.from_dict(data, G)
     if prob_type.startswith("R0G"):
         return R0Probability.from_dict(data, G)
     if prob_type == "":

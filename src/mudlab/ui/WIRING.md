@@ -593,10 +593,39 @@ ordering (P rows DIFFER). **The intensity summation was already R-agnostic**
   model, which MudLab2 does not support yet" rather than loaded as a wrong
   R0 pattern. Guard: `verify_r1.py` check 12 (unit + a synthesised R1G3 .mud
   that `load_mud` refuses).
-- **Still to do**: R1G3/G4 (their own model classes + golden fixtures) and
-  R2/R3 - once modeled, they drop out of the refusal set automatically. The
-  R1G2 path is complete end-to-end: model, calc, inheritance, serialization,
-  refinement, editor, and creation.
+### R2 (Reichweite-2): R2G2 modeled - first `reps>1` proof
+
+R2 = a layer depends on the TWO before it, so the state is a PAIR of layers
+and W / P are g²×g² (4×4 for G2). This is the FIRST model to exercise the
+calc's `reps = rank // G` path (`= 2` here): `phases.py` repeats the G×G
+structure factors up to the 4×4 rank. That path was untested until now;
+R2G2 validates it at corr 1.000000 (`verify_calc_engine` on
+`Illite-Smectite R2 G2[.mud/ MPDO]`).
+
+- `models/probabilities.py`: a shared `_MarkovProbability` base carries the
+  per-parameter inheritance, validity, serialization and editor/refiner
+  descriptors generically over a `PARAMS` tuple (so R2G3 / R3G2 / R1G3 will
+  be a `PARAMS` list + a `_matrices()` port, nothing else). `R2G2Probability`
+  (`PARAMS` = W1, P112_or_P211, P21, P122_or_P221) ports `R2G2Model.update`:
+  the four pair weights and eight 3-layer junction probabilities via detailed
+  balance, assembled into the 4×4 diagonal W and the block-sparse 4×4 P
+  (state order x = 2i+j; a transition from (i,j) is only allowed to (j,k)).
+- Dispatch: `probabilities_from_dict` maps `R2G2Model` -> `R2G2Probability`.
+- **`get_absolute_scale` note**: it takes `np.diag(phase.W)` and indexes by
+  component, so for R2 it reads the first G *pair* weights, not the G marginal
+  single-layer weights. This is IDENTICAL to the old app (the calc is a
+  verbatim port), so reproducing it is CORRECT for matching goldens; and it is
+  a per-phase scalar, absorbed by the scale fit (harmless for single-phase
+  fixtures). Do NOT "fix" it - it would diverge from the golden.
+- Guard: `verify_r2.py` (24 checks: dispatch, W/P vs an INDEPENDENT
+  re-derivation for the fixture + 4 synthetic branch cases, the R2 pair
+  structure, per-parameter inheritance, refiner/editor enumeration,
+  byte-identical round-trip + edit persistence). Mutation-tested.
+
+- **Still to do**: R1G3/G4, R2G3, R3G2 (each a `PARAMS` + `_matrices()` on
+  `_MarkovProbability`, validated against its golden - all fixtures now clean).
+  R3G2 next-easiest (2 params, but g³×g³ = reps 4); R2G3 / R1G3 have 6 params.
+  Once modeled each drops out of the refusal set. R1G4 still lacks a fixture.
 
 ### Audit notes: R1 (2026-07-17)
 
