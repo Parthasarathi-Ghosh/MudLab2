@@ -43,11 +43,21 @@ class Atom:
     @classmethod
     def from_dict(cls, data: dict, atom_type_map: dict) -> "Atom":
         props = data.get("properties", {})
+        # Resolve the atom type by uuid, falling back to NAME. uuids are
+        # volatile - importing a project re-uuids the atom types, and an old
+        # save could then reference a uuid absent from the saved atom_types
+        # (dangling -> zero structure factor -> blank pattern). The name is the
+        # stable identifier (the old app's json_properties writes it too), so
+        # atom_type_map carries both uuid and name keys (they never collide).
+        atom_type = (
+            atom_type_map.get(props.get("atom_type_uuid"))
+            or atom_type_map.get(props.get("atom_type_name"))
+        )
         atom = cls(
             name=props.get("name", ""),
             pn=props.get("pn", 0.0),
             default_z=props.get("default_z", 0.0),
-            atom_type=atom_type_map.get(props.get("atom_type_uuid")),
+            atom_type=atom_type,
             stretch_z=bool(props.get("stretch_z", False)),
         )
         atom.raw_properties = dict(props)
@@ -67,6 +77,12 @@ class Atom:
         props["stretch_z"] = self.stretch_z
         if self.atom_type is not None:
             props["atom_type_uuid"] = self.atom_type.uuid
+            # Keep the name reference in step when the file carries one (a
+            # name-recovered atom thus re-saves with the CORRECT uuid + name).
+            # Only when already present, so a uuid-only atom round-trips
+            # byte-identically.
+            if "atom_type_name" in props:
+                props["atom_type_name"] = self.atom_type.name
         else:
             props.setdefault("atom_type_uuid", props.get("atom_type_uuid", ""))
         props["uuid"] = self.uuid

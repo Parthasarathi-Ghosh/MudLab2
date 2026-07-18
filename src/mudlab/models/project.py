@@ -99,8 +99,14 @@ class Project(QObject):
         return None
 
     def atom_type_uuid_map(self) -> dict:
-        """uuid -> AtomType, for resolving atom references in components."""
-        return {at.uuid: at for at in self._atom_types}
+        """Atom-reference resolution map for loading components: keyed by BOTH
+        uuid and name (they never collide), so an atom resolves by uuid and
+        falls back to its stable name when the uuid is dangling (see
+        Atom.from_dict). Name keys are added first so a uuid always wins on the
+        off chance a name equals a uuid string."""
+        by_name = {at.name: at for at in self._atom_types}
+        by_uuid = {at.uuid: at for at in self._atom_types}
+        return {**by_name, **by_uuid}
 
     # ------------------------------------------------------------------
     # Phases (calc models; still saved verbatim via raw passthrough)
