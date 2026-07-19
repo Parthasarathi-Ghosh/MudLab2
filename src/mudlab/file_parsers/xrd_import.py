@@ -5,10 +5,10 @@ matching Qt file-dialog filter. Used by the raw-pattern phase editor; the
 specimen data import can adopt it too.
 
 Formats: plain ASCII XY (`.xy/.txt/.csv/.dat/.tab`, via xy_parser, BOM-
-tolerant), PANalytical `.xrdml`, Rigaku `.rasx`, and Bruker binary `.raw`
-(versions 1-3). Deferred: Bruker RAW **v4** and non-Bruker vendor `.raw`
-(reverse-engineered against ground-truth exports in a later batch), plus the
-other PyXRD/old-mudlab formats (`.cpi`, `.rd`, `.udf`, `.brml`).
+tolerant), Bruker DIFFRAC `.uxd` (ASCII with markers + CPS normalisation),
+PANalytical `.xrdml`, Rigaku `.rasx`, and Bruker binary `.raw` (versions 1-4;
+v4 ported from xylib). Deferred: non-Bruker vendor `.raw` (e.g. the `FI` magic),
+plus the other PyXRD/old-mudlab formats (`.cpi`, `.rd`, `.brml`).
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import numpy as np
 
 from mudlab.file_parsers.rasx_parser import parse_rasx
 from mudlab.file_parsers.raw_parser import parse_raw
+from mudlab.file_parsers.uxd_parser import parse_uxd
 from mudlab.file_parsers.xrdml_parser import parse_xrdml
 from mudlab.file_parsers.xy_parser import parse_xy
 
@@ -27,6 +28,7 @@ _PARSERS = {
     ".xrdml": parse_xrdml,
     ".rasx": parse_rasx,
     ".raw": parse_raw,
+    ".uxd": parse_uxd,   # Bruker DIFFRAC ASCII (markers, CPS normalisation)
     ".xy": parse_xy,
     ".txt": parse_xy,
     ".csv": parse_xy,
@@ -36,11 +38,11 @@ _PARSERS = {
 
 #: Qt getOpenFileName filter offering every supported format.
 PATTERN_FILTERS = (
-    "XRD patterns (*.xy *.txt *.csv *.dat *.tab *.xrdml *.rasx *.raw);;"
-    "ASCII XY (*.xy *.txt *.csv *.dat *.tab);;"
+    "XRD patterns (*.xy *.txt *.csv *.dat *.tab *.uxd *.xrdml *.rasx *.raw);;"
+    "ASCII XY (*.xy *.txt *.csv *.dat *.tab *.uxd);;"
     "PANalytical XRDML (*.xrdml);;"
     "Rigaku RASX (*.rasx);;"
-    "Bruker RAW v1-3 (*.raw);;"
+    "Bruker RAW v1-4 (*.raw);;"
     "All files (*.*)"
 )
 

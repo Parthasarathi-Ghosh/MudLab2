@@ -381,21 +381,39 @@ in `~/Downloads/Phraser tests` (the user's data - never committed):
   parser faithfully reads its own file).
 - **ASCII** (`xy_parser.py`): now BOM-tolerant (`utf-8-sig` + a BOM strip) and
   ignores extra columns, so a 4-column `2theta,cps + BG` `.txt` reads cols 0-1.
+- **`.uxd`** (`uxd_parser.py`, Bruker DIFFRAC ASCII; ported from old mudlab's
+  UXDParser): a `;`/`_KEYWORD=value` header ended by a data marker that states
+  the layout - `_2THETACOUNTS`/`_2THETACPS` (paired "2theta value") or
+  `_COUNTS`/`_CPS` (single column; 2theta rebuilt from `_START`/`_STEPSIZE`).
+  Counts are normalised to CPS by `_STEPTIME` (a `*CPS` marker = already CPS).
+  First range only. Validated on `dh232.UXD` (2676 pts, 5-60 deg, quartz peak).
 - **Bruker `.raw` v1-3** (`raw_parser.py`): ported from old mudlab's
   BrkRAWParser (NOT PyXRD - old mudlab fixed the RAW3 version detection, the
   RAW3 counting-time type, added CPS normalisation, and `x = min + step*n`).
+- **Bruker `.raw` v4** (`raw_parser._parse_v4`): `RAW4.00`, the DIFFRAC.SUITE
+  segment-based container, ported from **xylib**'s bruker_raw.cpp
+  load_version4 (61-byte header, global metadata segments, then range blocks;
+  start_angle@+72, step_size@+80, steps@+88, hdr_size@+140; data = `steps`
+  float32 after the 160-byte primary header + `hdr_size` sub-segments).
+  Validated on `Dh232.raw`: a Locked-Coupled 5-80 deg / 0.02056 deg scan whose
+  quartz(101) 26.5 deg and calcite(104) 29.4 deg peaks land correctly.
 
-**Deferred (reverse-engineering, own follow-up):** Bruker **RAW4** (`Dh232.raw`;
-the lineage only does v1-3) and the **non-Bruker `FI` `.raw`** (a vendor binary
-whose intensities do not line up with the `.txt` export). Both currently raise a
-clear "not supported yet" error, which the editor shows in a message box. The
-`.txt`/`.rasx` exports of the same samples are the ground truth for that RE.
-Also still unported from the lineage: `.cpi`, `.rd`, `.udf`, `.brml`.
+**Ground-truth caveat (RAW4):** the `Dh232.UXD` ASCII export is a *processed +
+truncated* derivative (XCH converter: Kα2-stripped, ~3x scaled, only 5-60 deg),
+so it is NOT a byte-exact golden - its integer intensities do not appear in the
+`.raw` at all. It DOES confirm the axis exactly (start 5.0, step 0.02056) and
+the quartz peak position, which is how RAW4 is validated in the harness.
 
-Guard: `tools/verify_xrd_import.py` (12 checks) - synthetic fixtures for every
-supported format + the dispatcher + the deferred-format errors, plus an
-opportunistic real-file cross-check (`.rasx` vs `.txt` 2theta grid) that skips
-when the private test files are absent.
+**Deferred:** the **non-Bruker `FI` `.raw`** (a vendor binary whose intensities
+do not line up with any export) and the other lineage formats (`.cpi`, `.rd`,
+`.brml`). `FI`/unknown magics raise a clear "not supported yet" error, shown by
+the editor in a message box.
+
+Guard: `tools/verify_xrd_import.py` (20 checks) - synthetic fixtures for every
+supported format (incl. a hand-built RAW4 and both UXD layouts) + the
+dispatcher + the unsupported-magic errors, plus opportunistic real-file
+cross-checks (`.rasx` vs `.txt` 2theta grid; RAW4 axis + quartz peak vs the
+`.UXD`) that skip when the private test files are absent.
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 

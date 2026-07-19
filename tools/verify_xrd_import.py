@@ -8,9 +8,10 @@ Covers the SUPPORTED formats with deterministic synthetic fixtures:
   - PANalytical .xrdml: start/end + linspace 2theta, intensities normalised to
     counts-per-second by <commonCountingTime>;
   - Rigaku .rasx: the ZIP's Data0/Profile0.txt profile;
-  - Bruker binary .raw v1 (RAW1);
+  - Bruker .uxd ASCII: paired / single-column layouts + CPS normalisation;
+  - Bruker binary .raw v1 (RAW1) and v4 (RAW4, ported from xylib);
   - the extension dispatcher (xrd_import.parse_pattern);
-  - the DEFERRED formats fail with a clear error (Bruker RAW4, non-Bruker `FI`).
+  - a non-Bruker/unknown `.raw` magic fails with a clear error.
 
 Where the real test files are present (~/Downloads/Phraser tests), it also
 cross-checks the real .xrdml / .rasx / .txt and confirms the .rasx and .txt of
@@ -41,6 +42,7 @@ import numpy as np  # noqa: E402
 
 from mudlab.file_parsers.raw_parser import parse_raw  # noqa: E402
 from mudlab.file_parsers.rasx_parser import parse_rasx  # noqa: E402
+from mudlab.file_parsers.uxd_parser import parse_uxd  # noqa: E402
 from mudlab.file_parsers.xrd_import import parse_pattern  # noqa: E402
 from mudlab.file_parsers.xrdml_parser import parse_xrdml  # noqa: E402
 from mudlab.file_parsers.xy_parser import parse_xy  # noqa: E402
@@ -67,6 +69,25 @@ def _raw1_bytes(tmin, step, counts):
             + b"\0" * 72
             + struct.pack("I", 0)                  # isfollowed = 0
             + np.asarray(counts, dtype="<f4").tobytes())
+
+
+def _raw4_bytes(start, step, ys):
+    """A synthetic Bruker RAW4 file: 61-byte header, an immediate range marker
+    (type 160), one Locked-Coupled range primary header, then float32 data.
+    Offsets match xylib's load_version4."""
+    steps = len(ys)
+    buf = bytearray(61 + 160 + steps * 4)
+    buf[0:7] = b"RAW4.00"
+    rs = 61
+    struct.pack_into("<I", buf, rs, 160)                 # range marker (+0)
+    buf[rs + 32:rs + 32 + 14] = b"Locked Coupled"        # SCAN_TYPE (+32)
+    struct.pack_into("<d", buf, rs + 72, start)          # start_angle (+72)
+    struct.pack_into("<d", buf, rs + 80, step)           # step_size (+80)
+    struct.pack_into("<I", buf, rs + 88, steps)          # steps (+88)
+    struct.pack_into("<I", buf, rs + 136, 4)             # datum_size (+136)
+    struct.pack_into("<I", buf, rs + 140, 0)             # hdr_size (+140)
+    struct.pack_into("<%df" % steps, buf, rs + 160, *ys)  # data (+160)
+    return bytes(buf)
 
 
 def check_ascii(tmp, results):
@@ -135,9 +156,48 @@ def check_raw(tmp, results):
                     and np.allclose(y, [10, 20, 40, 30, 15, 5])))
 
 
+def check_raw4(tmp, results):
+    p = os.path.join(tmp, "scan4.raw")
+    with open(p, "wb") as fh:
+        fh.write(_raw4_bytes(10.0, 0.02, [100, 250, 900, 250, 100]))
+    x, y = parse_raw(p)
+    results.append(("raw: Bruker RAW4 (Locked Coupled) x = start + step*n, y",
+                    np.allclose(x, 10.0 + 0.02 * np.arange(5))
+                    and np.allclose(y, [100, 250, 900, 250, 100])))
+
+
+def check_uxd(tmp, results):
+    # Paired "2theta counts", normalised to CPS by _STEPTIME.
+    paired = ("; a comment\n_SAMPLE='x'\n_STEPTIME=2.0\n_START=5\n_STEPSIZE=0.02\n"
+              "_2THETACOUNTS\n10 320\n10.02 640\n10.04 160\n")
+    p = _write(tmp, "paired.uxd", paired)
+    x, y = parse_uxd(p)
+    results.append(("uxd: _2THETACOUNTS paired, counts/steptime -> CPS",
+                    np.allclose(x, [10, 10.02, 10.04])
+                    and np.allclose(y, [160, 320, 80])))
+    # Single-column counts: 2theta rebuilt from _START / _STEPSIZE.
+    single = "_STEPTIME=1.0\n_START=5.0\n_STEPSIZE=0.1\n_COUNTS\n100\n200\n300\n"
+    x2, y2 = parse_uxd(_write(tmp, "single.uxd", single))
+    results.append(("uxd: _COUNTS single column, 2theta from _START/_STEPSIZE",
+                    np.allclose(x2, [5.0, 5.1, 5.2])
+                    and np.allclose(y2, [100, 200, 300])))
+    # A *CPS marker means values are already CPS (no steptime division).
+    cps = "_STEPTIME=8.0\n_2THETACPS\n20 50\n20.02 75\n"
+    _, y3 = parse_uxd(_write(tmp, "cps.uxd", cps))
+    results.append(("uxd: _2THETACPS already CPS (no steptime division)",
+                    np.allclose(y3, [50, 75])))
+    # The dispatcher routes .uxd to parse_uxd (CPS), not the generic xy_parser.
+    _, yd = parse_pattern(p)
+    results.append(("uxd: dispatcher routes .uxd -> parse_uxd",
+                    np.allclose(yd, [160, 320, 80])))
+
+
 def check_deferred(tmp, results):
-    for magic, tag in ((b"RAW4.00\0", "Bruker RAW4"), (b"FI\0\0" + b"\0" * 8, "FI")):
-        p = os.path.join(tmp, tag.replace(" ", "_") + ".raw")
+    # RAW4 is now supported (see check_raw4); the non-Bruker FI vendor magic and
+    # any other unknown .raw magic are still rejected with a clear error.
+    for magic, tag in ((b"FI\0\0" + b"\0" * 8, "FI (non-Bruker)"),
+                       (b"XYZ?" + b"\0" * 8, "unknown magic")):
+        p = os.path.join(tmp, tag.split()[0] + ".raw")
         with open(p, "wb") as fh:
             fh.write(magic + b"\0" * 64)
         try:
@@ -182,18 +242,44 @@ def check_real_files(results):
         results.append(("real: .rasx and .txt of one sample share the 2theta grid",
                         xr.size == xt.size
                         and np.allclose(xr[:m], xt[:m], atol=1e-9)))
+    # Real Bruker RAW4 (Dh232): the xylib-based decode is a Locked-Coupled
+    # 5..80 deg scan, 3649 pts, quartz 101 peak at ~26.5 deg.
+    raw4 = os.path.join(root, "Dh232.raw")
+    if os.path.isfile(raw4):
+        x, y = parse_pattern(raw4)
+        results.append(("real: Dh232 RAW4 decodes (3649 pts, 5..80, quartz peak ~26.5)",
+                        x.size == 3649
+                        and abs(x[0] - 5.0) < 1e-6 and abs(x[-1] - 80.004) < 1e-2
+                        and abs(float(x[int(np.argmax(y))]) - 26.53) < 0.1))
+        # Cross-check against the Bruker UXD ASCII export (a processed +
+        # truncated 5..60 derivative, so not byte-exact): the 2theta axis must
+        # match exactly and the quartz peak must land within ~1 step.
+        uxd = os.path.join(root, "dh232.UXD")
+        if os.path.isfile(uxd):
+            xu, yu = parse_pattern(uxd)
+            step = x[1] - x[0]
+            # The UXD prints 2theta rounded to 4 decimals, so its step differs
+            # from the exact RAW4 step by ~4e-5; allow the rounding.
+            results.append(("real: RAW4 axis matches the UXD (start + step)",
+                            abs(x[0] - xu[0]) < 1e-4
+                            and abs(step - (xu[1] - xu[0])) < 1e-3))
+            results.append(("real: RAW4 & UXD quartz peak agree within 1 step",
+                            abs(float(x[int(np.argmax(y))])
+                                - float(xu[int(np.argmax(yu))])) <= 1.5 * step))
 
 
 def main():
     results = []
     print("=" * 72)
-    print("XRD import parsers - xrdml / rasx / ascii(+BOM) / Bruker RAW1-3")
+    print("XRD import parsers - xrdml / rasx / ascii(+BOM) / Bruker RAW1-4")
     print("=" * 72)
     with tempfile.TemporaryDirectory(prefix="mudlab_xrd_") as tmp:
         check_ascii(tmp, results)
         check_xrdml(tmp, results)
         check_rasx(tmp, results)
+        check_uxd(tmp, results)
         check_raw(tmp, results)
+        check_raw4(tmp, results)
         check_deferred(tmp, results)
         check_dispatch(tmp, results)
     check_real_files(results)
