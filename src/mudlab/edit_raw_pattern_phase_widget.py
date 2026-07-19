@@ -8,8 +8,8 @@ CSDS tabs (those belong to a computed Phase).
 
 Plugged into the Edit Phases window's Properties pane alongside the structural
 EditPhaseWidget; EditPhasesDialog shows whichever matches the selected phase's
-type. Importing reads an XRD data file via file_parsers.xy_parser (.xy / .txt /
-.csv / .dat); the instrument formats .xrdml / .raw are a later batch.
+type. Importing reads an XRD data file via file_parsers.xrd_import.parse_pattern
+- ASCII XY (.xy/.txt/.csv/.dat/.tab), PANalytical .xrdml, or Bruker binary .raw.
 """
 
 from __future__ import annotations
@@ -18,15 +18,11 @@ from typing import Callable
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from PySide6.QtWidgets import QFileDialog, QWidget
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
-from mudlab.file_parsers.xy_parser import parse_xy
+from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
 from mudlab.ui.ui_edit_raw_pattern_phase import Ui_EditRawPatternPhaseWidget
-
-# Same import filter the specimen line-import dialog offers (xy_parser handles
-# every one). The instrument formats .xrdml / .raw are not parsed yet.
-_PATTERN_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
 
 
 class EditRawPatternPhaseWidget(QWidget):
@@ -80,17 +76,24 @@ class EditRawPatternPhaseWidget(QWidget):
         if self._phase is None:
             return
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import measured pattern", "", _PATTERN_FILTERS
+            self, "Import measured pattern", "", PATTERN_FILTERS
         )
-        if path:
+        if not path:
+            return
+        try:
             self.import_from_path(path)
+        except Exception as exc:  # unreadable / unsupported format
+            QMessageBox.warning(
+                self, "Import failed",
+                "Could not read the pattern from:\n%s\n\n%s" % (path, exc),
+            )
 
     def import_from_path(self, path: str) -> None:
         """Read a measured pattern from `path` into the bound phase and refresh.
         Separate from the file dialog so it can be driven head-less."""
         if self._phase is None:
             return
-        x, y = parse_xy(path)
+        x, y = parse_pattern(path)
         self._phase.set_raw_pattern(x, y)
         self._refresh()
         if self._on_changed is not None:

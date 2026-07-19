@@ -337,9 +337,8 @@ hump, or an internal standard - the optimiser fits only its scale.
   checks) validates it synthetically + a through-the-file round-trip that adds
   a raw phase to a real project and confirms the modeled phases are untouched.
 - **Batch 2 DONE** = the raw-pattern phase editor + the Add dialog's raw
-  option (see below). **Next: batch 3** = the import parsers beyond `.xy`
-  (`.xy`/`.txt`/`.csv`/`.dat` already work via `xy_parser`; `.xrdml`/`.raw` are
-  new, if wanted).
+  option (see below). **Batch 3 DONE** = the import parsers (see "XRD import
+  parsers" below).
 
 ### Raw-pattern phase EDITOR (batch 2 DONE)
 
@@ -362,6 +361,41 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
 - Guard: `verify_phase_dialogs.py` check 7 (Add->raw creates a RawPatternPhase,
   the raw editor is shown for it, import sets the pattern, name edit
   propagates) + the updated check 2 (raw radio enabled). Harness 75 checks.
+
+### XRD import parsers (batch 3 DONE)
+
+`file_parsers/xrd_import.parse_pattern(path)` dispatches on extension to the
+format parsers; `PATTERN_FILTERS` is the matching file-dialog filter. Used by
+the raw-pattern editor (the specimen data-import can adopt it too). Ported /
+written from old mudlab's `xrd_parsers`, validated against the real vendor files
+in `~/Downloads/Phraser tests` (the user's data - never committed):
+
+- **`.xrdml`** (`xrdml_parser.py`, PANalytical XML): first non-aborted scan;
+  2theta from `listPositions` or `startPosition`/`endPosition`+linspace;
+  intensities normalised to counts-per-second by `<commonCountingTime>`.
+  Matches old mudlab's XRDMLParser EXACTLY (max|Δ|=0) on real files.
+- **`.rasx`** (`rasx_parser.py`, Rigaku - NEW, not in the lineage): a ZIP; read
+  `Data<i>/Profile<j>.txt` (2theta, intensity, flag) via the shared
+  `xy_parser.parse_xy_lines`. Its 2theta grid matches the sample's `.txt`
+  export exactly (intensity scale differs by ~5x between vendor exports - each
+  parser faithfully reads its own file).
+- **ASCII** (`xy_parser.py`): now BOM-tolerant (`utf-8-sig` + a BOM strip) and
+  ignores extra columns, so a 4-column `2theta,cps + BG` `.txt` reads cols 0-1.
+- **Bruker `.raw` v1-3** (`raw_parser.py`): ported from old mudlab's
+  BrkRAWParser (NOT PyXRD - old mudlab fixed the RAW3 version detection, the
+  RAW3 counting-time type, added CPS normalisation, and `x = min + step*n`).
+
+**Deferred (reverse-engineering, own follow-up):** Bruker **RAW4** (`Dh232.raw`;
+the lineage only does v1-3) and the **non-Bruker `FI` `.raw`** (a vendor binary
+whose intensities do not line up with the `.txt` export). Both currently raise a
+clear "not supported yet" error, which the editor shows in a message box. The
+`.txt`/`.rasx` exports of the same samples are the ground truth for that RE.
+Also still unported from the lineage: `.cpi`, `.rd`, `.udf`, `.brml`.
+
+Guard: `tools/verify_xrd_import.py` (12 checks) - synthetic fixtures for every
+supported format + the dispatcher + the deferred-format errors, plus an
+opportunistic real-file cross-check (`.rasx` vs `.txt` 2theta grid) that skips
+when the private test files are absent.
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 
