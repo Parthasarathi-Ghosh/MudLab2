@@ -4,14 +4,14 @@ Ported from the GTK AddPhaseView (phases/glade/addphase.glade). Modal,
 like the old view: choose between a new empty phase, a default phase from
 the catalog, or a raw pattern phase.
 
-Only the **empty-phase** path is wired (Batch P2). The other two are
-honestly disabled, not left inert:
+The **empty-phase** and **raw-pattern** paths are wired. The default-phase
+catalog is still disabled: it needs the default-phases generator ported
+(old generate_default_phases.py); until then the combo holds placeholder
+names that map to nothing.
 
-- the default-phase catalog needs the default-phases generator ported
-  (old generate_default_phases.py); until then the combo holds placeholder
-  names that map to nothing, so the radio is disabled;
-- RawPatternPhase is not modeled at all (the loader skips it), so it is
-  disabled too.
+A raw-pattern phase has no structure (it carries a measured pattern), so the
+G / R controls do not apply to it - selecting it disables the empty-phase
+container. The pattern itself is imported afterwards in the phase editor.
 
 Reichweite offers R0 (random, any component count) and R1 (nearest-
 neighbour ordering). Only R1G2 is modeled, so choosing R1 locks G to 2;
@@ -43,16 +43,16 @@ class AddPhaseDialog(QDialog):
 
         self.ui.cmb_default_phases.addItems(_DEMO_DEFAULT_PHASES)
 
-        # Only the empty-phase path is ported; the other two are disabled with
-        # a reason so the dialog does not offer an option that does nothing.
+        # The empty-phase and raw-pattern paths are ported; only the default
+        # catalog is still disabled (with a reason), so the dialog never offers
+        # an option that does nothing.
         self.ui.rdb_empty_phase.setChecked(True)
         self.ui.rdb_default_phase.setEnabled(False)
         self.ui.rdb_default_phase.setToolTip(
             "The default-phase catalog is not ported yet."
         )
-        self.ui.rdb_raw_pattern.setEnabled(False)
         self.ui.rdb_raw_pattern.setToolTip(
-            "Raw pattern phases are not modeled yet."
+            "A phase built from a measured pattern (imported in the editor)."
         )
         self.ui.btn_generate_phases.setEnabled(False)
 

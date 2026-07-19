@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditRawPatternPhaseWidget</class>
+ <widget class="QWidget" name="EditRawPatternPhaseWidget">
+  <layout class="QVBoxLayout" name="rawRootLayout">
+   <item>
+    <layout class="QFormLayout" name="rawForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblName">
+       <property name="text">
+        <string>Name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="raw_phase_name">
+       <property name="toolTip">
+        <string>The name of this raw-pattern phase.</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpRawPattern">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Measured pattern</string>
+     </property>
+     <layout class="QVBoxLayout" name="grpRawLayout">
+      <item>
+       <layout class="QHBoxLayout" name="rawControlsRow">
+        <item>
+         <widget class="QPushButton" name="button_import_pattern">
+          <property name="toolTip">
+           <string>Import the measured pattern from an XRD data file (.xy, .txt, .csv, .dat).</string>
+          </property>
+          <property name="text">
+           <string>Import pattern…</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="raw_pattern_info">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>No pattern loaded.</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="rawPlotLayout"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

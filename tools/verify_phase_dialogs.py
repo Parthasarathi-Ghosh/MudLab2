@@ -8,8 +8,8 @@ be seen from the model:
 
   1. the buttons are in the right state - Add/Remove enabled, Import/Export
      honestly disabled with a reason;
-  2. the Add dialog offers ONLY the ported path - empty phase, R locked to 0,
-     the default-catalog and raw-pattern options disabled;
+  2. the Add dialog offers the ported paths - empty phase (R 0-1) and raw
+     pattern; the default-catalog option stays disabled;
   3. Add builds a real phase (G blank components) and keeps the three views in
      lock-step: project.phases, the dialog's _phases snapshot, and the tree
      rows;
@@ -18,7 +18,9 @@ be seen from the model:
   5. an Add followed by a Remove leaves the project exactly as it was;
   6. the probabilities editor sizes its W/P tables to the model's real rank
      (g**R, not G) so R>=2 pair/triplet states are not truncated, and its
-     spinboxes honour each parameter's bounds (R2 W1>=1/2, R3G2 W1>=2/3).
+     spinboxes honour each parameter's bounds (R2 W1>=1/2, R3G2 W1>=2/3);
+  7. Add -> raw pattern creates a RawPatternPhase, the raw editor (not the
+     structural one) is shown for it, and importing a file sets its pattern.
 
 Point 3/4 is the trap: the dialog holds its own list snapshot alongside the
 tree model and the project, and a drift between them binds the editor to the
@@ -35,6 +37,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -104,17 +107,25 @@ def check_button_state(project, results):
 
 
 def check_add_dialog_restrictions(results):
-    """2. The Add dialog offers only the ported empty-phase path, with the
-    modeled stacking range (R 0-1; R1 locks G to 2 since only R1G2 exists)."""
+    """2. The Add dialog offers the ported paths - empty phase (with the modeled
+    stacking range R 0-1; R1 locks G to 2 since only R1G2 exists) and raw
+    pattern; only the default-catalog option stays disabled."""
     dialog = AddPhaseDialog(None)
     results.append(("2 empty phase preselected",
                     dialog.ui.rdb_empty_phase.isChecked()))
     results.append(("2 default-catalog option disabled",
                     not dialog.ui.rdb_default_phase.isEnabled()))
-    results.append(("2 raw-pattern option disabled",
-                    not dialog.ui.rdb_raw_pattern.isEnabled()))
     results.append(("2 phase_type resolves to 'empty'",
                     dialog.phase_type == "empty"))
+    # Raw-pattern option is now wired: enabled, and selecting it disables the
+    # empty-phase G/R container (a raw phase has no stacking model).
+    results.append(("2 raw-pattern option enabled",
+                    dialog.ui.rdb_raw_pattern.isEnabled()))
+    dialog.ui.rdb_raw_pattern.setChecked(True)
+    results.append(("2 selecting raw disables the empty-phase container",
+                    not dialog.ui.cont_empty_phase.isEnabled()
+                    and dialog.phase_type == "raw"))
+    dialog.ui.rdb_empty_phase.setChecked(True)
     # R is modeled for 0-1 only (R2+ unported).
     results.append(("2 R range is 0-1",
                     dialog.ui.R.minimum() == 0 and dialog.ui.R.maximum() == 1))
@@ -200,6 +211,61 @@ def check_add_then_remove_roundtrips(project, results):
     dialog.deleteLater()
 
 
+def _make_add_dialog_return_raw():
+    """Patch AddPhaseDialog.exec to accept with the raw-pattern radio."""
+    def _exec(self):
+        self.ui.rdb_raw_pattern.setChecked(True)
+        return QDialog.DialogCode.Accepted
+    AddPhaseDialog.exec = _exec
+
+
+def check_add_raw_phase(project, results):
+    """7. Add -> raw pattern creates a RawPatternPhase; selecting it shows the
+    raw editor (not the structural one); importing a file sets its pattern and
+    editing the name propagates."""
+    import numpy as np
+    from mudlab.models.raw_pattern_phase import RawPatternPhase
+
+    dialog = EditPhasesDialog(None, project=project)
+    n0 = len(project.phases)
+    _make_add_dialog_return_raw()
+    dialog._on_add_phase()
+
+    results.append(("7 project gained a RawPatternPhase",
+                    len(project.phases) == n0 + 1
+                    and isinstance(project.phases[-1], RawPatternPhase)))
+    row = len(dialog._phases) - 1
+    results.append(("7 raw row shows '—' for R and G",
+                    dialog.objects_model.item(row, 1).text() == "—"
+                    and dialog.objects_model.item(row, 2).text() == "—"))
+    # Selecting the raw phase routes to the raw editor, hiding the structural.
+    results.append(("7 raw editor shown, structural hidden",
+                    dialog.raw_phase_widget.isVisibleTo(dialog)
+                    and not dialog.phase_widget.isVisibleTo(dialog)))
+
+    raw = project.phases[-1]
+    fd, path = tempfile.mkstemp(suffix=".xy")
+    os.close(fd)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("10 0\n20 100\n30 0\n")
+    try:
+        dialog.raw_phase_widget.import_from_path(path)
+    finally:
+        os.remove(path)
+    results.append(("7 import sets the measured pattern",
+                    np.array_equal(raw.raw_pattern_x, [10.0, 20.0, 30.0])
+                    and np.array_equal(raw.raw_pattern_y, [0.0, 100.0, 0.0])))
+    results.append(("7 editor info reports the loaded points",
+                    "3 points" in dialog.raw_phase_widget.ui.raw_pattern_info.text()))
+
+    dialog.raw_phase_widget.ui.raw_phase_name.setText("Quartz")
+    dialog.raw_phase_widget._on_name_edited()
+    results.append(("7 name edit propagates to the phase + row",
+                    raw.name == "Quartz"
+                    and dialog.objects_model.item(row, 0).text() == "Quartz"))
+    dialog.deleteLater()
+
+
 def check_probabilities_widget(results):
     """6. The probabilities editor renders every stacking model correctly:
     the W/P tables are sized to the model's real rank g**R (not G), so the
@@ -266,6 +332,7 @@ def run(path):
     check_remove_confirmed(load_mud(path), results)
     check_remove_declined(load_mud(path), results)
     check_add_then_remove_roundtrips(load_mud(path), results)
+    check_add_raw_phase(load_mud(path), results)
     check_probabilities_widget(results)
     passed = 0
     for label, ok in results:

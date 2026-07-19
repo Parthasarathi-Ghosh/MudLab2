@@ -292,7 +292,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
-| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; default-catalog + raw-pattern options honestly disabled; wired to Edit Phases Add) |
+| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; **raw-pattern option wired** (batch 2); default-catalog honestly disabled; wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
 | Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (applies: all 6 types; Show Original overlay needs the plot-controller port) |
@@ -393,7 +393,10 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   "Add contents" button). Editing re-applies + cascades pn -> cell_b -> cell_a.
   Chained rows (`prop` = "value"/"__internal_sum__") are preserved but not
   listed; inherited relations read-only. Harness: verify_relations.py extended.
-- [ ] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
+- [x] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
+  (edit_raw_pattern_phase.ui + edit_raw_pattern_phase_widget.py: name + import
+  + preview; hosted in Edit Phases, routed by phase.type; batch 2). Batch 3:
+  .xrdml/.raw import parsers.
 
 ### Markers (done - editors)
 - [x] Edit Markers window - edit_markers_dialog.py (object-store shell + find peaks / match minerals extra row); EditMarkersView

@@ -336,10 +336,32 @@ hump, or an internal standard - the optimiser fits only its scale.
   calc is a plain interpolation, so `tools/verify_raw_pattern_phase.py` (19
   checks) validates it synthetically + a through-the-file round-trip that adds
   a raw phase to a real project and confirms the modeled phases are untouched.
-- **Next: batch 2** = the raw-pattern phase editor (a simplified phase editor -
-  name + pattern import/preview, no probabilities/components/CSDS tabs) and
-  enabling the Add Phase dialog's raw option; **batch 3** = the import
-  parsers (`.xy` reuses `xy_parser`; `.xrdml`/`.raw` new, if wanted).
+- **Batch 2 DONE** = the raw-pattern phase editor + the Add dialog's raw
+  option (see below). **Next: batch 3** = the import parsers beyond `.xy`
+  (`.xy`/`.txt`/`.csv`/`.dat` already work via `xy_parser`; `.xrdml`/`.raw` are
+  new, if wanted).
+
+### Raw-pattern phase EDITOR (batch 2 DONE)
+
+`EditRawPatternPhaseWidget` (`edit_raw_pattern_phase_widget.py`,
+`ui/edit_raw_pattern_phase.ui`) is a deliberately small editor - a name field,
+an "Import pattern…" button, and a matplotlib preview of the stored curve. No
+probabilities/components/CSDS tabs (those are a computed `Phase`).
+
+- **EditPhasesDialog hosts BOTH editors** in the Properties pane (the structural
+  `EditPhaseWidget` and the raw one), added via `set_properties_widget` and
+  toggled with `show()`/`hide()`; `_on_phase_selected` routes by `phase.type`.
+  The phase-list R/G columns show `—`/`—` for a raw phase (`_phase_row_values`).
+- **Add Phase dialog**: `rdb_raw_pattern` is now enabled (only the default
+  catalog stays disabled). Selecting it disables the empty-phase G/R container
+  (`_update_sensitivities`). `EditPhasesDialog._on_add_phase` builds a
+  `RawPatternPhase(name="New Raw Pattern Phase")` for `phase_type == "raw"`.
+- **Import** reuses `file_parsers.xy_parser` (`.xy`/`.txt`/`.csv`/`.dat`);
+  `import_from_path` is split from the file dialog so it is head-less testable.
+  `.xrdml`/`.raw` are batch 3.
+- Guard: `verify_phase_dialogs.py` check 7 (Add->raw creates a RawPatternPhase,
+  the raw editor is shown for it, import sets the pattern, name edit
+  propagates) + the updated check 2 (raw radio enabled). Harness 75 checks.
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 
