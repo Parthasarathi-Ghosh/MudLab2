@@ -23,6 +23,13 @@ R2G2 additionally gets an INDEPENDENT re-derivation of its 4x4 matrices (it is
 the first reps>1 model, so its matrix assembly is checked against a second
 implementation, not only the golden).
 
+R1G4 has no full-pattern .mud fixture, so instead of the pattern golden it gets
+a MATRIX golden: its W and P are checked against the REAL old-app R1G4Model run
+in the old app's own interpreter (check_r1g4_golden / _R1G4_OLD_APP_GOLDEN),
+including the default-phase parameters and both W1 branches. Because R1G4 is a
+reps=1 model, it shares the calc path already golden-validated end-to-end by the
+R1G2/R1G3 pattern fixtures, so exact matrices make its pattern trustworthy.
+
 Run head-less with the bundled interpreter from the repo root:
 
     ./python/python.exe tools/verify_higher_r.py
@@ -142,10 +149,11 @@ def _r2g3_reference(W1, P111_or_P212, G1, G2, G3, G4):
 
 def _r1g4_reference(W1, P11_or_P22, R1, R2, G1, G2,
                     G11, G12, G21, G22, G31, G32):
-    """Independent re-derivation of R1G4Model.update. R1G4 has NO golden
-    fixture, so this is the ONLY correctness check beyond the transcription
-    itself - it catches a typo that differs between the two transcriptions,
-    but NOT a shared misreading of the source. R1G4 stays provisional."""
+    """Independent re-derivation of R1G4Model.update, kept as a second
+    structural implementation. This alone would only catch a typo that
+    differs between the two transcriptions, not a shared misreading of the
+    source - so the authoritative R1G4 check is the old-app matrix golden
+    below (_R1G4_OLD_APP_GOLDEN / check_r1g4_golden)."""
     mW0 = W1
     mW1 = (1.0 - mW0) * R1
     mW2 = (1.0 - mW0 - mW1) * R2
@@ -187,14 +195,98 @@ def _r1g4_reference(W1, P11_or_P22, R1, R2, G1, G2,
     return np.array(W), P
 
 
-def check_r1g4(results):
-    """R1G4 has NO golden fixture: check dispatch, validity and BOTH W1
-    branches against the independent re-derivation, plus the generic
-    inheritance / serialization / descriptor behaviour synthetically. Clearly
-    provisional (see R1G4Probability's docstring)."""
+# fmt: off
+# Golden W (diagonal weights) and P (stacking matrix) produced by the REAL
+# old-app mudlab.probabilities.models.R1G4Model.update() run in its own bundled
+# Python 3.14 interpreter (2026-07-19), NOT by any MudLab2 code - an independent
+# reference that a shared misreading of the source cannot fake. The first set is
+# the parameters every R1G4 default phase ships with (CSSS/ICSS/ISSS/KCSS/KSSS/
+# TSSS R1 in the old app's "default phases" library); the rest add the other W1
+# branch and varied ratios. All four are valid stochastic matrices. Regenerate:
+# run R1G4Model on `params`, read get_distribution_array() -> Wdiag and
+# get_probability_matrix() -> P.
+_R1G4_OLD_APP_GOLDEN = [
+    dict(
+        label='default-phase CSSS/ICSS/ISSS/KCSS/KSSS/TSSS (W1>=0.5)',
+        params=dict(W1=0.6, P11_or_P22=0.25, R1=0.5, R2=0.5, G1=0.5, G2=0.4, G11=0.5, G12=0.5, G21=0.8, G22=0.75, G31=0.7, G32=0.5),
+        Wdiag=[0.6, 0.2, 0.1, 0.1],
+        P=[
+            [0.5, 0.23000000000000004, 0.13333333333333333, 0.1366666666666667],
+            [0.75, 0.125, 0.0625, 0.0625],
+            [0.7999999999999999, 0.16000000000000003, 0.03, 0.01],
+            [0.7, 0.20999999999999996, 0.045000000000000005, 0.045000000000000005],
+        ],
+    ),
+    dict(
+        label='synthetic, W1>=0.5 branch',
+        params=dict(W1=0.55, P11_or_P22=0.1, R1=0.2, R2=0.8, G1=0.7, G2=0.2, G11=0.9, G12=0.05, G21=0.4, G22=0.4, G31=0.3, G32=0.7),
+        Wdiag=[0.55, 0.09, 0.288, 0.07200000000000001],
+        P=[
+            [0.2636363636363636, 0.10423636363636363, 0.51255, 0.11957727272727274],
+            [0.65, 0.315, 0.00175, 0.03325],
+            [0.990625, 0.003750000000000002, 0.002250000000000001, 0.0033750000000000013],
+            [0.85, 0.04500000000000001, 0.07350000000000001, 0.03150000000000001],
+        ],
+    ),
+    dict(
+        label='synthetic, W1<0.5 branch',
+        params=dict(W1=0.3, P11_or_P22=0.2, R1=0.4, R2=0.4, G1=0.6, G2=0.4, G11=0.5, G12=0.5, G21=0.5, G22=0.5, G31=0.5, G32=0.5),
+        Wdiag=[0.3, 0.27999999999999997, 0.168, 0.252],
+        P=[
+            [0.2, 0.16666666666666663, 0.17666666666666675, 0.4566666666666667],
+            [0.014285714285714263, 0.4928571428571428, 0.2464285714285714, 0.2464285714285714],
+            [0.561904761904762, 0.21904761904761902, 0.10952380952380951, 0.10952380952380951],
+            [0.5619047619047619, 0.21904761904761905, 0.10952380952380952, 0.10952380952380952],
+        ],
+    ),
+    dict(
+        label='synthetic, equal-ish split',
+        params=dict(W1=0.4, P11_or_P22=0.3, R1=0.3333333333333333, R2=0.5, G1=0.5, G2=0.5, G11=0.5, G12=0.5, G21=0.5, G22=0.5, G31=0.5, G32=0.5),
+        Wdiag=[0.4, 0.19999999999999998, 0.2, 0.2],
+        P=[
+            [0.3, 0.09999999999999988, 0.30000000000000004, 0.30000000000000004],
+            [0.19999999999999973, 0.40000000000000013, 0.20000000000000007, 0.20000000000000007],
+            [0.6, 0.20000000000000004, 0.10000000000000002, 0.10000000000000002],
+            [0.6, 0.20000000000000004, 0.10000000000000002, 0.10000000000000002],
+        ],
+    ),
+]
+# fmt: on
+
+
+def check_r1g4_golden(results):
+    """Authoritative R1G4 correctness check: MudLab2's R1G4Probability must
+    reproduce the REAL old-app R1G4Model matrices (see _R1G4_OLD_APP_GOLDEN)
+    to machine precision, on BOTH W1 branches. This is the matrix-level
+    equivalent of the pattern goldens the other stacking models get - the old
+    app is the reference, executed independently, so it catches a shared
+    misreading of the source that the self-consistency checks could not.
+
+    R1G4 uses reps = 1 (the calc path already golden-validated end-to-end by
+    the R1G2/R1G3 pattern fixtures), so exact matrices + that shared path make
+    R1G4's pattern trustworthy. A full saved-.mud pattern golden would still be
+    the last mile; add one to verify_calc_engine if an R1G4 project is made."""
     from mudlab.models.probabilities import R1G4Probability
 
-    results.append(("R1G4Model: dispatch -> R1G4Probability (loads, unverified)",
+    for g in _R1G4_OLD_APP_GOLDEN:
+        m = R1G4Probability(**g["params"])
+        w_ok = np.allclose(m.get_distribution_array(),
+                           np.array(g["Wdiag"]), atol=1e-12, rtol=0.0)
+        p_ok = np.allclose(m.get_probability_matrix(),
+                           np.array(g["P"]), atol=1e-12, rtol=0.0)
+        results.append(
+            ("R1G4Model: matches REAL old-app matrices [%s]" % g["label"],
+             bool(w_ok and p_ok and m.valid)))
+
+
+def check_r1g4(results):
+    """R1G4 model INTERNALS (dispatch, shape, both-branch re-derivation,
+    inheritance, serialization). The authoritative correctness check is
+    check_r1g4_golden (old-app matrices); this localises the internals a
+    matrix match alone would not, matching what the other models get."""
+    from mudlab.models.probabilities import R1G4Probability
+
+    results.append(("R1G4Model: dispatch -> R1G4Probability",
                     isinstance(probabilities_from_dict(
                         {"type": "R1G4Model", "properties": {}}, 4),
                         R1G4Probability)))
@@ -371,12 +463,14 @@ def main(argv):
         print("No higher-R fixtures found; skipping (exit 2).")
         return 2
 
-    # R1G4 has no golden fixture - checked synthetically (self-consistency +
-    # an independent re-derivation). PROVISIONAL: see R1G4Probability.
+    # R1G4 has no full-pattern .mud fixture, but its matrices are checked
+    # against the REAL old app (check_r1g4_golden), and reps=1 shares the
+    # already-golden R1G2/R1G3 calc path - so R1G4 is matrix-validated.
     print("=" * 72)
-    print("R1G4Model - NO golden fixture (provisional, self-consistency only)")
+    print("R1G4Model - matrix golden vs REAL old app (reps=1 path already golden)")
     print("=" * 72)
     n_before = len(results)
+    check_r1g4_golden(results)
     check_r1g4(results)
     for label, ok in results[n_before:]:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

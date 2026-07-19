@@ -756,15 +756,17 @@ class R1G4Probability(_MarkovProbability):
     4×4 junction matrix (nested G ratios), ported VERBATIM from
     R1G4Model.update (PyXRD's and old mudlab's are byte-identical).
 
-    !!! NOT VALIDATED against a golden fixture !!!
-    Unlike every other stacking model here, there is no R1G4 test project, so
-    this port has only been checked for INTERNAL self-consistency (an
-    independent matrix re-derivation in verify_higher_r.py) and against the
-    source it was transcribed from - NOT against the old app's computed
-    pattern. A transcription that is self-consistent but subtly misreads the
-    source would pass those checks. Treat R1G4 output as provisional until a
-    golden R1G4 project is made in the (now-fixed) old app and run through
-    verify_calc_engine. See the R1G4 note in ui/WIRING.md.
+    Validation: MATRIX golden, not (yet) a full-pattern golden. There is no
+    R1G4 .mud test project, so instead of reproducing a stored pattern, this
+    port's W and P are checked against the REAL old-app R1G4Model executed in
+    the old app's own interpreter - on the default-phase parameters (the old
+    app's CSSS/ICSS/ISSS/KCSS/KSSS/TSSS R1 library phases) and both W1 branches
+    - to machine precision (verify_higher_r.check_r1g4_golden). Because R1G4 is
+    reps=1, it shares the calc path already golden-validated end-to-end by the
+    R1G2/R1G3 pattern fixtures, so exact matrices make its pattern trustworthy.
+    The remaining last mile is a saved-.mud pattern golden: if an R1G4 project
+    is made in the (now-fixed) old app, add it to verify_calc_engine. See the
+    R1G4 note in ui/WIRING.md.
     """
 
     G = 4
@@ -871,9 +873,10 @@ def probabilities_from_dict(data: dict, G: int):
     if prob_type == "R2G3Model":
         return R2G3Probability.from_dict(data, G)
     if prob_type == "R1G4Model":
-        # NOTE: R1G4 is ported but NOT golden-validated (no fixture). It loads
-        # so R1G4 projects are usable, but the pattern is provisional - see
-        # R1G4Probability's docstring.
+        # NOTE: R1G4's matrices are validated against the REAL old app (both
+        # W1 branches, machine precision) and it shares the golden reps=1 calc
+        # path; a full saved-pattern .mud golden is the only remaining gap.
+        # See R1G4Probability's docstring.
         return R1G4Probability.from_dict(data, G)
     if prob_type.startswith("R0G"):
         return R0Probability.from_dict(data, G)

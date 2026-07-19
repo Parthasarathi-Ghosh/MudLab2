@@ -642,23 +642,28 @@ R2G2 validates it at corr 1.000000 (`verify_calc_engine` on
   W1=0.5 leaves the W1>0.5 branch golden-untested (a discriminating R2G3 /
   high-W1 R1G3 fixture would close both, if wanted).
 
-### R1G4: ported but PROVISIONAL (no golden fixture)
+### R1G4: MATRIX-validated vs the real old app (no full-pattern fixture yet)
 
 `R1G4Probability` (4×4, reps 1, 12 params) ports `R1G4Model.update` verbatim
 from PyXRD (`C:\Users\pxgho\PyXRD`; confirmed byte-identical to old mudlab's).
-It DISPATCHES and loads like the others, so R1G4 projects are usable - **but
-it is NOT golden-validated**: there is no R1G4 test project, so unlike every
-other model it has never been checked against the old app's computed pattern.
-Its only checks are internal self-consistency + an INDEPENDENT matrix
-re-derivation (`verify_higher_r.py check_r1g4`, both W1 branches at valid
-discriminating params), which catches a transcription typo but NOT a shared
-misreading of the source. Treat R1G4 output as provisional; to promote it,
-make an R1G4 project in the (fixed) old app and add it to
-`verify_calc_engine`. The class docstring carries the same warning.
+It dispatches and loads like the others. There is no R1G4 `.mud` test project,
+so it does not get a stored-**pattern** golden - but it gets the next best
+thing, a **matrix golden against the REAL old app**: the old mudlab ships its
+own Python 3.14 interpreter (`C:\GitHub\MudLab\data\bin\python3.14.exe`), so
+`R1G4Model` was run there directly and its resolved W/P compared to
+`R1G4Probability._matrices()`. They agree to **0.0** (`< 1e-12`) on the
+default-phase parameters (the old app's CSSS/ICSS/ISSS/KCSS/KSSS/TSSS R1
+library phases, found under `%LOCALAPPDATA%\MudLab\default phases`) **and both
+W1 branches** - `verify_higher_r.py check_r1g4_golden` / `_R1G4_OLD_APP_GOLDEN`.
+Because R1G4 is reps=1, it shares the calc path already golden-validated
+end-to-end by the R1G2/R1G3 pattern fixtures, so exact matrices make its
+pattern trustworthy. The only remaining gap is a saved-`.mud` **pattern**
+golden: if an R1G4 project is made in the (fixed) old app, add it to
+`verify_calc_engine`. The class docstring carries the same status.
 
 **All PyXRD R/G stacking models are now present** (R0 any G; R1 G2-G4;
-R2 G2-G3; R3 G2), R1G4 provisionally. The dispatch refuses only genuinely
-non-PyXRD types (e.g. R4/G, R2G4).
+R2 G2-G3; R3 G2). The dispatch refuses only genuinely non-PyXRD types (e.g.
+R4/G, R2G4).
 
 ### Audit notes: R1 (2026-07-17)
 
