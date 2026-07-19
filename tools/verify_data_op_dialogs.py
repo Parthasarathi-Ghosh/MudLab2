@@ -89,6 +89,26 @@ _, after = spec.experimental_pattern
 check("bg: subtracted the flat value", np.allclose(after, before - 10.0))
 check("bg: dialog accepted", dlg.result() == 1)
 
+# --- Background from a pattern FILE goes through the shared xrd_import
+#     dispatcher, so every import format works here too (tested with .uxd). ---
+import tempfile  # noqa: E402
+from PySide6.QtWidgets import QFileDialog  # noqa: E402
+_, spec = fresh_specimen()
+_bgdir = tempfile.mkdtemp(prefix="mudlab_bgimport_")
+_uxd = os.path.join(_bgdir, "bg.uxd")
+with open(_uxd, "w", encoding="utf-8") as fh:
+    fh.write("_STEPTIME=1.0\n_2THETACOUNTS\n"
+             + "\n".join("%g %g" % (5.0 + i * 0.02, 100 + i) for i in range(50))
+             + "\n")
+QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (_uxd, ""))
+dlg = RemoveBackgroundDialog(None, specimen=spec)
+dlg._browse_pattern()
+check("bg: browse imports a .uxd via the shared dispatcher (parse_pattern)",
+      getattr(dlg, "_bg_pattern", None) is not None
+      and dlg.ui.bg_pattern_file.text() == _uxd)
+os.remove(_uxd)
+os.rmdir(_bgdir)
+
 # --- Smooth ---
 _, spec = fresh_specimen()
 _, before = spec.experimental_pattern

@@ -26,6 +26,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from mudlab.calculations import pattern_ops
+from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
 from mudlab.ui.ui_add_noise import Ui_AddNoiseDialog
 from mudlab.ui.ui_background import Ui_RemoveBackgroundDialog
 from mudlab.ui.ui_peak_properties import Ui_PeakPropertiesDialog
@@ -43,8 +44,6 @@ SMOOTH_TYPES = (0, 1, 2, 3, 4, 5)
 # verbatim rather than "corrected" to match its labels.
 SHIFT_POSITIONS = (0.42574, 0.3134, 0.2476, 0.2085, 0.4183, 0.48486, 0.0)
 SHIFT_MANUAL_INDEX = len(SHIFT_POSITIONS) - 1  # "Manual"
-
-_PATTERN_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
 
 
 class _SpecimenDialog(QDialog):
@@ -106,14 +105,12 @@ class RemoveBackgroundDialog(_SpecimenDialog):
 
     def _browse_pattern(self) -> None:
         filename, _ = QFileDialog.getOpenFileName(
-            self, "Select background pattern file", "", _PATTERN_FILTERS
+            self, "Select background pattern file", "", PATTERN_FILTERS
         )
         if not filename:
             return
-        from mudlab.file_parsers.xy_parser import parse_xy
-
         try:
-            bg_x, bg_y = parse_xy(filename)
+            bg_x, bg_y = parse_pattern(filename)
         except (OSError, ValueError) as err:
             QMessageBox.warning(self, "Background pattern", str(err))
             return

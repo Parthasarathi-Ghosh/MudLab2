@@ -365,10 +365,15 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
 ### XRD import parsers (batch 3 DONE)
 
 `file_parsers/xrd_import.parse_pattern(path)` dispatches on extension to the
-format parsers; `PATTERN_FILTERS` is the matching file-dialog filter. Used by
-the raw-pattern editor (the specimen data-import can adopt it too). Ported /
-written from old mudlab's `xrd_parsers`, validated against the real vendor files
-in `~/Downloads/Phraser tests` (the user's data - never committed):
+format parsers; `PATTERN_FILTERS` is the matching file-dialog filter. **Every
+pattern-import site in the app goes through this one dispatcher + filter**, so
+they all accept the same formats: the specimen data import
+(`main_window.import_specimen_files`, `IMPORT_FILTERS = PATTERN_FILTERS`), the
+background-pattern browse (`line_dialogs.RemoveBackgroundDialog._browse_pattern`)
+and the raw-pattern phase editor. (The only other `.mud`/`.pyxrd` file dialogs
+are project open/save, which are not pattern imports.) Ported / written from old
+mudlab's `xrd_parsers`, validated against the real vendor files in
+`~/Downloads/Phraser tests` (the user's data - never committed):
 
 - **`.xrdml`** (`xrdml_parser.py`, PANalytical XML): first non-aborted scan;
   2theta from `listPositions` or `startPosition`/`endPosition`+linspace;

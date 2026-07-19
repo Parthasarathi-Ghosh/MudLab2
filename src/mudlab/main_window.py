@@ -38,7 +38,8 @@ from mudlab.edit_mixtures_dialog import EditMixturesDialog
 from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.edit_project_dialog import EditProjectDialog
 from mudlab.edit_specimen_dialog import EditSpecimenDialog
-from mudlab.file_parsers import load_mud, parse_xy, save_mud
+from mudlab.file_parsers import load_mud, save_mud
+from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
 from mudlab.line_dialogs import (
     AddNoiseDialog,
     PeakPropertiesDialog,
@@ -66,7 +67,9 @@ NAV_HINTS = (
 
 ZOOM_STEP = 1.25  # Ctrl++ / Ctrl+- menu zoom
 
-IMPORT_FILTERS = "XRD patterns (*.xy *.txt *.csv *.dat);;All files (*.*)"
+# Specimen data import offers the same formats as every other pattern import
+# (the shared xrd_import dispatcher): ASCII XY, .uxd, .xrdml, .rasx, Bruker RAW.
+IMPORT_FILTERS = PATTERN_FILTERS
 # Open accepts .mud and PyXRD .pyxrd (same ZIP+JSON container; MudLab2's
 # schema loader reads both). Save is always .mud - opening a .pyxrd converts.
 OPEN_PROJECT_FILTERS = (
@@ -677,7 +680,7 @@ class MainWindow(QMainWindow):
         first_new_row = self.specimens_model.rowCount()
         for path in paths:
             try:
-                x, y = parse_xy(path)
+                x, y = parse_pattern(path)
             except (OSError, ValueError) as error:
                 errors.append(str(error))
                 continue
