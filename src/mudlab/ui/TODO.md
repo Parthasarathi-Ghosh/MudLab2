@@ -395,8 +395,10 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   listed; inherited relations read-only. Harness: verify_relations.py extended.
 - [x] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
   (edit_raw_pattern_phase.ui + edit_raw_pattern_phase_widget.py: name + import
-  + preview; hosted in Edit Phases, routed by phase.type; batch 2). Batch 3:
-  .xrdml/.raw import parsers.
+  + preview; hosted in Edit Phases, routed by phase.type; batch 2). Batch 3
+  DONE: import parsers (file_parsers/xrd_import.py) - .xrdml, Rigaku .rasx,
+  ASCII/.xy(+BOM), Bruker .raw v1-3; deferred Bruker RAW4 + non-Bruker "FI"
+  .raw (reverse-engineering). Guard: tools/verify_xrd_import.py.
 
 ### Markers (done - editors)
 - [x] Edit Markers window - edit_markers_dialog.py (object-store shell + find peaks / match minerals extra row); EditMarkersView
