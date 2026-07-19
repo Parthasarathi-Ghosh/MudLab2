@@ -72,9 +72,30 @@ def get_diffracted_intensity(range_theta, range_stl, phase):
     Lorentz-polarisation factor."""
     if phase.type == "Phase":
         return _get_diffracted_intensity(range_theta, range_stl, phase)
+    if phase.type == "RawPatternPhase":
+        return _get_raw_intensity(range_theta, range_stl, phase)
     raise NotImplementedError(
-        "Only regular Phase intensity is ported (got %r)" % phase.type
+        "Only Phase and RawPatternPhase intensity are ported (got %r)"
+        % phase.type
     )
+
+
+def _get_raw_intensity(range_theta, range_stl, phase):
+    """A RawPatternPhase contributes its stored measured pattern directly:
+    resample raw_pattern (2theta degrees -> intensity) onto the goniometer's
+    2theta grid, zero outside the stored range. Ported from PyXRD's
+    _get_raw_intensity (interp1d(bounds_error=False, fill_value=0) == np.interp
+    with left=right=0; the stored 2theta is ascending, as instrument data is).
+    apply_lpf / apply_correction are False for a raw phase, so - like the old
+    app - the pattern is taken as measured (no LP factor, no machine
+    correction; the wavelength distribution is still applied by the specimen
+    calc, uniformly with every phase)."""
+    x = np.asarray(phase.raw_pattern_x, dtype=float)
+    y = np.asarray(phase.raw_pattern_y, dtype=float)
+    if x.size < 2:
+        return np.zeros_like(range_stl)
+    two_theta_deg = np.rad2deg(2.0 * range_theta)
+    return np.interp(two_theta_deg, x, y, left=0.0, right=0.0)
 
 
 def get_intensity(range_theta, range_stl, soller1, soller2, mcr_2theta, phase):

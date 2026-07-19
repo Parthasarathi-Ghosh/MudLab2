@@ -292,13 +292,54 @@ the CSDS component.
   ARE now wired (see the phase-`based_on` section below), and the component
   unit-cell a/b editors are editable (Batch 1b).
 - Saving: `Phase.to_dict` writes name/sigma*/CSDS-mean over the verbatim
-  `raw_properties`; `save_mud` replaces each raw "Phase" entry by uuid and
-  keeps non-Phase entries (e.g. RawPatternPhase) untouched.
+  `raw_properties`; `save_mud` replaces each modeled ("Phase" /
+  "RawPatternPhase") entry by uuid and keeps any other type untouched.
 - Still to port around this window: the Add Phase dialog
   (`addphase.glade`: radio choice empty/default/raw phase, G 1-12, R 0-4,
-  default-phase catalog combo), EditRawPatternPhaseView
-  (`raw_pattern_phase.glade`), and the atom ratio/contents dialogs
-  (`ratio.glade`, `contents.glade`).
+  default-phase catalog combo), the raw-pattern phase EDITOR
+  (`raw_pattern_phase.glade` - batch 2, the model+calc are done, see below),
+  and the atom ratio/contents dialogs (`ratio.glade`, `contents.glade`).
+
+### Raw-pattern phases (batch 1 DONE: model + calc + round-trip)
+
+A `RawPatternPhase` (`models/raw_pattern_phase.py`) is a phase whose
+contribution is a fixed MEASURED pattern, not a computed one: it holds a stored
+`2theta -> intensity` curve (`raw_pattern_x/y`) and no components/CSDS/
+probabilities. Used for accessory minerals (quartz, feldspar), an amorphous
+hump, or an internal standard - the optimiser fits only its scale.
+
+- **Loading needs NO instrument-format parser.** The curve lives INSIDE the
+  `.mud`/`.pyxrd` as a `PyXRDLine` (`raw_pattern.properties.data` = JSON
+  `[2theta, intensity]` rows), the same serialisation a specimen's experimental
+  line uses, decoded the same way (`_decode_raw_pattern`, mirrors
+  `mud_project._decode_pattern_data`). `.xrdml`/`.raw`/`.xy` are IMPORT formats
+  (file -> curve), only needed when creating a raw phase from a measured file -
+  that is batch 3. `.xy`/`.txt`/`.csv`/`.dat` already have `xy_parser`;
+  `.xrdml` (PANalytical XML) and `.raw` (Bruker) are not present and are
+  deferred until wanted.
+- **Calc** (`calculations/phases.py`): `get_diffracted_intensity` now branches
+  on `phase.type` - `_get_raw_intensity` resamples the stored curve onto the
+  goniometer 2theta grid (`np.interp`, zero outside range = PyXRD's
+  `interp1d(fill_value=0)`). `apply_lpf`/`apply_correction` are False, so no LP
+  factor and no machine correction; the specimen calc still applies the
+  wavelength distribution to it uniformly (matches PyXRD). No change was needed
+  to `calculate_phase_intensities` - it already reads `apply_*` generically.
+- **Load/save** (`mud_project.py`): the loader builds a `RawPatternPhase` for
+  `type == "RawPatternPhase"` (was skipped); the saver's phase-rebuild loop
+  treats both `Phase` and `RawPatternPhase` as modeled (write from the live
+  model by uuid; drop if removed; append if added). Byte-identical round-trip:
+  `to_dict` overwrites only name/uuid/pattern-`data` over verbatim
+  `raw_properties`, preserving the embedded line's other keys - and the line's
+  uuid is minted ONCE per object (`_line_uuid`) so repeated `to_dict()` calls
+  are stable (a fresh phase would otherwise re-mint it each save).
+- **No golden fixture** (no sample project has a raw phase, as with R1G4); the
+  calc is a plain interpolation, so `tools/verify_raw_pattern_phase.py` (19
+  checks) validates it synthetically + a through-the-file round-trip that adds
+  a raw phase to a real project and confirms the modeled phases are untouched.
+- **Next: batch 2** = the raw-pattern phase editor (a simplified phase editor -
+  name + pattern import/preview, no probabilities/components/CSDS tabs) and
+  enabling the Add Phase dialog's raw option; **batch 3** = the import
+  parsers (`.xy` reuses `xy_parser`; `.xrdml`/`.raw` new, if wanted).
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 
@@ -921,9 +962,10 @@ handler builds a real phase and appends it (Batch P2).
   ("empty"/"default"/"raw"), `G`, `R`, `default_phase`.
 - **Only the empty-phase path is wired.** `rdb_default_phase` and
   `rdb_raw_pattern` are disabled with a tooltip: the default catalog needs
-  the generator ported (old `generate_default_phases.py`), and
-  RawPatternPhase is not modeled (the loader skips it). `rdb_empty_phase`
-  is preselected.
+  the generator ported (old `generate_default_phases.py`), and while the
+  RawPatternPhase model + calc + load/save now exist (batch 1), CREATING one
+  needs its editor + pattern import (batch 2/3), so the raw radio stays
+  disabled until then. `rdb_empty_phase` is preselected.
 - **R is locked to 0** (disabled, tooltip), because MudLab2 models only R0
   (random) stacking - `get_correct_probability_model(R, G)` is not ported
   for R>0, so a higher-R phase would build an invalid model. The old app's

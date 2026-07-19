@@ -6,8 +6,10 @@ from mudlab.models.marker import Marker
 from mudlab.models.mixture import Mixture
 from mudlab.models.phase import Phase
 from mudlab.models.project import Project
+from mudlab.models.raw_pattern_phase import RawPatternPhase
 from mudlab.models.specimen import Specimen
 
 __all__ = [
-    "AtomType", "Goniometer", "Marker", "Mixture", "Phase", "Project", "Specimen",
+    "AtomType", "Goniometer", "Marker", "Mixture", "Phase", "Project",
+    "RawPatternPhase", "Specimen",
 ]

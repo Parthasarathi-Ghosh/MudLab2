@@ -24,7 +24,8 @@ import zipfile
 import numpy as np
 
 from mudlab.models import (
-    AtomType, Goniometer, Marker, Mixture, Phase, Project, Specimen,
+    AtomType, Goniometer, Marker, Mixture, Phase, Project, RawPatternPhase,
+    Specimen,
 )
 
 # Version tag written for new files (old-app format version we are
@@ -119,13 +120,19 @@ def load_mud(path: str) -> Project:
         if isinstance(atom_dict, dict):
             project.add_atom_type(AtomType.from_dict(atom_dict))
 
-    # Phases are calc models (atoms resolve against the atom-type uuid map,
-    # so load them after the atom types). Still saved verbatim from
-    # raw_properties, so only regular Phase entries are modeled for now.
+    # Phases are calc models (atoms resolve against the atom-type uuid map, so
+    # load them after the atom types). A regular "Phase" is computed from its
+    # structure; a "RawPatternPhase" carries a stored measured curve (its data
+    # is embedded in the archive, so no instrument-format parser is needed).
+    # Any other phase type is still kept verbatim (unmodeled).
     atom_type_map = project.atom_type_uuid_map()
     for phase_dict in properties.get("phases") or []:
-        if isinstance(phase_dict, dict) and phase_dict.get("type") == "Phase":
+        if not isinstance(phase_dict, dict):
+            continue
+        if phase_dict.get("type") == "Phase":
             project.add_phase(Phase.from_dict(phase_dict, atom_type_map))
+        elif phase_dict.get("type") == "RawPatternPhase":
+            project.add_phase(RawPatternPhase.from_dict(phase_dict))
 
     # Resolve phase-level inheritance (old based_on): a treated phase
     # (glycolated / heated) is based on a reference phase and inherits its
@@ -226,23 +233,23 @@ def save_mud(project: Project, path: str) -> None:
     properties["atom_types"] = [at.to_dict() for at in project.atom_types]
     if project.mixtures:
         properties["mixtures"] = [mix.to_dict() for mix in project.mixtures]
-    # Phases: only regular "Phase" entries are modeled (the parser skips
-    # others), so the raw list is walked to keep unmodeled entries (e.g.
-    # RawPatternPhase) verbatim and in place, while the modeled ones are
-    # written from their live models.
+    # Phases: "Phase" and "RawPatternPhase" entries are modeled, so the raw
+    # list is walked to write the modeled ones from their live models while
+    # keeping any other (still-unmodeled) type verbatim and in place.
     #
-    # The live list is authoritative for which Phases exist:
-    #   - a raw "Phase" entry with no live model was REMOVED -> drop it.
-    #     (Every "Phase" entry is modeled on load, so a missing model can
-    #     only mean removal - it is not an unmodeled type.)
+    # The live list is authoritative for which modeled phases exist:
+    #   - a modeled entry with no live model was REMOVED -> drop it.
+    #     (Every "Phase"/"RawPatternPhase" entry is modeled on load, so a
+    #     missing model can only mean removal - not an unmodeled type.)
     #   - a live phase with no raw entry was ADDED -> append it.
     # Without both halves, Project.add_phase / remove_phase would appear to
     # work in-session and silently revert on reload.
+    _MODELED = ("Phase", "RawPatternPhase")
     model_by_uuid = {p.uuid: p for p in project.phases}
     seen_uuids = set()
     rebuilt = []
     for entry in properties.get("phases") or []:
-        if isinstance(entry, dict) and entry.get("type") == "Phase":
+        if isinstance(entry, dict) and entry.get("type") in _MODELED:
             uid = entry.get("properties", {}).get("uuid")
             model = model_by_uuid.get(uid)
             if model is None:

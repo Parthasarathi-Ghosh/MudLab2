@@ -6,10 +6,11 @@ probability model, with a CSDS crystallite-size distribution and a sigma*
 orientation factor. It produces one phase's diffracted intensity via
 `calculations.phases.get_intensity`.
 
-Only the regular "Phase" type is modeled (RawPatternPhase comes later). The
-Edit Phases dialog binds this model, so the modeled fields (name, sigma*,
-CSDS mean, R0 F params, components) save via to_dict while everything else
-round-trips verbatim through raw_properties.
+This is the regular, structurally-computed "Phase" type. The measured-pattern
+"RawPatternPhase" is a separate model (models.raw_pattern_phase). The Edit
+Phases dialog binds this model, so the modeled fields (name, sigma*, CSDS mean,
+R0 F params, components) save via to_dict while everything else round-trips
+verbatim through raw_properties.
 """
 
 from __future__ import annotations
