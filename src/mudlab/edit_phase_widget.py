@@ -44,7 +44,7 @@ class EditPhaseWidget(QWidget):
         self.ui.csdsLayout.addWidget(self.csds_widget)
         self.ui.lblCsdsPlaceholder.hide()
 
-        # The probabilities component fills the Probabilities tab (R0 only).
+        # The probabilities component fills the Probabilities tab (R0..R3).
         # The old app removed the tab for single-component (G=1) phases, so we
         # remove/re-insert it per phase; remember its title/position for that.
         self.probabilities_widget = ProbabilitiesWidget(self)

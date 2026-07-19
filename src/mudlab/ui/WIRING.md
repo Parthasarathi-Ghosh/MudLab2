@@ -665,6 +665,85 @@ golden: if an R1G4 project is made in the (fixed) old app, add it to
 R2 G2-G3; R3 G2). The dispatch refuses only genuinely non-PyXRD types (e.g.
 R4/G, R2G4).
 
+### Audit notes: R/G stacking models (2026-07-19)
+
+Full code audit of every stacking model (`models/probabilities.py`) and the
+calc path they feed (`calculations/phases.py`). Method: read each `_matrices()`
+against the old-app source, plus an INDEPENDENT matrix cross-check - the old
+mudlab ships its own Python 3.14 interpreter (`C:\GitHub\MudLab\data\bin\
+python3.14.exe`), so every old-app model (R1G2, R1G3, R2G2, R2G3, R3G2) was run
+there directly and its W/P compared to MudLab2's, on BOTH branches each.
+
+**Clean results (nothing to fix):**
+- **Matrix cross-check: max |Δ| = 0.0 (`<1e-12`)** on all 5 models × both
+  branches (10 param sets, incl. deliberately invalid ones as arithmetic
+  stress). R1G4 was already covered the same way (`check_r1g4_golden`). So
+  every model reproduces the real old app's matrices exactly, and each R2/R3
+  model additionally has a golden PATTERN fixture at corr 1.000000.
+- **Branch boundaries match the old source exactly**, including the deliberate
+  inconsistency: R1G2/R1G3/R2G2/R3G2 switch the free junction at `<=` the
+  threshold, R1G4/R2G3 at strict `<`. (At the threshold both branches are
+  continuous, so it is cosmetic - but faithful.)
+- **R3G2's `clamp()` calls are faithful** - the old `R3G2Model.update` has the
+  same `max(min(x,1),0)` on every P/W it assigns; not a MudLab2 addition.
+- **State-ordering conventions** (x = 2i+j for R2G2, 4i+2j+k for R3G2, 3i+j for
+  R2G3) match the old app's `mW`/`mP` index maps; verified the calc only needs
+  `_W` (=`_lW[-2]`, the g^R diagonal) and `_P` (=`_lP[-1]`), which `update()`
+  writes directly and `solve()` never clobbers.
+
+**Finding (FIXED 2026-07-19): W1 refinement/editor bounds were too loose for
+the constrained models.** The old app constrains W1 to its physical domain via
+`FloatProperty(minimum=...)`: **R2G2 W1>=0.5, R2G3 W1>=0.5, R3G2 W1>=2/3** (all
+other params, and W1 for R0/R1, are (0,1)). MudLab2 had hard-coded `(0.0, 1.0)`
+in `refinable_params()` and `spin.setRange(0.0, 1.0)` in the editor, so the
+refiner could drive W1 below the threshold and the editor let a user type an
+out-of-domain W1 (not silently wrong - an out-of-domain W1 makes the weights
+fail to sum to 1, e.g. R3G2 `w000 = 3W1-2 < 0` clamps to 0, so `valid` is False
+and the calc returns zeros, which the refiner's non-worsening guard rejects -
+but refinement wasted evaluations on a flat "zeros" plateau and the editor lost
+a guardrail). **Fix:** a per-parameter `BOUNDS` dict on `_MarkovProbability`
+(default (0,1); R2G2/R2G3 W1 -> (0.5,1), R3G2 W1 -> (2/3,1)) now feeds both
+`refinable_params()` (the bounds slot) and `editable_params()` (a new `bounds`
+key), and the widget calls `spin.setRange(*spec["bounds"])`. (The 4-dp spin
+rounds 2/3 to a min of 0.6667 - just ABOVE 2/3, so still safe.) Guard:
+`verify_phase_dialogs.py` check 6.
+
+**Finding (FIXED 2026-07-19): the probabilities editor truncated the W/P
+tables for R>=2.** The widget hard-coded the tables to `G` and `G x G`, but for
+R>=2 the state is a layer PAIR/TRIPLET so the real matrices are `g^R x g^R`
+(4x4 R2G2, 8x8 R3G2, 9x9 R2G3). It silently showed only the first G weights and
+the top-left `G x G` corner of P, labelled with layer names that do not
+describe the states (no crash - the reads were in-bounds). Parameter *editing*
+was always correct (generic over `editable_params()`), so the calculated
+pattern was never affected - only the read-only matrix DISPLAY. **Fix:** the
+widget now sizes the W table to `rank = len(get_distribution_array())` and P to
+`rank x rank`, and labels the `g^R` axes with their state tuples (1-based layer
+numbers, e.g. R2G2 `1,1 1,2 2,1 2,2`); tables with >4 columns size-to-content
+and scroll, capped to ~6 visible rows so an 8x8/9x9 does not blow out the tab.
+Guard: `verify_phase_dialogs.py` check 6 (table dims == rank, last cell shown,
+per-model). The editor is now validated for every model, not just R1G2.
+
+**Landmine note (correct, do NOT "fix"): `get_absolute_scale` reads the first
+G diagonal entries of the g^R×g^R weight matrix, not per-component marginals.**
+For R>=2 `W[0..G-1]` are the first few PAIR/TRIPLET-state weights (e.g. R2G2:
+W00, W01), which are not the marginal component fractions. This is IDENTICAL to
+the old app and the R2/R3 golden patterns pass at corr 1.000000 because of it -
+reproducing it is required for fidelity. It is the single most surprising line
+in the calc; flagged here so a future reader does not "correct" it.
+
+**Minor (cosmetic, no action needed):** `R0Probability.valid` (line ~112) has a
+tile-and-sum check that is always true once `sum(mW)==1` is asserted just above
+(dead but harmless); `R2G3._matrices` sets `W2w = None` then overwrites it on
+the next line (awkward, correct). Read-through inheritance (`value()` recursing
+into `based_on_probs`) has no cycle guard of its own - it relies on the phase
+linking layer to prevent based_on cycles (same assumption as R0; see the
+linking notes). Not exercised by any current fixture; fine, but a based_on
+cycle would infinite-loop.
+
+**Verdict:** the model + calc layer is solid and faithful to the old app at
+machine precision across every R/G type and both branches. One low-moderate
+follow-up (W1 bounds) and one clearly-marked landmine; no correctness bug.
+
 ### Audit notes: R1 (2026-07-17)
 
 Audited R1a-d after the fact, probing the dimensions the R1 harness did not:

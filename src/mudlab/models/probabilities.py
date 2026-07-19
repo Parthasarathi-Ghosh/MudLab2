@@ -180,6 +180,7 @@ class R0Probability:
                 "tooltip": "W%d / sum(W%d..W%d)" % (i + 1, i + 1, self.G),
                 "get": (lambda i=i: self.f_value(i)),
                 "set": (lambda v, i=i: self.set_f(i, v)),
+                "bounds": (0.0, 1.0),
                 "inherited": self.is_f_inherited(i),
                 "set_inherited": (lambda b, i=i: self._set_f_inherited(i, b)),
                 "inherit_tooltip": 'Take F%d from the "based on" phase.' % (i + 1),
@@ -355,6 +356,7 @@ class R1G2Probability:
                 "tooltip": "Weight fraction of layer 1 (W2 = 1 - W1).",
                 "get": (lambda: self.w1_value()),
                 "set": (lambda v: setattr(self, "W1", float(v))),
+                "bounds": (0.0, 1.0),
                 "inherited": self._inherited("W1"),
                 "set_inherited": (
                     lambda b: setattr(self, "inherit_W1", bool(b))),
@@ -366,6 +368,7 @@ class R1G2Probability:
                            "(the other entries follow from detailed balance).",
                 "get": (lambda: self.p11_value()),
                 "set": (lambda v: setattr(self, "P11_or_P22", float(v))),
+                "bounds": (0.0, 1.0),
                 "inherited": self._inherited("P11_or_P22"),
                 "set_inherited": (
                     lambda b: setattr(self, "inherit_P11_or_P22", bool(b))),
@@ -397,6 +400,11 @@ class _MarkovProbability:
     G = 2
     R = 1
     PARAMS: tuple = ()   # ((name, default, label, tooltip), ...)
+    #: Per-parameter (min, max) overrides for the editor spin / refiner bounds;
+    #: any parameter not listed defaults to (0.0, 1.0). Mirrors the old app's
+    #: FloatProperty(minimum=..., maximum=...) - e.g. R2's W1 is physical only
+    #: for W1 >= 1/2, R3G2's for W1 >= 2/3.
+    BOUNDS: dict = {}
 
     def __init__(self, **values) -> None:
         self.based_on_probs = None
@@ -472,7 +480,7 @@ class _MarkovProbability:
                 (lambda n=name: self.value(n)),
                 (lambda v, n=name: setattr(self, n, float(v))),
                 "%s_ref_info" % name,
-                (0.0, 1.0),
+                self.BOUNDS.get(name, (0.0, 1.0)),
                 self._inherited(name),
             ))
         return out
@@ -485,6 +493,7 @@ class _MarkovProbability:
                 "tooltip": tip,
                 "get": (lambda n=name: self.value(n)),
                 "set": (lambda v, n=name: setattr(self, n, float(v))),
+                "bounds": self.BOUNDS.get(name, (0.0, 1.0)),
                 "inherited": self._inherited(name),
                 "set_inherited": (
                     lambda b, n=name: setattr(self, "inherit_" + n, bool(b))),
@@ -523,6 +532,7 @@ class R2G2Probability(_MarkovProbability):
     #: .mud state order for the 4 pair-states is x = 2*i + j:
     #: 0=(0,0) 1=(0,1) 2=(1,0) 3=(1,1).
     type_name = "R2G2Model"
+    BOUNDS = {"W1": (0.5, 1.0)}  # old app: W1 physical only for W1 >= 1/2
 
     def _matrices(self):
         W1 = self.value("W1")
@@ -582,6 +592,7 @@ class R3G2Probability(_MarkovProbability):
          "Junction P1111 when W1 <= 3/4, else P2112."),
     )
     type_name = "R3G2Model"
+    BOUNDS = {"W1": (2.0 / 3.0, 1.0)}  # old app: (0,0,0) weight 3*W1-2 >= 0
 
     def _matrices(self):
         W1 = self.value("W1")
@@ -694,6 +705,7 @@ class R2G3Probability(_MarkovProbability):
         ("G4", 0.9, "G4", "W201 / W20x."),
     )
     type_name = "R2G3Model"
+    BOUNDS = {"W1": (0.5, 1.0)}  # old app: pair weight 2*W1-1 >= 0
 
     def _matrices(self):
         W1 = self.value("W1")

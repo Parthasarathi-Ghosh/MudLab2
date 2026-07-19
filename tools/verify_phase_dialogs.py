@@ -15,7 +15,10 @@ be seen from the model:
      rows;
   4. Remove confirms first, then removes and keeps the three in lock-step,
      reselecting a neighbour;
-  5. an Add followed by a Remove leaves the project exactly as it was.
+  5. an Add followed by a Remove leaves the project exactly as it was;
+  6. the probabilities editor sizes its W/P tables to the model's real rank
+     (g**R, not G) so R>=2 pair/triplet states are not truncated, and its
+     spinboxes honour each parameter's bounds (R2 W1>=1/2, R3G2 W1>=2/3).
 
 Point 3/4 is the trap: the dialog holds its own list snapshot alongside the
 tree model and the project, and a drift between them binds the editor to the
@@ -197,6 +200,59 @@ def check_add_then_remove_roundtrips(project, results):
     dialog.deleteLater()
 
 
+def check_probabilities_widget(results):
+    """6. The probabilities editor renders every stacking model correctly:
+    the W/P tables are sized to the model's real rank g**R (not G), so the
+    pair/triplet states of R>=2 are NOT silently truncated to a G x G corner,
+    and the spinboxes honour each parameter's bounds. Fixture-independent -
+    the models are built directly. Regression guard for the higher-R fix."""
+    import numpy as np
+    from mudlab.probabilities_widget import ProbabilitiesWidget
+    from mudlab.models.probabilities import (
+        R0Probability, R1G2Probability, R1G3Probability, R1G4Probability,
+        R2G2Probability, R2G3Probability, R3G2Probability,
+    )
+    # (tag, model, expected rank g**R, expected W1 spin minimum or None)
+    cases = [
+        ("R0G3", R0Probability(G=3), 3, None),
+        ("R1G2", R1G2Probability(), 2, 0.0),
+        ("R1G3", R1G3Probability(), 3, 0.0),
+        ("R1G4", R1G4Probability(), 4, 0.0),
+        ("R2G2", R2G2Probability(), 4, 0.5),
+        ("R2G3", R2G3Probability(), 9, 0.5),
+        ("R3G2", R3G2Probability(), 8, 2.0 / 3.0),
+    ]
+    widget = ProbabilitiesWidget()
+    for tag, prob, rank, w1min in cases:
+        widget.bind_probabilities(prob, labels=None, on_changed=None)
+        P = np.asarray(prob.get_probability_matrix(), float)
+        Wd = np.asarray(prob.get_distribution_array(), float)
+        results.append(("6 %s W table has %d cols (rank, not G)" % (tag, rank),
+                        widget._w_table.columnCount() == rank))
+        results.append(("6 %s P table is %dx%d" % (tag, rank, rank),
+                        widget._p_table.rowCount() == rank
+                        and widget._p_table.columnCount() == rank))
+        results.append(("6 %s spins == n_independents" % tag,
+                        len(widget._param_spins) == prob.n_independents))
+        # The LAST P cell and W entry - the ones truncated before the fix -
+        # are shown and carry the model's value.
+        pcell = widget._p_table.item(rank - 1, rank - 1)
+        results.append(("6 %s shows P[last,last], untruncated" % tag,
+                        pcell is not None
+                        and pcell.text() == "%.4f" % P[rank - 1, rank - 1]))
+        wcell = widget._w_table.item(0, rank - 1)
+        results.append(("6 %s shows W[last], untruncated" % tag,
+                        wcell is not None
+                        and wcell.text() == "%.4f" % Wd[rank - 1]))
+        if w1min is not None:
+            # QDoubleSpinBox(decimals=4) rounds its range to 4 dp, so 2/3 -> a
+            # min of 0.6667 (just ABOVE 2/3, i.e. safe - never admits W1 < 2/3).
+            want = round(w1min, 4)
+            results.append(("6 %s W1 spin min == %.4f" % (tag, want),
+                            abs(widget._param_spins[0].minimum() - want) < 1e-9))
+    widget.deleteLater()
+
+
 def run(path):
     print("=" * 72)
     print("Phase dialogs:", os.path.basename(path))
@@ -210,6 +266,7 @@ def run(path):
     check_remove_confirmed(load_mud(path), results)
     check_remove_declined(load_mud(path), results)
     check_add_then_remove_roundtrips(load_mud(path), results)
+    check_probabilities_widget(results)
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

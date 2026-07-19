@@ -7,7 +7,9 @@ Fi = Wi / sum(Wi..Wg); R1G2 has W1 and the free junction probability
 P11/P22 - so the widget does not hard-code them: it iterates the model's
 `editable_params()` descriptors, one spinbox + Inherit checkbox each, and
 shows the derived weight fractions W and junction matrix P read-only below.
-The inputs and the GxG matrices are rebuilt per phase.
+W and P are rank x rank (rank = g**R): just G for R0/R1, but the layer
+PAIRS/TRIPLETS for R2/R3 (4x4, 8x8, 9x9), so the tables are sized and
+state-labelled from the model per phase, not hard-coded to G.
 
 Plugged into the Edit Phases > Probabilities tab (only shown for G>=2, as
 the old app removed the tab for single-component R0/G1 phases) and bound to
@@ -56,7 +58,7 @@ class ProbabilitiesWidget(QWidget):
         on_changed: Callable[[], None] | None = None,
         can_inherit: bool = False,
     ) -> None:
-        """Show and edit a probability model (R0 or R1G2). `labels` names the G
+        """Show and edit a probability model (R0, or R1-R3). `labels` names the G
         layers (falls back to "Layer i"); `on_changed` runs after an accepted
         edit. `can_inherit` is True when the phase is based on another - only
         then can a parameter be inherited (the per-parameter "Inherit" boxes
@@ -106,7 +108,8 @@ class ProbabilitiesWidget(QWidget):
             for index, spec in enumerate(self._specs):
                 spin = QDoubleSpinBox(self)
                 spin.setDecimals(4)
-                spin.setRange(0.0, 1.0)
+                lo, hi = spec.get("bounds", (0.0, 1.0))
+                spin.setRange(float(lo), float(hi))
                 spin.setSingleStep(0.05)
                 spin.setValue(float(spec["get"]()))
                 spin.setToolTip(spec.get("tooltip", ""))
@@ -131,26 +134,60 @@ class ProbabilitiesWidget(QWidget):
                 self._param_inherits.append(inherit)
                 self.ui.independentsForm.addRow(spec["label"], row)
 
-            # W (1 x G weight fractions) and P (G x G) read-only tables.
-            self._w_table = self._make_table(1, G, row_labels=["W"])
+            # W and P are rank x rank, where rank = G**max(R,1): just G for R0
+            # and R1 (a state is one layer), but g**R for R>=2 (a state is a
+            # layer PAIR/TRIPLET - 4x4 for R2G2, 8x8 for R3G2, 9x9 for R2G3).
+            # Size the tables to the real matrices and label the g**R axes with
+            # their state tuples, not layer names.
+            state_labels = self._state_labels()
+            rank = len(state_labels)
+            self._w_table = self._make_table(
+                1, rank, col_labels=state_labels, row_labels=["W"])
             self.ui.weightsLayout.addWidget(self._w_table)
-            self._p_table = self._make_table(G, G, row_labels=self._labels)
+            self._p_table = self._make_table(
+                rank, rank, col_labels=state_labels, row_labels=state_labels)
             self.ui.transitionsLayout.addWidget(self._p_table)
         finally:
             self._updating = False
 
-    def _make_table(self, rows: int, cols: int, row_labels) -> QTableWidget:
+    def _state_labels(self) -> list[str]:
+        """Header labels for the W/P axes. For R0/R1 a state is a single layer,
+        so use the layer names. For R>=2 a state is an R-tuple of layers
+        (state index x = sum_k i_k * G**(R-1-k)); label it with the 1-based
+        layer numbers, e.g. R2G2 -> '1,1' '1,2' '2,1' '2,2'."""
+        if self._prob is None:
+            return []
+        G = self._prob.G
+        R = max(int(getattr(self._prob, "R", 0)), 1)
+        if R <= 1:
+            return list(self._labels)
+        labels = []
+        for x in range(G ** R):
+            digits = [str((x // (G ** (R - 1 - k))) % G + 1) for k in range(R)]
+            labels.append(",".join(digits))
+        return labels
+
+    def _make_table(self, rows: int, cols: int, col_labels, row_labels
+                    ) -> QTableWidget:
         table = QTableWidget(rows, cols, self)
-        table.setHorizontalHeaderLabels(self._labels)
+        table.setHorizontalHeaderLabels(list(col_labels))
         table.setVerticalHeaderLabels(list(row_labels))
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         header = table.horizontalHeader()
-        for col in range(cols):
-            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+        # Few columns (R0/R1): stretch to fill the tab. Many (pair/triplet
+        # states, up to 9): size to content and let the table scroll so the
+        # cells stay legible instead of being squeezed.
+        if cols <= 4:
+            for col in range(cols):
+                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+        else:
+            header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         table.verticalHeader().setDefaultSectionSize(24)
-        # Keep the table compact: height for the rows + header.
-        table.setMaximumHeight(28 * rows + 28)
+        # Cap the height: show up to ~6 rows then scroll, so an 8x8/9x9 P
+        # matrix does not blow out the tab.
+        visible_rows = min(rows, 6)
+        table.setMaximumHeight(28 * visible_rows + 28)
         return table
 
     # ------------------------------------------------------------------
