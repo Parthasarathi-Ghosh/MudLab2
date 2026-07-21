@@ -208,7 +208,8 @@ class EditSpecimenDialog(QDialog):
         if not os.path.splitext(path)[1]:
             path += ".xy"
         try:
-            save_pattern(path, x, y)
+            save_pattern(path, x, y, goniometer=self._specimen.goniometer,
+                         name=getattr(self._specimen, "name", ""))
         except Exception as exc:
             QMessageBox.critical(
                 self, "Export pattern",

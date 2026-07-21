@@ -37,9 +37,15 @@ EXPORT_FILTERS = (
 )
 
 
-def save_pattern(path: str, x, y) -> None:
+def save_pattern(path: str, x, y, goniometer=None, name: str = "") -> None:
     """Write a pattern (two_theta, intensity), choosing the writer from the file
-    extension; an unrecognised/blank extension is written as ASCII XY."""
+    extension; an unrecognised/blank extension is written as ASCII XY. A
+    `goniometer` and `name` (when given) go into the UXD header - the ASCII XY
+    format has no place for them."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
     ext = os.path.splitext(path)[1].lower()
-    writer = _WRITERS.get(ext, save_xy)
-    writer(path, np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+    if ext == ".uxd":
+        save_uxd(path, x, y, sample=name, goniometer=goniometer)
+    else:
+        _WRITERS.get(ext, save_xy)(path, x, y)

@@ -279,6 +279,14 @@ check("specimen: export experimental data wrote a file", os.path.isfile(_uxd))
 _rx, _ry = parse_pattern(_uxd)
 check("specimen: exported .uxd round-trips the experimental pattern",
       _rx.size == _ex0.size and np.allclose(_ry, _ey0, atol=1e-2))
+# The UXD carries the specimen's goniometer setup, not just the curve.
+_g = spec.goniometer
+_uxd_text = open(_uxd, encoding="utf-8").read()
+check("specimen: UXD export includes goniometer params (radius, WL, divergence)",
+      ("_GONIOMETER_RADIUS=%.6f" % _g.radius) in _uxd_text
+      and ("_WL1=%.6f" % (_g.wavelength * 10.0)) in _uxd_text
+      and ("_DIVERGENCE=%.6f" % _g.divergence) in _uxd_text
+      and "_SOLLER1=" in _uxd_text)
 QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (_uxd, ""))
 _sd._on_import_experimental()
 _ix, _iy = spec.experimental_pattern

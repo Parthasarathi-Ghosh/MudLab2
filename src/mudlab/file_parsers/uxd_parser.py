@@ -101,22 +101,56 @@ def parse_uxd(path: str) -> tuple[np.ndarray, np.ndarray]:
     return np.asarray(xs), np.asarray(ys)
 
 
-def save_uxd(path: str, x, y, sample: str = "",
-             wavelength: float = 1.5406, anode: str = "Cu") -> None:
+def _wavelength_lines(goniometer) -> list[str]:
+    """UXD wavelength fields from the goniometer's wavelength distribution.
+    MudLab stores nm; UXD uses Angstrom (x10). WLRATIO is the second line's
+    intensity fraction over the dominant one (the old parser reads it as
+    Kalpha2/Kalpha1)."""
+    wls = sorted(
+        list(getattr(goniometer, "wavelength_distribution", None) or []),
+        key=lambda wf: wf[1], reverse=True,
+    )
+    if not wls:
+        return ["_WL_UNIT='A'", "_WL1=%.6f" % (1.54056)]
+    lines = ["_WL_UNIT='A'", "_WL1=%.6f" % (wls[0][0] * 10.0)]
+    if len(wls) > 1 and wls[0][1]:
+        lines.append("_WL2=%.6f" % (wls[1][0] * 10.0))
+        lines.append("_WLRATIO=%.6f" % (wls[1][1] / wls[0][1]))
+    return lines
+
+
+def save_uxd(path: str, x, y, sample: str = "", goniometer=None,
+             anode: str = "Cu") -> None:
     """Write a pattern as a Bruker/Siemens *.UXD ASCII file (a documented,
     non-proprietary text format). Uses the paired `_2THETACOUNTS` layout with
     `_STEPTIME=1`, so the values are written verbatim (counts == CPS) and
-    round-trip through parse_uxd unchanged. Readable by DIFFRAC / other tools."""
+    round-trip through parse_uxd unchanged. When a `goniometer` is given, its
+    setup is written too (wavelengths, radius, divergence, soller slits, sample
+    length) so the export carries the diffractometer parameters, not just the
+    curve."""
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     start = float(x[0]) if x.size else 0.0
     step = float(x[1] - x[0]) if x.size > 1 else 0.0
-    header = [
-        "; Exported by MudLab2",
-        "_FILEVERSION=2",
-        "_SAMPLE='%s'" % sample,
-        "_WL1=%.6f" % wavelength,
-        "_ANODE='%s'" % anode,
+    header = ["; Exported by MudLab2", "_FILEVERSION=2", "_SAMPLE='%s'" % sample]
+    if goniometer is not None:
+        header += _wavelength_lines(goniometer)
+        header.append("_ANODE='%s'" % anode)
+        header.append("_GONIOMETER_RADIUS=%.6f"
+                      % float(getattr(goniometer, "radius", 0.0)))
+        header.append("_DIVERGENCE=%.6f"
+                      % float(getattr(goniometer, "divergence", 0.0)))
+        header.append("_DIVERGENCE_MODE='%s'"
+                      % getattr(goniometer, "divergence_mode", "FIXED"))
+        header.append("_SOLLER1=%.6f"
+                      % float(getattr(goniometer, "effective_soller1", 0.0)))
+        header.append("_SOLLER2=%.6f"
+                      % float(getattr(goniometer, "effective_soller2", 0.0)))
+        header.append("_SAMPLE_LENGTH=%.6f"
+                      % float(getattr(goniometer, "sample_length", 0.0)))
+    else:
+        header += ["_WL_UNIT='A'", "_WL1=%.6f" % 1.54056, "_ANODE='%s'" % anode]
+    header += [
         "_DRIVE='COUPLED'",
         "_STEPTIME=1.000000",
         "_STEPSIZE=%.6f" % step,
