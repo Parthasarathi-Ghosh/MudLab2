@@ -6,9 +6,10 @@ specimen data import can adopt it too.
 
 Formats: plain ASCII XY (`.xy/.txt/.csv/.dat/.tab`, via xy_parser, BOM-
 tolerant), Bruker DIFFRAC `.uxd` (ASCII with markers + CPS normalisation),
-PANalytical `.xrdml`, Rigaku `.rasx`, and Bruker binary `.raw` (versions 1-4;
-v4 ported from xylib). Deferred: non-Bruker vendor `.raw` (e.g. the `FI` magic),
-plus the other PyXRD/old-mudlab formats (`.cpi`, `.rd`, `.brml`).
+PANalytical `.xrdml`, Rigaku `.rasx`, and binary `.raw` - both Bruker (versions
+1-4; v4 ported from xylib) and Rigaku (`FI` magic, reverse-engineered against
+the `.rasx`). Not yet ported: the other PyXRD/old-mudlab formats (`.cpi`, `.rd`,
+`.brml`).
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ PATTERN_FILTERS = (
     "ASCII XY (*.xy *.txt *.csv *.dat *.tab *.uxd);;"
     "PANalytical XRDML (*.xrdml);;"
     "Rigaku RASX (*.rasx);;"
-    "Bruker RAW v1-4 (*.raw);;"
+    "Bruker / Rigaku RAW (*.raw);;"
     "All files (*.*)"
 )
 

@@ -10,8 +10,9 @@ Covers the SUPPORTED formats with deterministic synthetic fixtures:
   - Rigaku .rasx: the ZIP's Data0/Profile0.txt profile;
   - Bruker .uxd ASCII: paired / single-column layouts + CPS normalisation;
   - Bruker binary .raw v1 (RAW1) and v4 (RAW4, ported from xylib);
+  - Rigaku binary .raw ('FI' magic, reverse-engineered against the .rasx);
   - the extension dispatcher (xrd_import.parse_pattern);
-  - a non-Bruker/unknown `.raw` magic fails with a clear error.
+  - an unknown `.raw` magic fails with a clear error.
 
 Where the real test files are present (~/Downloads/Phraser tests), it also
 cross-checks the real .xrdml / .rasx / .txt and confirms the .rasx and .txt of
@@ -87,6 +88,18 @@ def _raw4_bytes(start, step, ys):
     struct.pack_into("<I", buf, rs + 136, 4)             # datum_size (+136)
     struct.pack_into("<I", buf, rs + 140, 0)             # hdr_size (+140)
     struct.pack_into("<%df" % steps, buf, rs + 160, *ys)  # data (+160)
+    return bytes(buf)
+
+
+def _rigaku_fi_bytes(start, end, step, ys):
+    """A synthetic Rigaku 'FI' .raw: magic, the (start, end, step) float32 axis
+    at offset 0x0B92, and float32 data filling the file to EOF."""
+    count = len(ys)
+    header = 2976  # >= 0x0B92 + 12
+    buf = bytearray(header + count * 4)
+    buf[0:4] = b"FI\x00\x00"
+    struct.pack_into("<fff", buf, 0x0B92, start, end, step)
+    struct.pack_into("<%df" % count, buf, header, *ys)
     return bytes(buf)
 
 
@@ -166,6 +179,16 @@ def check_raw4(tmp, results):
                     and np.allclose(y, [100, 250, 900, 250, 100])))
 
 
+def check_rigaku(tmp, results):
+    p = os.path.join(tmp, "rigaku.raw")
+    with open(p, "wb") as fh:
+        fh.write(_rigaku_fi_bytes(10.0, 12.0, 0.5, [100, 200, 900, 200, 100]))
+    x, y = parse_raw(p)
+    results.append(("raw: Rigaku 'FI' axis from (start,end,step) + float32 data",
+                    np.allclose(x, [10.0, 10.5, 11.0, 11.5, 12.0])
+                    and np.allclose(y, [100, 200, 900, 200, 100])))
+
+
 def check_uxd(tmp, results):
     # Paired "2theta counts", normalised to CPS by _STEPTIME.
     paired = ("; a comment\n_SAMPLE='x'\n_STEPTIME=2.0\n_START=5\n_STEPSIZE=0.02\n"
@@ -192,20 +215,18 @@ def check_uxd(tmp, results):
                     np.allclose(yd, [160, 320, 80])))
 
 
-def check_deferred(tmp, results):
-    # RAW4 is now supported (see check_raw4); the non-Bruker FI vendor magic and
-    # any other unknown .raw magic are still rejected with a clear error.
-    for magic, tag in ((b"FI\0\0" + b"\0" * 8, "FI (non-Bruker)"),
-                       (b"XYZ?" + b"\0" * 8, "unknown magic")):
-        p = os.path.join(tmp, tag.split()[0] + ".raw")
-        with open(p, "wb") as fh:
-            fh.write(magic + b"\0" * 64)
-        try:
-            parse_raw(p)
-            ok = False
-        except ValueError as e:
-            ok = "not supported" in str(e).lower()
-        results.append(("deferred: %s .raw rejected with a clear error" % tag, ok))
+def check_unknown_magic(tmp, results):
+    # Bruker (RAW*) and Rigaku (FI) are read; any other .raw magic is rejected
+    # with a clear error rather than mis-parsed.
+    p = os.path.join(tmp, "unknown.raw")
+    with open(p, "wb") as fh:
+        fh.write(b"XYZ?" + b"\0" * 64)
+    try:
+        parse_raw(p)
+        ok = False
+    except ValueError as e:
+        ok = "unrecognised" in str(e).lower()
+    results.append(("raw: an unknown .raw magic is rejected clearly", ok))
 
 
 def check_dispatch(tmp, results):
@@ -242,6 +263,16 @@ def check_real_files(results):
         results.append(("real: .rasx and .txt of one sample share the 2theta grid",
                         xr.size == xt.size
                         and np.allclose(xr[:m], xt[:m], atol=1e-9)))
+    # Real Rigaku 'FI' .raw vs the same sample's .rasx: intensities are the same
+    # float32 values; the 2theta axis matches to the float32-step rounding.
+    rigaku_raw = os.path.join(root, "15_07_26_RawFile", "AT_509_1.raw")
+    if os.path.isfile(rigaku_raw) and os.path.isfile(rasx):
+        xg, yg = parse_pattern(rigaku_raw)
+        xr, yr = parse_pattern(rasx)
+        results.append(("real: Rigaku .raw matches its .rasx (intensity exact)",
+                        xg.size == xr.size
+                        and np.allclose(yg, yr, atol=1e-3)
+                        and np.allclose(xg, xr, atol=1e-3)))
     # Real Bruker RAW4 (Dh232): the xylib-based decode is a Locked-Coupled
     # 5..80 deg scan, 3649 pts, quartz 101 peak at ~26.5 deg.
     raw4 = os.path.join(root, "Dh232.raw")
@@ -271,7 +302,7 @@ def check_real_files(results):
 def main():
     results = []
     print("=" * 72)
-    print("XRD import parsers - xrdml / rasx / ascii(+BOM) / Bruker RAW1-4")
+    print("XRD import parsers - xrdml / rasx / ascii / Bruker RAW1-4 / Rigaku")
     print("=" * 72)
     with tempfile.TemporaryDirectory(prefix="mudlab_xrd_") as tmp:
         check_ascii(tmp, results)
@@ -280,7 +311,8 @@ def main():
         check_uxd(tmp, results)
         check_raw(tmp, results)
         check_raw4(tmp, results)
-        check_deferred(tmp, results)
+        check_rigaku(tmp, results)
+        check_unknown_magic(tmp, results)
         check_dispatch(tmp, results)
     check_real_files(results)
 

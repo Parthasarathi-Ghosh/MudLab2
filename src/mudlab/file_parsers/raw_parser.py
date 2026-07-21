@@ -15,17 +15,21 @@ Version 4 (`RAW4.00`, the DIFFRAC.SUITE format) is a different, segment-based
 container; its reader (_parse_v4) is ported from xylib's bruker_raw.cpp (the
 authoritative open-source RAW4 parser, github.com/wojdyr/xylib). Validated on a
 real v4 file: a Locked-Coupled scan decodes to 2theta 5-80 deg with the quartz
-101 peak at ~26.5 deg. Non-Bruker vendor `.raw` files (e.g. the `FI` magic) are
-still not supported.
+101 peak at ~26.5 deg.
+
+Rigaku also writes a *.raw (a different binary, `FI` magic) - `_parse_rigaku_fi`
+reads it (reverse-engineered against the same samples' .rasx / .txt exports:
+its float32 intensities match the .rasx exactly). So both Bruker (V1-V4) and
+Rigaku *.raw are supported.
 
 MudLab2 uses a single measured curve per raw-pattern phase, so this returns the
-FIRST sample/range only. Supports V1/V2/V3/V4.
+FIRST sample/range only.
 """
 
 from __future__ import annotations
 
 import struct
-from io import SEEK_CUR, SEEK_SET
+from io import SEEK_CUR, SEEK_SET, BytesIO
 
 import numpy as np
 
@@ -43,8 +47,8 @@ def _read_version(f) -> str:
     if version == "RAW1" and f.read(3).decode("utf-8", "replace") == ".01":
         return "RAW3"
     raise ValueError(
-        "Unsupported .raw file (magic %r). Only Bruker RAW versions 1-4 are "
-        "read; non-Bruker vendor .raw files are not supported yet." % version
+        "Unrecognised .raw file (magic %r). Supported: Bruker RAW v1-4 and "
+        "Rigaku (FI) .raw." % version
     )
 
 
@@ -150,23 +154,51 @@ def _parse_v4(data: bytes) -> tuple[np.ndarray, np.ndarray]:
     raise ValueError("No Locked/Unlocked-Coupled range in RAW4 file.")
 
 
-def parse_raw(path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Parse a Bruker/Siemens binary *.RAW file; returns (two_theta, intensity)
-    for its first range. v1-3 intensity is counts-per-second; v4 is as stored
-    (xylib does not normalise it - the raw-pattern phase scale is fit anyway)."""
-    with open(path, "rb") as f:
-        version = _read_version(f)
-        if version == "RAW4":
-            f.seek(0, SEEK_SET)
-            return _parse_v4(f.read())
-        twotheta_min, twotheta_step, count, data_start, count_time = (
-            _HEADERS[version](f)
-        )
-        if count < 2:
-            raise ValueError("No usable data in %r." % path)
-        f.seek(data_start, SEEK_SET)
-        counts = np.frombuffer(f.read(count * 4), dtype="<f4", count=count)
+# Rigaku 'FI' *.raw: the 2theta axis is three float32 (start, end, step) at this
+# offset; the intensities are `count` float32 filling the file to EOF, where
+# count = (end - start)/step + 1. Reverse-engineered against the same samples'
+# .rasx export (the float32 values match it exactly).
+_RIGAKU_MAGIC = b"FI\x00\x00"
+_RIGAKU_AXIS_OFFSET = 0x0B92
 
+
+def _parse_rigaku_fi(data: bytes) -> tuple[np.ndarray, np.ndarray]:
+    n = len(data)
+    if n < _RIGAKU_AXIS_OFFSET + 12:
+        raise ValueError("Truncated Rigaku .raw file.")
+    start, end, step = struct.unpack_from("<fff", data, _RIGAKU_AXIS_OFFSET)
+    if not (0.0 <= start < end <= 180.0 and 0.0 < step < 10.0):
+        raise ValueError(
+            "Unrecognised Rigaku .raw header (start=%.4g end=%.4g step=%.4g)."
+            % (start, end, step)
+        )
+    count = int(round((end - start) / step)) + 1
+    data_start = n - count * 4  # the data fills the file to EOF
+    if count < 2 or data_start < _RIGAKU_AXIS_OFFSET + 12:
+        raise ValueError("Rigaku .raw data block does not line up.")
+    y = np.frombuffer(data, dtype="<f4", count=count, offset=data_start)
+    x = start + step * np.arange(count, dtype=float)
+    return x, y.astype(float)
+
+
+def parse_raw(path: str) -> tuple[np.ndarray, np.ndarray]:
+    """Parse a binary *.raw pattern; returns (two_theta, intensity) for its
+    first range. Bruker RAW v1-3 intensity is counts-per-second, v4 and Rigaku
+    are as stored (the raw-pattern phase scale is fit anyway)."""
+    with open(path, "rb") as fh:
+        data = fh.read()
+    if data[:4] == _RIGAKU_MAGIC:
+        return _parse_rigaku_fi(data)
+
+    f = BytesIO(data)
+    version = _read_version(f)
+    if version == "RAW4":
+        return _parse_v4(data)
+    twotheta_min, twotheta_step, count, data_start, count_time = _HEADERS[version](f)
+    if count < 2:
+        raise ValueError("No usable data in %r." % path)
+    f.seek(data_start, SEEK_SET)
+    counts = np.frombuffer(f.read(count * 4), dtype="<f4", count=count)
     x = twotheta_min + twotheta_step * np.arange(count, dtype=float)
     y = counts.astype(float) / (count_time or 1.0)
     return x, y

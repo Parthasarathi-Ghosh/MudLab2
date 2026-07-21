@@ -409,16 +409,29 @@ so it is NOT a byte-exact golden - its integer intensities do not appear in the
 `.raw` at all. It DOES confirm the axis exactly (start 5.0, step 0.02056) and
 the quartz peak position, which is how RAW4 is validated in the harness.
 
-**Deferred:** the **non-Bruker `FI` `.raw`** (a vendor binary whose intensities
-do not line up with any export) and the other lineage formats (`.cpi`, `.rd`,
-`.brml`). `FI`/unknown magics raise a clear "not supported yet" error, shown by
-the editor in a message box.
+- **Rigaku `.raw`** (`raw_parser._parse_rigaku_fi`): a DIFFERENT binary from
+  Bruker's (magic `FI\0\0`), reverse-engineered against the same samples' `.rasx`
+  export. The 2theta axis is three float32 (start, end, step) at offset 0x0B92;
+  the intensities are `count` float32 filling the file to EOF, where
+  count = (end-start)/step + 1. The float32 values match the `.rasx` EXACTLY
+  (max |d| ~ 5e-12) across all six real Rigaku files. `parse_raw` dispatches on
+  the `FI` magic before the Bruker path. (Those samples also exist as `.rasx`,
+  which is the same data - the `.raw` is just Rigaku's binary form.)
 
-Guard: `tools/verify_xrd_import.py` (20 checks) - synthetic fixtures for every
-supported format (incl. a hand-built RAW4 and both UXD layouts) + the
-dispatcher + the unsupported-magic errors, plus opportunistic real-file
-cross-checks (`.rasx` vs `.txt` 2theta grid; RAW4 axis + quartz peak vs the
-`.UXD`) that skip when the private test files are absent.
+**Ground-truth caveat (Bruker RAW4):** the `Dh232.UXD` ASCII export is a
+*processed + truncated* derivative (XCH converter: Kα2-stripped, ~3x scaled,
+only 5-60 deg), so it is NOT a byte-exact golden - its integer intensities do
+not appear in the `.raw` at all. It DOES confirm the axis exactly (start 5.0,
+step 0.02056) and the quartz peak position, which is how RAW4 is validated.
+
+**Not yet ported:** the other lineage formats (`.cpi`, `.rd`, `.brml`). An
+unknown `.raw` magic raises a clear error, shown by the editor in a message box.
+
+Guard: `tools/verify_xrd_import.py` (21 checks) - synthetic fixtures for every
+supported format (incl. hand-built Bruker RAW4 + Rigaku FI, and both UXD
+layouts) + the dispatcher + the unknown-magic error, plus opportunistic
+real-file cross-checks (`.rasx` vs `.txt` 2theta grid; Bruker RAW4 axis/peak vs
+the `.UXD`; Rigaku `.raw` vs its `.rasx`) that skip when the files are absent.
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 

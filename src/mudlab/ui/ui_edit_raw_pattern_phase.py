@@ -90,7 +90,7 @@ class Ui_EditRawPatternPhaseWidget(object):
 #endif // QT_CONFIG(tooltip)
         self.grpRawPattern.setTitle(QCoreApplication.translate("EditRawPatternPhaseWidget", u"Measured pattern", None))
 #if QT_CONFIG(tooltip)
-        self.button_import_pattern.setToolTip(QCoreApplication.translate("EditRawPatternPhaseWidget", u"Import the measured pattern from an XRD data file (ASCII .xy/.txt/.csv/.dat, Bruker .uxd/.raw, PANalytical .xrdml, Rigaku .rasx).", None))
+        self.button_import_pattern.setToolTip(QCoreApplication.translate("EditRawPatternPhaseWidget", u"Import the measured pattern from an XRD data file (ASCII .xy/.txt/.csv/.dat, Bruker .uxd/.raw, Rigaku .rasx/.raw, PANalytical .xrdml).", None))
 #endif // QT_CONFIG(tooltip)
         self.button_import_pattern.setText(QCoreApplication.translate("EditRawPatternPhaseWidget", u"Import pattern\u2026", None))
         self.raw_pattern_info.setText(QCoreApplication.translate("EditRawPatternPhaseWidget", u"No pattern loaded.", None))

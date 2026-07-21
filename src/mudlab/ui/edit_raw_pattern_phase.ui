@@ -38,7 +38,7 @@
         <item>
          <widget class="QPushButton" name="button_import_pattern">
           <property name="toolTip">
-           <string>Import the measured pattern from an XRD data file (ASCII .xy/.txt/.csv/.dat, Bruker .uxd/.raw, PANalytical .xrdml, Rigaku .rasx).</string>
+           <string>Import the measured pattern from an XRD data file (ASCII .xy/.txt/.csv/.dat, Bruker .uxd/.raw, Rigaku .rasx/.raw, PANalytical .xrdml).</string>
           </property>
           <property name="text">
            <string>Import pattern…</string>
