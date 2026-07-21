@@ -8,11 +8,12 @@ PhasesController; opened by the edit_phases action.
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QMessageBox, QWidget
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from mudlab.add_phase_dialog import AddPhaseDialog
 from mudlab.edit_phase_widget import EditPhaseWidget
 from mudlab.edit_raw_pattern_phase_widget import EditRawPatternPhaseWidget
+from mudlab.file_parsers.phs_phases import PHS_FILTERS, load_phs, save_phs
 from mudlab.models import Project
 from mudlab.models.phase import Phase
 from mudlab.models.raw_pattern_phase import RawPatternPhase
@@ -39,16 +40,15 @@ class EditPhasesDialog(ObjectStoreDialog):
 
         self.object_selected.connect(self._on_phase_selected)
 
-        # Add / Remove are wired (Batch P2). Import / Export (.phs) come with
-        # the phase-file parser and the import uuid-collision policy.
+        # Add / Remove / Import / Export are all wired now.
         self.ui.button_add_object.clicked.connect(self._on_add_phase)
         self.ui.button_del_object.clicked.connect(self._on_remove_phase)
-        for button, why in (
-            (self.ui.button_load_object, "Importing phases is not ported yet."),
-            (self.ui.button_save_object, "Exporting phases is not ported yet."),
-        ):
-            button.setEnabled(False)
-            button.setToolTip(why)
+        self.ui.button_load_object.clicked.connect(self._on_import_phases)
+        self.ui.button_save_object.clicked.connect(self._on_export_phases)
+        self.ui.button_load_object.setToolTip("Import phase(s) from a .phs file.")
+        self.ui.button_save_object.setToolTip(
+            "Export the selected phase(s) to a .phs file."
+        )
 
         if self._phases:
             self.ui.edit_objects_treeview.setCurrentIndex(
@@ -113,6 +113,65 @@ class EditPhasesDialog(ObjectStoreDialog):
             )
         else:
             self.phase_widget.bind_phase(None)
+
+    # ------------------------------------------------------------------
+    # Import / Export (.phs)  (old PhasesController load/save object)
+    # ------------------------------------------------------------------
+    def _on_import_phases(self) -> None:
+        if self.project is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import phases", "", PHS_FILTERS
+        )
+        if not path:
+            return
+        try:
+            imported, missing = load_phs(path, self.project)
+        except Exception as exc:  # zip / json / format errors
+            QMessageBox.critical(
+                self, "Import phases", "Could not import:\n%s\n\n%s" % (path, exc)
+            )
+            return
+        first_row = len(self._phases)
+        for phase in imported:
+            self._phases.append(phase)
+            self.add_object_row(*self._phase_row_values(phase))
+        if missing:
+            QMessageBox.warning(
+                self, "Import phases",
+                "Imported %d phase(s), but these atom types are not in this "
+                "project - their atoms contribute nothing until the atom types "
+                "are added:\n\n%s" % (len(imported), ", ".join(missing)),
+            )
+        if imported:
+            self.ui.edit_objects_treeview.setCurrentIndex(
+                self.objects_model.index(first_row, 0)
+            )
+
+    def _on_export_phases(self) -> None:
+        rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
+        selected = [
+            self._phases[r.row()] for r in rows
+            if 0 <= r.row() < len(self._phases)
+        ]
+        if not selected:
+            QMessageBox.information(
+                self, "Export phases", "Select one or more phases to export."
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export phases", "", PHS_FILTERS
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".phs"):
+            path += ".phs"
+        try:
+            save_phs(selected, path)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Export phases", "Could not export:\n%s\n\n%s" % (path, exc)
+            )
 
     def _phase_row_values(self, phase) -> tuple:
         """(name, R, G) row for the phase list. A raw-pattern phase has no

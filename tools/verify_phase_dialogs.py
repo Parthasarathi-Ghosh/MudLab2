@@ -6,8 +6,8 @@ The model layer (add_phase / remove_phase and its cascades) is guarded by
 tools/verify_phase_crud.py. This covers only what lives in the UI and cannot
 be seen from the model:
 
-  1. the buttons are in the right state - Add/Remove enabled, Import/Export
-     honestly disabled with a reason;
+  1. the buttons are in the right state - Add / Remove / Import / Export all
+     enabled and wired;
   2. the Add dialog offers the ported paths - empty phase (R 0-1) and raw
      pattern; the default-catalog option stays disabled;
   3. Add builds a real phase (G blank components) and keeps the three views in
@@ -20,7 +20,9 @@ be seen from the model:
      (g**R, not G) so R>=2 pair/triplet states are not truncated, and its
      spinboxes honour each parameter's bounds (R2 W1>=1/2, R3G2 W1>=2/3);
   7. Add -> raw pattern creates a RawPatternPhase, the raw editor (not the
-     structural one) is shown for it, and importing a file sets its pattern.
+     structural one) is shown for it, and importing a file sets its pattern;
+  8. Export the selected phase to a .phs and import it back through the
+     Import/Export buttons (the phase list grows, views stay in sync).
 
 Point 3/4 is the trap: the dialog holds its own list snapshot alongside the
 tree model and the project, and a drift between them binds the editor to the
@@ -95,15 +97,36 @@ def _in_sync(dialog, project):
 
 
 def check_button_state(project, results):
-    """1. Add/Remove enabled; Import/Export disabled with a tooltip."""
+    """1. Add / Remove / Import / Export are all enabled and wired."""
     dialog = EditPhasesDialog(None, project=project)
     results.append(("1 Add enabled", dialog.ui.button_add_object.isEnabled()))
     results.append(("1 Remove enabled", dialog.ui.button_del_object.isEnabled()))
-    results.append(("1 Import disabled", not dialog.ui.button_load_object.isEnabled()))
-    results.append(("1 Export disabled", not dialog.ui.button_save_object.isEnabled()))
-    results.append(("1 Import says why",
-                    bool(dialog.ui.button_load_object.toolTip())))
+    results.append(("1 Import enabled", dialog.ui.button_load_object.isEnabled()))
+    results.append(("1 Export enabled", dialog.ui.button_save_object.isEnabled()))
     dialog.deleteLater()
+
+
+def check_import_export_phases(project, results):
+    """8. Export the selected phase to a .phs via the dialog, then import it
+    back - the phase list grows and the file round-trips through the buttons."""
+    from PySide6.QtWidgets import QFileDialog
+    tmpdir = tempfile.mkdtemp(prefix="mudlab_phsui_")
+    phs = os.path.join(tmpdir, "exported.phs")
+    dialog = EditPhasesDialog(None, project=project)
+    _select_row(dialog, 0)
+
+    QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (phs, ""))
+    dialog._on_export_phases()
+    results.append(("8 export wrote a .phs file", os.path.isfile(phs)))
+
+    n0 = len(project.phases)
+    QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (phs, ""))
+    dialog._on_import_phases()
+    results.append(("8 import added a phase + a row",
+                    len(project.phases) == n0 + 1 and _in_sync(dialog, project)))
+    dialog.deleteLater()
+    os.remove(phs)
+    os.rmdir(tmpdir)
 
 
 def check_add_dialog_restrictions(results):
@@ -333,6 +356,7 @@ def run(path):
     check_remove_declined(load_mud(path), results)
     check_add_then_remove_roundtrips(load_mud(path), results)
     check_add_raw_phase(load_mud(path), results)
+    check_import_export_phases(load_mud(path), results)
     check_probabilities_widget(results)
     passed = 0
     for label, ok in results:

@@ -93,6 +93,40 @@ def _encode_exclusion_ranges(ranges) -> str:
 # ----------------------------------------------------------------------
 # Loading
 # ----------------------------------------------------------------------
+def resolve_phase_references(project: Project) -> None:
+    """Resolve every phase cross-reference against the whole project: phase-level
+    based_on inheritance, component links (linked_with), UCP derivation sources
+    and atom relations. Idempotent - safe to call again after adding phases
+    (e.g. a .phs import). Stored values are kept (golden-safe); only the object
+    links are (re)bound."""
+    # based_on: a treated phase (glycolated / heated) reads its parent's
+    # treatment-independent params (crucially the stacking probabilities).
+    phase_map = {p.uuid: p for p in project.phases}
+    for phase in project.phases:
+        phase.resolve_based_on(phase_map)
+
+    # Component links + atom maps (linked components are shared clay layers).
+    component_map = {}
+    atom_map = {}
+    for phase in project.phases:
+        for comp in getattr(phase, "components", []):
+            component_map[comp.uuid] = comp
+            for atom in comp._layer_atoms + comp._interlayer_atoms:
+                atom_map[atom.uuid] = atom
+    for phase in project.phases:
+        for comp in getattr(phase, "components", []):
+            comp.resolve_link(component_map)
+    # UCP sources + atom relations. Resolve against THIS component's OWN atoms
+    # first, then the project-wide map (linked components share atom uuids, so
+    # the global last-loaded-wins map can otherwise bind the wrong copy).
+    object_map = {**component_map, **atom_map}
+    for phase in project.phases:
+        for comp in getattr(phase, "components", []):
+            own = {a.uuid: a for a in comp._layer_atoms + comp._interlayer_atoms}
+            comp.resolve_ucp_props({**object_map, **own})
+            comp.resolve_relations({**atom_map, **own})
+
+
 def load_mud(path: str) -> Project:
     with zipfile.ZipFile(path, "r") as archive:
         names = archive.namelist()
@@ -134,44 +168,10 @@ def load_mud(path: str) -> Project:
         elif phase_dict.get("type") == "RawPatternPhase":
             project.add_phase(RawPatternPhase.from_dict(phase_dict))
 
-    # Resolve phase-level inheritance (old based_on): a treated phase
-    # (glycolated / heated) is based on a reference phase and inherits its
-    # treatment-independent parameters - crucially the stacking probabilities,
-    # whose F params the child stores stale and reads through to the parent.
-    phase_map = {p.uuid: p for p in project.phases}
-    for phase in project.phases:
-        phase.resolve_based_on(phase_map)
-
-    # Resolve component links now that every phase's components exist. Linked
-    # components are shared clay layers reused across phases (old linked_with):
-    # a child reads its inherited cell / atoms / relations through to its
-    # template. Build a project-wide {uuid: Component} map, then resolve.
-    component_map = {}
-    atom_map = {}
-    for phase in project.phases:
-        for comp in phase.components:
-            component_map[comp.uuid] = comp
-            for atom in comp._layer_atoms + comp._interlayer_atoms:
-                atom_map[atom.uuid] = atom
-    for phase in project.phases:
-        for comp in phase.components:
-            comp.resolve_link(component_map)
-    # Resolve UCP derivation sources (cell_a from cell_b, cell_b from an atom
-    # pn) against components + atoms. Values are NOT recomputed here - the
-    # stored (possibly stale) value is kept so the calc matches the old app.
-    object_map = {**component_map, **atom_map}
-    for phase in project.phases:
-        for comp in phase.components:
-            # Resolve a UCP prop / relation atom against THIS component's OWN
-            # atoms first, then the project-wide map. Linked components share
-            # atom uuids, so the global map (last-loaded wins) can otherwise
-            # resolve to a different copy than the one the component's calc
-            # iterates - which would make an edit update the wrong object.
-            own = {a.uuid: a for a in comp._layer_atoms + comp._interlayer_atoms}
-            comp.resolve_ucp_props({**object_map, **own})
-            # Atom relations reference atoms by uuid. Resolve only; they are NOT
-            # applied on load (the stored pn is kept - golden-safe).
-            comp.resolve_relations({**atom_map, **own})
+    # Resolve every phase cross-reference now that all phases exist (based_on,
+    # component links, UCP sources, atom relations). Factored out so .phs phase
+    # import can reuse the exact same resolution.
+    resolve_phase_references(project)
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})

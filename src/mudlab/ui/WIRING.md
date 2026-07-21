@@ -1050,12 +1050,40 @@ handler builds a real phase and appends it (Batch P2).
   for R>0, so a higher-R phase would build an invalid model. The old app's
   "R needs G>1" enable rule is therefore gone; R is simply always 0.
 
+### Import / Export phases (.phs) (Batch 4 DONE)
+
+`file_parsers/phs_phases.py` (`save_phs` / `load_phs`) + the `EditPhasesDialog`
+Import/Export buttons (`_on_import_phases` / `_on_export_phases`). A `.phs` is a
+ZIP of `<index>###<uuid>` -> Phase JSON members (same serialisation as a `.mud`
+phase entry); multiple phases form a based_on family.
+
+- **Atoms reference atom types by NAME**, so a `.phs` imports against whatever
+  atom types the target project holds (MudLab2's name-fallback). Export forces
+  name-based refs (`_make_portable` stamps `atom_type_name` into the export
+  dict) so the file is portable even from a uuid-based `.mud`. Verified against
+  the real old-app default library (Illite/Kaolinite/Chlorite `.phs` import with
+  every atom resolved).
+- **Export** (`save_phs`): a phase whose based_on is not in the exported set is
+  written standalone (based_on dropped, inherit flags cleared); parents are
+  ordered before children. `load_phs` reports atom types the project is missing
+  (a warning dialog) so the user knows some atoms will be inert.
+- **Collision policy** (the clean replacement for the old app's ObjectPool
+  re-uuid + `change_all_uuids`): on import a phase whose uuid already exists in
+  the project gets a fresh uuid, and any based_on within the imported set is
+  repointed. KNOWN LIMITATION: component/atom uuids are not remapped, so
+  re-importing INTO THE SAME project can leave duplicate component uuids (the
+  calc still resolves "own atoms first"; a future pass can deep-remap).
+- The post-load reference resolution (based_on / linked_with / UCP / relations)
+  was factored out of `load_mud` into `mud_project.resolve_phase_references`,
+  which `load_phs` reuses.
+- Guard: `tools/verify_phs_import.py` (10 checks: export shape, round-trip into a
+  seeded project, missing-atom-types report, uuid collision, based_on family) +
+  `verify_phase_dialogs.py` check 8 (export/import through the buttons).
+
 ### Add / Remove wiring (Batch P2)
 
 Add and Remove live on `EditPhasesDialog`, not the generic shell (they
-need the project + the phase model). `button_load_object` /
-`button_save_object` (Import/Export .phs) stay disabled - they need the
-phase-file parser and the import uuid-collision policy.
+need the project + the phase model).
 
 - **Add** (`_on_add_phase`): runs `AddPhaseDialog`; on accept builds the
   phase via `Phase.create_empty(G=..., name="New Phase")` - which creates
