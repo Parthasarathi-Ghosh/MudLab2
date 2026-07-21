@@ -34,10 +34,11 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from mudlab.atom_list_widget import AtomListWidget
 from mudlab.contents_widget import AtomContentsWidget
+from mudlab.file_parsers.cmp_components import CMP_FILTERS, load_cmp, save_cmp
 from mudlab.models.atom_relations import AtomContents, AtomRatio
 from mudlab.ratio_widget import AtomRatioWidget
 from mudlab.ucp_widget import UnitCellPropWidget
@@ -83,6 +84,8 @@ class EditComponentWidget(QWidget):
         self.ui.btn_del_relation.clicked.connect(self._on_del_relation)
 
         self.ui.cmb_component.currentIndexChanged.connect(self._on_component_selected)
+        self.ui.btn_import_component.clicked.connect(self._on_import_component)
+        self.ui.btn_export_component.clicked.connect(self._on_export_component)
         self.ui.component_name.editingFinished.connect(self._on_name_edited)
         self.ui.component_d001.valueChanged.connect(
             lambda v: self._on_scalar_changed("d001", v)
@@ -132,7 +135,9 @@ class EditComponentWidget(QWidget):
         element combos; `link_candidates` are (label, component) pairs offered
         as linking templates (the whole project's components); `on_changed`
         runs after an accepted edit (used to recompute + redraw the pattern)."""
-        self._components = list(components or [])
+        # Keep the phase's ACTUAL component list (not a copy) so an import
+        # can replace a component in place (Component import = replace).
+        self._components = components if components is not None else []
         self._atom_types = list(atom_types or [])
         self._link_candidates = list(link_candidates or [])
         self._on_changed = on_changed
@@ -399,6 +404,75 @@ class EditComponentWidget(QWidget):
         self._notify()
 
     # ------------------------------------------------------------------
+    # Component import / export (.cmp)  (old ComponentsController load/save)
+    # ------------------------------------------------------------------
+    def _atom_type_map(self) -> dict:
+        table = {}
+        for at in self._atom_types:
+            table[at.uuid] = at
+            table[at.name] = at
+        return table
+
+    def _on_export_component(self) -> None:
+        if self._component is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export component", "", CMP_FILTERS
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".cmp"):
+            path += ".cmp"
+        try:
+            save_cmp([self._component], path)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Export component", "Could not export:\n%s\n\n%s" % (path, exc)
+            )
+
+    def _on_import_component(self) -> None:
+        """Replace the selected component with one imported from a .cmp (the
+        component count is unchanged, so the stacking model is untouched)."""
+        idx = self.ui.cmb_component.currentIndex()
+        if self._component is None or not (0 <= idx < len(self._components)):
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import component", "", CMP_FILTERS
+        )
+        if not path:
+            return
+        try:
+            imported, missing = load_cmp(path, self._atom_type_map())
+        except Exception as exc:
+            QMessageBox.warning(
+                self, "Import component", "Could not read:\n%s\n\n%s" % (path, exc)
+            )
+            return
+        if len(imported) != 1:
+            QMessageBox.information(
+                self, "Import component",
+                "This file has %d components; import a single-component .cmp to "
+                "replace the selected component." % len(imported),
+            )
+            return
+        new = imported[0]
+        self._components[idx] = new        # replaces in the phase's live list
+        self._updating = True
+        try:
+            self.ui.cmb_component.setItemText(
+                idx, new.name or "Component %d" % (idx + 1))
+        finally:
+            self._updating = False
+        self._bind_one(idx)
+        if missing:
+            QMessageBox.warning(
+                self, "Import component",
+                "Imported, but these atom types are not in this project - the "
+                "atoms contribute nothing until they are added:\n\n%s"
+                % ", ".join(missing),
+            )
+        self._notify()
+
     def _on_component_selected(self, index: int) -> None:
         if not self._updating:
             self._bind_one(index)

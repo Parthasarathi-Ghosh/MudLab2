@@ -1118,6 +1118,71 @@ phase entry); multiple phases form a based_on family.
   with no duplicate uuids, based_on family) + `verify_phase_dialogs.py` check 8
   (export/import through the buttons).
 
+#### Audit notes: .phs deep-remap (2026-07-20)
+
+Reviewed `load_phs`'s string-replace deep-remap against the real default-phase
+library and fixture `.mud` phases. **Verdict: correct and robust; one benign
+minor gap.**
+
+- **The string replace catches the schema-buried references** a naive
+  field-based remap would miss. Real `.phs` store atom-relation / UCP atom
+  references as list ELEMENTS under keys like `"prop":[...]` and `"atom2":[...]`
+  (not `"key":"uuid"`), so a plain `replace(old, new)` over the JSON is exactly
+  what reaches them - confirmed on `Illite.phs` / `Chlorite.phs`.
+- **No false positives on real data.** Every 32-hex string is a quoted uuid:
+  `display_color` is 6-hex (`#559911`), `*_ref_info` are numbers, and there are
+  NO 33+ hex runs (so no partial-match of a longer hash). The core assumption
+  ("any 32-lowercase-hex string is a uuid") holds for this format. (It would
+  only bite if a future format embedded a 32-hex non-uuid value that ALSO equals
+  a live project uuid - astronomically unlikely.)
+- **uuid1 (old app) + uuid4 (new) both work** - both are 32 lowercase hex, both
+  matched; the fresh replacements are uuid4.
+- **Fresh uuids are guarded** against the project, the whole import, and each
+  other (`while new in taken`), so a replacement can never alias a kept import
+  uuid; and the chained replaces are order-independent (no `new` is any `old`,
+  all olds are distinct 32-char strings).
+- **based_on family under collision** re-binds correctly: re-importing a family
+  remaps both members consistently, so the child's `based_on` points at the
+  RE-imported parent, and the two imports are uuid-disjoint (verified).
+- **MINOR gap (benign):** `_project_uuids` does not include a RawPatternPhase's
+  embedded `PyXRDLine` uuid, so re-importing a raw phase leaves a duplicate
+  line uuid. Harmless - nothing resolves lines by uuid (save/reload of two such
+  phases works) - but for strict uniqueness a later pass could add raw-phase
+  line uuids to `_project_uuids`. Not worth a change now.
+- Atom-type refs are unaffected: import `atom_type_uuid`s are only remapped if
+  they collide with a project phase/component/atom uuid (cross-category, never),
+  and atoms resolve by NAME regardless.
+
+### Component import / export (.cmp)
+
+`file_parsers/cmp_components.py` (`save_cmp` / `load_cmp`) + the two buttons in
+the component editor (`component_widget.py`, `btn_import_component` /
+`btn_export_component` beside the component selector). A `.cmp` is a ZIP of
+`<uuid>` -> a Component JSON (same serialisation as a `.mud` `components` entry);
+it lets a clay-layer component (cell + atoms + relations) be reused in another
+phase. Ported from old mudlab's `Component.save_components` / `load_components`.
+
+- **Import is a REPLACE, not an add** (matching the old app): the imported
+  component takes the selected component's place, so the phase's component COUNT
+  - and hence its stacking model - is unchanged. A single-component `.cmp` is
+  required (the editor's selector picks one component); a mismatch shows a
+  message. `component_widget.bind_components` now keeps the phase's ACTUAL
+  component list (not a copy) so `self._components[idx] = new` replaces it in
+  place; a re-import with identical data leaves the calculated pattern unchanged
+  (verified, max|d|=0).
+- **Export** writes each component standalone (linked_with dropped, inherit
+  flags cleared) with atom types stamped by NAME, so a `.cmp` resolves against
+  whatever atom types the target project holds.
+- **uuid policy:** import forces EVERY uuid fresh (component + atoms, internal
+  references remapped consistently), so the imported component can never alias
+  an existing object. This shares the audited deep-remap helper
+  `file_parsers/uuid_remap.py` (`UUID_RE`, `project_uuids`, `remap_uuids`) with
+  the `.phs` importer - phase import passes the project's uuids to remap only
+  collisions; component import passes the import's own uuids to force all fresh.
+- Guard: `tools/verify_cmp_import.py` (12 checks: standalone export, name/cell/
+  atom-count round-trip, fresh-uuid non-aliasing, missing-atom-types, and the
+  editor export->import replace with G unchanged).
+
 ### Add / Remove wiring (Batch P2)
 
 Add and Remove live on `EditPhasesDialog`, not the generic shell (they

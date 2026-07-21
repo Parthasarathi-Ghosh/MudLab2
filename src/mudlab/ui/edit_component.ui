@@ -13,7 +13,38 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QComboBox" name="cmb_component"/>
+      <layout class="QHBoxLayout" name="componentSelectRow">
+       <item>
+        <widget class="QComboBox" name="cmb_component">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_import_component">
+         <property name="toolTip">
+          <string>Replace the selected component with one imported from a .cmp file.</string>
+         </property>
+         <property name="text">
+          <string>Import…</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_export_component">
+         <property name="toolTip">
+          <string>Export the selected component to a .cmp file.</string>
+         </property>
+         <property name="text">
+          <string>Export…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
      <item row="1" column="0">
       <widget class="QLabel" name="lblComponentName">

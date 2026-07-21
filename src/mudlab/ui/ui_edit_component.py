@@ -33,10 +33,30 @@ class Ui_EditComponentWidget(object):
 
         self.componentForm.setWidget(0, QFormLayout.ItemRole.LabelRole, self.lblComponent)
 
+        self.componentSelectRow = QHBoxLayout()
+        self.componentSelectRow.setObjectName(u"componentSelectRow")
         self.cmb_component = QComboBox(EditComponentWidget)
         self.cmb_component.setObjectName(u"cmb_component")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmb_component.sizePolicy().hasHeightForWidth())
+        self.cmb_component.setSizePolicy(sizePolicy)
 
-        self.componentForm.setWidget(0, QFormLayout.ItemRole.FieldRole, self.cmb_component)
+        self.componentSelectRow.addWidget(self.cmb_component)
+
+        self.btn_import_component = QPushButton(EditComponentWidget)
+        self.btn_import_component.setObjectName(u"btn_import_component")
+
+        self.componentSelectRow.addWidget(self.btn_import_component)
+
+        self.btn_export_component = QPushButton(EditComponentWidget)
+        self.btn_export_component.setObjectName(u"btn_export_component")
+
+        self.componentSelectRow.addWidget(self.btn_export_component)
+
+
+        self.componentForm.setLayout(0, QFormLayout.ItemRole.FieldRole, self.componentSelectRow)
 
         self.lblComponentName = QLabel(EditComponentWidget)
         self.lblComponentName.setObjectName(u"lblComponentName")
@@ -269,6 +289,14 @@ class Ui_EditComponentWidget(object):
 
     def retranslateUi(self, EditComponentWidget):
         self.lblComponent.setText(QCoreApplication.translate("EditComponentWidget", u"Component", None))
+#if QT_CONFIG(tooltip)
+        self.btn_import_component.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Replace the selected component with one imported from a .cmp file.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_import_component.setText(QCoreApplication.translate("EditComponentWidget", u"Import\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_export_component.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Export the selected component to a .cmp file.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_export_component.setText(QCoreApplication.translate("EditComponentWidget", u"Export\u2026", None))
         self.lblComponentName.setText(QCoreApplication.translate("EditComponentWidget", u"Name", None))
         self.lblD001.setText(QCoreApplication.translate("EditComponentWidget", u"Cell length c / d001 [nm]", None))
 #if QT_CONFIG(tooltip)

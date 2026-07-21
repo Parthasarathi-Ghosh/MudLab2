@@ -18,20 +18,15 @@ app's re-uuid-on-collision.
 from __future__ import annotations
 
 import json
-import re
-import uuid as _uuid
 import zipfile
 
 from mudlab.file_parsers.mud_project import resolve_phase_references
+from mudlab.file_parsers.uuid_remap import project_uuids, remap_uuids
 from mudlab.models.phase import Phase
 from mudlab.models.raw_pattern_phase import RawPatternPhase
 
 # Qt getOpenFileName / getSaveFileName filter for phase files.
 PHS_FILTERS = "Phase files (*.phs);;All files (*.*)"
-
-# uuids are 32 lowercase-hex (uuid4().hex) - specific enough to remap by a plain
-# string replace over the serialised JSON.
-_UUID_RE = re.compile(r"[0-9a-f]{32}")
 
 _INHERIT_FLAGS = (
     "inherit_sigma_star", "inherit_CSDS_distribution", "inherit_display_color",
@@ -128,18 +123,6 @@ def save_phs(phases, path: str) -> None:
             )
 
 
-def _project_uuids(project) -> set:
-    """Every uuid live in the project - phases, components and atoms."""
-    uuids = set()
-    for phase in project.phases:
-        uuids.add(phase.uuid)
-        for comp in getattr(phase, "components", []):
-            uuids.add(comp.uuid)
-            for atom in comp._layer_atoms + comp._interlayer_atoms:
-                uuids.add(atom.uuid)
-    return uuids
-
-
 def load_phs(path: str, project) -> tuple[list, list]:
     """Import phases from a .phs into `project`: resolve the based_on family
     within the file, resolve atom types by name, and add the phases.
@@ -161,20 +144,9 @@ def load_phs(path: str, project) -> tuple[list, list]:
         members = sorted(archive.namelist(), key=_member_index)
         texts = [archive.read(m).decode("utf-8") for m in members]
 
-    project_uuids = _project_uuids(project)
-    import_uuids = set()
-    for text in texts:
-        import_uuids.update(_UUID_RE.findall(text))
-    taken = project_uuids | import_uuids
-    remap: dict[str, str] = {}
-    for old in sorted(import_uuids & project_uuids):
-        new = _uuid.uuid4().hex
-        while new in taken:
-            new = _uuid.uuid4().hex
-        taken.add(new)
-        remap[old] = new
-    for old, new in remap.items():
-        texts = [text.replace(old, new) for text in texts]
+    # Deep collision remap: only uuids that already exist in the project are
+    # replaced (a file whose uuids do not collide keeps them).
+    texts, _ = remap_uuids(texts, project_uuids(project))
 
     atom_type_map = project.atom_type_uuid_map()
     imported = []
