@@ -435,11 +435,16 @@ axis/peak vs the `.UXD`; Rigaku `.raw` vs its `.rasx`) that skip when absent.
 
 ### Pattern EXPORT (`file_parsers/xrd_export.py`)
 
-The write side: `save_pattern(path, x, y)` dispatches on extension over
-`xy_parser.save_xy` (ASCII two-column) and `uxd_parser.save_uxd` (Bruker
-DIFFRAC `.uxd`, paired `_2THETACOUNTS` with `_STEPTIME=1` so values write
-verbatim and round-trip through `parse_uxd`). `EXPORT_FILTERS` is the save
-filter. ONLY non-proprietary text formats are offered - the binary/container
+The write side: `save_pattern(path, x, y, goniometer=None, name="")` dispatches
+on extension over `xy_parser.save_xy` (ASCII two-column) and
+`uxd_parser.save_uxd` (Bruker DIFFRAC `.uxd`, paired `_2THETACOUNTS` with
+`_STEPTIME=1` so values write verbatim and round-trip through `parse_uxd`).
+`EXPORT_FILTERS` is the save filter. When a `goniometer` is passed (the specimen
+export does), the UXD header also carries the diffractometer setup - the real
+wavelengths (`_WL1/_WL2/_WLRATIO`, nm->Angstrom x10, replacing a hard-coded
+default), `_GONIOMETER_RADIUS`, `_DIVERGENCE(_MODE)`, `_SOLLER1/_SOLLER2`,
+`_SAMPLE_LENGTH` - so the export is the pattern AND its geometry, not just the
+curve. (ASCII XY has no header, so geometry is UXD-only.) ONLY non-proprietary text formats are offered - the binary/container
 vendor formats we can read (Bruker/Rigaku `.raw`, `.rasx`, `.xrdml`) are
 deliberately NOT export targets; a `.uxd` or `.xy` carries the same pattern in
 an open form. Wired on the Edit Specimen dialog's data buttons
@@ -1095,18 +1100,23 @@ phase entry); multiple phases form a based_on family.
   written standalone (based_on dropped, inherit flags cleared); parents are
   ordered before children. `load_phs` reports atom types the project is missing
   (a warning dialog) so the user knows some atoms will be inert.
-- **Collision policy** (the clean replacement for the old app's ObjectPool
-  re-uuid + `change_all_uuids`): on import a phase whose uuid already exists in
-  the project gets a fresh uuid, and any based_on within the imported set is
-  repointed. KNOWN LIMITATION: component/atom uuids are not remapped, so
-  re-importing INTO THE SAME project can leave duplicate component uuids (the
-  calc still resolves "own atoms first"; a future pass can deep-remap).
+- **Collision policy - DEEP remap** (the clean replacement for the old app's
+  ObjectPool re-uuid + `change_all_uuids`): before the models are built,
+  `load_phs` finds every uuid in the file that already exists in the project -
+  phase, component OR atom - and replaces it with a fresh one CONSISTENTLY
+  across all members via a plain string replace on the serialised JSON (uuids
+  are 32-hex, so this catches every reference - own uuid, based_on_uuid,
+  linked_with, atom relations, UCP sources - without knowing the schema). So
+  re-importing the same `.phs` into the same project never aliases an existing
+  phase / component / atom, and the resulting `.mud` has no duplicate uuids. A
+  file whose uuids do not collide keeps them unchanged.
 - The post-load reference resolution (based_on / linked_with / UCP / relations)
   was factored out of `load_mud` into `mud_project.resolve_phase_references`,
   which `load_phs` reuses.
-- Guard: `tools/verify_phs_import.py` (10 checks: export shape, round-trip into a
-  seeded project, missing-atom-types report, uuid collision, based_on family) +
-  `verify_phase_dialogs.py` check 8 (export/import through the buttons).
+- Guard: `tools/verify_phs_import.py` (14 checks: export shape, round-trip into a
+  seeded project, missing-atom-types report, the DEEP uuid remap + a save/reload
+  with no duplicate uuids, based_on family) + `verify_phase_dialogs.py` check 8
+  (export/import through the buttons).
 
 ### Add / Remove wiring (Batch P2)
 

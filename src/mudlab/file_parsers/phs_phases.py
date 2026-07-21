@@ -18,6 +18,7 @@ app's re-uuid-on-collision.
 from __future__ import annotations
 
 import json
+import re
 import uuid as _uuid
 import zipfile
 
@@ -27,6 +28,10 @@ from mudlab.models.raw_pattern_phase import RawPatternPhase
 
 # Qt getOpenFileName / getSaveFileName filter for phase files.
 PHS_FILTERS = "Phase files (*.phs);;All files (*.*)"
+
+# uuids are 32 lowercase-hex (uuid4().hex) - specific enough to remap by a plain
+# string replace over the serialised JSON.
+_UUID_RE = re.compile(r"[0-9a-f]{32}")
 
 _INHERIT_FLAGS = (
     "inherit_sigma_star", "inherit_CSDS_distribution", "inherit_display_color",
@@ -123,41 +128,62 @@ def save_phs(phases, path: str) -> None:
             )
 
 
+def _project_uuids(project) -> set:
+    """Every uuid live in the project - phases, components and atoms."""
+    uuids = set()
+    for phase in project.phases:
+        uuids.add(phase.uuid)
+        for comp in getattr(phase, "components", []):
+            uuids.add(comp.uuid)
+            for atom in comp._layer_atoms + comp._interlayer_atoms:
+                uuids.add(atom.uuid)
+    return uuids
+
+
 def load_phs(path: str, project) -> tuple[list, list]:
-    """Import phases from a .phs into `project`. Resolves the based_on family
-    within the file, gives a fresh uuid to any phase whose uuid collides with
-    the project (repointing based_on inside the imported set), resolves atom
-    types by name, and adds the phases. Returns (imported_phases,
-    missing_atom_type_names) - the latter lists atom types the project does not
-    have, whose atoms will have zero structure factor until they are added."""
+    """Import phases from a .phs into `project`: resolve the based_on family
+    within the file, resolve atom types by name, and add the phases.
+
+    DEEP uuid-collision remap: any uuid in the file that already exists in the
+    project - a phase, component OR atom uuid - is replaced by a fresh one
+    consistently across every member, BEFORE the models are built. uuids are
+    32-hex, so a plain string replace over the serialised member catches every
+    reference (own uuid, based_on_uuid, linked_with, atom relations, UCP
+    derivation sources) without knowing the schema, so the import stays
+    internally consistent and can never alias an existing phase / component /
+    atom (e.g. re-importing the same .phs into the same project). A file whose
+    uuids do not collide keeps them unchanged.
+
+    Returns (imported_phases, missing_atom_type_names) - the latter lists atom
+    types the project does not have, whose atoms have zero structure factor
+    until they are added."""
     with zipfile.ZipFile(path) as archive:
         members = sorted(archive.namelist(), key=_member_index)
-        entries = [json.loads(archive.read(m).decode("utf-8")) for m in members]
+        texts = [archive.read(m).decode("utf-8") for m in members]
+
+    project_uuids = _project_uuids(project)
+    import_uuids = set()
+    for text in texts:
+        import_uuids.update(_UUID_RE.findall(text))
+    taken = project_uuids | import_uuids
+    remap: dict[str, str] = {}
+    for old in sorted(import_uuids & project_uuids):
+        new = _uuid.uuid4().hex
+        while new in taken:
+            new = _uuid.uuid4().hex
+        taken.add(new)
+        remap[old] = new
+    for old, new in remap.items():
+        texts = [text.replace(old, new) for text in texts]
 
     atom_type_map = project.atom_type_uuid_map()
     imported = []
-    for entry in entries:
+    for text in texts:
+        entry = json.loads(text)
         if entry.get("type") == "RawPatternPhase":
             imported.append(RawPatternPhase.from_dict(entry))
         else:
             imported.append(Phase.from_dict(entry, atom_type_map))
-
-    # Collision policy: a fresh uuid for any phase whose uuid already exists in
-    # the project or earlier in this import. based_on within the set is stored
-    # as _based_on_uuid, so repoint it to the parent's new uuid.
-    seen = set(p.uuid for p in project.phases)
-    remap: dict[str, str] = {}
-    for phase in imported:
-        if phase.uuid in seen:
-            new = _uuid.uuid4().hex
-            remap[phase.uuid] = new
-            phase.uuid = new
-        seen.add(phase.uuid)
-    if remap:
-        for phase in imported:
-            bou = getattr(phase, "_based_on_uuid", "") or ""
-            if bou in remap:
-                phase._based_on_uuid = remap[bou]
 
     for phase in imported:
         project.add_phase(phase)

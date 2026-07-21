@@ -9,8 +9,8 @@ project holds. This covers:
   2. round-trip into a fresh project seeded with the atom types - the phase
      resolves its atom types (nothing missing) and keeps name / G / components;
   3. import into a project WITHOUT the atom types reports them missing;
-  4. re-importing a phase whose uuid is already in the project gives it a fresh
-     uuid (the collision policy) instead of clobbering the existing one;
+  4. re-importing a phase already in the project DEEP-remaps every colliding
+     uuid (phase, component AND atom) so nothing aliases the existing copy;
   5. a based_on family round-trips: the parent is written first and the child's
      based_on link is re-resolved within the imported set.
 
@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from mudlab.file_parsers.mud_project import load_mud  # noqa: E402
+from mudlab.file_parsers.mud_project import load_mud, save_mud  # noqa: E402
 from mudlab.file_parsers.phs_phases import load_phs, save_phs  # noqa: E402
 from mudlab.models import Project  # noqa: E402
 from mudlab.models.phase import Phase  # noqa: E402
@@ -93,13 +93,43 @@ def run(tmp):
     check("3 missing atom types reported when the project lacks them",
           len(missing_bare) > 0)
 
-    # 4. Collision: re-import into the SAME source project -> fresh uuid.
+    # 4. Collision: re-import into the SAME source project. The DEEP remap must
+    #    give the phase AND every component / atom a fresh uuid, so nothing in
+    #    the re-imported copy aliases the original.
+    def _uuids(phase):
+        us = {phase.uuid}
+        for c in phase.components:
+            us.add(c.uuid)
+            for a in c._layer_atoms + c._interlayer_atoms:
+                us.add(a.uuid)
+        return us
+
     n0 = len(project.phases)
+    src_uuids = _uuids(src)
     imp2, _ = load_phs(phs, project)
+    new = imp2[0]
     check("4 collision -> a phase was added with a fresh uuid",
-          len(project.phases) == n0 + 1
-          and imp2[0].uuid != src.uuid
-          and imp2[0].uuid not in {src.uuid})
+          len(project.phases) == n0 + 1 and new.uuid != src.uuid)
+    check("4 deep remap -> no component/atom uuid aliases the original",
+          _uuids(new).isdisjoint(src_uuids))
+    check("4 re-imported atoms still resolve their atom types (by name)",
+          all(a.atom_type is not None
+              for c in new.components
+              for a in c._layer_atoms + c._interlayer_atoms))
+
+    # 4b. Persistence: the project holding the original + the re-imported phase
+    #     saves and reloads with NO duplicate component uuids and every atom
+    #     resolved - the .mud corruption the deep remap prevents.
+    out = os.path.join(tmp, "with_reimport.mud")
+    save_mud(project, out)
+    reloaded = load_mud(out)
+    comp_uuids = [c.uuid for ph in reloaded.phases for c in ph.components]
+    check("4b saved .mud has no duplicate component uuids",
+          len(comp_uuids) == len(set(comp_uuids)))
+    check("4b every atom still resolves after save/reload",
+          all(a.atom_type is not None for ph in reloaded.phases
+              for c in ph.components
+              for a in c._layer_atoms + c._interlayer_atoms))
 
     # 5. based_on family: parent written first, link re-resolved on import.
     parent = Phase.create_empty(G=2, R=0, name="Parent")
