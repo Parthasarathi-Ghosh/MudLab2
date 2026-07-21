@@ -186,6 +186,20 @@ class Phase:
         return self.probabilities.valid
 
     @property
+    def is_valid(self) -> bool:
+        """Whether this phase may be USED in a mixture: its stacking model is
+        valid AND every component slot is filled (has at least one atom). A New
+        Phase starts with G blank components (no atoms) -> zero structure
+        factor -> a blank pattern, so it is invalid until atoms are added to
+        its component slots (imported or edited in). The mixture editor offers
+        only valid phases for assignment."""
+        if not self.valid_probs or not self.components:
+            return False
+        return all(
+            bool(c._layer_atoms or c._interlayer_atoms) for c in self.components
+        )
+
+    @property
     def W(self):
         """The g×g diagonal weight-fraction matrix."""
         return self.probabilities.get_distribution_matrix()

@@ -7,12 +7,13 @@ each specimen carries an absolute scale and a background shift, each phase
 slot a weight fraction, and every cell names the phase that fills that
 slot for that specimen.
 
-Batch 1 of the editor-wiring port binds the real Mixture model and makes
-the numeric parameters (fractions / scales / background shifts) editable
-with a live recalculation of the calculated pattern. Phase-cell
-reassignment, structural add/remove and the fraction/scale/bg optimizer
-(the Refine/Optimize/auto-* controls) come with later batches and are
-disabled for now.
+The numeric parameters (fractions / scales / background shifts) are editable
+with a live recalculation, and the fraction/scale/bg Optimize + Refine controls
+are wired. Each phase cell is a combo that assigns WHICH phase fills that slot
+for that specimen (or "(none)" to empty it); only VALID phases are selectable -
+a phase with an empty component slot (no atoms) is shown greyed, so an
+incomplete New Phase cannot be assigned. Structural add/remove of slots/rows is
+a later batch.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QHeaderView, QMessageBox, QTableWidgetItem, QWidget,
+    QApplication, QComboBox, QHeaderView, QMessageBox, QTableWidgetItem, QWidget,
 )
 
 from mudlab.ui.ui_edit_mixture import Ui_EditMixtureWidget
@@ -41,11 +42,12 @@ class EditMixtureWidget(QWidget):
         self.ui.setupUi(self)
 
         self._mixture = None
+        self._phases: list = []
         self._on_changed: Callable[[], None] | None = None
 
         # Still a later port: the composition summary and structural add/remove.
-        # Disabled so the UI reads honestly. Optimize, the auto-* flags and the
-        # Refine window are live.
+        # Disabled so the UI reads honestly. Optimize, the auto-* flags, the
+        # Refine window and phase-cell reassignment are live.
         for control, why in (
             (self.ui.btn_composition, "Composition summary is not ported yet."),
             (self.ui.btn_add_phase, "Adding phase slots is not ported yet."),
@@ -70,10 +72,13 @@ class EditMixtureWidget(QWidget):
         )
 
     # ------------------------------------------------------------------
-    def bind_mixture(self, mixture, on_changed: Callable[[], None] | None = None) -> None:
-        """Show and edit a real Mixture model. `on_changed` is called after
-        every accepted edit (used to recompute + redraw the pattern)."""
+    def bind_mixture(self, mixture, phases=None,
+                     on_changed: Callable[[], None] | None = None) -> None:
+        """Show and edit a real Mixture model. `phases` are the project's phases
+        offered in each cell's phase combo (invalid ones greyed). `on_changed`
+        is called after every accepted edit (used to recompute + redraw)."""
         self._mixture = mixture
+        self._phases = list(phases or [])
         self._on_changed = on_changed
         self._populate()
         self._update_residual_label()
@@ -114,6 +119,7 @@ class EditMixtureWidget(QWidget):
             m_slot = len(labels)
 
             table.clear()
+            table.setRowCount(0)  # also drops phase-combo cell widgets from a prior bind
             table.setColumnCount(_FIRST_SPEC_COL + n_spec)
             table.setRowCount(_FIRST_PHASE_ROW + m_slot)
             table.setHorizontalHeaderLabels(
@@ -131,14 +137,12 @@ class EditMixtureWidget(QWidget):
                 self._set_cell(_ROW_SCALE, col, self._fmt(mixture.scales, i, 4), editable=True)
                 self._set_cell(_ROW_BG, col, self._fmt(mixture.bgshifts, i, 3), editable=True)
 
-            # Per-phase-slot fraction + the phase filling each cell.
+            # Per-phase-slot fraction + a combo assigning the phase in each cell.
             for j in range(m_slot):
                 row = _FIRST_PHASE_ROW + j
                 self._set_cell(row, _COL_FRACTION, self._fmt(mixture.fractions, j, 4), editable=True)
                 for i in range(n_spec):
-                    phase = self._phase_at(i, j)
-                    name = phase.name if phase is not None else "-"
-                    self._set_cell(row, _FIRST_SPEC_COL + i, name, editable=False)
+                    self._set_phase_combo(row, _FIRST_SPEC_COL + i, i, j)
 
             header = table.horizontalHeader()
             for col in range(table.columnCount()):
@@ -235,6 +239,7 @@ class EditMixtureWidget(QWidget):
         if 0 <= index < len(array):
             array[index] = value
             self._notify()
+            self._update_residual_label()
 
     def _field_for(self, row: int, col: int):
         """Map a table cell to (model array, index) or None if not editable."""
@@ -289,3 +294,48 @@ class EditMixtureWidget(QWidget):
             flags |= Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
         item.setFlags(flags)
         self.ui.tbl_matrix.setItem(row, col, item)
+
+    def _set_phase_combo(self, row: int, col: int,
+                         specimen_index: int, slot_index: int) -> None:
+        """A combo naming the phase in this cell. Offers "(none)" + every
+        project phase; an INVALID phase (empty component slot -> blank pattern)
+        is listed but greyed, so it cannot be assigned. The signal is connected
+        AFTER the current value is set, so populating does not fire it."""
+        combo = QComboBox()
+        combo.addItem("(none)", None)
+        current = self._phase_at(specimen_index, slot_index)
+        selected = 0
+        for phase in self._phases:
+            combo.addItem(phase.name or "phase", phase)
+            idx = combo.count() - 1
+            if not getattr(phase, "is_valid", True):
+                combo.model().item(idx).setEnabled(False)
+                combo.setItemData(
+                    idx, self._invalid_reason(phase),
+                    Qt.ItemDataRole.ToolTipRole)
+            if phase is current:
+                selected = idx
+        combo.setCurrentIndex(selected)
+        combo.currentIndexChanged.connect(
+            lambda _i, c=combo, si=specimen_index, sj=slot_index:
+            self._on_phase_reassigned(si, sj, c))
+        self.ui.tbl_matrix.setCellWidget(row, col, combo)
+
+    @staticmethod
+    def _invalid_reason(phase) -> str:
+        """Why `phase` is greyed in the slot combo, worded for its type: a raw
+        phase is invalid for want of a measured pattern, a structural phase for
+        an empty component slot (a New Phase whose components have no atoms)."""
+        if getattr(phase, "type", "") == "RawPatternPhase":
+            return ("This raw-pattern phase has no measured pattern yet - "
+                    "import one before assigning.")
+        return ("This phase has an empty component slot (no atoms) - "
+                "fill it before assigning.")
+
+    def _on_phase_reassigned(self, specimen_index: int, slot_index: int,
+                             combo: QComboBox) -> None:
+        if self._mixture is None:
+            return
+        self._mixture.set_phase_at(specimen_index, slot_index, combo.currentData())
+        self._notify()
+        self._update_residual_label()

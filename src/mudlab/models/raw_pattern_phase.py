@@ -107,6 +107,12 @@ class RawPatternPhase:
         """A raw phase has a valid contribution whenever it holds >= 2 points."""
         return self.raw_pattern_x.size > 1
 
+    @property
+    def is_valid(self) -> bool:
+        """A raw-pattern phase may be used in a mixture once it holds a measured
+        pattern (>= 2 points). Same gate the mixture editor applies to Phase."""
+        return self.raw_pattern_x.size > 1
+
     # -- pattern data ------------------------------------------------------
     def set_raw_pattern(self, x, y) -> None:
         self.raw_pattern_x = np.asarray(x, dtype=float)

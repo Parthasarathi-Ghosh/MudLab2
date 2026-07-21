@@ -39,8 +39,10 @@ class EditMixturesDialog(ObjectStoreDialog):
     def _on_mixture_selected(self, index: QModelIndex) -> None:
         if 0 <= index.row() < len(self._mixtures):
             mixture = self._mixtures[index.row()]
+            phases = self.project.phases if self.project is not None else []
             self.mixture_widget.bind_mixture(
-                mixture, on_changed=lambda m=mixture: self._recalculate(m)
+                mixture, phases=phases,
+                on_changed=lambda m=mixture: self._recalculate(m)
             )
 
     def _recalculate(self, mixture) -> None:

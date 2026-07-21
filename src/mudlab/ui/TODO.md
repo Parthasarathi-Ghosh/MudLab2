@@ -34,9 +34,11 @@ bound to their editors so parameters become editable with a live recalc.
   editable and bound to the Mixture model; every edit recomputes the
   pattern and redraws (the F5 path). Mixtures now save from the model
   (to_dict passthrough keeps masks / refine options / auto flags / uuid).
-  Phase-cell reassignment and structural add/remove are disabled here; the
-  Optimize button + auto-* flags were wired later (see the L-BFGS-B optimizer
-  entry below), and the full Refine window is still deferred.
+  Phase-cell reassignment is now wired (2026-07-21: per-cell combo ->
+  Mixture.set_phase_at, invalid phases greyed via Phase.is_valid; harness
+  tools/verify_mixture_assign.py); structural add/remove of a slot/specimen is
+  still disabled here. The Optimize button + auto-* flags were wired later (see
+  the L-BFGS-B optimizer entry below), and the full Refine window is deferred.
 - [x] Batch 2: Edit Phases CSDS mean + sigma* - the phase name, sigma*
   orientation factor and CSDS mean are editable and bound to the Phase /
   DritsCSDSDistribution models; the CSDS component (csds.ui + csds_widget.py,
@@ -290,7 +292,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; Add (empty phase, G blank components) + Remove (cascades based_on/linked_with/mixture refs) + phase Import/Export (.phs, batch 4) + component Import/Export (.cmp, file_parsers/cmp_components.py: replace-import, atoms by name, deep uuid remap) wired; unit-cell a/b, phase inheritance, colour still to wire) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
-| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Phase-cell reassign, structural add/remove, composition still to wire) |
+| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Structural add/remove of a slot/specimen, composition still to wire) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; **raw-pattern option wired** (batch 2); default-catalog honestly disabled; wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |

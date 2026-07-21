@@ -992,8 +992,20 @@ modeless by `actionEditMixtures`.
   Editable numeric cells (scales per specimen, background per specimen,
   fraction per slot) write straight to the model arrays; `itemChanged`
   validates (bad input reverts) and calls `on_changed` -> `mixture.
-  calculate()`, so the pattern redraws live. Phase cells show the assigned
-  phase name read-only. Row/col constants live in the widget module.
+  calculate()`, so the pattern redraws live. Row/col constants live in the
+  widget module.
+- Phase-cell assignment (2026-07-21): each phase cell is a `QComboBox`
+  (`_set_phase_combo`) offering "(none)" + every project phase; choosing one
+  calls `Mixture.set_phase_at(specimen_i, slot_j, phase)`, which writes BOTH
+  the resolved grid (`phase_matrix`, what the calc reads) and the uuid grid
+  (`phase_uuids`, what round-trips), then recomputes. `bind_mixture` now takes
+  `phases=` (the dialog passes `project.phases`). A phase that is not
+  `phase.is_valid` (an empty component slot -> blank pattern, or a raw phase
+  with no measured pattern) is listed but DISABLED (greyed, with a tooltip) so
+  it cannot be assigned - the validity gate the old app lacked. The combo
+  signal is connected AFTER `setCurrentIndex`, and `_populate` calls
+  `setRowCount(0)` before repopulating to drop the prior bind's cell widgets.
+  Harness: `tools/verify_mixture_assign.py`.
 - Refinement (2026-07-10): `btn_optimize` runs `Mixture.optimize()`
   (L-BFGS-B, calculations/mixture.py) under a busy cursor inside a
   UI-boundary try/except -> `QMessageBox` on failure (the optimizer core
@@ -1015,10 +1027,11 @@ modeless by `actionEditMixtures`.
   (`refinement_dialog.py` RefinementDialog) for structural-parameter
   refinement; the mixture editor re-populates when it closes. See the
   Refinement window section below.
-- Still disabled (later batches / other ports): the phase-per-cell combo
-  (reassigning a slot's phase), btn_add_phase/specimen/both (structural),
-  `btn_composition` (composition summary), and the Add Mixture dialog
-  (`add_mixture.glade`) for the shell's Add button.
+- Still disabled (later batches / other ports): btn_add_phase/specimen/both
+  (structural add/remove of a slot or specimen), `btn_composition`
+  (composition summary), and the Add Mixture dialog (`add_mixture.glade`) for
+  the shell's Add button. Adding a raw phase as a NEW slot needs btn_add_phase
+  (Batch 2); reassigning an EXISTING slot to any valid phase is wired now.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.

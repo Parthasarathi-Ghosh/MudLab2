@@ -55,11 +55,12 @@ class Mixture:
     # NOTE: the grid is held twice - `phase_matrix` / `specimens` (resolved
     # objects, what the calc reads) and `phase_uuids` / `specimen_uuids` (what
     # to_dict writes). Both must be updated together or the change is lost on
-    # save. The old app avoids this by deriving the uuids from the objects at
-    # save time, which we deliberately do NOT copy: MudLab2 only models
-    # `type == "Phase"` entries, so a RawPatternPhase loads verbatim with NO
-    # model object - its matrix cell is None while its uuid is live. Deriving
-    # would silently blank that reference and lose the phase from the mixture.
+    # save (see `set_phase_at` / `unset_phase`), which is why we do NOT derive
+    # the uuids from the objects at save time the way the old app does: a cell
+    # may legitimately be None (an emptied slot, e.g. after remove_phase) while
+    # its stored uuid is cleared in step - keeping the two in sync explicitly
+    # avoids blanking a live reference. (Both "Phase" and "RawPatternPhase"
+    # entries are modeled and resolve into `phase_matrix`.)
     def unset_phase(self, phase) -> None:
         """Clear every grid cell holding `phase`. The slot (column) stays -
         only the cells empty, exactly as the old unset_phase did, so the
@@ -78,6 +79,20 @@ class Mixture:
                 self.specimens[i] = None
                 if i < len(self.specimen_uuids):
                     self.specimen_uuids[i] = ""
+
+    def set_phase_at(self, specimen_index: int, slot_index: int, phase) -> None:
+        """Assign `phase` (or None to empty the cell) to a specimen row / phase
+        slot, updating BOTH the resolved grid (`phase_matrix`, what the calc
+        reads) and the uuid grid (`phase_uuids`, what round-trips). The slot's
+        fraction and the specimen's scale are untouched. Old app: set_phase."""
+        i, j = specimen_index, slot_index
+        if not (0 <= i < len(self.phase_matrix)):
+            return
+        if not (0 <= j < len(self.phase_matrix[i])):
+            return
+        self.phase_matrix[i][j] = phase
+        if i < len(self.phase_uuids) and j < len(self.phase_uuids[i]):
+            self.phase_uuids[i][j] = phase.uuid if phase is not None else ""
 
     def calculate(self) -> None:
         """Compute and store every specimen's calculated pattern."""

@@ -8,6 +8,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
+- [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
 - [Preparing experimental data](#preparing-experimental-data)
 
 ---
@@ -224,6 +225,71 @@ this component's own values.
 - **You can link any two components.** MudLab2 does not restrict templates to a
   particular parent phase, so take care to link layers that really are the same
   clay layer.
+
+---
+
+## Mixtures: assigning phases to slots
+
+A **mixture** ties your phases to your measured specimens. Open it from
+**Edit → Edit Mixtures**; the list on the left is the project's mixtures, and
+selecting one shows its grid.
+
+### Reading the grid
+
+The grid has one **row per phase slot** and one **column per specimen**, plus:
+
+- a **Fraction** column (the phase fraction for each slot), and
+- two header rows at the top — **Abs. scale** and **Bg. shift**, one value per
+  specimen.
+
+Each phase cell (a slot × a specimen) names **which phase fills that slot for
+that specimen**. Because it is per cell, the *same* slot can hold a *different*
+phase in different specimens — e.g. the air-dried, glycolated and heated forms
+of one clay across three columns.
+
+### Assigning a phase to a slot
+
+Click a phase cell to open its drop-down. It lists **(none)** and every phase
+in the project; pick one to put it in that slot, or **(none)** to empty the
+cell. The calculated pattern redraws immediately, and — as with every edit —
+nothing is written to disk until you save.
+
+### Only valid phases can be assigned
+
+A phase is offered **greyed-out and unselectable** when it is not yet ready to
+contribute a pattern. Hovering it explains why. A phase is *not ready* when:
+
+- it has an **empty component slot** — a component with no atoms. A phase you
+  just created with **Add** starts this way (blank *Component 1*, *Component 2*,
+  …), so it produces a blank pattern and cannot be assigned until you fill its
+  components with atoms (define them on the Components tab, or **import** them
+  from a `.cmp` file); or
+- it is a **raw-pattern phase** that does not yet hold a measured pattern.
+
+This is the answer to a common question:
+
+> **I created a New Phase but forgot to give its components any atoms — can I
+> add it to a mixture?** No. An incomplete phase would contribute a blank
+> pattern, so MudLab2 shows it greyed in the slot drop-down and will not let you
+> assign it. Fill in (or import) its components' atoms and it becomes
+> selectable — no separate "validate" step is needed.
+
+### Deleting a phase that a mixture uses
+
+Removing a phase in **Edit Phases** does **not** break your mixtures. Every cell
+that named the deleted phase simply **empties** — the slot itself stays, the
+fraction is kept, and the cell shows **(none)**. The mixture keeps calculating
+(the emptied slot contributes nothing), and you can drop a different phase into
+that cell whenever you like.
+
+> **I added a phase to a mixture, then deleted it in Edit Phases — is the
+> mixture now invalid?** No. The mixture stays usable; only the cells that
+> referenced the deleted phase go blank, ready for a replacement. Nothing is
+> left dangling and no error is raised.
+
+> **Adding a *new* slot** (rather than reassigning an existing one) — for
+> example to drop in a raw-pattern phase as an extra component of the mixture —
+> is not wired yet; the **Add phase / Add specimen** buttons are still disabled.
 
 ---
 
