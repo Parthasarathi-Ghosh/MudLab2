@@ -427,11 +427,26 @@ step 0.02056) and the quartz peak position, which is how RAW4 is validated.
 **Not yet ported:** the other lineage formats (`.cpi`, `.rd`, `.brml`). An
 unknown `.raw` magic raises a clear error, shown by the editor in a message box.
 
-Guard: `tools/verify_xrd_import.py` (21 checks) - synthetic fixtures for every
+Guard: `tools/verify_xrd_import.py` (26 checks) - synthetic fixtures for every
 supported format (incl. hand-built Bruker RAW4 + Rigaku FI, and both UXD
-layouts) + the dispatcher + the unknown-magic error, plus opportunistic
-real-file cross-checks (`.rasx` vs `.txt` 2theta grid; Bruker RAW4 axis/peak vs
-the `.UXD`; Rigaku `.raw` vs its `.rasx`) that skip when the files are absent.
+layouts) + the dispatcher + the unknown-magic error + EXPORT round-trips, plus
+opportunistic real-file cross-checks (`.rasx` vs `.txt` 2theta grid; Bruker RAW4
+axis/peak vs the `.UXD`; Rigaku `.raw` vs its `.rasx`) that skip when absent.
+
+### Pattern EXPORT (`file_parsers/xrd_export.py`)
+
+The write side: `save_pattern(path, x, y)` dispatches on extension over
+`xy_parser.save_xy` (ASCII two-column) and `uxd_parser.save_uxd` (Bruker
+DIFFRAC `.uxd`, paired `_2THETACOUNTS` with `_STEPTIME=1` so values write
+verbatim and round-trip through `parse_uxd`). `EXPORT_FILTERS` is the save
+filter. ONLY non-proprietary text formats are offered - the binary/container
+vendor formats we can read (Bruker/Rigaku `.raw`, `.rasx`, `.xrdml`) are
+deliberately NOT export targets; a `.uxd` or `.xy` carries the same pattern in
+an open form. Wired on the Edit Specimen dialog's data buttons
+(`btn_import_experimental_data` -> `parse_pattern`;
+`btn_export_experimental_data` / `btn_export_calculated_data` -> `save_pattern`),
+which were previously inert. Guard: `verify_xrd_import.py` check_export +
+`verify_data_op_dialogs.py` (specimen export/import through the buttons).
 
 ### Component linking + UCP: debugging notes (audit of Batches L1-L3, 1a-1b)
 

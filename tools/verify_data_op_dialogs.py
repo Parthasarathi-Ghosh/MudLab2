@@ -43,7 +43,9 @@ QMessageBox.information = staticmethod(
     lambda parent, title, text, *a, **k: _boxes.append((title, text))
 )
 
+from mudlab.edit_specimen_dialog import EditSpecimenDialog
 from mudlab.file_parsers.mud_project import load_mud
+from mudlab.file_parsers.xrd_import import parse_pattern
 from mudlab.line_dialogs import (
     AddNoiseDialog, PeakPropertiesDialog, RemoveBackgroundDialog,
     ShiftPatternDialog, SmoothDataDialog, StripPeakDialog,
@@ -260,6 +262,31 @@ dlg._on_accept()  # both endpoints still 0.0
 check("strip w/o range: dialog stays open", dlg.result() != 1)
 check("strip w/o range: pattern unchanged",
       np.array_equal(before, spec.experimental_pattern[1]))
+
+# --- Edit Specimen: experimental data export + import go through the shared
+#     xrd_export / xrd_import dispatchers (any format; tested with .uxd) ---
+import tempfile as _tf  # noqa: E402
+from PySide6.QtWidgets import QFileDialog  # noqa: E402
+_, spec = fresh_specimen()
+_ex0, _ey0 = spec.experimental_pattern
+_sd = EditSpecimenDialog(None)
+_sd.bind_specimen(spec)
+_edir = _tf.mkdtemp(prefix="mudlab_specexp_")
+_uxd = os.path.join(_edir, "exp.uxd")
+QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (_uxd, ""))
+_sd._export_pattern("experimental")
+check("specimen: export experimental data wrote a file", os.path.isfile(_uxd))
+_rx, _ry = parse_pattern(_uxd)
+check("specimen: exported .uxd round-trips the experimental pattern",
+      _rx.size == _ex0.size and np.allclose(_ry, _ey0, atol=1e-2))
+QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (_uxd, ""))
+_sd._on_import_experimental()
+_ix, _iy = spec.experimental_pattern
+check("specimen: import experimental data replaces the pattern via parse_pattern",
+      _ix.size == _rx.size and np.allclose(_iy, _ry, atol=1e-6))
+_sd.deleteLater()
+os.remove(_uxd)
+os.rmdir(_edir)
 
 print("=" * 72)
 print("Data-operation dialogs:", os.path.basename(FIXTURE))

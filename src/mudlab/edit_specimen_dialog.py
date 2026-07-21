@@ -8,9 +8,15 @@ straight back to it (Qt signals propagate to the dock and plots).
 
 from __future__ import annotations
 
-from PySide6.QtGui import QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import QDialog, QHeaderView, QWidget
+import os
 
+from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import (
+    QDialog, QFileDialog, QHeaderView, QMessageBox, QWidget,
+)
+
+from mudlab.file_parsers.xrd_export import EXPORT_FILTERS, save_pattern
+from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
 from mudlab.goniometer_widget import GoniometerWidget
 from mudlab.line_properties_widget import LinePropertiesWidget
 from mudlab.models import Specimen
@@ -138,6 +144,15 @@ class EditSpecimenDialog(QDialog):
             button.setEnabled(False)
             button.setToolTip("Import/export exclusion ranges is not ported yet.")
 
+        # Experimental / calculated pattern data import + export (through the
+        # shared xrd_import / xrd_export dispatchers).
+        self.ui.btn_import_experimental_data.clicked.connect(
+            self._on_import_experimental)
+        self.ui.btn_export_experimental_data.clicked.connect(
+            lambda: self._export_pattern("experimental"))
+        self.ui.btn_export_calculated_data.clicked.connect(
+            lambda: self._export_pattern("calculated"))
+
     def _fill_pattern_tables(self, specimen: Specimen) -> None:
         # Read-only view of the data; editing/add/remove connect with the
         # pattern model port.
@@ -152,6 +167,53 @@ class EditSpecimenDialog(QDialog):
                     item.setEditable(False)
                 model.appendRow(items)
         self._fill_exclusion_table(specimen)
+
+    def _on_import_experimental(self) -> None:
+        """Replace this specimen's experimental pattern from a data file (any
+        format the shared importer reads)."""
+        if self._specimen is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import experimental pattern", "", PATTERN_FILTERS
+        )
+        if not path:
+            return
+        try:
+            x, y = parse_pattern(path)
+        except Exception as exc:
+            QMessageBox.warning(
+                self, "Import pattern", "Could not read:\n%s\n\n%s" % (path, exc)
+            )
+            return
+        self._specimen.set_experimental_pattern(x, y)
+        self._fill_pattern_tables(self._specimen)
+
+    def _export_pattern(self, which: str) -> None:
+        """Export the experimental or calculated pattern to a .xy / .uxd file."""
+        if self._specimen is None:
+            return
+        x, y = (self._specimen.experimental_pattern if which == "experimental"
+                else self._specimen.calculated_pattern)
+        if len(x) < 1:
+            QMessageBox.information(
+                self, "Export pattern",
+                "There is no %s pattern to export." % which,
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export %s pattern" % which, "", EXPORT_FILTERS
+        )
+        if not path:
+            return
+        if not os.path.splitext(path)[1]:
+            path += ".xy"
+        try:
+            save_pattern(path, x, y)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Export pattern",
+                "Could not export:\n%s\n\n%s" % (path, exc),
+            )
 
     def _fill_exclusion_table(self, specimen: Specimen) -> None:
         self._updating = True

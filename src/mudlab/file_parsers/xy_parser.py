@@ -47,3 +47,13 @@ def parse_xy(path: str) -> tuple[np.ndarray, np.ndarray]:
     """Parse a text pattern file; returns (two_theta, intensity) arrays."""
     with open(path, "r", encoding="utf-8-sig", errors="replace") as stream:
         return parse_xy_lines(stream, source=path)
+
+
+def save_xy(path: str, x, y) -> None:
+    """Write a pattern as two tab-separated ASCII columns (2theta, intensity) -
+    the plain interchange format, readable by every XRD tool and by parse_xy."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    with open(path, "w", encoding="utf-8", newline="\n") as stream:
+        for xi, yi in zip(x, y):
+            stream.write("%.6f\t%.6f\n" % (xi, yi))

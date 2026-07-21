@@ -99,3 +99,33 @@ def parse_uxd(path: str) -> tuple[np.ndarray, np.ndarray]:
     if len(xs) < 2:
         raise ValueError("No UXD data rows in %r." % path)
     return np.asarray(xs), np.asarray(ys)
+
+
+def save_uxd(path: str, x, y, sample: str = "",
+             wavelength: float = 1.5406, anode: str = "Cu") -> None:
+    """Write a pattern as a Bruker/Siemens *.UXD ASCII file (a documented,
+    non-proprietary text format). Uses the paired `_2THETACOUNTS` layout with
+    `_STEPTIME=1`, so the values are written verbatim (counts == CPS) and
+    round-trip through parse_uxd unchanged. Readable by DIFFRAC / other tools."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    start = float(x[0]) if x.size else 0.0
+    step = float(x[1] - x[0]) if x.size > 1 else 0.0
+    header = [
+        "; Exported by MudLab2",
+        "_FILEVERSION=2",
+        "_SAMPLE='%s'" % sample,
+        "_WL1=%.6f" % wavelength,
+        "_ANODE='%s'" % anode,
+        "_DRIVE='COUPLED'",
+        "_STEPTIME=1.000000",
+        "_STEPSIZE=%.6f" % step,
+        "_STEPMODE='C'",
+        "_START=%.6f" % start,
+        "_2THETA=%.6f" % start,
+        "_2THETACOUNTS",
+    ]
+    with open(path, "w", encoding="utf-8", newline="\n") as stream:
+        stream.write("\n".join(header) + "\n")
+        for xi, yi in zip(x, y):
+            stream.write("%.6f %.6g\n" % (xi, yi))

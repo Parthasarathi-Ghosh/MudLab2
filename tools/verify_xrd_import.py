@@ -12,7 +12,9 @@ Covers the SUPPORTED formats with deterministic synthetic fixtures:
   - Bruker binary .raw v1 (RAW1) and v4 (RAW4, ported from xylib);
   - Rigaku binary .raw ('FI' magic, reverse-engineered against the .rasx);
   - the extension dispatcher (xrd_import.parse_pattern);
-  - an unknown `.raw` magic fails with a clear error.
+  - an unknown `.raw` magic fails with a clear error;
+  - EXPORT: save_pattern writes ASCII XY / Bruker UXD (non-proprietary only)
+    and the files round-trip back through the importer.
 
 Where the real test files are present (~/Downloads/Phraser tests), it also
 cross-checks the real .xrdml / .rasx / .txt and confirms the .rasx and .txt of
@@ -44,6 +46,7 @@ import numpy as np  # noqa: E402
 from mudlab.file_parsers.raw_parser import parse_raw  # noqa: E402
 from mudlab.file_parsers.rasx_parser import parse_rasx  # noqa: E402
 from mudlab.file_parsers.uxd_parser import parse_uxd  # noqa: E402
+from mudlab.file_parsers.xrd_export import EXPORT_FILTERS, save_pattern  # noqa: E402
 from mudlab.file_parsers.xrd_import import parse_pattern  # noqa: E402
 from mudlab.file_parsers.xrdml_parser import parse_xrdml  # noqa: E402
 from mudlab.file_parsers.xy_parser import parse_xy  # noqa: E402
@@ -215,6 +218,29 @@ def check_uxd(tmp, results):
                     np.allclose(yd, [160, 320, 80])))
 
 
+def check_export(tmp, results):
+    x = np.round(2.0 + 0.02 * np.arange(50), 4)
+    y = np.round(100.0 + np.arange(50) * 3.0, 3)
+    for ext in (".xy", ".uxd", ".dat"):
+        p = os.path.join(tmp, "export" + ext)
+        save_pattern(p, x, y)
+        rx, ry = parse_pattern(p)
+        results.append(("export: %s round-trips (save_pattern -> parse_pattern)" % ext,
+                        rx.size == x.size
+                        and np.allclose(rx, x, atol=1e-4)
+                        and np.allclose(ry, y, atol=1e-2)))
+    # The exported .uxd is a real Bruker UXD (paired _2THETACOUNTS layout).
+    ux, uy = parse_uxd(os.path.join(tmp, "export.uxd"))
+    results.append(("export: .uxd is a valid Bruker UXD",
+                    ux.size == x.size and np.allclose(uy, y, atol=1e-2)))
+    # Only non-proprietary text formats are offered for export.
+    results.append(("export: filters offer ASCII XY + UXD only (no binary/vendor)",
+                    "*.uxd" in EXPORT_FILTERS and "*.xy" in EXPORT_FILTERS
+                    and "*.raw" not in EXPORT_FILTERS
+                    and "*.rasx" not in EXPORT_FILTERS
+                    and "*.xrdml" not in EXPORT_FILTERS))
+
+
 def check_unknown_magic(tmp, results):
     # Bruker (RAW*) and Rigaku (FI) are read; any other .raw magic is rejected
     # with a clear error rather than mis-parsed.
@@ -314,6 +340,7 @@ def main():
         check_rigaku(tmp, results)
         check_unknown_magic(tmp, results)
         check_dispatch(tmp, results)
+        check_export(tmp, results)
     check_real_files(results)
 
     passed = 0
