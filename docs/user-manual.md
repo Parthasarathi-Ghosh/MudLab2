@@ -278,6 +278,11 @@ A **mixture** ties your phases to your measured specimens. Open it from
 **Edit → Edit Mixtures**; the list on the left is the project's mixtures, and
 selecting one shows its grid.
 
+**Add** (below the list) creates a new, empty mixture called *New Mixture*,
+selected and ready to build — rename it and use the **Add phase / Add specimen**
+buttons (below) to fill in the grid. **Remove** deletes the selected mixture
+(after confirming). As always, nothing is written to disk until you **Save**.
+
 ### Reading the grid
 
 The grid has one **row per phase slot** and one **column per specimen**, plus:

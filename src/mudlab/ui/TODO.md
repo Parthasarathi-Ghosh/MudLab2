@@ -426,7 +426,16 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 - [ ] Wavelength distribution editor - goniometer/glade/wavelength_distribution.glade (opened by the goniometer component's Edit emission spectrum button)
 
 ### Mixtures
-- [ ] Add Mixture dialog - mixture/views/glade/add_mixture.glade (for the Edit Mixtures shell's Add button)
+- [x] Add / Remove mixture (Edit Mixtures shell, 2026-07-22). NO dialog: the old
+  add_mixture.glade type-chooser (regular vs in-situ) was ABANDONED dead code -
+  in-situ mixtures were never finished (InSituMixture commented out everywhere)
+  and create_new_object_proxy just `return Mixture(...)`. So the shell's Add
+  button creates a blank regular `Mixture(name="New Mixture")` directly
+  (edit_mixtures_dialog._on_add_mixture -> project.add_mixture, list row +
+  select), which the user builds with the editor's Add phase/specimen buttons.
+  Remove (`_on_remove_mixture` -> new `Project.remove_mixture`; no cascade,
+  nothing back-references a mixture) is wired too, fixing the other dead shell
+  button. Harness tools/verify_add_mixture.py (10).
 - [x] Composition summary - btn_composition in the mixture editor (2026-07-22).
   Per-specimen oxide wt% (old Mixture.get_composition_matrix): each atom
   contributes pn x atom_type.weight x (component weight fraction x phase

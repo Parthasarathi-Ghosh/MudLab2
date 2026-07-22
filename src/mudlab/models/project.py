@@ -178,6 +178,14 @@ class Project(QObject):
         self._mixtures.append(mixture)
         return mixture
 
+    def remove_mixture(self, mixture) -> None:
+        """Drop a mixture from the project. Nothing back-references a mixture
+        (phases / specimens do not know which mixtures use them), so there is no
+        cascade - unlike remove_phase / remove_specimen. The specimens it drove
+        keep their last calculated pattern until the next recompute."""
+        if mixture in self._mixtures:
+            self._mixtures.remove(mixture)
+
     def calculate(self) -> None:
         """Recompute every mixture's calculated patterns (non-optimising).
         Each mixture stores the result back on its specimens, whose

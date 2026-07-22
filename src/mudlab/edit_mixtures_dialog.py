@@ -8,10 +8,11 @@ MixturesController; opened by the edit_mixtures action.
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 from mudlab.edit_mixture_widget import EditMixtureWidget
 from mudlab.models import Project
+from mudlab.models.mixture import Mixture
 from mudlab.object_store_dialog import ObjectStoreDialog
 
 
@@ -28,10 +29,59 @@ class EditMixturesDialog(ObjectStoreDialog):
             self.add_object_row(mixture.name)
 
         self.object_selected.connect(self._on_mixture_selected)
+        # Add / Remove (old MixturesController create/delete). The old app's
+        # Add Mixture type-chooser dialog was abandoned dead code (in-situ
+        # mixtures were never finished): create_new_object_proxy just returns a
+        # blank Mixture. So Add makes a blank regular mixture directly - no
+        # dialog - which the user then builds with the editor's Add phase /
+        # Add specimen buttons.
+        self.ui.button_add_object.clicked.connect(self._on_add_mixture)
+        self.ui.button_del_object.clicked.connect(self._on_remove_mixture)
 
         if self._mixtures:
             self.ui.edit_objects_treeview.setCurrentIndex(
                 self.objects_model.index(0, 0)
+            )
+        else:
+            self.mixture_widget.bind_mixture(None)
+
+    # ------------------------------------------------------------------
+    # Add / Remove
+    # ------------------------------------------------------------------
+    def _on_add_mixture(self) -> None:
+        if self.project is None:
+            return
+        mixture = Mixture(name="New Mixture")
+        self.project.add_mixture(mixture)
+        self._mixtures.append(mixture)
+        self.add_object_row(mixture.name)
+        # Select the new mixture so its (empty) editor opens, ready to build.
+        self.ui.edit_objects_treeview.setCurrentIndex(
+            self.objects_model.index(len(self._mixtures) - 1, 0)
+        )
+
+    def _on_remove_mixture(self) -> None:
+        rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
+        if not rows or self.project is None:
+            return
+        index = rows[0].row()
+        if not (0 <= index < len(self._mixtures)):
+            return
+        mixture = self._mixtures[index]
+        if QMessageBox.question(
+            self, "Remove mixture",
+            "Delete the mixture '%s'?\nThis cannot be undone."
+            % (mixture.name or "mixture"),
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.project.remove_mixture(mixture)
+        del self._mixtures[index]
+        self.objects_model.removeRow(index)
+        # Reselect a neighbour so the editor keeps showing a valid mixture.
+        if self._mixtures:
+            new_row = min(index, len(self._mixtures) - 1)
+            self.ui.edit_objects_treeview.setCurrentIndex(
+                self.objects_model.index(new_row, 0)
             )
         else:
             self.mixture_widget.bind_mixture(None)

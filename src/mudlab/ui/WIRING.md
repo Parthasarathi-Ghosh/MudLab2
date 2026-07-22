@@ -1064,8 +1064,15 @@ modeless by `actionEditMixtures`.
   / Export CSV. Analytics in `calculations/composition.py` (old
   Mixture.get_composition_matrix), conversion table in
   `mudlab/data/composition_conversion.csv` (bundled via MudLab.spec `datas`).
-- Still to port: the Add Mixture dialog (`add_mixture.glade`) for the shell's
-  Add button. The mixture editor itself is otherwise fully wired.
+- Shell Add / Remove (2026-07-22, edit_mixtures_dialog.py): `button_add_object`
+  creates a blank `Mixture(name="New Mixture")` directly - NO dialog. The old
+  add_mixture.glade type-chooser (regular vs in-situ) was abandoned dead code
+  (in-situ never finished; `create_new_object_proxy` just returns a Mixture), so
+  Add makes a blank regular mixture, adds it to the project + list and selects
+  it; the user then builds the grid with the editor's Add phase/specimen. Remove
+  (`button_del_object`) confirms, then `Project.remove_mixture` (no cascade -
+  nothing back-references a mixture) and reselects a neighbour. The mixture
+  editor is fully wired.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.
