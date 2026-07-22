@@ -8,6 +8,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
+- [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
 - [Preparing experimental data](#preparing-experimental-data)
 
@@ -219,14 +220,55 @@ this component's own values.
 - **Inherited cell a / b also lock the cell-length editor.** When Cell a or
   Cell b is inherited, that cell's fixed/derived editor is disabled — the value
   comes from the template.
-- **Two check-boxes are read-only:** *d001 (follows cell c)* mirrors the
-  Cell c / default c setting, and *Atom relations* becomes active once the
-  atom-relations editor is available.
+- **Two inherit check-boxes are fixed:** *d001 (follows cell c)* mirrors the
+  Cell c / default c setting, and *Atom relations* inheritance is not
+  independently toggleable yet (a linked component still follows its template's
+  relations). The atom-relations **editor** itself is fully available — see
+  [Atom relations](#atom-relations-substitutions-and-contents).
 - **A component cannot link to itself**, and links cannot form a loop
   (A → B → A). Such a choice is refused and the drop-down snaps back.
 - **You can link any two components.** MudLab2 does not restrict templates to a
   particular parent phase, so take care to link layers that really are the same
   clay layer.
+
+---
+
+## Atom relations (substitutions and contents)
+
+On the **Components** tab, the **Atom relations** group ties atom occupancies
+together so a chemical constraint is enforced automatically. Use the selector to
+pick a relation, or **Add ratio** / **Add contents** to make one; **Delete**
+removes the selected relation.
+
+### Ratio — a substitution between two atoms
+
+An **atom ratio** shares one site between two atoms (e.g. octahedral Fe-for-Mg).
+You set a **value** (the substituting fraction, 0–1) and a **sum** (the total
+occupancy); MudLab2 then sets the substituting atom to `value × sum` and the
+original atom to `(1 − value) × sum`. Pick the two atoms, and the occupancies —
+and any cell length that derives from them — update as you edit.
+
+### Contents — scale a set of atoms by one value
+
+An **atom contents** relation multiplies several atoms by a single **value**
+(e.g. an interlayer K / Ca / H₂O content): each row is a **target** and an
+**amount**, and the target gets `amount × value`. Add or remove rows with the
+buttons; set each row's target and amount in the table.
+
+### Chaining relations together
+
+A contents row's target doesn't have to be an atom — it can be **another
+relation**, letting one relation drive another (multi-substitution). In the
+Target drop-down a ratio appears as *"name: RATIO"* (drives its value) and
+*"name: SUM"* (drives its sum); another contents appears by name (drives its
+value). MudLab2 **refuses a target that would form a loop**. A relation that is
+driven this way shows a computed value — you no longer set it directly.
+
+### Refining a relation's value
+
+A relation's **value** can be refined like any structural parameter: it appears
+in the **Refine** window, where you flag it and set bounds. Inherited, disabled,
+and driven relations are not offered (their value isn't independently free).
 
 ---
 

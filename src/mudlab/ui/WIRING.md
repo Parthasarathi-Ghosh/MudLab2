@@ -254,9 +254,22 @@ the CSDS component.
   recomputes. An **AtomContents** (Batch 3, contents.ui/contents_widget.py:
   name, enabled, value + a table of atom/amount rows, `atom.pn = amount*value`)
   is edited the same way ("Add contents" button; the ratio / contents editor is
-  shown per the selected relation's type). Chained (relation-to-relation)
-  entries are listed but not editable yet; inherited relations
+  shown per the selected relation's type). Inherited relations
   (inherit_atom_relations) are read-only.
+- Relation CHAINING + value refinement (2026-07-22): an AtomContents row may
+  target a sibling relation instead of an atom - the contents `Target` combo
+  offers the component's atoms (prop "pn") plus its other relations (an AtomRatio
+  contributes "R: RATIO" -> value and "R: SUM" -> `__internal_sum__`; an
+  AtomContents contributes its value). `AtomContent.apply` drives the target
+  from `amount*value` and re-applies it so the driven atoms follow; a
+  re-entrancy guard on `apply_relation` breaks cycles, and the editor refuses a
+  target that would loop back (`_would_cycle`). `Component.resolve_relations`
+  now passes a `{uuid: relation}` map so chained rows resolve their target.
+  `enumerate_refinables` (calculations/refinement.py) exposes each relation
+  `value` as a refinable via `value_ref_info`, EXCEPT inherited / disabled /
+  driven relations (`_driven_relation_ids`, matching the old
+  `AtomRelation.is_refinable`); its setter re-applies the component's relations
+  so pn (and any derived cell) update before the structure factor is recomputed.
 - Component linking (Batch L1 model + Batch L2 editor): a Component can be
   linked to a template component in another phase (`linked_with` + eight
   `inherit_*` flags on `models/component.py`) - the same clay layer reused

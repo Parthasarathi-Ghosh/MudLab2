@@ -214,8 +214,9 @@ class EditComponentWidget(QWidget):
     # ------------------------------------------------------------------
     def _bind_relations(self, comp) -> None:
         """Fill the relation selector and bind the editor for the current one.
-        Ratios drive atom pn; AtomContents / chained relations are shown but
-        edited in a later batch. Inherited relations are read-only."""
+        Ratios drive atom pn; AtomContents drive atom pn and/or chain to sibling
+        relations (both editable). Any unmodeled relation type is shown but not
+        editable; inherited relations are read-only."""
         inherited = comp.is_inherited("atom_relations")
         self._updating = True
         try:
@@ -253,7 +254,10 @@ class EditComponentWidget(QWidget):
         else:
             self.ratio_widget.bind_ratio(None, [])
         if is_contents:
-            self.contents_widget.bind_contents(relation, atoms, on_changed=self._on_relation_edited)
+            siblings = [r for r in comp.atom_relations if r is not relation]
+            self.contents_widget.bind_contents(
+                relation, atoms, relations=siblings,
+                on_changed=self._on_relation_edited)
             self.contents_widget.setEnabled(not inherited)
         else:
             self.contents_widget.bind_contents(None, [])

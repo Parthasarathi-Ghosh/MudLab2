@@ -219,13 +219,17 @@ class Component:
         self._atom_relations = value
 
     def resolve_relations(self, atom_map: dict) -> None:
-        """Resolve the modeled relations' atom references against a {uuid: Atom}
-        map (call once every atom exists). Does NOT apply them - the stored pn
-        is kept for golden-calc fidelity."""
+        """Resolve the modeled relations' references: atom targets against the
+        {uuid: Atom} map, and chained-row targets against this component's own
+        {uuid: relation} map (call once every atom exists). Does NOT apply them
+        - the stored pn is kept for golden-calc fidelity."""
+        relation_map = {
+            r.uuid: r for r in self._atom_relations if getattr(r, "uuid", None)
+        }
         for relation in self._atom_relations:
             resolve = getattr(relation, "resolve", None)
             if callable(resolve):
-                resolve(atom_map)
+                resolve(atom_map, relation_map)
 
     def apply_atom_relations(self) -> None:
         """Re-apply the modeled relations in order (setting their atoms' pn),

@@ -6,8 +6,10 @@ Ca / H2O content). Embedded in the component editor's Atom relations group and
 bound to an AtomContents model; an edit writes to the model and calls
 ``on_changed``, which re-applies the relation and recomputes.
 
-Only the atom rows (``prop == "pn"``) are shown/edited; any chaining rows
-(targeting another relation) are preserved on the model but not listed here.
+Every row is shown/edited: an atom row (``prop == "pn"``) scales an atom's pn,
+a chaining row targets a sibling relation (an AtomRatio's RATIO value or SUM, or
+an AtomContents value). The Target combo offers the component's atoms plus its
+other relations; a choice that would form a cycle is refused.
 """
 
 from __future__ import annotations
@@ -30,11 +32,12 @@ class AtomContentsWidget(QWidget):
 
         self._contents = None
         self._atoms: list = []
+        self._relations: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
 
         self._table = QTableWidget(0, 2, self)
-        self._table.setHorizontalHeaderLabels(["Atom", "Amount"])
+        self._table.setHorizontalHeaderLabels(["Target", "Amount"])
         self._table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
@@ -50,9 +53,13 @@ class AtomContentsWidget(QWidget):
         self.setEnabled(False)
 
     # ------------------------------------------------------------------
-    def bind_contents(self, contents, atoms, on_changed: Callable[[], None] | None = None) -> None:
+    def bind_contents(self, contents, atoms, relations=None,
+                      on_changed: Callable[[], None] | None = None) -> None:
+        """Bind an AtomContents. `atoms` are the component's atoms (pn targets);
+        `relations` are its OTHER relations, offered as chaining targets."""
         self._contents = contents
         self._atoms = list(atoms or [])
+        self._relations = list(relations or [])
         self._on_changed = on_changed
         self.setEnabled(contents is not None)
         if contents is None:
@@ -68,21 +75,12 @@ class AtomContentsWidget(QWidget):
         self._rebuild_table()
 
     def _rebuild_table(self) -> None:
-        rows = self._contents.atom_rows if self._contents is not None else []
+        rows = self._contents.atom_contents if self._contents is not None else []
         self._updating = True
         try:
             self._table.setRowCount(len(rows))
             for i, row in enumerate(rows):
-                combo = QComboBox(self)
-                combo.addItem("(none)", None)
-                for atom in self._atoms:
-                    combo.addItem(getattr(atom, "name", "") or "atom", atom)
-                    if atom is row.atom:
-                        combo.setCurrentIndex(combo.count() - 1)
-                combo.currentIndexChanged.connect(
-                    lambda _i, r=row, c=combo: self._on_row_atom(r, c)
-                )
-                self._table.setCellWidget(i, 0, combo)
+                self._table.setCellWidget(i, 0, self._build_target_combo(row))
 
                 spin = QDoubleSpinBox(self)
                 spin.setDecimals(4)
@@ -95,6 +93,34 @@ class AtomContentsWidget(QWidget):
                 self._table.setCellWidget(i, 1, spin)
         finally:
             self._updating = False
+
+    def _build_target_combo(self, row) -> QComboBox:
+        """A combo of every possible target for a content row: the component's
+        atoms (as pn targets) and its other relations (a ratio contributes its
+        RATIO value + SUM, a contents its value). Each item's data is
+        ``(object, prop)``; the current target is pre-selected."""
+        combo = QComboBox(self)
+        combo.addItem("(none)", (None, None))
+        selected = 0
+        current = (row.target, row.prop)
+        for atom in self._atoms:
+            combo.addItem(getattr(atom, "name", "") or "atom", (atom, "pn"))
+            if current == (atom, "pn"):
+                selected = combo.count() - 1
+        for rel in self._relations:
+            name = getattr(rel, "name", "") or "relation"
+            entries = ([("%s: RATIO" % name, "value"), ("%s: SUM" % name, "__internal_sum__")]
+                       if getattr(rel, "type", "") == "AtomRatio"
+                       else [(name, "value")])
+            for label, prop in entries:
+                combo.addItem(label, (rel, prop))
+                if current == (rel, prop):
+                    selected = combo.count() - 1
+        combo.setCurrentIndex(selected)
+        combo.currentIndexChanged.connect(
+            lambda _i, r=row, c=combo: self._on_row_target(r, c)
+        )
+        return combo
 
     # ------------------------------------------------------------------
     def _on_name(self) -> None:
@@ -112,13 +138,37 @@ class AtomContentsWidget(QWidget):
             self._contents.value = float(value)
             self._notify()
 
-    def _on_row_atom(self, row, combo) -> None:
+    def _on_row_target(self, row, combo) -> None:
         if self._updating:
             return
-        atom = combo.currentData()
-        row.atom = atom
-        row._ref = atom.uuid if atom is not None else None
+        obj, prop = combo.currentData()
+        # Refuse a target that would make this contents drive itself (directly
+        # or through a chain) - the apply guard would break the loop, but the
+        # link is meaningless. Revert the combo to the row's current target.
+        if obj is not None and prop != "pn" and self._would_cycle(obj):
+            self._rebuild_table()
+            return
+        row.prop = prop or "pn"
+        row.atom = obj if prop == "pn" else None
+        row.relation = obj if (obj is not None and prop != "pn") else None
+        row._ref = obj.uuid if obj is not None else None
         self._notify()
+
+    def _would_cycle(self, target) -> bool:
+        """True if driving `target` would loop back to the contents being edited
+        (target reaches self._contents through its own chain rows, or IS it)."""
+        seen, stack = set(), [target]
+        while stack:
+            rel = stack.pop()
+            if rel is self._contents:
+                return True
+            if id(rel) in seen:
+                continue
+            seen.add(id(rel))
+            for r in getattr(rel, "chain_rows", []) or []:
+                if r.relation is not None:
+                    stack.append(r.relation)
+        return False
 
     def _on_row_amount(self, row, value: float) -> None:
         if not self._updating:
@@ -135,10 +185,10 @@ class AtomContentsWidget(QWidget):
     def _on_del_row(self) -> None:
         if self._contents is None:
             return
+        rows = self._contents.atom_contents
         i = self._table.currentRow()
-        rows = self._contents.atom_rows
         if 0 <= i < len(rows):
-            self._contents.atom_contents.remove(rows[i])
+            del rows[i]
             self._rebuild_table()
             self._notify()
 

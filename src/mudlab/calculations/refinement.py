@@ -2,8 +2,10 @@
 (refiner.py + methods/) and adapted to MudLab2's models.
 
 This refines the *structural* refinable parameters of a mixture's phases -
-sigma*, the CSDS mean, the R0 F params, and per-component d001 / delta_c -
-each with a [min, max, refine] triple stored in the .mud as `<name>_ref_info`
+sigma*, the CSDS mean, the R0 F params, per-component d001 / delta_c, and the
+atom-relation values (an AtomRatio's substituting fraction / an AtomContents
+multiplier, unless inherited, disabled, or driven by another relation) - each
+with a [min, max, refine] triple stored in the .mud as `<name>_ref_info`
 (preserved verbatim in the models' raw_properties). It is distinct from the
 mixture Optimize, which only fits fractions/scales/background.
 
@@ -189,7 +191,51 @@ def _phase_refinables(phase) -> list[Refinable]:
                 lambda v, c=comp: setattr(c, "delta_c", v),
                 craw, "delta_c_ref_info", default_bounds=(0.0, 0.05),
             ))
+        # Atom-relation values (old AtomRelation.is_refinable = enabled and not
+        # driven_by_other and not inside_linked_component). An inherited
+        # component reads its template's relations, so none is independent here;
+        # a relation whose value is driven by a sibling's chain row is computed,
+        # not free. Setting the value re-applies the component's relations so the
+        # driven atom pn (and any derived cell length) follow before the calc.
+        if not comp.is_inherited("atom_relations"):
+            driven = _driven_relation_ids(comp)
+            for rel in comp.atom_relations:
+                if not hasattr(rel, "raw_properties"):
+                    continue  # an unmodeled (dict) relation - no editable value
+                if not getattr(rel, "enabled", True) or id(rel) in driven:
+                    continue
+                # A ratio's value is a fraction in [0, 1]; a contents multiplier
+                # is unbounded above, so give it a looser default.
+                bounds = (0.0, 1.0) if getattr(rel, "type", "") == "AtomRatio" \
+                    else (0.0, 10.0)
+                out.append(Refinable(
+                    "%s | %s | %s" % (
+                        phase.name, comp.name, getattr(rel, "name", "") or "relation"),
+                    lambda r=rel: r.value,
+                    lambda v, r=rel, c=comp: _set_relation_value(r, c, v),
+                    rel.raw_properties, "value_ref_info", default_bounds=bounds,
+                ))
     return out
+
+
+def _driven_relation_ids(comp) -> set:
+    """ids of the component's relations whose value/sum is driven by another
+    relation's chain row (old driven_by_other). Such a value is computed, so it
+    is not offered as an independent refinable."""
+    driven = set()
+    for rel in comp.atom_relations:
+        for row in getattr(rel, "chain_rows", []) or []:
+            if row.relation is not None:
+                driven.add(id(row.relation))
+    return driven
+
+
+def _set_relation_value(relation, component, value: float) -> None:
+    """Refinement setter for a relation value: store it, then re-apply the
+    component's relations so the atoms' pn (and any pn-derived cell length)
+    update before the structure factor is recomputed."""
+    relation.value = float(value)
+    component.apply_atom_relations()
 
 
 def enumerate_refinables(mixture) -> list[Refinable]:

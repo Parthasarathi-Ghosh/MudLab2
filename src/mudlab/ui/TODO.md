@@ -293,7 +293,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Edit Specimen | edit_specimen.ui, edit_specimen_dialog.py | specimen/glade/specimen.glade | done (hosts line properties + goniometer components) |
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (Add/Remove wired by the Edit Phases subclass; Import/Export still per-subclass) |
-| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + layer/interlayer atoms editable with live recalc; Add (empty phase, G blank components) + Remove (cascades based_on/linked_with/mixture refs) + phase Import/Export (.phs, batch 4) + component Import/Export (.cmp, file_parsers/cmp_components.py: replace-import, atoms by name, deep uuid remap) wired; unit-cell a/b, phase inheritance, colour still to wire) |
+| Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py, ucp.ui/ucp_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + unit-cell a/b (UnitCellPropWidget) + layer/interlayer atoms editable with live recalc; phase inheritance (based_on combo + per-property inherit flags + greying) and the display colour (modeled hex, reads through based_on; harness verify_phase_color.py) wired; Add + Remove + phase Import/Export (.phs) + component Import/Export (.cmp) wired; atom relations fully editable (AtomRatio + AtomContents editors, plus relation-to-relation chaining and relation-value refinement, 2026-07-22). Remaining: only the composition summary. NOTE: display_color round-trips + is editable but the plot draws only the specimen total, not per-phase curves, so it is metadata-only for now) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Only the composition summary still to wire) |
@@ -371,7 +371,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   safe); inherited cell a/b disable the widget (via L2's is_inherited).
 - [x] Layer / interlayer atom lists - atom_list.ui + atom_list_widget.py
   (name/Def.Z/pn + element combo + add/remove). Old: phases/glade/layer.glade.
-- [ ] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal). **Batch 2a
+- [x] Edit Atom Ratio dialog - phases/glade/ratio.glade (modal). **Batch 2a
   (model, DONE):** AtomRatio (models/atom_relations.py) splits an occupancy
   between two atoms - `atom1.pn = value*sum`, `atom2.pn = (1-value)*sum` (the
   OctFe octahedral Fe/Mg substitution). The component holds a modeled
@@ -386,8 +386,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   Remove + the embedded AtomRatioWidget (ratio.ui + ratio_widget.py: name,
   enabled, atom1/atom2 combos, value, sum). Editing re-applies the relation
   (sets the atoms' pn) and cascades pn -> cell_b -> cell_a + recomputes; the
-  atom lists refresh. AtomContents / chained relations are listed but not
-  editable yet (Batch 3); inherited relations are read-only. Also fixed the
+  atom lists refresh; inherited relations are read-only. Also fixed the
   audit's atom-pn -> UCP gap: `_on_atoms_changed` now calls `update_ucp_values`.
 - [x] Edit Atom Contents dialog - phases/glade/contents.glade. **Batch 3:**
   AtomContents (models/atom_relations.py: AtomContents + AtomContent rows) scales
@@ -397,8 +396,19 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   atom/amount rows with Add/Remove), embedded in the component editor's Atom
   relations group next to the AtomRatio editor (one shown per selected relation;
   "Add contents" button). Editing re-applies + cascades pn -> cell_b -> cell_a.
-  Chained rows (`prop` = "value"/"__internal_sum__") are preserved but not
-  listed; inherited relations read-only. Harness: verify_relations.py extended.
+  inherited relations read-only. Harness: verify_relations.py.
+- [x] Atom-relation CHAINING + value refinement (2026-07-22). **Chaining:** an
+  AtomContents row may target a sibling relation - `prop` = "value" drives that
+  relation's value, "__internal_sum__" drives an AtomRatio's sum (from
+  `amount*value`), then re-applies it so the driven atoms follow (re-entrancy
+  guard breaks cycles; component.resolve_relations now passes a {uuid: relation}
+  map). The contents editor lists EVERY row with a Target combo (atoms + sibling
+  relations: a ratio offers RATIO/SUM, a contents its value) and refuses a
+  cycle. **Refinement:** enumerate_refinables now exposes each relation `value`
+  (AtomRatio fraction bounds [0,1] / AtomContents multiplier), EXCEPT inherited,
+  disabled, or driven relations (old AtomRelation.is_refinable); the setter
+  re-applies so pn (and derived cell) update before the calc. Harness:
+  tools/verify_relation_chain_refine.py (11).
 - [x] Raw pattern phase editor - phases/glade/raw_pattern_phase.glade
   (edit_raw_pattern_phase.ui + edit_raw_pattern_phase_widget.py: name + import
   + preview; hosted in Edit Phases, routed by phase.type; batch 2). Batch 3
