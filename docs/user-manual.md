@@ -122,6 +122,8 @@ of the phase properties.
   parameters shown depend on the phase's stacking order: an **R0** phase lists
   its **F** parameters; an **R1** phase lists **W1** and the junction
   probability **P11 / P22**.
+- **Display colour** — tick *Inherit* next to the colour swatch, so a treated
+  phase shares its reference's plot colour.
 
 A ticked box greys the field and shows the **reference phase's** value. Untick it
 and the phase goes back to its own value. The pattern recalculates either way.

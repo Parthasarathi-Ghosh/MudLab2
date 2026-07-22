@@ -50,6 +50,10 @@ class Phase:
         self.inherit_display_color = False
         # Own values (overlaid by the read-through getters below).
         self._sigma_star = sigma_star
+        # Plot colour (a hex string, e.g. "#770022"); visuals-only but modeled
+        # so it can be edited and can read through a based_on parent, exactly
+        # like sigma*. Loaded phases override this in from_dict.
+        self._display_color = "#000000"
         self._CSDS = DritsCSDSDistribution()
         self.probabilities = probabilities_from_dict({}, G)
         # Full .mud phase dict kept verbatim so unmodeled fields (components,
@@ -152,6 +156,7 @@ class Phase:
         flag = {
             "sigma_star": self.inherit_sigma_star,
             "CSDS": self.inherit_CSDS_distribution,
+            "display_color": self.inherit_display_color,
         }.get(attr, False)
         return bool(flag) and self.based_on is not None and self.based_on is not self
 
@@ -179,6 +184,17 @@ class Phase:
     @CSDS.setter
     def CSDS(self, value) -> None:
         self._CSDS = value
+
+    @property
+    def display_color(self) -> str:
+        """The phase's plot colour (hex), read through the based_on chain when
+        inherit_display_color is set - the treated variants share the parent's
+        colour, as in the old app."""
+        return self._resolved("display_color")
+
+    @display_color.setter
+    def display_color(self, value) -> None:
+        self._display_color = str(value)
 
     # Stacking probability matrices (independent stacking for R0). ------
     @property
@@ -230,6 +246,7 @@ class Phase:
         # OWN values, never the inherited read-through ones, so a based_on
         # child round-trips byte-identically (it may store a stale value).
         props["sigma_star"] = self._sigma_star
+        props["display_color"] = self._display_color
         # Components are modeled: write the live list back (each preserves its
         # own unmodeled fields verbatim). Only when the phase actually has
         # component models, so a phase loaded without them stays untouched.
@@ -303,4 +320,5 @@ class Phase:
             props.get("inherit_CSDS_distribution", False)
         )
         phase.inherit_display_color = bool(props.get("inherit_display_color", False))
+        phase._display_color = props.get("display_color") or phase._display_color
         return phase

@@ -4,12 +4,13 @@ Ported from the GTK EditPhaseView (phases/glade/phase.glade). Plugged into
 the Properties pane of the Edit Phases window and bound to a real Phase
 model.
 
-Editor-wiring batch 2 makes the phase name, sigma* orientation factor and
-the CSDS mean editable (the CSDS component, csds.ui, lives in the CSDS
-Distribution tab) with a live recalculation of the pattern. The
-probabilities and component tabs, plus phase inheritance (based-on chains),
-the display colour and the inherit flags, come with later batches and are
-disabled for now.
+The phase name, sigma* orientation factor and CSDS mean are editable (the
+CSDS component, csds.ui, lives in the CSDS Distribution tab) with a live
+recalculation of the pattern; the Probabilities and Components tabs, phase
+inheritance (based-on chains with per-property inherit flags + greying), and
+the display colour (a modeled hex that also reads through the based-on parent)
+are all wired. The composition summary is the only remaining phase-editor
+piece; the Atom Ratio / Atom Contents relation dialogs are a separate batch.
 """
 
 from __future__ import annotations
@@ -36,7 +37,8 @@ class EditPhaseWidget(QWidget):
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
 
-        self.color = ColorButton(self.ui.phase_display_color)
+        self.color = ColorButton(
+            self.ui.phase_display_color, on_change=self._on_color_picked)
 
         # The CSDS distribution component fills the CSDS tab; hide the
         # "insert here" placeholder label now that the real widget is present.
@@ -59,15 +61,6 @@ class EditPhaseWidget(QWidget):
         self.ui.componentsLayout.addWidget(self.component_widget)
         self.ui.lblComponentsPlaceholder.hide()
 
-        # The display colour is a visuals-only property that is not modeled yet.
-        for control, why in (
-            (self.ui.phase_display_color, "Phase display colour is not modeled yet."),
-            (self.ui.phase_inherit_display_color,
-             "Phase display colour is not modeled yet."),
-        ):
-            control.setEnabled(False)
-            control.setToolTip(why)
-
         self.ui.phase_name.editingFinished.connect(self._on_name_edited)
         self.ui.phase_sigma_star.valueChanged.connect(self._on_sigma_changed)
 
@@ -79,6 +72,9 @@ class EditPhaseWidget(QWidget):
         )
         self.ui.phase_inherit_CSDS_distribution.toggled.connect(
             lambda checked: self._on_phase_inherit_toggled("CSDS_distribution", checked)
+        )
+        self.ui.phase_inherit_display_color.toggled.connect(
+            lambda checked: self._on_phase_inherit_toggled("display_color", checked)
         )
 
         self.setEnabled(False)
@@ -166,6 +162,11 @@ class EditPhaseWidget(QWidget):
                 phase.inherit_CSDS_distribution
             )
             self.ui.phase_inherit_CSDS_distribution.setEnabled(based)
+            # Display colour: show the effective (read-through) colour; only a
+            # based_on phase may inherit it.
+            self.color.set_color(phase.display_color)
+            self.ui.phase_inherit_display_color.setChecked(phase.inherit_display_color)
+            self.ui.phase_inherit_display_color.setEnabled(based)
         finally:
             self._updating = False
         self._apply_phase_inheritance(phase)
@@ -174,6 +175,7 @@ class EditPhaseWidget(QWidget):
         """Grey each field that currently reads through to the based_on phase."""
         self.ui.phase_sigma_star.setDisabled(phase.is_inherited("sigma_star"))
         self.csds_widget.setDisabled(phase.is_inherited("CSDS"))
+        self.ui.phase_display_color.setDisabled(phase.is_inherited("display_color"))
 
     def _on_based_on_changed(self, _index: int) -> None:
         if self._phase is None or self._updating:
@@ -201,6 +203,7 @@ class EditPhaseWidget(QWidget):
         try:
             # An inherited field shows the reference phase's value.
             self.ui.phase_sigma_star.setValue(float(self._phase.sigma_star))
+            self.color.set_color(self._phase.display_color)
         finally:
             self._updating = False
         self.csds_widget.bind_csds(self._phase.CSDS, on_changed=self._notify)
@@ -226,6 +229,13 @@ class EditPhaseWidget(QWidget):
     def _on_sigma_changed(self, value: float) -> None:
         if self._phase is not None and not self._updating:
             self._phase.sigma_star = value
+            self._notify()
+
+    def _on_color_picked(self, color) -> None:
+        """The user picked a plot colour. Store the hex on the phase (visuals
+        only - no recalculation needed, just a redraw)."""
+        if self._phase is not None and not self._updating:
+            self._phase.display_color = color.name()
             self._notify()
 
     def _notify(self) -> None:
