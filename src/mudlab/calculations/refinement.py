@@ -381,6 +381,26 @@ REFINE_METHODS = {
 }
 
 
+def _apply_refinable_domain(refinables) -> None:
+    """Move the model into the domain the search evaluates in, BEFORE the
+    baseline residual is measured.
+
+    Setting a refinable to its own value is a no-op for every parameter except
+    an atom-relation value: that setter (re)applies the relation, shifting the
+    driven atoms' pn from the golden stored value (kept un-applied on load for
+    calc fidelity) to the relation-computed one. Every trial applies the same
+    way, so priming once up front makes the "before" residual and the
+    non-worsening guard consistent with the trials - instead of comparing an
+    un-applied baseline against applied candidates, which let a relation flagged
+    for refinement shift the pattern irreversibly on the first trial. Only
+    components with a FLAGGED relation are touched (refiner.refinables is the
+    flagged set), so a refinement that flags no relation leaves the stored pn
+    untouched. Refining a relation therefore commits the fit to relation-driven
+    pn - the guarantee is "never worse than this applied starting point"."""
+    for ref in refinables:
+        ref.value = ref.value
+
+
 def refine_mixture(mixture, method_index=0, options=None, stop=None,
                    on_progress=None) -> "Refiner":
     """Refine the mixture's flagged structural parameters with the chosen
@@ -412,6 +432,12 @@ def refine_mixture(mixture, method_index=0, options=None, stop=None,
         refiner.best_residual = residual
         refiner.last_residual = residual
         return refiner
+
+    # Prime the flagged parameters into the search's domain first: a flagged
+    # relation value applies its relation (moving pn to the computed value) so
+    # the snapshot, the "before" residual and every trial all sit in the same
+    # domain. A no-op for the non-relation parameters. See _apply_refinable_domain.
+    _apply_refinable_domain(refiner.refinables)
 
     # Snapshot the full mutable state before the search (the flagged structural
     # values plus the mixture's fractions/scales/background, which the inner

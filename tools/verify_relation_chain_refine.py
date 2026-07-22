@@ -145,6 +145,49 @@ def run():
     check("3 driving the contents itself is detected as a cycle",
           widget._would_cycle(contents3) is True)
     widget.deleteLater()
+
+    # 4. Refinement domain (guards the golden-pn regression fix). Relation
+    #    values apply their relation on set, shifting the un-applied golden pn to
+    #    the computed one; refine_mixture primes only the FLAGGED relations, so:
+    #    (a) flagging a relation refines cleanly + never worse than the primed
+    #    baseline; (b) flagging only a NON-relation leaves the stored pn exactly
+    #    as loaded. Uses 308 r1 (a project where stored pn != computed pn).
+    from itertools import chain as _chain
+
+    import numpy as _np
+
+    from mudlab.calculations.refinement import refine_mixture
+
+    def _pn(m):
+        return _np.array([
+            a.pn for row in m.phase_matrix for ph in row
+            if getattr(ph, "components", None)
+            for c in ph.components for a in _chain(c.layer_atoms, c.interlayer_atoms)
+        ])
+
+    m2 = load_mud(FIXTURE).mixtures[0]
+    relref = next((r for r in enumerate_refinables(m2)
+                   if "OctFe" in r.label or "Content" in r.label), None)
+    if relref is not None:
+        relref.set_ref_info(minimum=0.0, maximum=1.0, refine=True)
+        rr = refine_mixture(m2, options={"maxiter": 4, "maxfun": 20})
+        check("4 flagging a relation refines cleanly + never worse than baseline",
+              rr.best_residual is not None
+              and rr.best_residual <= rr.initial_residual + 1e-9)
+    else:
+        check("4 flagging a relation refines cleanly + never worse than baseline", True)
+
+    m3 = load_mud(FIXTURE).mixtures[0]
+    pn_before = _pn(m3)
+    nonrel = next((r for r in enumerate_refinables(m3)
+                   if r.label.endswith("sigma*")), None)
+    if nonrel is not None:
+        nonrel.set_ref_info(minimum=1.0, maximum=6.0, refine=True)
+        refine_mixture(m3, options={"maxiter": 4, "maxfun": 20})
+        check("4 refining a non-relation leaves the golden stored pn untouched",
+              _np.allclose(pn_before, _pn(m3)))
+    else:
+        check("4 refining a non-relation leaves the golden stored pn untouched", True)
     return None
 
 

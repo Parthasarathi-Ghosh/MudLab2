@@ -394,6 +394,14 @@ def check_ops_x_calc_engine(path, results):
     results.append(("3 refinables still enumerate after a trim",
                     len(refinables) > 0))
     if refinables:
+        # An atom-relation refinable applies its relation on set (moving the
+        # driven atoms' pn from the golden stored value to the relation-computed
+        # one). refine_mixture primes this domain before it measures its baseline
+        # (_apply_refinable_domain); mirror that here, or the first relation
+        # touched below would shift the pattern once and make every later restore
+        # compare against a stale baseline. A no-op for non-relation refinables.
+        for ref in refinables:
+            ref.value = ref.value
         base = mixture.current_residual()
         # At least ONE refinable must move the residual - not any given one.
         # A phase at fraction 0 contributes nothing to the pattern, so its
