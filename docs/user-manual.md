@@ -359,6 +359,17 @@ the gap. As always, nothing touches disk until you **Save**.
 > pick the raw phase from the drop-down — exactly like assigning any phase. (A
 > raw phase is only selectable once it holds a measured pattern.)
 
+### Composition summary
+
+Press **Composition** to see the mixture's **oxide composition** — one column
+per specimen, one row per oxide (SiO₂, Al₂O₃, Fe₂O₃, CaO, MgO, Na₂O, K₂O), in
+weight percent normalised to 100. It is computed from each phase's atoms
+(weighted by their occupancies and the phase fractions), so it reflects the
+model you have built; raw-pattern phases, which have no atoms, do not contribute.
+
+The panel is read-only. Use **Copy** to put the table on the clipboard as CSV,
+or **Export CSV…** to save it to a file.
+
 ---
 
 ## Preparing experimental data

@@ -296,7 +296,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py, ucp.ui/ucp_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + unit-cell a/b (UnitCellPropWidget) + layer/interlayer atoms editable with live recalc; phase inheritance (based_on combo + per-property inherit flags + greying) and the display colour (modeled hex, reads through based_on; harness verify_phase_color.py) wired; Add + Remove + phase Import/Export (.phs) + component Import/Export (.cmp) wired; atom relations fully editable (AtomRatio + AtomContents editors, plus relation-to-relation chaining and relation-value refinement, 2026-07-22). Remaining: only the composition summary. NOTE: display_color round-trips + is editable but the plot draws only the specimen total, not per-phase curves, so it is metadata-only for now) |
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
-| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live. Only the composition summary still to wire) |
+| Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live; the Composition button opens the per-specimen oxide summary. Fully wired) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; **raw-pattern option wired** (batch 2); default-catalog honestly disabled; wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
@@ -427,7 +427,17 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 
 ### Mixtures
 - [ ] Add Mixture dialog - mixture/views/glade/add_mixture.glade (for the Edit Mixtures shell's Add button)
-- [ ] Composition summary - opened by btn_composition in the mixture editor
+- [x] Composition summary - btn_composition in the mixture editor (2026-07-22).
+  Per-specimen oxide wt% (old Mixture.get_composition_matrix): each atom
+  contributes pn x atom_type.weight x (component weight fraction x phase
+  fraction) x oxide factor, accumulated by element, converted to SiO2/Al2O3/
+  Fe2O3/CaO/MgO/Na2O/K2O (mudlab/data/composition_conversion.csv; the old app's
+  factors verbatim, its "Al2O2" label typo corrected to Al2O3 - display only,
+  the factor is unchanged) and normalised to 100 per specimen.
+  Analytics: calculations/composition.py; modal CompositionDialog
+  (composition.ui, oxides x specimens table + Copy/Export CSV). Raw phases +
+  empty cells contribute nothing. Harness tools/verify_composition.py (11).
+  MudLab.spec now bundles src/mudlab/data.
 
 ### Refinement (structural-parameter refinement, distinct from mixture Optimize)
 - [x] Phase A: refinables framework + engine - calculations/refinement.py.

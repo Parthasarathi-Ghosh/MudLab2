@@ -1058,8 +1058,14 @@ modeless by `actionEditMixtures`.
   refreshes the residual (`_after_structural_change`). Harness:
   `tools/verify_mixture_structure.py`. This closes the raw-phase-as-new-slot
   gap: Add phase, then assign the raw phase in its cells.
-- Still disabled (other ports): `btn_composition` (composition summary) and the
-  Add Mixture dialog (`add_mixture.glade`) for the shell's Add button.
+- Composition (2026-07-22): `btn_composition` opens the modal `CompositionDialog`
+  (composition.ui / composition_dialog.py) for the bound mixture - a read-only
+  oxides x specimens table of the per-specimen oxide wt% composition, with Copy
+  / Export CSV. Analytics in `calculations/composition.py` (old
+  Mixture.get_composition_matrix), conversion table in
+  `mudlab/data/composition_conversion.csv` (bundled via MudLab.spec `datas`).
+- Still to port: the Add Mixture dialog (`add_mixture.glade`) for the shell's
+  Add button. The mixture editor itself is otherwise fully wired.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.

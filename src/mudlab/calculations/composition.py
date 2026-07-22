@@ -1,0 +1,120 @@
+"""Oxide composition of a mixture's specimens.
+
+Ported as-is from the old mudlab Mixture.get_composition_matrix. For each
+specimen the modeled phases contribute their atoms' element weights, which are
+converted to the usual reporting oxides (SiO2, Al2O3, Fe2O3, CaO, MgO, Na2O,
+K2O) via a fixed conversion table and normalised to 100 wt%.
+
+The per-atom contribution is::
+
+    pn x atom_type.weight x (component_weight_fraction x phase_fraction) x oxide_factor
+
+where the component weight fraction is the phase's mean weight of that component
+(``probabilities.get_distribution_array()`` - the old ``mW``). Raw-pattern
+phases (no structure) and empty cells contribute nothing.
+
+The conversion factors live in ``mudlab/data/composition_conversion.csv`` (the
+old app's factors verbatim; its ``Al2O2`` *label* typo is corrected to the
+chemically-correct ``Al2O3`` the factor 1.8895 actually represents - a
+display-only change, the number is unchanged and composition is never saved).
+This is pure analytics - the Compositions dialog only renders what this returns.
+"""
+
+from __future__ import annotations
+
+import csv
+import os
+from collections import OrderedDict
+from itertools import chain
+
+_CONV_CSV = os.path.join(
+    os.path.dirname(__file__), os.pardir, "data", "composition_conversion.csv"
+)
+
+
+def load_conversion_table(path: str | None = None) -> "OrderedDict[int, tuple[str, float]]":
+    """``atom_nr -> (oxide_name, element->oxide wt% factor)``, in file order (so
+    the reported oxide rows keep the old app's ordering). The first line is a
+    comment header and is skipped, exactly as the old reader did."""
+    table: "OrderedDict[int, tuple[str, float]]" = OrderedDict()
+    with open(path or _CONV_CSV, "r", encoding="utf-8") as handle:
+        reader = csv.reader(handle)
+        next(reader, None)  # skip the header comment line
+        for row in reader:
+            if len(row) < 3:
+                continue
+            nr, name, factor = row[0], row[1], row[2]
+            table[int(nr)] = (name, float(factor))
+    return table
+
+
+def _specimen_name(mixture, index: int) -> str:
+    specimen = mixture.specimens[index] if index < len(mixture.specimens) else None
+    if specimen is not None and getattr(specimen, "name", ""):
+        return specimen.name
+    return "Specimen %d" % (index + 1)
+
+
+def mixture_composition(mixture, conversion: dict | None = None):
+    """The mixture's oxide composition.
+
+    Returns ``(specimen_names, oxide_rows)`` where ``oxide_rows`` is a list of
+    ``(oxide_name, [wt%_for_each_specimen])`` in the conversion table's order.
+    Each specimen column is normalised to 100 wt% (0 when it has no convertible
+    atoms). Mirrors the old ``get_composition_matrix`` computation without its
+    byte-string packing."""
+    conv = conversion if conversion is not None else load_conversion_table()
+
+    # Accumulate an element-weight total per specimen row.
+    per_specimen: list[dict[int, float]] = []
+    for row in mixture.phase_matrix:
+        totals: dict[int, float] = {}
+        for j, phase in enumerate(row):
+            components = getattr(phase, "components", None) if phase is not None else None
+            if not components:
+                continue  # empty cell or a raw-pattern phase (no structure)
+            phase_fract = float(mixture.fractions[j]) if j < len(mixture.fractions) else 0.0
+            weights = _component_weights(phase)
+            for k, component in enumerate(components):
+                comp_fract = (weights[k] if k < len(weights) else 0.0) * phase_fract
+                for atom in chain(component.layer_atoms, component.interlayer_atoms):
+                    atom_type = getattr(atom, "atom_type", None)
+                    if atom_type is None:
+                        continue
+                    nr = atom_type.atom_nr
+                    if nr in conv:
+                        wt = atom.pn * atom_type.weight * comp_fract * conv[nr][1]
+                        totals[nr] = totals.get(nr, 0.0) + wt
+        per_specimen.append(totals)
+
+    factors = [
+        (100.0 / total if total else 0.0)
+        for total in (sum(t.values()) for t in per_specimen)
+    ]
+    specimen_names = [_specimen_name(mixture, i) for i in range(len(per_specimen))]
+    oxide_rows = [
+        (oxide_name, [per_specimen[i].get(nr, 0.0) * factors[i]
+                      for i in range(len(per_specimen))])
+        for nr, (oxide_name, _factor) in conv.items()
+    ]
+    return specimen_names, oxide_rows
+
+
+def _component_weights(phase):
+    """The phase's per-component mean weight fractions (old ``mW``); an empty
+    array when the phase has no probability model."""
+    probs = getattr(phase, "probabilities", None)
+    getter = getattr(probs, "get_distribution_array", None)
+    return list(getter()) if callable(getter) else []
+
+
+def composition_to_csv(specimen_names, oxide_rows) -> str:
+    """Render the composition as CSV text (header = specimen names)."""
+    import io
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["", *specimen_names])
+    for oxide_name, pcts in oxide_rows:
+        writer.writerow([oxide_name, *("%.1f" % p for p in pcts)])
+    return buffer.getvalue()

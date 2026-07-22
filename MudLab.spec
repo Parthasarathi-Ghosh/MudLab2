@@ -6,11 +6,14 @@ a = Analysis(
     ["src/mudlab/__main__.py"],
     pathex=["src"],
     binaries=[],
+    # Bundle the app's runtime data files (kept under src/mudlab/data), e.g. the
+    # composition-conversion table read by calculations/composition.py. The .ui
+    # files do NOT need bundling - they are compiled to ui_*.py modules.
+    #
     # Keep `datas` free of tools/sample_projects/*.mud. Those are test-only
     # fixtures that must never ship in a release (see .gitattributes
-    # export-ignore). No app code imports them, so an empty list already
-    # excludes them - do not add them here.
-    datas=[],
+    # export-ignore); no app code imports them.
+    datas=[("src/mudlab/data", "mudlab/data")],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],

@@ -18,7 +18,7 @@ Structural editing is wired too: the Add phase / Add specimen / Add both buttons
 append a slot or specimen, and right-clicking a phase-slot row header (rename /
 remove) or a specimen column header (assign a project specimen / remove) does
 the structural edits - kept on the headers so the grid stays a clean value
-matrix. The composition summary is the only remaining later port.
+matrix. The Composition button opens the read-only oxide-composition summary.
 """
 
 from __future__ import annotations
@@ -52,12 +52,6 @@ class EditMixtureWidget(QWidget):
         self._specimens: list = []
         self._on_changed: Callable[[], None] | None = None
 
-        # Still a later port: the composition summary. Disabled so the UI reads
-        # honestly. Everything else (Optimize, the auto-* flags, the Refine
-        # window, phase-cell reassignment, structural add/remove) is live.
-        self.ui.btn_composition.setEnabled(False)
-        self.ui.btn_composition.setToolTip("Composition summary is not ported yet.")
-
         self.ui.mixture_name.editingFinished.connect(self._on_name_edited)
         self.ui.tbl_matrix.itemChanged.connect(self._on_item_changed)
         self.ui.btn_optimize.clicked.connect(self._on_optimize)
@@ -65,6 +59,7 @@ class EditMixtureWidget(QWidget):
         self.ui.btn_add_phase.clicked.connect(self._on_add_phase)
         self.ui.btn_add_specimen.clicked.connect(self._on_add_specimen)
         self.ui.btn_add_both.clicked.connect(self._on_add_both)
+        self.ui.btn_composition.clicked.connect(self._on_composition)
         self._install_header_menus()
         self.ui.mixture_auto_run.toggled.connect(
             lambda checked: self._on_auto_toggled("auto_run", checked)
@@ -208,6 +203,15 @@ class EditMixtureWidget(QWidget):
         dialog.exec()
         self._populate()
         self._update_residual_label()
+
+    def _on_composition(self) -> None:
+        """Show the mixture's oxide composition (a read-only per-specimen table
+        with CSV copy/export). Old app: on_composition_clicked."""
+        if self._mixture is None:
+            return
+        from mudlab.composition_dialog import CompositionDialog
+
+        CompositionDialog(self._mixture, self).exec()
 
     def _update_residual_label(self) -> None:
         if self._mixture is None:
