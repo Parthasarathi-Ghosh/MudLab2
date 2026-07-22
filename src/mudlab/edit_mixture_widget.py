@@ -12,8 +12,13 @@ with a live recalculation, and the fraction/scale/bg Optimize + Refine controls
 are wired. Each phase cell is a combo that assigns WHICH phase fills that slot
 for that specimen (or "(none)" to empty it); only VALID phases are selectable -
 a phase with an empty component slot (no atoms) is shown greyed, so an
-incomplete New Phase cannot be assigned. Structural add/remove of slots/rows is
-a later batch.
+incomplete New Phase cannot be assigned.
+
+Structural editing is wired too: the Add phase / Add specimen / Add both buttons
+append a slot or specimen, and right-clicking a phase-slot row header (rename /
+remove) or a specimen column header (assign a project specimen / remove) does
+the structural edits - kept on the headers so the grid stays a clean value
+matrix. The composition summary is the only remaining later port.
 """
 
 from __future__ import annotations
@@ -22,7 +27,8 @@ from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QHeaderView, QMessageBox, QTableWidgetItem, QWidget,
+    QApplication, QComboBox, QHeaderView, QInputDialog, QMenu, QMessageBox,
+    QTableWidgetItem, QWidget,
 )
 
 from mudlab.ui.ui_edit_mixture import Ui_EditMixtureWidget
@@ -43,24 +49,23 @@ class EditMixtureWidget(QWidget):
 
         self._mixture = None
         self._phases: list = []
+        self._specimens: list = []
         self._on_changed: Callable[[], None] | None = None
 
-        # Still a later port: the composition summary and structural add/remove.
-        # Disabled so the UI reads honestly. Optimize, the auto-* flags, the
-        # Refine window and phase-cell reassignment are live.
-        for control, why in (
-            (self.ui.btn_composition, "Composition summary is not ported yet."),
-            (self.ui.btn_add_phase, "Adding phase slots is not ported yet."),
-            (self.ui.btn_add_specimen, "Adding specimens is not ported yet."),
-            (self.ui.btn_add_both, "Adding rows/columns is not ported yet."),
-        ):
-            control.setEnabled(False)
-            control.setToolTip(why)
+        # Still a later port: the composition summary. Disabled so the UI reads
+        # honestly. Everything else (Optimize, the auto-* flags, the Refine
+        # window, phase-cell reassignment, structural add/remove) is live.
+        self.ui.btn_composition.setEnabled(False)
+        self.ui.btn_composition.setToolTip("Composition summary is not ported yet.")
 
         self.ui.mixture_name.editingFinished.connect(self._on_name_edited)
         self.ui.tbl_matrix.itemChanged.connect(self._on_item_changed)
         self.ui.btn_optimize.clicked.connect(self._on_optimize)
         self.ui.btn_refine.clicked.connect(self._on_refine)
+        self.ui.btn_add_phase.clicked.connect(self._on_add_phase)
+        self.ui.btn_add_specimen.clicked.connect(self._on_add_specimen)
+        self.ui.btn_add_both.clicked.connect(self._on_add_both)
+        self._install_header_menus()
         self.ui.mixture_auto_run.toggled.connect(
             lambda checked: self._on_auto_toggled("auto_run", checked)
         )
@@ -72,13 +77,16 @@ class EditMixtureWidget(QWidget):
         )
 
     # ------------------------------------------------------------------
-    def bind_mixture(self, mixture, phases=None,
+    def bind_mixture(self, mixture, phases=None, specimens=None,
                      on_changed: Callable[[], None] | None = None) -> None:
         """Show and edit a real Mixture model. `phases` are the project's phases
-        offered in each cell's phase combo (invalid ones greyed). `on_changed`
-        is called after every accepted edit (used to recompute + redraw)."""
+        offered in each cell's phase combo (invalid ones greyed); `specimens`
+        are the project's specimens offered when assigning a specimen column
+        (right-click its header). `on_changed` is called after every accepted
+        edit (used to recompute + redraw)."""
         self._mixture = mixture
         self._phases = list(phases or [])
+        self._specimens = list(specimens or [])
         self._on_changed = on_changed
         self._populate()
         self._update_residual_label()
@@ -339,3 +347,115 @@ class EditMixtureWidget(QWidget):
         self._mixture.set_phase_at(specimen_index, slot_index, combo.currentData())
         self._notify()
         self._update_residual_label()
+
+    # ------------------------------------------------------------------
+    # Structural add / remove (slots + specimens)
+    # ------------------------------------------------------------------
+    def _on_add_phase(self) -> None:
+        """Add a phase slot (a "New Phase" row, fraction 1, empty cells). Old
+        app: add_phase_slot("New Phase", 1.0). Rename/fill it afterwards."""
+        if self._mixture is None:
+            return
+        self._mixture.add_phase_slot("New Phase", 1.0)
+        self._after_structural_change()
+
+    def _on_add_specimen(self) -> None:
+        """Add a specimen slot (an unassigned column, scale 1, bg 0). Old app:
+        add_specimen_slot(None, 1.0, 0.0). Right-click its header to assign a
+        specimen."""
+        if self._mixture is None:
+            return
+        self._mixture.add_specimen_slot(None, 1.0, 0.0)
+        self._after_structural_change()
+
+    def _on_add_both(self) -> None:
+        """Add a specimen column and a phase row in one step (old on_add_both)."""
+        if self._mixture is None:
+            return
+        self._mixture.add_specimen_slot(None, 1.0, 0.0)
+        self._mixture.add_phase_slot("New Phase", 1.0)
+        self._after_structural_change()
+
+    def _after_structural_change(self) -> None:
+        """Rebuild the grid, recompute and refresh the residual after a slot /
+        specimen was added or removed."""
+        self._populate()
+        self._notify()
+        self._update_residual_label()
+
+    # -- right-click header menus (rename / remove a slot; assign / remove a
+    #    specimen). The delete + assign affordances live on the headers so the
+    #    grid itself stays a clean value matrix.
+    def _install_header_menus(self) -> None:
+        table = self.ui.tbl_matrix
+        for header, handler in (
+            (table.verticalHeader(), self._on_slot_header_menu),
+            (table.horizontalHeader(), self._on_specimen_header_menu),
+        ):
+            header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            header.customContextMenuRequested.connect(handler)
+
+    def _on_slot_header_menu(self, pos) -> None:
+        """Right-click a phase-slot row header: rename or remove that slot. The
+        two fixed header rows (Abs. scale / Bg. shift) carry no slot."""
+        if self._mixture is None:
+            return
+        header = self.ui.tbl_matrix.verticalHeader()
+        row = header.logicalIndexAt(pos)
+        if row < _FIRST_PHASE_ROW:
+            return
+        slot = row - _FIRST_PHASE_ROW
+        menu = QMenu(self)
+        act_rename = menu.addAction("Rename phase slot…")
+        act_remove = menu.addAction("Remove phase slot")
+        chosen = menu.exec(header.mapToGlobal(pos))
+        if chosen is act_rename:
+            self._rename_slot(slot)
+        elif chosen is act_remove:
+            self._mixture.del_phase_slot(slot)
+            self._after_structural_change()
+
+    def _rename_slot(self, slot_index: int) -> None:
+        labels = self._mixture.phase_labels
+        current = labels[slot_index] if 0 <= slot_index < len(labels) else ""
+        text, ok = QInputDialog.getText(
+            self, "Rename phase slot", "Slot name:", text=current)
+        if ok:
+            self._mixture.set_phase_label(slot_index, text)
+            self._after_structural_change()
+
+    def _on_specimen_header_menu(self, pos) -> None:
+        """Right-click a specimen column header: assign which project specimen
+        fills it (or (none)), or remove the column. The Fraction column carries
+        no specimen."""
+        if self._mixture is None:
+            return
+        header = self.ui.tbl_matrix.horizontalHeader()
+        col = header.logicalIndexAt(pos)
+        if col < _FIRST_SPEC_COL:
+            return
+        spec_index = col - _FIRST_SPEC_COL
+        current = (self._mixture.specimens[spec_index]
+                   if spec_index < len(self._mixture.specimens) else None)
+        menu = QMenu(self)
+        assign = menu.addMenu("Assign specimen")
+        by_action = {}
+        act_none = assign.addAction("(none)")
+        act_none.setCheckable(True)
+        act_none.setChecked(current is None)
+        by_action[act_none] = None
+        for spec in self._specimens:
+            act = assign.addAction(getattr(spec, "name", "") or "specimen")
+            act.setCheckable(True)
+            act.setChecked(spec is current)
+            by_action[act] = spec
+        act_remove = menu.addAction("Remove specimen")
+        chosen = menu.exec(header.mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is act_remove:
+            self._mixture.del_specimen_slot(spec_index)
+            self._after_structural_change()
+        elif chosen in by_action:
+            self._mixture.set_specimen_at(spec_index, by_action[chosen])
+            self._after_structural_change()

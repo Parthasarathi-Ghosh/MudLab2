@@ -40,8 +40,9 @@ class EditMixturesDialog(ObjectStoreDialog):
         if 0 <= index.row() < len(self._mixtures):
             mixture = self._mixtures[index.row()]
             phases = self.project.phases if self.project is not None else []
+            specimens = self.project.specimens if self.project is not None else []
             self.mixture_widget.bind_mixture(
-                mixture, phases=phases,
+                mixture, phases=phases, specimens=specimens,
                 on_changed=lambda m=mixture: self._recalculate(m)
             )
 

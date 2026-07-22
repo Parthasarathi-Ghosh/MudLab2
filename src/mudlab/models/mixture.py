@@ -94,6 +94,99 @@ class Mixture:
         if i < len(self.phase_uuids) and j < len(self.phase_uuids[i]):
             self.phase_uuids[i][j] = phase.uuid if phase is not None else ""
 
+    def set_specimen_at(self, specimen_index: int, specimen) -> None:
+        """Assign `specimen` (or None) to a row, updating BOTH the resolved list
+        (`specimens`, what the calc reads) and the uuid list (`specimen_uuids`,
+        what round-trips). Old app: set_specimen."""
+        i = specimen_index
+        if not (0 <= i < len(self.specimens)):
+            return
+        self.specimens[i] = specimen
+        if i < len(self.specimen_uuids):
+            self.specimen_uuids[i] = specimen.uuid if specimen is not None else ""
+
+    def set_phase_label(self, slot_index: int, label: str) -> None:
+        """Rename a phase slot (the column label; old app edits `phases[j]`)."""
+        if 0 <= slot_index < len(self.phase_labels):
+            self.phase_labels[slot_index] = label
+
+    # ------------------------------------------------------------------
+    # Structural add / remove (old Mixture.add/del_phase_slot / specimen_slot)
+    # ------------------------------------------------------------------
+    def add_phase_slot(self, label: str = "New Phase", fraction: float = 1.0) -> int:
+        """Append a phase slot (a column): a label, a fraction, a mask entry and
+        a None cell in every specimen row. Returns the new slot index. Old app:
+        add_phase_slot."""
+        self.phase_labels.append(label)
+        self.fractions = np.append(self.fractions, float(fraction))
+        self._extend_fractions_mask()
+        for row in self.phase_matrix:
+            row.append(None)
+        for row in self.phase_uuids:
+            row.append("")
+        return len(self.phase_labels) - 1
+
+    def del_phase_slot(self, slot_index: int) -> None:
+        """Remove a phase slot (column) by index: its label, fraction, mask
+        entry and the matching cell in every row. The slots to its right shift
+        left, as in the old app's del_phase_slot."""
+        j = slot_index
+        if not (0 <= j < len(self.phase_labels)):
+            return
+        del self.phase_labels[j]
+        self.fractions = np.delete(self.fractions, j)
+        self._del_fractions_mask(j)
+        for row in self.phase_matrix:
+            if j < len(row):
+                del row[j]
+        for row in self.phase_uuids:
+            if j < len(row):
+                del row[j]
+
+    def add_specimen_slot(self, specimen=None, scale: float = 1.0,
+                          bgshift: float = 0.0) -> int:
+        """Append a specimen slot (a row): a specimen (or None), a scale, a
+        background shift and a None cell for every phase slot. Returns the new
+        row index. Old app: add_specimen_slot."""
+        self.specimens.append(specimen)
+        self.specimen_uuids.append(specimen.uuid if specimen is not None else "")
+        self.scales = np.append(self.scales, float(scale))
+        self.bgshifts = np.append(self.bgshifts, float(bgshift))
+        m = len(self.phase_labels)
+        self.phase_matrix.append([None] * m)
+        self.phase_uuids.append([""] * m)
+        return len(self.specimens) - 1
+
+    def del_specimen_slot(self, specimen_index: int) -> None:
+        """Remove a specimen slot (row) by index: its specimen, scale, bg shift
+        and phase cells. Old app: del_specimen_slot."""
+        i = specimen_index
+        if not (0 <= i < len(self.specimens)):
+            return
+        del self.specimens[i]
+        if i < len(self.specimen_uuids):
+            del self.specimen_uuids[i]
+        self.scales = np.delete(self.scales, i)
+        self.bgshifts = np.delete(self.bgshifts, i)
+        if i < len(self.phase_matrix):
+            del self.phase_matrix[i]
+        if i < len(self.phase_uuids):
+            del self.phase_uuids[i]
+
+    def _extend_fractions_mask(self) -> None:
+        """Keep an explicit fractions_mask (only if the .mud carried one) in
+        step with a new phase slot - the new fraction is refinable (1), as in
+        the old app. When no mask is stored the calc defaults to all-free, so
+        there is nothing to grow."""
+        mask = self.raw_properties.get("fractions_mask")
+        if isinstance(mask, list):
+            mask.append(1)
+
+    def _del_fractions_mask(self, slot_index: int) -> None:
+        mask = self.raw_properties.get("fractions_mask")
+        if isinstance(mask, list) and 0 <= slot_index < len(mask):
+            del mask[slot_index]
+
     def calculate(self) -> None:
         """Compute and store every specimen's calculated pattern."""
         for i, specimen in enumerate(self.specimens):

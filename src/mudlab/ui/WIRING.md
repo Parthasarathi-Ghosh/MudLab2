@@ -1027,11 +1027,26 @@ modeless by `actionEditMixtures`.
   (`refinement_dialog.py` RefinementDialog) for structural-parameter
   refinement; the mixture editor re-populates when it closes. See the
   Refinement window section below.
-- Still disabled (later batches / other ports): btn_add_phase/specimen/both
-  (structural add/remove of a slot or specimen), `btn_composition`
-  (composition summary), and the Add Mixture dialog (`add_mixture.glade`) for
-  the shell's Add button. Adding a raw phase as a NEW slot needs btn_add_phase
-  (Batch 2); reassigning an EXISTING slot to any valid phase is wired now.
+- Structural add/remove (2026-07-21, Batch 2): `btn_add_phase` /
+  `btn_add_specimen` / `btn_add_both` append a slot or specimen via the new
+  model methods `add_phase_slot("New Phase", 1.0)` / `add_specimen_slot(None,
+  1.0, 0.0)` (each keeps phase_labels/fractions/fractions_mask and every
+  phase_matrix + phase_uuids row/col in step; a fresh phase row is empty cells,
+  a fresh specimen column is unassigned). REMOVE + rename + specimen-assignment
+  live on the table's HEADERS (context menus, so the grid body stays a clean
+  value matrix): right-click a phase-slot ROW header -> "Rename phase slot…"
+  (`set_phase_label` via QInputDialog) / "Remove phase slot" (`del_phase_slot`);
+  right-click a specimen COLUMN header -> "Assign specimen" submenu (project
+  specimens + "(none)", `set_specimen_at`) / "Remove specimen"
+  (`del_specimen_slot`). Headers get `CustomContextMenu` policy in
+  `_install_header_menus`; the two fixed rows (scale/bg) and the Fraction column
+  carry no menu. `bind_mixture` now also takes `specimens=` (the dialog passes
+  `project.specimens`). Every structural edit repopulates + recomputes +
+  refreshes the residual (`_after_structural_change`). Harness:
+  `tools/verify_mixture_structure.py`. This closes the raw-phase-as-new-slot
+  gap: Add phase, then assign the raw phase in its cells.
+- Still disabled (other ports): `btn_composition` (composition summary) and the
+  Add Mixture dialog (`add_mixture.glade`) for the shell's Add button.
 - Saving: `Mixture.to_dict` writes the modeled fields over the verbatim
   `raw_properties`, so masks / refine options / auto flags / uuid survive;
   `save_mud` rewrites the mixtures part from the models when any is loaded.

@@ -287,9 +287,33 @@ that cell whenever you like.
 > referenced the deleted phase go blank, ready for a replacement. Nothing is
 > left dangling and no error is raised.
 
-> **Adding a *new* slot** (rather than reassigning an existing one) — for
-> example to drop in a raw-pattern phase as an extra component of the mixture —
-> is not wired yet; the **Add phase / Add specimen** buttons are still disabled.
+### Adding and removing slots and specimens
+
+The grid is not fixed — you can grow or shrink it with the buttons below it:
+
+- **Add phase** — appends a new phase slot (a row), named *New Phase* with a
+  fraction of 1, its cells empty. Rename it and fill its cells (see below).
+- **Add specimen** — appends a new specimen column, unassigned, with a scale of
+  1 and no background shift. Assign a specimen to it (see below).
+- **Add both** — adds one of each in a single step.
+
+**Renaming, removing, and assigning** are on the grid's **headers**, so the
+cells themselves stay a clean table of values:
+
+- **Right-click a phase-slot row header** (the name down the left) for **Rename
+  phase slot…** and **Remove phase slot**.
+- **Right-click a specimen column header** (the name across the top) for
+  **Assign specimen** (pick which measured specimen fills that column, or
+  *(none)*) and **Remove specimen**.
+
+Removing a slot or specimen takes its whole row/column with it — its fractions,
+scales, background shift and cell assignments — and the rest shift up to close
+the gap. As always, nothing touches disk until you **Save**.
+
+> **How do I add a raw-pattern phase (quartz, an internal standard, …) to a
+> mixture?** Press **Add phase** to make a new slot, then click its cells and
+> pick the raw phase from the drop-down — exactly like assigning any phase. (A
+> raw phase is only selectable once it holds a measured pattern.)
 
 ---
 
