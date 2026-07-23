@@ -15,9 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QDoubleSpinBox, QFormLayout, QGridLayout,
-    QGroupBox, QLabel, QLineEdit, QSizePolicy,
-    QSpinBox, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+    QGridLayout, QGroupBox, QHBoxLayout, QLabel,
+    QLineEdit, QSizePolicy, QSpinBox, QVBoxLayout,
+    QWidget)
 
 class Ui_EditAtomTypeWidget(object):
     def setupUi(self, EditAtomTypeWidget):
@@ -25,6 +26,21 @@ class Ui_EditAtomTypeWidget(object):
             EditAtomTypeWidget.setObjectName(u"EditAtomTypeWidget")
         self.atomTypeLayout = QVBoxLayout(EditAtomTypeWidget)
         self.atomTypeLayout.setObjectName(u"atomTypeLayout")
+        self.elementPickerRow = QHBoxLayout()
+        self.elementPickerRow.setObjectName(u"elementPickerRow")
+        self.lblElementPicker = QLabel(EditAtomTypeWidget)
+        self.lblElementPicker.setObjectName(u"lblElementPicker")
+
+        self.elementPickerRow.addWidget(self.lblElementPicker)
+
+        self.atom_element_picker = QComboBox(EditAtomTypeWidget)
+        self.atom_element_picker.setObjectName(u"atom_element_picker")
+
+        self.elementPickerRow.addWidget(self.atom_element_picker)
+
+
+        self.atomTypeLayout.addLayout(self.elementPickerRow)
+
         self.atomForm = QFormLayout()
         self.atomForm.setObjectName(u"atomForm")
         self.lblAtomName = QLabel(EditAtomTypeWidget)
@@ -269,6 +285,10 @@ class Ui_EditAtomTypeWidget(object):
     # setupUi
 
     def retranslateUi(self, EditAtomTypeWidget):
+        self.lblElementPicker.setText(QCoreApplication.translate("EditAtomTypeWidget", u"Fill from element", None))
+#if QT_CONFIG(tooltip)
+        self.atom_element_picker.setToolTip(QCoreApplication.translate("EditAtomTypeWidget", u"Pick an element or ion to fill this atom type's weight and scattering-factor coefficients from the built-in library.", None))
+#endif // QT_CONFIG(tooltip)
         self.lblAtomName.setText(QCoreApplication.translate("EditAtomTypeWidget", u"Name", None))
         self.lblAtomNr.setText(QCoreApplication.translate("EditAtomTypeWidget", u"Atom nr", None))
         self.lblAtomWeight.setText(QCoreApplication.translate("EditAtomTypeWidget", u"Atomic weight", None))

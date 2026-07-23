@@ -7,9 +7,12 @@
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
-# .mud project files are ZIP archives - keep them binary so text/eol
-# normalization can never corrupt them.
+# .mud / .cmp / .phs files are ZIP archives - keep them binary so text/eol
+# normalization can never corrupt them. (.cmp/.phs are used by the bundled
+# default-component catalog under src/mudlab/data, which DOES ship.)
 *.mud binary
+*.cmp binary
+*.phs binary
 
 # Test-only sample projects: the .mud fixtures are gitignored (untracked), so
 # they are never committed or pushed to origin. This export-ignore is

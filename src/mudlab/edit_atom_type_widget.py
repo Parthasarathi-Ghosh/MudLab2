@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 from PySide6.QtWidgets import QWidget
 
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
+from mudlab.file_parsers.atom_type_library import load_atom_type_library
 from mudlab.models import AtomType
 from mudlab.ui.ui_edit_atom_type import Ui_EditAtomTypeWidget
 
@@ -42,6 +43,15 @@ class EditAtomTypeWidget(QWidget):
             self.ui.atom_par_b4, self.ui.atom_par_b5,
         )
 
+        # "Fill from element": the built-in scattering-factor library. Loaded
+        # once; picking an entry copies its weight + coefficients onto the bound
+        # atom type (leaving its name/uuid, so existing references still resolve).
+        self._library = load_atom_type_library()
+        self.ui.atom_element_picker.addItem("(pick an element…)", None)
+        for lib_type in self._library:
+            self.ui.atom_element_picker.addItem(lib_type.name, lib_type)
+        self.ui.atom_element_picker.currentIndexChanged.connect(self._on_element_picked)
+
         self.ui.atom_name.textChanged.connect(lambda t: self._write("name", t))
         self.ui.atom_atom_nr.valueChanged.connect(lambda v: self._write("atom_nr", v))
         self.ui.atom_weight.valueChanged.connect(lambda v: self._write("weight", v))
@@ -63,6 +73,7 @@ class EditAtomTypeWidget(QWidget):
             return
         self._updating = True
         try:
+            self.ui.atom_element_picker.setCurrentIndex(0)  # a momentary action
             self.ui.atom_name.setText(atom_type.name)
             self.ui.atom_atom_nr.setValue(int(atom_type.atom_nr))
             self.ui.atom_weight.setValue(atom_type.weight)
@@ -76,6 +87,26 @@ class EditAtomTypeWidget(QWidget):
         finally:
             self._updating = False
         self._update_figure()
+
+    def _on_element_picked(self, _index: int) -> None:
+        """Copy the picked element's physical + scattering-factor fields onto the
+        bound atom type. Its name and uuid are left untouched, so atoms that
+        reference it keep resolving - the user names the atom type, the library
+        supplies the physics."""
+        if self._updating or self._atom_type is None:
+            return
+        source = self.ui.atom_element_picker.currentData()
+        if source is None:
+            return
+        self._atom_type.atom_nr = int(source.atom_nr)
+        self._atom_type.weight = source.weight
+        self._atom_type.debye = source.debye
+        self._atom_type.charge = source.charge
+        self._atom_type.par_c = source.par_c
+        self._atom_type.par_a = np.array(source.par_a, dtype=float)
+        self._atom_type.par_b = np.array(source.par_b, dtype=float)
+        self._atom_type.data_changed.emit()  # one refresh, with the full new state
+        self.bind_atom_type(self._atom_type)  # resync the spins + plot (+ picker)
 
     def _write(self, prop: str, value) -> None:
         if self._atom_type is not None and not self._updating:

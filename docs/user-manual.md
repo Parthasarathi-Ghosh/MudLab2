@@ -40,7 +40,9 @@ phases, and the buttons beneath it add and remove them.
 
 ### Adding a phase
 
-Press **Add** to open the Add Phase dialog.
+Press **Add** to open the Add Phase dialog, which offers three kinds of phase.
+
+**Empty phase** — build one from scratch:
 
 - Choose the **stacking order (R)** and the number of **components** (G):
   - **R0** — random, independent layer stacking. Available for 1–6 components.
@@ -48,19 +50,24 @@ Press **Add** to open the Add Phase dialog.
     it). Available for 2 components; choosing R1 fixes G at 2.
 - You get that many blank components, named *Component 1*, *Component 2*, …
   which you then fill in on the Components tab.
-- Press OK. The new phase appears in the list, selected and ready to edit. It
-  starts empty — give it a name and define its components, atoms, stacking
-  parameters and CSDS.
+- Press OK. The new phase appears in the list, selected and ready to edit — give
+  it a name and define its components, atoms, stacking parameters and CSDS.
 
-Only **empty** phases can be created at the moment. Two options are visible but
-disabled:
+**Default phase** — pick a ready-made reference clay from the **built-in
+catalog** (Kaolinite, Illite, Chlorite, Talc, the Ca-smectites and
+-vermiculites, and interstratified Illite-/Kaolinite-/Talc-/Chlorite-Smectite at
+R0 and R1). Choosing one adds it complete with its atoms and scattering factors,
+so it computes immediately — a ready starting point you can then adjust. An
+expandable clay is added as a **treatment triple** (Ca-AD / Ca-EG / Ca-350),
+where the glycolated and heated forms are *based on* the air-dried one and share
+its layer structure and stacking, differing only in the interlayer.
 
-- **Default phase** — copying a ready-made clay from a catalog is not available
-  yet.
-- **Raw pattern phase** — not supported yet.
+**Raw pattern phase** — a phase carrying a measured pattern (imported afterwards
+in the editor), for a non-modelled component such as quartz or an internal
+standard.
 
 Longer-range ordering (**R2, R3**) and R1 with more than two components are not
-available yet.
+available yet, so catalog entries needing them are not listed.
 
 ### Removing a phase
 

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 from mudlab.add_phase_dialog import AddPhaseDialog
 from mudlab.edit_phase_widget import EditPhaseWidget
 from mudlab.edit_raw_pattern_phase_widget import EditRawPatternPhaseWidget
+from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
 from mudlab.file_parsers.phs_phases import PHS_FILTERS, load_phs, save_phs
 from mudlab.models import Project
 from mudlab.models.phase import Phase
@@ -66,20 +67,30 @@ class EditPhasesDialog(ObjectStoreDialog):
         dialog = AddPhaseDialog(self)
         if dialog.exec() != AddPhaseDialog.DialogCode.Accepted:
             return
-        # Empty-phase and raw-pattern paths are offered. The empty-phase factory
-        # builds the blank components and the R0 / R1G2 probabilities; a raw
-        # phase starts with no pattern (imported in the editor).
-        if dialog.phase_type == "raw":
-            phase = RawPatternPhase(name="New Raw Pattern Phase")
+        first_row = len(self._phases)
+        # A default entry adds a whole phase-set (a single-layer clay, or an
+        # AD/EG/350 treatment triple) with its atom types merged into the
+        # project. The empty-phase factory builds blank components + the R0 /
+        # R1G2 probabilities; a raw phase starts with no pattern.
+        if dialog.phase_type == "default":
+            new_phases = add_catalog_entry_to_project(
+                self.project, dialog.default_phase)
+            if not new_phases:
+                return
         else:
-            phase = Phase.create_empty(G=dialog.G, R=dialog.R, name="New Phase")
-        self.project.add_phase(phase)
-        self._phases.append(phase)
-        self.add_object_row(*self._phase_row_values(phase))
-        # Select the new phase so its editor opens (and the candidate combos,
-        # rebuilt on selection, pick it up).
+            if dialog.phase_type == "raw":
+                new_phases = [RawPatternPhase(name="New Raw Pattern Phase")]
+            else:
+                new_phases = [Phase.create_empty(
+                    G=dialog.G, R=dialog.R, name="New Phase")]
+            self.project.add_phase(new_phases[0])
+        for phase in new_phases:
+            self._phases.append(phase)
+            self.add_object_row(*self._phase_row_values(phase))
+        # Select the first new phase so its editor opens (and the candidate
+        # combos, rebuilt on selection, pick up the additions).
         self.ui.edit_objects_treeview.setCurrentIndex(
-            self.objects_model.index(len(self._phases) - 1, 0)
+            self.objects_model.index(first_row, 0)
         )
 
     def _on_remove_phase(self) -> None:

@@ -982,10 +982,16 @@ why the guard lives in the R1 harness.
   recomputes f(s) = Σ aᵢ·e^(−bᵢ·s²) + c live on coefficient edits with
   x = sin(θ)/λ. The old app plotted against 2θ (goniometer conversion,
   fed by the controller) - switch to that with the model port.
-- Placeholder list: three demo atom types; atom numbers/weights are real
-  but the coefficient sets are synthetic. Real data lives in the old
-  app's data file `mudlab/data/atomic scattering factors.atl` - port it
-  with the atom type model.
+- Fill from element (2026-07-22): `atom_element_picker` lists the built-in
+  scattering-factor library and, on pick, copies that element's atom_nr /
+  weight / debye / charge / par_c / par_a / par_b onto the bound atom type
+  (its name + uuid are LEFT intact, so atoms that reference it still resolve);
+  the combo resets to its placeholder after. The library is
+  `file_parsers/atom_type_library.py` reading `mudlab/data/`
+  `atomic_scattering_factors.csv` (the old `.atl` verbatim - Waasmaier-Kirfel
+  coefficients, bundled via MudLab.spec). This is Step 1 of the default-phase
+  catalog: a default component's atoms resolve their coefficients against this
+  same library. Harness `tools/verify_atom_type_library.py`.
 
 ## Edit Mixtures: EditMixturesDialog + edit_mixture.ui
 
@@ -1126,12 +1132,16 @@ handler builds a real phase and appends it (Batch P2).
   container (old `update_sensitivities`).
 - Result accessors mirror the old view: `phase_type`
   ("empty"/"default"/"raw"), `G`, `R`, `default_phase`.
-- **Only the empty-phase path is wired.** `rdb_default_phase` and
-  `rdb_raw_pattern` are disabled with a tooltip: the default catalog needs
-  the generator ported (old `generate_default_phases.py`), and while the
-  RawPatternPhase model + calc + load/save now exist (batch 1), CREATING one
-  needs its editor + pattern import (batch 2/3), so the raw radio stays
-  disabled until then. `rdb_empty_phase` is preselected.
+- **All three paths are wired** (`rdb_empty_phase` preselected). The DEFAULT
+  catalog (2026-07-22): `cmb_default_phases` lists `default_catalog_entries()`
+  (the modeled R0/R1G2 built-in reference clays); on OK,
+  edit_phases_dialog `_on_add_phase` calls
+  `default_catalog.add_catalog_entry_to_project`, which builds the entry in
+  memory from the bundled `.cmp` components + the ported recipe and adds its
+  phase-set (a single clay, or an AD/EG/350 triple) with its atom types merged
+  by name. `btn_generate_phases` is obsolete (the catalog is built in memory -
+  nothing to regenerate) and disabled with that tooltip. RAW-pattern is wired
+  too (its editor + pattern import exist).
 - **R is locked to 0** (disabled, tooltip), because MudLab2 models only R0
   (random) stacking - `get_correct_probability_model(R, G)` is not ported
   for R>0, so a higher-R phase would build an invalid model. The old app's

@@ -131,13 +131,16 @@ def check_import_export_phases(project, results):
 
 def check_add_dialog_restrictions(results):
     """2. The Add dialog offers the ported paths - empty phase (with the modeled
-    stacking range R 0-1; R1 locks G to 2 since only R1G2 exists) and raw
-    pattern; only the default-catalog option stays disabled."""
+    stacking range R 0-1; R1 locks G to 2 since only R1G2 exists), the default
+    catalog, and raw pattern."""
     dialog = AddPhaseDialog(None)
     results.append(("2 empty phase preselected",
                     dialog.ui.rdb_empty_phase.isChecked()))
-    results.append(("2 default-catalog option disabled",
-                    not dialog.ui.rdb_default_phase.isEnabled()))
+    # The default-catalog option is now wired: enabled, with the modeled
+    # catalog entries listed in its combo.
+    results.append(("2 default-catalog option enabled + populated",
+                    dialog.ui.rdb_default_phase.isEnabled()
+                    and dialog.ui.cmb_default_phases.count() > 0))
     results.append(("2 phase_type resolves to 'empty'",
                     dialog.phase_type == "empty"))
     # Raw-pattern option is now wired: enabled, and selecting it disables the

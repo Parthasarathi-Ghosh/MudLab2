@@ -140,6 +140,12 @@ class R0Probability:
         anything inherits nothing)."""
         self.inherit_F = [False for _ in range(self.n_independents)]
 
+    def inherit_all(self) -> None:
+        """Read every F param through the based_on model (old
+        inherit_probabilities on a based_on child: a treated phase shares its
+        parent's layer ratios). Call after set_based_on links the models."""
+        self.inherit_F = [True for _ in range(self.n_independents)]
+
     @property
     def type_name(self) -> str:
         """The .mud store id (old R0G<g>Model), used when a newly created
@@ -320,6 +326,12 @@ class R1G2Probability:
         self.inherit_W1 = False
         self.inherit_P11_or_P22 = False
 
+    def inherit_all(self) -> None:
+        """Read W1 + P11/P22 through the based_on model (old
+        inherit_probabilities). Call after set_based_on links the models."""
+        self.inherit_W1 = True
+        self.inherit_P11_or_P22 = True
+
     @property
     def type_name(self) -> str:
         return "R1G2Model"
@@ -431,6 +443,12 @@ class _MarkovProbability:
     def clear_inheritance(self) -> None:
         for name, *_ in self.PARAMS:
             setattr(self, "inherit_" + name, False)
+
+    def inherit_all(self) -> None:
+        """Read every parameter through the based_on model (old
+        inherit_probabilities). Call after set_based_on links the models."""
+        for name, *_ in self.PARAMS:
+            setattr(self, "inherit_" + name, True)
 
     @property
     def n_independents(self) -> int:

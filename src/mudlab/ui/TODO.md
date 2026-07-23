@@ -294,11 +294,11 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Line properties (reusable) | line_properties.ui, line_properties_widget.py | generic/views/glade/lines/experimental_props.glade + calculated_props.glade | done |
 | Object store shell (reusable) | object_store.ui, object_store_dialog.py | generic/views/glade/object_store.glade | done (Add/Remove wired by the Edit Phases subclass; Import/Export still per-subclass) |
 | Edit Phases | edit_phase.ui, edit_phase_widget.py, edit_phases_dialog.py, csds.ui/csds_widget.py, probabilities.ui/probabilities_widget.py, edit_component.ui/component_widget.py, atom_list.ui/atom_list_widget.py, ucp.ui/ucp_widget.py | phases/glade/phase.glade + csds/probabilities/component/layer.glade + shell | partial (bound to real Phase models; name/sigma*/CSDS-mean + R0 F params + component c-axis scalars + unit-cell a/b (UnitCellPropWidget) + layer/interlayer atoms editable with live recalc; phase inheritance (based_on combo + per-property inherit flags + greying) and the display colour (modeled hex, reads through based_on; harness verify_phase_color.py) wired; Add + Remove + phase Import/Export (.phs) + component Import/Export (.cmp) wired; atom relations fully editable (AtomRatio + AtomContents editors, plus relation-to-relation chaining and relation-value refinement, 2026-07-22). Remaining: only the composition summary. NOTE: display_color round-trips + is editable but the plot draws only the specimen total, not per-phase curves, so it is metadata-only for now) |
-| Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot) |
+| Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot; "Fill from element" picker fills weight + scattering-factor coefficients from the built-in library, 2026-07-22) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live; the Composition button opens the per-specimen oxide summary. Fully wired) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons). Deferred: the progress/parameter-space plot only |
-| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; **raw-pattern option wired** (batch 2); default-catalog honestly disabled; wired to Edit Phases Add) |
+| Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; raw-pattern option wired; **default-catalog picker wired** (2026-07-22, 19 built-in reference clays via file_parsers/default_catalog.py); wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; wavelength-distribution editor still to do) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
 | Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (applies: all 6 types; Show Original overlay needs the plot-controller port) |
@@ -436,6 +436,60 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   Remove (`_on_remove_mixture` -> new `Project.remove_mixture`; no cascade,
   nothing back-references a mixture) is wired too, fixing the other dead shell
   button. Harness tools/verify_add_mixture.py (10).
+- [ ] Default-phase catalog (Add Phase dialog's disabled option). MULTI-PART -
+  a default component's atoms reference atom types by NAME and need scattering
+  factors, so it is blocked on an atom-type library (the old app's `.atl`).
+  Sequence:
+  - [x] **Step 1 - atom-type scattering-factor library (2026-07-22).** The old
+    `atomic scattering factors.atl` (Waasmaier-Kirfel CSV) is bundled at
+    `mudlab/data/atomic_scattering_factors.csv`; `file_parsers/atom_type_library.py`
+    (`load_atom_type_library` / `atom_type_library_map`) reads it into AtomType
+    models by name. Backs the Edit Atom Types "Fill from element" picker and is
+    the prerequisite for the catalog (proven: Kaolinite.cmp resolves against the
+    library -> non-blank pattern; without it -> blank). Harness
+    tools/verify_atom_type_library.py (9). Bundled via MudLab.spec `datas`.
+  - [x] **Step 2 - bundle the 27 default-component `.cmp` files (2026-07-22).**
+    Copied verbatim to `mudlab/data/default components/` (9 single-layer +
+    Di-Smectite/Di-Vermiculite/Tri-Smectite x6). `.gitattributes` now marks
+    `*.cmp`/`*.phs` binary (they are ZIPs - defends against eol corruption, like
+    `.mud`). Accessor `file_parsers/default_catalog.py`
+    (`default_components_dir` / `load_default_component` - resolves against the
+    library by default). Harness tools/verify_default_components.py (5): all
+    resolve to library scattering factors + single-layer clays compute non-blank
+    patterns. Bundled via MudLab.spec `datas` (src/mudlab/data).
+  - [x] **Step 3 - generator recipe / in-memory builder (2026-07-22).**
+    `default_catalog.py` `build_catalog_entry` ports the old phaseworker: a
+    4-char component code selects the `.cmp` files, per-phase `based_on` +
+    per-component `linked_with` names wire the Ca-AD -> Ca-EG -> Ca-350 chains,
+    inherit flags applied. `is_modeled` gates to R0 (any G) / R1G2 (R1G3/R2/R3
+    unported). `default_catalog_entries` lists the offerable entries. Covers the
+    8 single-layer clays + 3 expandable families (Di-Smectite/Tri-Smectite/
+    Di-Vermiculite, AD/EG/350) - all G=1. Harness tools/verify_default_catalog.py
+    (13): chains build with right based_on/linked_with + distinct d001
+    (1.50/1.686/0.96) + all compute. NO `.phs` bundled - built in memory on demand.
+  - [x] **Step 3b - mixed-layer interstratified families + probability
+    inheritance (2026-07-22).** Added `inherit_all()` to the probability models
+    (R0 / R1G2 / generic; mirror of clear_inheritance); the builder calls it
+    after set_based_on when a phase description has `inherit_probabilities` (a
+    no-op at G=1). Recipe helper `_interstratified` adds Illite- / Kaolinite- /
+    Talc- / Chlorite-Smectite at R0 AND R1G2 (G=2: a fixed clay inheriting the
+    AD copy entirely + a smectite inheriting only its layer). Harness extended
+    (21): treated phases inherit the AD's stacking RATIO (editing the AD flows
+    through) + both components linked + all compute. STILL TODO: higher-order
+    mixed-layer (SS/SSS multi-hydration, ICS/KCS, vermiculite interstrat) - need
+    the 1WAT/1GLY/Dehydr components aliased; niche.
+  - [x] **Step 4 - Add Phase default-catalog picker (2026-07-22).** add_phase_
+    dialog.py lists `default_catalog_entries()` (rdb_default_phase enabled;
+    btn_generate_phases obsolete - the catalog is built in memory, nothing to
+    regenerate). edit_phases_dialog `_on_add_phase` "default" path calls
+    `add_catalog_entry_to_project` (default_catalog.py): builds the entry, merges
+    its atom types into the project BY NAME (reuse existing / adopt library),
+    adds the phase-set (a single clay, or an AD/EG/350 triple), selects the
+    first. `Atom.to_dict` writes the re-pointed atom_type, so it round-trips.
+    Harness tools/verify_add_default_phase.py (11): empty-project add, dedup (no
+    duplicate Si/O), triple, .mud round-trip. verify_phase_dialogs updated
+    (default option now enabled). Catalog is 19 entries (8 single-layer + 3
+    expandable + 4 interstratified x R0/R1G2).
 - [x] Composition summary - btn_composition in the mixture editor (2026-07-22).
   Per-specimen oxide wt% (old Mixture.get_composition_matrix): each atom
   contributes pn x atom_type.weight x (component weight fraction x phase
