@@ -47,11 +47,43 @@ def check(label, ok):
     results.append((label, bool(ok)))
 
 
+# The real calc units (calculations/specimen.py): theta in RADIANS, wavelength
+# in nm (d-spacings are nm). Getting these wrong shifts every peak, so the
+# peak-position checks below use them faithfully.
+_WAVELENGTH_NM = 0.15406
+
+
+def _pattern(phase, lo=2.0, hi=40.0, n=8000):
+    """(2theta-deg grid, intensity) for the phase, in the real calc units."""
+    two_theta = np.linspace(lo, hi, n)
+    theta = np.radians(two_theta / 2.0)
+    stl = 2.0 * np.sin(theta) / _WAVELENGTH_NM
+    return two_theta, phase.get_intensity(theta, stl, 2.3, 2.3, 0.0)
+
+
 def _computes(phase) -> bool:
-    rng = np.linspace(1, 40, 400)
-    stl = 2 * np.sin(np.radians(rng / 2)) / 1.5406
-    intensity = phase.get_intensity(rng, stl, 0.5, 0.5, 0.0)
+    _tt, intensity = _pattern(phase, n=400)
     return bool(np.any(intensity > 0)) and float(np.max(intensity)) > 0
+
+
+def _bragg_2theta(d_angstrom: float) -> float:
+    """The 001 basal 2theta (deg) for a d-spacing in Angstrom, Cu Ka (1.5406 A)."""
+    return 2.0 * np.degrees(np.arcsin(1.5406 / (2.0 * d_angstrom)))
+
+
+def _basal_peak(phase, expect_2theta: float, tol: float = 0.5):
+    """The prominent peak nearest `expect_2theta` (deg), or None if none within
+    `tol` - the basal (001) reflection rides on the low-angle rise, so a
+    prominence-based finder is used."""
+    from scipy.signal import find_peaks
+
+    two_theta, intensity = _pattern(phase)
+    idx, _ = find_peaks(intensity, prominence=0.04 * float(np.max(intensity)))
+    if len(idx) == 0:
+        return None
+    peaks = two_theta[idx]
+    nearest = float(peaks[np.argmin(np.abs(peaks - expect_2theta))])
+    return nearest if abs(nearest - expect_2theta) < tol else None
 
 
 def _d001(phase, component_index=0) -> float:
@@ -103,10 +135,12 @@ def run():
           and eg.inherit_CSDS_distribution)
 
     # 4. The modeled-stacking gate.
-    check("4 is_modeled accepts R0 (any G) and R1G2",
-          is_modeled(0, 1) and is_modeled(0, 4) and is_modeled(1, 2))
-    check("4 is_modeled rejects R1G3 / R2 / R3",
-          not is_modeled(1, 3) and not is_modeled(2, 2) and not is_modeled(3, 2))
+    check("4 is_modeled accepts the engine's RGbounds (R0 G1-6, R1 G2-4, R2 G2-3, R3 G2)",
+          all(is_modeled(0, g) for g in range(1, 7))
+          and is_modeled(1, 2) and is_modeled(1, 4)
+          and is_modeled(2, 2) and is_modeled(2, 3) and is_modeled(3, 2))
+    check("4 is_modeled rejects unsupported stacking (R1G5, R2G4, R3G3)",
+          not is_modeled(1, 5) and not is_modeled(2, 4) and not is_modeled(3, 3))
 
     # 5. Interstratified (mixed-layer) families: Illite-Smectite at R0 and R1G2.
     check("5 the interstratified families are listed at R0 and R1",
@@ -144,6 +178,62 @@ def run():
     check("6 editing the AD's ratio flows through to the treated phase",
           abs(after - before) > 1e-9
           and abs(after - ad.probabilities.get_distribution_array()[0]) < 1e-9)
+
+    # 7. The higher-order tail: multi-state smectites + multi-clay stacks.
+    check("7 the tail families are listed",
+          all(n in entries for n in
+              ("Di-Smectite (2S) R0 Ca", "Di-Smectite (3S) R0 Ca",
+               "Illite-Smectite (2S) R0 Ca",
+               "Illite-Chlorite-Smectite R0 Ca",
+               "Kaolinite-Chlorite-Smectite (3S) R0 Ca")))
+    # component count = number of coded parts (fixed clays + smectite states)
+    for name, g in [("Di-Smectite (2S) R0 Ca", 2), ("Di-Smectite (3S) R0 Ca", 3),
+                    ("Illite-Smectite (2S) R0 Ca", 3),
+                    ("Illite-Chlorite-Smectite R0 Ca", 3),
+                    ("Kaolinite-Chlorite-Smectite (3S) R0 Ca", 5)]:
+        ps = build_catalog_entry_by_name(name)
+        ok = (len(ps) == 3 and all(len(p.components) == g for p in ps)
+              and all(_computes(p) for p in ps))
+        # every treated component is linked (to the AD directly, or up the
+        # AD/EG/350 chain for a state shared across treatments) and reads its
+        # layer atoms through that link.
+        linked = all(c.linked_with is not None and c.is_inherited("layer_atoms")
+                     for p in ps[1:] for c in p.components)
+        check("7 %s -> G%d, all linked + compute" % (name, g), ok and linked)
+
+    # 8. Full sweep: EVERY catalog entry builds and every phase computes.
+    bad = []
+    for name in entries:
+        ps = build_catalog_entry_by_name(name)
+        if not ps or not all(_computes(p) and p.is_valid for p in ps):
+            bad.append(name)
+    check("8 every catalog entry builds valid, computable phases", not bad)
+    if bad:
+        print("    failed to build/compute:", bad[:6])
+
+    # 9. Peak positions: the calc puts each clay's basal (001) reflection at the
+    #    2theta its d001 predicts, and the smectite Ca-AD -> Ca-EG -> Ca-350
+    #    series shows the diagnostic glycol expansion / heat collapse. This
+    #    guards CORRECTNESS (right peaks), not just non-blankness.
+    unplaced = []
+    for name, d_a in [("Kaolinite", 7.16), ("Illite", 9.98), ("Chlorite", 14.2),
+                      ("Talc", 9.40), ("Serpentine", 7.26)]:
+        phase = build_catalog_entry_by_name(name)[0]
+        if _basal_peak(phase, _bragg_2theta(d_a)) is None:
+            unplaced.append(name)
+    check("9 each single-layer clay's 001 basal reflection is at the known 2theta",
+          not unplaced)
+    if unplaced:
+        print("    001 not found for:", unplaced)
+
+    ad, eg, ht = build_catalog_entry_by_name("Di-Smectite R0 Ca")
+    t_ad = _basal_peak(ad, _bragg_2theta(15.0), tol=0.6)     # 2 water, ~15 A
+    t_eg = _basal_peak(eg, _bragg_2theta(16.86), tol=0.6)    # 2 glycol, ~16.9 A
+    t_ht = _basal_peak(ht, _bragg_2theta(9.6), tol=0.6)      # heated, ~9.6 A
+    check("9 the smectite 001 is found in each of AD / EG / 350",
+          None not in (t_ad, t_eg, t_ht))
+    check("9 glycol expands + heat collapses (EG 2theta < AD < 350)",
+          None not in (t_ad, t_eg, t_ht) and t_eg < t_ad < t_ht)
     return None
 
 

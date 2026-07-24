@@ -1,13 +1,18 @@
 """Layer-stacking probability models.
 
-Ported from the old mudlab.probabilities. Only Reichweite-0 (R0) models
-are implemented so far - independent/random stacking, which is what the
-sample projects use (R0G1..R0G6). Higher Reichweite (R1-R3 Markovian
-models) are ported when a project needs them.
+Ported from the old mudlab.probabilities. All the models the old app / PyXRD
+implement are present, over the same (R, G) support as its `RGbounds`:
+- R0 G1..G6   - independent/random stacking, (G-1) F params.
+- R1 G2/G3/G4 - nearest-neighbour ordering (R1G2Probability, R1G3/R1G4 on the
+  `_MarkovProbability` base).
+- R2 G2/G3    - the first models with a g²×g² junction matrix (reps > 1).
+- R3 G2       - a g³×g³ matrix.
 
-An R0 model has (G-1) independent F parameters and produces:
-- W: the g×g diagonal weight-fraction matrix (Wii = fraction of layer i),
-- P: the g×g transition matrix where Pij = Wj (stacking is independent).
+An R0 model produces W (the g×g diagonal weight-fraction matrix, Wii = fraction
+of layer i) and P (Pij = Wj, independent stacking); the higher-R Markov models
+produce the expanded W / P the calc's `reps` path consumes. `create_probability`
+builds the default model for a new phase of (R, G) and `is_supported_rg` gates
+the (R, G) combinations, both mirroring the old `get_correct_probability_model`.
 """
 
 from __future__ import annotations
@@ -915,3 +920,45 @@ def probabilities_from_dict(data: dict, G: int):
         # create_empty). Default to R0 - the modeled, safe baseline.
         return R0Probability.from_dict(data, G)
     raise UnsupportedProbabilityModel(prob_type)
+
+
+# Supported (R, G) stacking combinations - MudLab2's copy of the old app's
+# RGbounds (a model exists where the value is 1). R0: G1-6; R1: G2-4; R2: G2-3;
+# R3: G2. R1G5+, R2G4+, R3G3+ were never implemented, upstream either.
+_RG_SUPPORTED: dict = {
+    0: (1, 2, 3, 4, 5, 6),
+    1: (2, 3, 4),
+    2: (2, 3),
+    3: (2,),
+}
+
+# (R, G) -> the model class built for a NEW phase; R0 is handled separately
+# (it needs G + default F params).
+_NEW_MODEL = {
+    (1, 2): R1G2Probability, (1, 3): R1G3Probability, (1, 4): R1G4Probability,
+    (2, 2): R2G2Probability, (2, 3): R2G3Probability, (3, 2): R3G2Probability,
+}
+
+
+def is_supported_rg(reichweite: int, g: int) -> bool:
+    """Whether a stacking model exists for (R, G) - the old app's RGbounds.
+    R0: G1-6; R1: G2-4; R2: G2-3; R3: G2."""
+    return g in _RG_SUPPORTED.get(int(reichweite), ())
+
+
+def supported_g_range(reichweite: int) -> tuple:
+    """The (min G, max G) a Reichweite supports, or (0, 0) if none."""
+    gs = _RG_SUPPORTED.get(int(reichweite), ())
+    return (min(gs), max(gs)) if gs else (0, 0)
+
+
+def create_probability(reichweite: int, g: int):
+    """The default probability model for a NEW phase of (R, G) (old
+    get_correct_probability_model). Raises UnsupportedProbabilityModel for an
+    (R, G) with no model."""
+    reichweite, g = int(reichweite), int(g)
+    if not is_supported_rg(reichweite, g):
+        raise UnsupportedProbabilityModel("R%dG%d" % (reichweite, g))
+    if reichweite == 0:
+        return R0Probability(g, [0.8] * max(g - 1, 0))
+    return _NEW_MODEL[(reichweite, g)]()

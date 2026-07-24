@@ -475,9 +475,26 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
     Talc- / Chlorite-Smectite at R0 AND R1G2 (G=2: a fixed clay inheriting the
     AD copy entirely + a smectite inheriting only its layer). Harness extended
     (21): treated phases inherit the AD's stacking RATIO (editing the AD flows
-    through) + both components linked + all compute. STILL TODO: higher-order
-    mixed-layer (SS/SSS multi-hydration, ICS/KCS, vermiculite interstrat) - need
-    the 1WAT/1GLY/Dehydr components aliased; niche.
+    through) + both components linked + all compute.
+  - [x] **Optional tail - full mixed-layer catalog (2026-07-22).** Refactored
+    the recipe onto a generalized `_build_family(columns)` (a hydration LADDER
+    per smectite family + fixed-clay columns). Aliased the 1WAT/1GLY/Dehydr
+    states; added SS/SSS multi-hydration (Di-/Tri-Smectite, Di-Vermiculite),
+    higher-order 2-clay (Illite-/Kaolinite-/Talc-/Chlorite-Smectite at 1-3
+    smectite states), and 3-clay (Illite-/Kaolinite-Chlorite-Smectite). Catalog
+    is now 42 entries (later 80, see below). Harness verify_default_catalog incl.
+    a full sweep: every entry builds valid + computable.
+  - [x] **Higher-R model EXPOSURE (2026-07-22, uncommitted).** The R1G3/R1G4/
+    R2G2/R2G3/R3G2 probability MODELS were already ported + golden-validated
+    (verify_higher_r 53/53); they were just not reachable from new-phase/UI/
+    catalog paths (stale "only R0/R1G2" docstrings). Exposed via:
+    probabilities.py `create_probability(R,G)` + `is_supported_rg` /
+    `supported_g_range` (RGbounds: R0 G1-6, R1 G2-4, R2 G2-3, R3 G2);
+    Phase.create_empty uses the factory (no longer forces R1->G2); add_phase
+    dialog R 0-3 with G range per R; default_catalog is_modeled -> is_supported_rg
+    + `_build_family` max_r 4. Catalog **42 -> 80 entries** (full old-app parity,
+    +23 R2/R3), all build valid + compute. Harness verify_probability_factory
+    (6); verify_phase_dialogs + verify_default_catalog updated. Suite 30/30.
   - [x] **Step 4 - Add Phase default-catalog picker (2026-07-22).** add_phase_
     dialog.py lists `default_catalog_entries()` (rdb_default_phase enabled;
     btn_generate_phases obsolete - the catalog is built in memory, nothing to

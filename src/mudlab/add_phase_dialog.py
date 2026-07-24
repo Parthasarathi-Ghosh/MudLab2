@@ -13,10 +13,10 @@ A raw-pattern phase has no structure (it carries a measured pattern), so the
 G / R controls do not apply to it - selecting it disables the empty-phase
 container. The pattern itself is imported afterwards in the phase editor.
 
-Reichweite offers R0 (random, any component count) and R1 (nearest-
-neighbour ordering). Only R1G2 is modeled, so choosing R1 locks G to 2;
-R2+ is not ported. The empty-phase factory (Phase.create_empty) builds the
-matching probability model.
+Reichweite offers R0 (random, 1-6 components) through R3, over the same (R, G)
+support as the calc engine (RGbounds): R1 = G2-4, R2 = G2-3, R3 = G2. The G spin
+range follows the chosen R (locked when only one G is modeled); the empty-phase
+factory (Phase.create_empty -> create_probability) builds the matching model.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QWidget
 
 from mudlab.file_parsers.default_catalog import default_catalog_entries
+from mudlab.models.probabilities import supported_g_range
 from mudlab.ui.ui_add_phase import Ui_AddPhaseDialog
 
 
@@ -60,13 +61,13 @@ class AddPhaseDialog(QDialog):
             self.ui.rdb_raw_pattern,
         ):
             radio.toggled.connect(self._update_sensitivities)
-        # Modeled stacking: R0 (any G) and R1G2. Offer R 0-1; R2+ is not
-        # ported, and R1 exists only for 2 components (R1G2), so R=1 locks G=2.
-        self.ui.R.setRange(0, 1)
+        # Modeled stacking (RGbounds): R0 G1-6, R1 G2-4, R2 G2-3, R3 G2. Offer
+        # R 0-3; the G range follows R (see _on_R_changed).
+        self.ui.R.setRange(0, 3)
         self.ui.R.setValue(0)
         self.ui.R.setToolTip(
-            "R0 (random, any component count) and R1 (nearest-neighbour "
-            "ordering, 2 components) are modeled. R2+ is not ported yet."
+            "Reichweite (stacking order): R0 random (1-6 components), R1 (2-4), "
+            "R2 (2-3), R3 (2). Higher orders are not modeled."
         )
         self.ui.R.valueChanged.connect(self._on_R_changed)
         self._update_sensitivities()
@@ -103,14 +104,15 @@ class AddPhaseDialog(QDialog):
         self.ui.cont_default_phase.setEnabled(self.ui.rdb_default_phase.isChecked())
 
     def _on_R_changed(self, R: int) -> None:
-        """R1 is modeled only for 2 components (R1G2), so R=1 locks G to 2;
-        R0 allows the full 1-6 range."""
-        if R >= 1:
-            self.ui.G.setRange(2, 2)
-            self.ui.G.setValue(2)
-            self.ui.G.setEnabled(False)
-            self.ui.G.setToolTip("R1 is modeled for 2 components only (R1G2).")
-        else:
-            self.ui.G.setRange(1, 6)
-            self.ui.G.setEnabled(True)
-            self.ui.G.setToolTip("")
+        """Constrain the component count (G) to the models that exist for this
+        Reichweite (RGbounds): R0 1-6, R1 2-4, R2 2-3, R3 2. When only one G is
+        modeled the spin is locked to it."""
+        low, high = supported_g_range(R)
+        self.ui.G.setRange(low, high)
+        if self.ui.G.value() < low:
+            self.ui.G.setValue(low)
+        self.ui.G.setEnabled(low != high)
+        self.ui.G.setToolTip(
+            "" if low != high
+            else "R%d is modeled for %d components only (R%dG%d)." % (R, low, R, low)
+        )

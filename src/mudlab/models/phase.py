@@ -19,7 +19,7 @@ import uuid as _uuid
 
 from mudlab.models.component import Component
 from mudlab.models.csds import DritsCSDSDistribution
-from mudlab.models.probabilities import R1G2Probability, probabilities_from_dict
+from mudlab.models.probabilities import create_probability, probabilities_from_dict
 
 
 class Phase:
@@ -73,19 +73,17 @@ class Phase:
         "Component 1".."Component G" (MudLab2's plain __init__ does not, since
         it is also the base for from_dict, which supplies the loaded ones).
 
-        Stacking: R0 (any G, the default from __init__) or R1G2. Only those
-        two models exist, so R1 forces G = 2 (R1G3/G4 are not ported) - the
-        Add dialog constrains this, and create_empty enforces it defensively.
+        `create_probability(R, G)` builds the stacking model for the chosen
+        Reichweite / component count - R0 (G1-6), R1 (G2-4), R2 (G2-3) or R3
+        (G2). An unsupported (R, G) raises UnsupportedProbabilityModel; the Add
+        dialog only offers supported combinations.
         """
-        R = int(R)
-        if R == 1:
-            G = 2  # only R1G2 is modeled
-        phase = cls(name=name, G=max(int(G), 1))
+        R, G = int(R), max(int(G), 1)
+        phase = cls(name=name, G=G)
         phase.components = [
-            Component(name="Component %d" % (i + 1)) for i in range(phase.G)
+            Component(name="Component %d" % (i + 1)) for i in range(G)
         ]
-        if R == 1:
-            phase.probabilities = R1G2Probability()
+        phase.probabilities = create_probability(R, G)
         return phase
 
     # ------------------------------------------------------------------

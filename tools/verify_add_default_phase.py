@@ -56,11 +56,14 @@ def check(label, ok):
     results.append((label, bool(ok)))
 
 
-def _computes(phase) -> bool:
+def _peak(phase) -> float:
     rng = np.linspace(1, 40, 400)
     stl = 2 * np.sin(np.radians(rng / 2)) / 1.5406
-    intensity = phase.get_intensity(rng, stl, 0.5, 0.5, 0.0)
-    return bool(np.any(intensity > 0)) and float(np.max(intensity)) > 0
+    return float(np.max(phase.get_intensity(rng, stl, 0.5, 0.5, 0.0)))
+
+
+def _computes(phase) -> bool:
+    return _peak(phase) > 0
 
 
 def _atom_types_used(phases):
@@ -115,7 +118,9 @@ def run():
           eg.based_on is ad and ht.based_on is ad
           and all(_computes(p) for p in triple))
 
-    # 5. Round-trip through a real project .mud.
+    # 5. Round-trip through a real project .mud - a simple R0 phase AND a
+    #    higher-R one (R2G2 / R3G2 / R2G3), whose Markov model must serialize +
+    #    reload with the same type and an identical pattern.
     if os.path.isfile(_FIXTURE):
         project = load_mud(_FIXTURE)
         added_rt = add_catalog_entry_to_project(project, "Kaolinite")
@@ -127,6 +132,23 @@ def run():
                       if p.name == added_rt[0].name), None)
         check("5 a saved+reloaded default phase still computes",
               match is not None and _computes(match))
+
+        for entry, want_type in [("Illite-Smectite R2 Ca", "R2G2Model"),
+                                 ("Di-Smectite (2S) R3 Ca", "R3G2Model"),
+                                 ("Illite-Smectite (2S) R2 Ca", "R2G3Model")]:
+            proj = Project()
+            added_h = add_catalog_entry_to_project(proj, entry)
+            before = {p.name: _peak(p) for p in added_h}
+            with tempfile.TemporaryDirectory() as tmp:
+                out = os.path.join(tmp, "hr.mud")
+                save_mud(proj, out)
+                back = {p.name: p for p in load_mud(out).phases}
+            ok = all(
+                n in back and back[n].probabilities.type_name == want_type
+                and abs(_peak(back[n]) - before[n]) < 1e-6 * max(before[n], 1.0)
+                for n in before
+            )
+            check("5 %s round-trips (%s, identical pattern)" % (entry, want_type), ok)
     else:
         check("5 a saved+reloaded default phase still computes", True)
         print("    (fixture not present - round-trip check skipped)")

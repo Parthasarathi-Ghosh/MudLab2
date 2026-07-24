@@ -152,16 +152,25 @@ def check_add_dialog_restrictions(results):
                     not dialog.ui.cont_empty_phase.isEnabled()
                     and dialog.phase_type == "raw"))
     dialog.ui.rdb_empty_phase.setChecked(True)
-    # R is modeled for 0-1 only (R2+ unported).
-    results.append(("2 R range is 0-1",
-                    dialog.ui.R.minimum() == 0 and dialog.ui.R.maximum() == 1))
+    # R spans the modeled RGbounds: R0 G1-6, R1 G2-4, R2 G2-3, R3 G2.
+    results.append(("2 R range is 0-3",
+                    dialog.ui.R.minimum() == 0 and dialog.ui.R.maximum() == 3))
+    dialog.ui.R.setValue(0)
     results.append(("2 R=0 allows G 1-6",
                     dialog.ui.G.minimum() == 1 and dialog.ui.G.maximum() == 6
                     and dialog.ui.G.isEnabled()))
     dialog.ui.R.setValue(1)
-    results.append(("2 R=1 locks G to 2 (only R1G2 modeled)",
+    results.append(("2 R=1 allows G 2-4 (R1G2-R1G4)",
+                    dialog.ui.G.minimum() == 2 and dialog.ui.G.maximum() == 4
+                    and dialog.ui.G.isEnabled() and dialog.R == 1))
+    dialog.ui.R.setValue(2)
+    results.append(("2 R=2 allows G 2-3",
+                    dialog.ui.G.minimum() == 2 and dialog.ui.G.maximum() == 3
+                    and dialog.ui.G.isEnabled()))
+    dialog.ui.R.setValue(3)
+    results.append(("2 R=3 locks G to 2 (only R3G2 modeled)",
                     dialog.ui.G.value() == 2 and not dialog.ui.G.isEnabled()
-                    and dialog.G == 2 and dialog.R == 1))
+                    and dialog.G == 2 and dialog.R == 3))
     dialog.ui.R.setValue(0)
     results.append(("2 back to R=0 re-enables G 1-6",
                     dialog.ui.G.maximum() == 6 and dialog.ui.G.isEnabled()))
