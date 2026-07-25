@@ -17,13 +17,11 @@ done. Kept as the canonical to-do; update it as items land.
   per-phase overlay exists.
 
 ## Unported editors / dialogs (real remaining work)
-- **CSV import options** dialog (`csv_import.glade`).
 - **About dialog** branding + window/app icons (currently a `QMessageBox.about`
   placeholder).
 - **Splash screen** (optional).
 
 ## Placeholder / stubbed features (visible but not fully wired)
-- **Stored goniometer setups** — "Load setup" combo is a placeholder.
 - **Original-pattern overlay** in the line/data-op dialogs — not ported.
 - **Exclusion-ranges import/export** in Edit Specimen — not ported.
 - **Mineral-preview overlay** — the Match Minerals "Specimen range" checkbox and
@@ -72,6 +70,19 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **Stored goniometer setups** — the Goniometer tab's "Load setup" combo now
+  lists 12 bundled `.gon` presets (+ user-saved ones) and applies the chosen one
+  via `Goniometer.apply_setup` (full reset, keeps uuid; handles the legacy
+  single-`lambda` format); "Store setup" saves the current goniometer to a `.gon`
+  (`file_parsers/gon_file.py`, user dir via QStandardPaths). Guarded by
+  `tools/verify_goniometer_setup.py`.
+- **CSV import options** — new `file_parsers/csv_io.py` is the common CSV
+  import/export (auto-detect + explicit separator / decimal-sign / header) that
+  `xy_parser`, `wld_file` and the pattern-export path now all delegate to. A
+  `CsvImportDialog` (separator/decimal/header + live preview, sniff-prefilled)
+  is offered by a shared `import_pattern` helper wired into the experimental-,
+  raw-phase- and background-pattern imports; `parse_pattern` takes an optional
+  `CsvOptions`. Guarded by `tools/verify_csv_import.py`.
 - **Wavelength-distribution editor** — the goniometer's "Edit emission spectrum"
   button now opens an editable (wavelength nm, fraction) table with Add / Remove
   and `.wld` import/export (5 default presets bundled under
@@ -91,5 +102,6 @@ line is stale or refers to an un-built phase-composition panel.
   see above.)
 
 ---
-**Biggest genuinely-remaining items:** About/branding, CSV import options,
-stored goniometer setups.
+**Biggest genuinely-remaining items:** About/branding. Then the deferred-by-design
+plot overlays (per-phase curves, original-pattern overlay, refinement progress)
+and the rare unported formats (`.cpi`/`.rd`/`.brml`).

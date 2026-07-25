@@ -1,0 +1,22 @@
+{
+    "type": "Goniometer",
+    "properties": {
+        "uuid": "97c2ff527732489cb712a71a15b08680",
+        "min_2theta": 4.51,
+        "max_2theta": 35.0,
+        "steps": 4988,
+        "wavelength_distribution": "[[0.154060,1.000000]]",
+        "has_soller1": true,
+        "soller1": 2.292,
+        "has_soller2": true,
+        "soller2": 2.292,
+        "radius": 24.0,
+        "divergence_mode": "FIXED",
+        "divergence": 0.25,
+        "has_absorption_correction": false,
+        "sample_length": 2.7,
+        "sample_surf_density": 20.0,
+        "absorption": 45.0,
+        "mcr_2theta": 0
+    }
+}

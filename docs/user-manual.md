@@ -10,6 +10,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Component linking and inheritance](#component-linking-and-inheritance)
 - [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
+- [Importing measured patterns (CSV options)](#importing-measured-patterns-csv-options)
 - [Preparing experimental data](#preparing-experimental-data)
 - [Markers, peak detection, and mineral matching](#markers-peak-detection-and-mineral-matching)
 - [The goniometer emission spectrum](#the-goniometer-emission-spectrum)
@@ -386,6 +387,31 @@ or **Export CSV…** to save it to a file.
 
 ---
 
+## Importing measured patterns (CSV options)
+
+Patterns come in from several places — a specimen's experimental pattern, a
+raw-pattern phase, and a background pattern — and they all go through the same
+importer. It reads the vendor formats (Bruker/Rigaku `.raw`, Rigaku `.rasx`,
+PANalytical `.xrdml`, Bruker `.uxd`) directly, and any plain-text format
+(`.xy`, `.txt`, `.csv`, `.dat`, `.tab`) as two columns of numbers.
+
+For a text file, a **CSV import options** dialog appears so you can confirm how
+it is read:
+
+- **Separator** — *Auto-detect* (the default), or force Comma / Semicolon /
+  Tab / Space. Auto-detect handles most files, including whitespace-aligned
+  columns.
+- **Decimal sign** — *Period* or *Comma*. This is what makes European exports
+  (`;`-separated with `,` decimals, e.g. `10,5;100,0`) import correctly.
+- **First row contains headers** — skip a leading label row.
+
+The **preview** underneath shows how the first rows parse with the current
+settings (a header row is shown in italics), so you can tell at a glance whether
+the columns line up before clicking **OK**. The settings are pre-filled from a
+best guess at the file, so usually you can just confirm.
+
+---
+
 ## Preparing experimental data
 
 Before fitting phases to a measured pattern you often need to clean it up:
@@ -583,3 +609,17 @@ Edits apply immediately to the specimen's goniometer (there is no separate
 "OK" — just close when done), and the dominant wavelength updates on the
 Goniometer tab. A single line with fraction 1.0 (the default) is the ordinary
 monochromatic case; add the Kα₂ line, for example, to model a Kα₁/Kα₂ doublet.
+
+### Stored setups (Load / Store)
+
+Rather than typing every value, you can apply a whole instrument configuration
+at once. The **Load setup** drop-down lists a set of bundled presets for common
+diffractometers (Bruker D8, PANalytical X'Pert/Empyrean, Philips, and others),
+followed by any you have saved yourself. Pick one and confirm — it replaces
+*all* the goniometer values (geometry, slits, 2θ range, steps, and the emission
+spectrum), and the applied name is shown at the bottom of the tab.
+
+**Store setup** saves the current goniometer to a `.gon` file so you can reuse
+it on other specimens or projects; your saved setups then appear in the
+drop-down (marked *custom*). The `.gon` format is the same JSON the project file
+uses for a goniometer, so setups exported from the old MudLab load here too.

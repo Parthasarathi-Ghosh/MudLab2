@@ -424,6 +424,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 
 ### Goniometer
 - [x] Wavelength distribution editor - wavelength_distribution.ui, wavelength_distribution_dialog.py (goniometer/glade/wavelength_distribution.glade); opened by the goniometer component's Edit emission spectrum button; editable (nm, fraction) table + Add/Remove + .wld import/export; Goniometer.set_wavelength_distribution persists edits; verify_wavelength_distribution.py
+- [x] Stored goniometer setups - goniometer_widget.py Load setup combo + Store setup button; file_parsers/gon_file.py (.gon load/save/list), 12 bundled presets under data/default goniometers/, Goniometer.apply_setup (full reset, keeps uuid, legacy lambda); verify_goniometer_setup.py
 
 ### Mixtures
 - [x] Add / Remove mixture (Edit Mixtures shell, 2026-07-22). NO dialog: the old
@@ -576,7 +577,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   outer trial). Not essential; no checkbox needed.
 
 ### Other
-- [ ] CSV import options - generic/views/glade/csv_import.glade
+- [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)
 - [ ] About dialog branding + window/app icons - application/icons/
 - [ ] Splash screen - application/splash.py (optional)

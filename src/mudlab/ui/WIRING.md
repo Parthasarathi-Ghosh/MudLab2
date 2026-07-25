@@ -368,9 +368,10 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
   catalog stays disabled). Selecting it disables the empty-phase G/R container
   (`_update_sensitivities`). `EditPhasesDialog._on_add_phase` builds a
   `RawPatternPhase(name="New Raw Pattern Phase")` for `phase_type == "raw"`.
-- **Import** reuses `file_parsers.xy_parser` (`.xy`/`.txt`/`.csv`/`.dat`);
-  `import_from_path` is split from the file dialog so it is head-less testable.
-  `.xrdml`/`.raw` are batch 3.
+- **Import** goes through the shared `csv_import_dialog.import_pattern` helper
+  (common `file_parsers.csv_io` reader + the CSV-import options dialog for text
+  formats); `import_from_path(path, options=None)` is split from the file dialog
+  so it is head-less testable.
 - Guard: `verify_phase_dialogs.py` check 7 (Add->raw creates a RawPatternPhase,
   the raw editor is shown for it, import sets the pattern, name edit
   propagates) + the updated check 2 (raw radio enabled). Harness 75 checks.
@@ -1306,9 +1307,17 @@ intensity-correction calculations (batch 2 below).
   old model values; on AUTOMATIC the value spin suffix switches from °
   (slit angle) to cm (irradiated length), as the old controller did.
 - Soller/absorption checkboxes enable their paired spins.
-- Bottom row (old ids): `cmb_import_gonio` ("Load setup", placeholder
-  item until the stored setups port), `btn_export_gonio` ("Store setup"),
-  `lbl_applied_gonio` (shows the applied setup name).
+- Bottom row (old ids): stored goniometer setups. `cmb_import_gonio`
+  ("Load setup") is populated by `_populate_setups` from the bundled
+  presets (`file_parsers/gon_file.DEFAULT_GONIO_DIR`, 12 `.gon`) + the
+  user setups dir (`_user_gonio_dir`, QStandardPaths AppData); its
+  `activated` signal applies the picked `.gon` via `Goniometer.apply_setup`
+  (full reset, keeps uuid; legacy single-`lambda` tolerated) after a
+  confirm, then re-picks the placeholder so the same setup can re-fire.
+  `btn_export_gonio` ("Store setup") writes `to_dict()` JSON via
+  `gon_file.save_gon` and refreshes the combo. `lbl_applied_gonio` shows
+  the applied/stored name (transient; not persisted to the specimen).
+  Guard: `tools/verify_goniometer_setup.py`.
 
 ## Wavelength-distribution (emission spectrum) editor: wavelength_distribution.ui
 
@@ -1326,6 +1335,30 @@ raw string (so the edit is re-encoded on save; untouched goniometers still
 round-trip byte-identically) and emits `data_changed`. Invalid cell text
 reverts. The Goniometer tab's `gonio_lambda_lbl` refreshes to the dominant
 (highest-fraction) wavelength. Guard: `tools/verify_wavelength_distribution.py`.
+
+## CSV import options + common CSV I/O: csv_import.ui
+
+`file_parsers/csv_io.py` is the single place the app reads/writes two-column
+`(x, y)` text: `read_xy(path, options=None, min_rows=2)` (tolerant auto-detect
+when `options` is None/all-default, else explicit `CsvOptions`
+delimiter/decimal/has_header), `write_xy(...)`, plus `sniff` / `preview` for the
+dialog. `xy_parser` (`parse_xy`/`parse_xy_lines`/`save_xy`) and `wld_file`
+(`.wld`, `min_rows=1`) are thin facades over it; `xrd_export.save_pattern` and
+`xrd_import.parse_pattern(path, options=None)` use it too. One-directional
+imports (facades → csv_io) avoid a cycle.
+
+`mudlab/csv_import_dialog.py` (`CsvImportDialog`, old
+`generic/views/glade/csv_import.glade`): separator + decimal-sign combos, a
+first-row-headers checkbox, and a live `tv_preview` (header/non-numeric rows in
+italics), pre-filled from `csv_io.sniff`. `import_pattern(parent, path=None, ...)`
+is the shared entry point: it picks a file (unless given one), shows the options
+dialog for text formats (`xrd_import.uses_csv_options` = not a vendor format),
+parses, and shows a QMessageBox on error - returning `(x, y)` or None. Wired
+into the experimental-pattern import (`edit_specimen_dialog`), the raw-pattern
+phase import (`edit_raw_pattern_phase_widget`), and the background-pattern
+import (`line_dialogs`, which picks the file itself for the path label). Bulk
+Import Specimens (`main_window`) stays on auto-detect (no per-file dialog).
+Guard: `tools/verify_csv_import.py`.
 
 ## Specimen-operation dialogs (lines + trim/statistics/save-size)
 

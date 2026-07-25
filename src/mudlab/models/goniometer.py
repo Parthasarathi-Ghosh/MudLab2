@@ -110,9 +110,36 @@ class Goniometer(QObject):
                 pass
         elif isinstance(wld, list):
             gonio.wavelength_distribution = [tuple(pair) for pair in wld]
+        elif "lambda" in props:
+            # Legacy .gon setups store a single wavelength, not a distribution.
+            try:
+                gonio.wavelength_distribution = [(float(props["lambda"]), 1.0)]
+            except (ValueError, TypeError):
+                pass
         if "uuid" in props:
             gonio.uuid = props["uuid"]
         return gonio
+
+    def apply_setup(self, props: dict) -> None:
+        """Load a stored goniometer setup (`.gon` ``properties``) into this
+        goniometer, keeping its own uuid and project linkage.
+
+        Every modeled parameter is reset from `props` (missing keys fall back to
+        the model defaults, as the old reset_from_file did), so a setup fully
+        defines the goniometer. Emits data_changed once."""
+        fresh = Goniometer.from_dict({"properties": props})
+        # Set everything under one signal (old reset_from_file held data_changed),
+        # so listeners recompute once, not once per parameter.
+        self.blockSignals(True)
+        try:
+            for key in _SCALAR_KEYS:
+                setattr(self, key, getattr(fresh, key))
+            self.wavelength_distribution = list(fresh.wavelength_distribution)
+        finally:
+            self.blockSignals(False)
+        # The distribution changed, so it can no longer be saved verbatim.
+        self.raw_properties.pop("wavelength_distribution", None)
+        self.data_changed.emit()
 
     def to_dict(self) -> dict:
         props = dict(self.raw_properties)
