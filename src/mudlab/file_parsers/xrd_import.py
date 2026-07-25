@@ -18,23 +18,20 @@ import os
 
 import numpy as np
 
+from mudlab.file_parsers.csv_io import CsvOptions, read_xy
 from mudlab.file_parsers.rasx_parser import parse_rasx
 from mudlab.file_parsers.raw_parser import parse_raw
 from mudlab.file_parsers.uxd_parser import parse_uxd
 from mudlab.file_parsers.xrdml_parser import parse_xrdml
-from mudlab.file_parsers.xy_parser import parse_xy
 
-# Extension -> parser. ASCII XY family is the fallback for unknown extensions.
-_PARSERS = {
+# Vendor/binary formats with a fixed layout. Everything else (ASCII XY family
+# and unknown extensions) is read as delimited text via the common CSV reader,
+# so the CSV-import options apply to it.
+_VENDOR_PARSERS = {
     ".xrdml": parse_xrdml,
     ".rasx": parse_rasx,
     ".raw": parse_raw,
     ".uxd": parse_uxd,   # Bruker DIFFRAC ASCII (markers, CPS normalisation)
-    ".xy": parse_xy,
-    ".txt": parse_xy,
-    ".csv": parse_xy,
-    ".dat": parse_xy,
-    ".tab": parse_xy,
 }
 
 #: Qt getOpenFileName filter offering every supported format.
@@ -48,10 +45,20 @@ PATTERN_FILTERS = (
 )
 
 
-def parse_pattern(path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Read a measured pattern, choosing the parser from the file extension;
-    an unrecognised extension is tried as ASCII XY. Returns (two_theta,
-    intensity)."""
-    ext = os.path.splitext(path)[1].lower()
-    parser = _PARSERS.get(ext, parse_xy)
-    return parser(path)
+def uses_csv_options(path: str) -> bool:
+    """True when `path` is read as delimited text (so the CSV-import options
+    apply); False for the vendor/binary formats, which have a fixed layout."""
+    return os.path.splitext(path)[1].lower() not in _VENDOR_PARSERS
+
+
+def parse_pattern(
+    path: str, options: "CsvOptions | None" = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Read a measured pattern, choosing the parser from the file extension; an
+    unrecognised extension is read as delimited text. `options` (a
+    :class:`CsvOptions`) applies only to the text path; vendor formats ignore
+    it. Returns (two_theta, intensity)."""
+    parser = _VENDOR_PARSERS.get(os.path.splitext(path)[1].lower())
+    if parser is not None:
+        return parser(path)
+    return read_xy(path, options)

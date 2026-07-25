@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QDialog, QFileDialog, QHeaderView, QMessageBox, QWidget,
 )
 
+from mudlab.csv_import_dialog import import_pattern
 from mudlab.file_parsers.xrd_export import EXPORT_FILTERS, save_pattern
-from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
 from mudlab.goniometer_widget import GoniometerWidget
 from mudlab.line_properties_widget import LinePropertiesWidget
 from mudlab.models import Specimen
@@ -173,18 +173,10 @@ class EditSpecimenDialog(QDialog):
         format the shared importer reads)."""
         if self._specimen is None:
             return
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Import experimental pattern", "", PATTERN_FILTERS
-        )
-        if not path:
+        result = import_pattern(self, title="Import experimental pattern")
+        if result is None:
             return
-        try:
-            x, y = parse_pattern(path)
-        except Exception as exc:
-            QMessageBox.warning(
-                self, "Import pattern", "Could not read:\n%s\n\n%s" % (path, exc)
-            )
-            return
+        x, y = result
         self._specimen.set_experimental_pattern(x, y)
         self._fill_pattern_tables(self._specimen)
 

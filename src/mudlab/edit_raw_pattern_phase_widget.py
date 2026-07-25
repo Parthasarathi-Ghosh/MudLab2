@@ -18,10 +18,11 @@ from typing import Callable
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import QWidget
 
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
-from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
+from mudlab.csv_import_dialog import import_pattern
+from mudlab.file_parsers.xrd_import import parse_pattern
 from mudlab.ui.ui_edit_raw_pattern_phase import Ui_EditRawPatternPhaseWidget
 
 
@@ -75,25 +76,20 @@ class EditRawPatternPhaseWidget(QWidget):
     def _on_import_clicked(self) -> None:
         if self._phase is None:
             return
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Import measured pattern", "", PATTERN_FILTERS
-        )
-        if not path:
+        result = import_pattern(self, title="Import measured pattern")
+        if result is None:
             return
-        try:
-            self.import_from_path(path)
-        except Exception as exc:  # unreadable / unsupported format
-            QMessageBox.warning(
-                self, "Import failed",
-                "Could not read the pattern from:\n%s\n\n%s" % (path, exc),
-            )
+        self._store_pattern(*result)
 
-    def import_from_path(self, path: str) -> None:
-        """Read a measured pattern from `path` into the bound phase and refresh.
-        Separate from the file dialog so it can be driven head-less."""
+    def import_from_path(self, path: str, options=None) -> None:
+        """Read a measured pattern from `path` (optionally with explicit CSV
+        `options`) into the bound phase and refresh. Separate from the file
+        dialog so it can be driven head-less."""
         if self._phase is None:
             return
-        x, y = parse_pattern(path)
+        self._store_pattern(*parse_pattern(path, options))
+
+    def _store_pattern(self, x, y) -> None:
         self._phase.set_raw_pattern(x, y)
         self._refresh()
         if self._on_changed is not None:

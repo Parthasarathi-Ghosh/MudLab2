@@ -26,7 +26,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from mudlab.calculations import pattern_ops
-from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
+from mudlab.csv_import_dialog import import_pattern
+from mudlab.file_parsers.xrd_import import PATTERN_FILTERS
 from mudlab.ui.ui_add_noise import Ui_AddNoiseDialog
 from mudlab.ui.ui_background import Ui_RemoveBackgroundDialog
 from mudlab.ui.ui_peak_properties import Ui_PeakPropertiesDialog
@@ -104,16 +105,17 @@ class RemoveBackgroundDialog(_SpecimenDialog):
         self.ui.bg_position.setValue(pattern_ops.find_bg_position(y))
 
     def _browse_pattern(self) -> None:
-        filename, _ = QFileDialog.getOpenFileName(
+        # Pick here (the label needs the path); import_pattern then handles the
+        # CSV-import options, parsing and any error dialog.
+        path, _ = QFileDialog.getOpenFileName(
             self, "Select background pattern file", "", PATTERN_FILTERS
         )
-        if not filename:
+        if not path:
             return
-        try:
-            bg_x, bg_y = parse_pattern(filename)
-        except (OSError, ValueError) as err:
-            QMessageBox.warning(self, "Background pattern", str(err))
+        result = import_pattern(self, path=path)
+        if result is None:
             return
+        bg_x, bg_y = result
         if self._specimen is None or len(bg_x) < 2:
             QMessageBox.warning(
                 self, "Background pattern", "The file contains no usable data."
@@ -126,7 +128,7 @@ class RemoveBackgroundDialog(_SpecimenDialog):
 
         x, _ = self._specimen.experimental_pattern
         self._bg_pattern = interp1d(bg_x, bg_y, bounds_error=False, fill_value=0)(x)
-        self.ui.bg_pattern_file.setText(filename)
+        self.ui.bg_pattern_file.setText(path)
 
     def _apply(self) -> bool:
         bg_type = BG_TYPES[self.ui.bg_type.currentIndex()]
