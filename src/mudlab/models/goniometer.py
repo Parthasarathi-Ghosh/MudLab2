@@ -66,6 +66,20 @@ class Goniometer(QObject):
             return float(max(self.wavelength_distribution, key=lambda wf: wf[1])[0])
         return DEFAULT_WAVELENGTH
 
+    def set_wavelength_distribution(self, pairs) -> None:
+        """Replace the emission spectrum with (wavelength_nm, fraction) pairs.
+
+        Drops the verbatim raw string kept for byte-identical round-trips (see
+        to_dict) so the edit is actually re-encoded on save, and emits
+        data_changed so the derived `wavelength` and any pattern calc refresh.
+        """
+        self.wavelength_distribution = [
+            (float(w), float(f)) for w, f in pairs
+        ]
+        # An edited distribution can no longer be saved verbatim.
+        self.raw_properties.pop("wavelength_distribution", None)
+        self.data_changed.emit()
+
     # ------------------------------------------------------------------
     # Effective Soller values (0 when the slit is disabled)
     # ------------------------------------------------------------------
@@ -104,9 +118,10 @@ class Goniometer(QObject):
         props = dict(self.raw_properties)
         for key in _SCALAR_KEYS:
             props[key] = getattr(self, key)
-        # Preserve the raw wavelength_distribution string verbatim (there is
-        # no UI to edit it yet, so it never changes); only encode from the
-        # list when none was loaded, so round-trips stay byte-identical.
+        # Preserve the raw wavelength_distribution string verbatim so an
+        # untouched goniometer round-trips byte-identically; the editor
+        # (set_wavelength_distribution) pops the raw key when the distribution
+        # changes, so an edit falls through to the re-encode below.
         if "wavelength_distribution" not in props:
             props["wavelength_distribution"] = json.dumps(
                 [[float(w), float(f)] for w, f in self.wavelength_distribution]

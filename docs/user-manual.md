@@ -11,6 +11,8 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
 - [Preparing experimental data](#preparing-experimental-data)
+- [Markers, peak detection, and mineral matching](#markers-peak-detection-and-mineral-matching)
+- [The goniometer emission spectrum](#the-goniometer-emission-spectrum)
 
 ---
 
@@ -507,3 +509,77 @@ set it to mean.
 
 A trim that would leave fewer than two data points is refused, and MudLab2 names
 the specimens it could not trim.
+
+---
+
+## Markers, peak detection, and mineral matching
+
+Markers label reflections on a pattern by 2θ position (and the d-spacing they
+correspond to). Open **Edit Markers** for the current specimen to add, remove,
+and edit them by hand, or use the two tools at the bottom of the list to build
+and label a marker set automatically.
+
+### Detect Peaks
+
+**Find peaks** opens the Auto detect peaks dialog, which finds reflections for
+you and drops a marker on each.
+
+- **Pattern** — detect on the *Experimental* or *Calculated* curve. A curve with
+  no data is greyed out.
+- **Algorithm** — *Threshold (classic)* is the original height-based detector;
+  *Prominence (scipy)* judges each peak by how far it rises above its
+  surroundings and adds a **Min. distance (°2θ)** field so close peaks are not
+  double-counted.
+- **The graph** plots how many peaks are found as the cut-off changes. Drag the
+  blue line (or type into **Selected threshold** / **# of peaks**) to pick the
+  cut-off — the two fields stay in step, so you can aim for a peak *count* or a
+  threshold *value*, whichever is easier. **Maximum** and **Steps** control the
+  range and resolution of the curve.
+
+Click **OK** to add a marker at every detected peak; each is labelled with its
+d-spacing. If the specimen already has markers, MudLab2 first asks whether to
+clear them (replace) or keep them (append).
+
+### Match Minerals
+
+With a marker selected, **Match minerals** scores a built-in reference set (228
+minerals) against your markers' peak positions and tells you which minerals fit.
+
+- The **right** list is every reference mineral; the **left** list is the
+  matches, best first, with a score (higher = better fit).
+- **Auto match** re-scores against the current target markers. You can also pick
+  a mineral on the right and use the transfer buttons to add it to (or remove it
+  from) the matches by hand.
+- **Append labels** adds the selected matches' abbreviations to your markers'
+  labels (for example a quartz marker becomes `… , Qz`), so the identification
+  shows on the plot. Applying the same mineral twice does not duplicate it.
+
+The dialog stays open alongside the plot so you can keep working. The *Specimen
+range* checkbox is reserved for a mineral-preview overlay that is not part of
+this release.
+
+---
+
+## The goniometer emission spectrum
+
+Each specimen carries a goniometer setup (**Edit Specimen → Goniometer** tab).
+The X-ray source is described by its **emission spectrum** — the set of
+wavelengths it emits and their relative strengths. Most of the calculation uses
+the **dominant** wavelength (the strongest line), shown next to the
+**Wavelength (λ)** label.
+
+Click **Edit emission spectrum** to open the editor:
+
+- The table lists each **Wavelength (nm)** and its **Fraction** (relative
+  intensity). Click a cell to edit it; non-numeric entries are rejected and the
+  cell reverts.
+- **Add** / **Remove** insert or delete rows.
+- **Import…** replaces the whole spectrum from a `.wld` file — five presets
+  (Cu, Co, Cr, Mo, and a Cu LynxEye XE profile) ship with MudLab2 and the dialog
+  opens in that folder. **Export…** saves the current spectrum to a `.wld` file
+  to reuse elsewhere.
+
+Edits apply immediately to the specimen's goniometer (there is no separate
+"OK" — just close when done), and the dominant wavelength updates on the
+Goniometer tab. A single line with fraction 1.0 (the default) is the ordinary
+monochromatic case; add the Kα₂ line, for example, to model a Kα₁/Kα₂ doublet.

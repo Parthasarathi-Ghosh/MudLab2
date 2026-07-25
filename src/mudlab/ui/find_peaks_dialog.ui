@@ -48,7 +48,12 @@
       <widget class="QComboBox" name="algorithm">
        <item>
         <property name="text">
-         <string>Threshold</string>
+         <string>Threshold (classic)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Prominence (scipy)</string>
         </property>
        </item>
       </widget>

@@ -17,20 +17,19 @@ done. Kept as the canonical to-do; update it as items land.
   per-phase overlay exists.
 
 ## Unported editors / dialogs (real remaining work)
-- **Wavelength-distribution editor** — goniometer "Edit emission spectrum"
-  (`wavelength_distribution.glade`).
 - **CSV import options** dialog (`csv_import.glade`).
 - **About dialog** branding + window/app icons (currently a `QMessageBox.about`
   placeholder).
 - **Splash screen** (optional).
 
 ## Placeholder / stubbed features (visible but not fully wired)
-- **Detect Peaks** — dialog exists; actual peak detection not connected (graph
-  placeholder).
-- **Match Minerals** — uses placeholder mineral references; reference-data port not done.
 - **Stored goniometer setups** — "Load setup" combo is a placeholder.
 - **Original-pattern overlay** in the line/data-op dialogs — not ported.
 - **Exclusion-ranges import/export** in Edit Specimen — not ported.
+- **Mineral-preview overlay** — the Match Minerals "Specimen range" checkbox and
+  the magenta reference-peak preview it drove are deferred (checkbox disabled);
+  matching + label output are wired. Depends on a per-curve plot overlay (same
+  gap as per-phase curves / original-pattern overlay).
 
 ## Unported file formats
 - **`.cpi` / `.rd` / `.brml`** (rare). Done: Bruker RAW1–4, Rigaku `.raw`, `.xrdml`,
@@ -72,6 +71,25 @@ composition summary is the only remaining phase-editor piece" — but no phase-l
 composition widget exists (composition is a *mixture* feature, and it's done), so that
 line is stale or refers to an un-built phase-composition panel.
 
+## Recently completed (was on this list)
+- **Wavelength-distribution editor** — the goniometer's "Edit emission spectrum"
+  button now opens an editable (wavelength nm, fraction) table with Add / Remove
+  and `.wld` import/export (5 default presets bundled under
+  `data/default wavelength distributions/`). `Goniometer.set_wavelength_distribution`
+  invalidates the verbatim raw string so edits persist (untouched goniometers
+  still round-trip byte-identically); the Goniometer tab now shows the dominant
+  wavelength. Guarded by `tools/verify_wavelength_distribution.py`.
+- **Detect Peaks** — wired end-to-end: `calculations/peak_detection.py` ports the
+  billauer + scipy detectors and the threshold/prominence histograms; the dialog
+  plots the "# of peaks vs cut-off" curve with a draggable line and coupled
+  fields, and OK adds markers via `Specimen.auto_add_peaks`. Guarded by
+  `tools/verify_peak_detection.py` + `tools/verify_detect_peaks.py`.
+- **Match Minerals** — real reference data (`data/mineral_references.csv`, 228
+  minerals) + `score_minerals`; the dialog auto-matches against the target
+  markers, lists scores, and "Append labels" writes abbreviations onto markers.
+  Guarded by `tools/verify_match_minerals.py`. (Preview overlay still deferred,
+  see above.)
+
 ---
-**Biggest genuinely-remaining items:** wavelength-distribution editor, Detect Peaks
-wiring, Match Minerals reference data, About/branding.
+**Biggest genuinely-remaining items:** About/branding, CSV import options,
+stored goniometer setups.

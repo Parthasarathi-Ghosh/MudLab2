@@ -10,7 +10,7 @@ specimen's real Marker models (add/remove/edit update the plot).
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QPushButton, QWidget
+from PySide6.QtWidgets import QMessageBox, QPushButton, QWidget
 
 from mudlab.detect_peaks_dialog import DetectPeaksDialog
 from mudlab.edit_marker_widget import EditMarkerWidget
@@ -120,7 +120,55 @@ class EditMarkersDialog(ObjectStoreDialog):
             self.objects_model.item(index.row(), 1).setText(f"{marker.position:.4f}")
 
     def _on_find_peaks(self) -> None:
-        DetectPeaksDialog(self).exec()
+        if self.specimen is None or not (
+            self.specimen.has_experimental_data or self.specimen.has_calculated_data
+        ):
+            QMessageBox.information(
+                self, "Detect peaks",
+                "This specimen has no pattern data to detect peaks in.")
+            return
+        # Old app: when markers already exist, offer to clear them first so the
+        # detected set replaces (Yes) or appends to (No) the current markers.
+        cleared = False
+        if self.specimen.markers:
+            reply = QMessageBox.question(
+                self, "Detect peaks",
+                "Clear the current markers for this pattern first?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel,
+            )
+            if reply == QMessageBox.StandardButton.Cancel:
+                return
+            if reply == QMessageBox.StandardButton.Yes:
+                self.specimen.clear_markers()
+                cleared = True
+        dialog = DetectPeaksDialog(self, specimen=self.specimen)
+        dialog.exec()
+        # Reload whenever the marker set changed: peaks were added, OR we
+        # cleared (even if the dialog was cancelled or found nothing) - otherwise
+        # the list would keep showing markers that no longer exist.
+        if cleared or dialog.added_markers:
+            self._reload_markers(select_row=len(self._markers()) - 1)
+
+    def _selected_markers(self) -> list:
+        markers = self._markers()
+        rows = [
+            i.row()
+            for i in self.ui.edit_objects_treeview.selectionModel().selectedRows()
+        ]
+        return [markers[r] for r in rows if 0 <= r < len(markers)]
 
     def _on_match_minerals(self) -> None:
-        MatchMineralsDialog(self).show()
+        if self.specimen is None:
+            return
+        targets = self._selected_markers() or list(self.specimen.markers)
+        # Non-modal: keep a reference so it is not garbage-collected, and
+        # refresh the marker list when it appends labels.
+        self._match_dialog = MatchMineralsDialog(
+            self, specimen=self.specimen, targets=targets)
+        self._match_dialog.applied.connect(self._on_labels_applied)
+        self._match_dialog.show()
+
+    def _on_labels_applied(self) -> None:
+        row = self.ui.edit_objects_treeview.currentIndex().row()
+        self._reload_markers(select_row=row if row >= 0 else 0)

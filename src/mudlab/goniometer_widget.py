@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QWidget
 
 from mudlab.models import Goniometer
 from mudlab.ui.ui_goniometer import Ui_GoniometerWidget
+from mudlab.wavelength_distribution_dialog import WavelengthDistributionDialog
 
 # Combo index -> old model value (goniometer.ui item order).
 DIVERGENCE_MODES = ("AUTOMATIC", "FIXED")
@@ -42,6 +43,9 @@ class GoniometerWidget(QWidget):
         # Placeholder until stored goniometer setups are ported (old:
         # cmb_import_gonio listed the default .gon setup files).
         self.ui.cmb_import_gonio.addItem("(select a stored setup)")
+
+        # Edit emission spectrum (wavelength distribution) editor.
+        self.ui.btn_edit_wld.clicked.connect(self._on_edit_wld)
 
         # Widget <-> model bindings.
         self._spin_bindings = (
@@ -90,6 +94,23 @@ class GoniometerWidget(QWidget):
             )
         finally:
             self._updating = False
+        self._refresh_wavelength_label()
+
+    def _refresh_wavelength_label(self) -> None:
+        """Show the current dominant (highest-fraction) wavelength on the label."""
+        if self._goniometer is not None:
+            self.ui.gonio_lambda_lbl.setText(
+                "Wavelength (λ): %.5f nm" % self._goniometer.wavelength
+            )
+        else:
+            self.ui.gonio_lambda_lbl.setText("Wavelength (λ)")
+
+    def _on_edit_wld(self) -> None:
+        if self._goniometer is None:
+            return
+        WavelengthDistributionDialog(self, goniometer=self._goniometer).exec()
+        # The dominant wavelength may have changed.
+        self._refresh_wavelength_label()
 
     def _write(self, prop: str, value) -> None:
         if self._goniometer is not None and not self._updating:

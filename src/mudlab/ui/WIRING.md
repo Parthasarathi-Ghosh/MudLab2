@@ -1296,8 +1296,9 @@ intensity-correction calculations (batch 2 below).
   `gonio_min_2theta_spb` 0-160, `gonio_max_2theta_spb` 0-100,
   `steps_spn_btn1` 1-5000), Sample (`sample_length_spb`,
   `sample_surf_density_spb`, `gonio_has_absorption_correction` +
-  `absorption_spb` [cm²/g]), Primary beam (`btn_edit_wld` ->
-  wavelength-distribution editor still to do, `gonio_divergence_mode`,
+  `absorption_spb` [cm²/g]), Primary beam (`btn_edit_wld` -> the
+  wavelength-distribution editor, `wavelength_distribution_dialog.py`;
+  `gonio_lambda_lbl` shows the dominant wavelength, `gonio_divergence_mode`,
   `gonio_div_value_spb`, `gonio_has_soller1` + `gonio_soller1_spb`),
   Secondary beam (`gonio_has_soller2` + `gonio_soller2_spb`,
   `gonio_mcr2t_spb` monochromator 2θ).
@@ -1308,6 +1309,23 @@ intensity-correction calculations (batch 2 below).
 - Bottom row (old ids): `cmb_import_gonio` ("Load setup", placeholder
   item until the stored setups port), `btn_export_gonio` ("Store setup"),
   `lbl_applied_gonio` (shows the applied setup name).
+
+## Wavelength-distribution (emission spectrum) editor: wavelength_distribution.ui
+
+`mudlab/wavelength_distribution_dialog.py` (`WavelengthDistributionDialog`),
+old `goniometer/glade/wavelength_distribution.glade` +
+`WavelengthDistributionController`. Modal; opened by the goniometer
+component's `btn_edit_wld`. An editable (Wavelength nm, Fraction) table
+(`tv_wld`, a `QStandardItemModel`) with `btn_add` / `btn_del` and
+`btn_import` / `btn_export` for `.wld` files (parser:
+`file_parsers/wld_file.py`; 5 presets bundled under
+`data/default wavelength distributions/`, the import default folder).
+Edits are LIVE: every cell edit / add / remove / import pushes the whole
+list to `Goniometer.set_wavelength_distribution`, which pops the verbatim
+raw string (so the edit is re-encoded on save; untouched goniometers still
+round-trip byte-identically) and emits `data_changed`. Invalid cell text
+reverts. The Goniometer tab's `gonio_lambda_lbl` refreshes to the dominant
+(highest-fraction) wavelength. Guard: `tools/verify_wavelength_distribution.py`.
 
 ## Specimen-operation dialogs (lines + trim/statistics/save-size)
 
@@ -1618,18 +1636,26 @@ top_offset / y_offset placement. Marker line/label artists are pickable:
 double-clicking selects the marker (see the Plot area section). Not yet
 drawn: the "offset" style's special Y-offset line.
 - **Detect Peaks** (`detect_peaks_dialog.py`, `find_peaks_dialog.ui`, old
-  find_peaks_dialog.glade): modal; pattern/algorithm combos, threshold +
-  steps + #peaks, and the # peaks-vs-threshold histogram canvas in
-  `graphLayout`. Detection runs with the calc-engine port.
+  find_peaks_dialog.glade): modal; pattern (exp/calc) + algorithm
+  (Threshold classic / Prominence scipy) combos, threshold + steps +
+  #peaks, and the # peaks-vs-cut-off histogram canvas in `graphLayout`
+  with a draggable vertical line. Selected-threshold and #peaks stay
+  coupled (forward/reverse interpolation over the histogram). OK runs
+  `Specimen.auto_add_peaks` (`calculations/peak_detection.py`:
+  peakdetect / scipy_peakdetect + get_best_threshold/prominence),
+  creating a Marker per peak labelled with its d-spacing. `min_distance`
+  is shown only for the Prominence algorithm. Launch offers to clear
+  existing markers first.
 - **Match Minerals** (`match_minerals_dialog.py`, `match_minerals.ui`, old
   match_minerals.glade): NON-modal (old view kept it above the main
-  window so the plot stays interactive). All-minerals list (placeholder,
-  from the future mineral_references.csv port) <-> matched list with
-  transfer buttons; auto-match and append-labels run with the reference
-  data port. Button ids follow the old glade: `btn_rtl` = add (minerals
-  -> matches, `on_add_match_clicked`), `btn_ltr` = remove
-  (`on_del_match_clicked`). `min_distance` in Detect Peaks is hidden (old
-  prominence-algorithm-only field; MudLab2 offers Threshold only).
+  window so the plot stays interactive). All-minerals list (real
+  `data/mineral_references.csv`, 228 entries) <-> matched list with
+  transfer buttons; Auto match scores the references against the target
+  markers' peaks (`score_minerals`), Append labels writes the chosen
+  abbreviations onto the markers (emits `applied`, host list reloads).
+  Button ids follow the old glade: `btn_rtl` = add (minerals -> matches),
+  `btn_ltr` = remove. The `chk_use_specimen_range` checkbox is disabled
+  (drove the deferred mineral-preview overlay).
 
 ## Specimens context menu (old specimen_popup)
 

@@ -48,6 +48,7 @@ class Ui_DetectPeaksDialog(object):
 
         self.algorithm = QComboBox(DetectPeaksDialog)
         self.algorithm.addItem("")
+        self.algorithm.addItem("")
         self.algorithm.setObjectName(u"algorithm")
 
         self.topForm.setWidget(1, QFormLayout.ItemRole.FieldRole, self.algorithm)
@@ -158,7 +159,8 @@ class Ui_DetectPeaksDialog(object):
         self.pattern.setItemText(1, QCoreApplication.translate("DetectPeaksDialog", u"Calculated", None))
 
         self.lbl_algorithm.setText(QCoreApplication.translate("DetectPeaksDialog", u"Algorithm", None))
-        self.algorithm.setItemText(0, QCoreApplication.translate("DetectPeaksDialog", u"Threshold", None))
+        self.algorithm.setItemText(0, QCoreApplication.translate("DetectPeaksDialog", u"Threshold (classic)", None))
+        self.algorithm.setItemText(1, QCoreApplication.translate("DetectPeaksDialog", u"Prominence (scipy)", None))
 
         self.lbl_selection.setText(QCoreApplication.translate("DetectPeaksDialog", u"Generate parameter histogram:", None))
         self.lbl_max_thold.setText(QCoreApplication.translate("DetectPeaksDialog", u"Maximum", None))

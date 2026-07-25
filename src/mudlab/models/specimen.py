@@ -10,13 +10,27 @@ from __future__ import annotations
 
 import json
 import uuid as _uuid
+from math import log
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
+from mudlab.calculations import get_nm_from_2t
 from mudlab.models.properties import Prop
 
 DEFAULT_WAVELENGTH = 0.154056  # nm, CuKα1 (old settings default)
+
+
+def _peak_label(two_theta: float, wavelength: float) -> str:
+    """Auto-peak marker label = the d-spacing (nm) at `two_theta`, formatted
+    with a decimal count that grows for finer spacings (old auto_add_peaks:
+    ``"%%.%df" % (3 + min(int(log(nm, 10)), 0)) % nm``). Clamped to >=0
+    decimals so a pathological sub-angstrom spacing cannot raise."""
+    nm = get_nm_from_2t(two_theta, wavelength) if two_theta != 0 else 0.0
+    if nm <= 0:
+        return "0"
+    decimals = max(0, 3 + min(int(log(nm, 10)), 0))
+    return "%.*f" % (decimals, nm)
 
 
 class Specimen(QObject):
@@ -120,6 +134,70 @@ class Specimen(QObject):
             marker.setParent(None)
             marker.deleteLater()
             self.visuals_changed.emit()
+
+    def clear_markers(self) -> None:
+        """Remove every marker in one batch (old Specimen.clear_markers)."""
+        if not self._markers:
+            return
+        for marker in list(self._markers):
+            marker.visuals_changed.disconnect(self.visuals_changed)
+            marker._specimen = None
+            marker.setParent(None)
+            marker.deleteLater()
+        self._markers.clear()
+        self.visuals_changed.emit()
+
+    def auto_add_peaks(
+        self, threshold, pattern="exp", algorithm="threshold", min_distance=0.1
+    ):
+        """Detect peaks and add a Marker at each, labelled with its d-spacing.
+
+        Ported from the old Specimen.auto_add_peaks: the classic algorithm uses
+        the billauer detector at `threshold`; the prominence algorithm uses
+        scipy with `min_distance` (°2θ) converted to samples. `pattern` selects
+        the experimental ("exp") or calculated ("calc") curve, which also sets
+        the new markers' base (1 vs 2). Peaks coinciding with an existing marker
+        position are skipped. Returns the list of markers created.
+        """
+        from mudlab.calculations import peak_detection as pd
+        from mudlab.models.marker import Marker
+
+        if pattern == "calc":
+            data_x, data_y = self._calc_x, self._calc_y
+            base = 2
+        else:
+            data_x, data_y = self._exp_x, self._exp_y
+            base = 1
+        if data_y.size < 2:
+            return []
+
+        if algorithm == "prominence":
+            span = data_x[-1] - data_x[0]
+            resolution = (len(data_x) - 1) / span if span else 1.0
+            min_dist_samples = max(1, int(min_distance * resolution))
+            maxtab = pd.scipy_peakdetect(
+                data_y, data_x,
+                min_prominence=threshold, min_distance_samples=min_dist_samples,
+            )
+        else:
+            maxtab, _ = pd.peakdetect(data_y, data_x, 5, threshold)
+
+        existing = {m.position for m in self._markers}
+        added = []
+        self.blockSignals(True)
+        try:
+            for x, _y in maxtab:
+                if x in existing:
+                    continue
+                marker = Marker(label=_peak_label(x, self.wavelength), position=x)
+                marker.base = base
+                self.add_marker(marker)  # emit suppressed while signals blocked
+                added.append(marker)
+        finally:
+            self.blockSignals(False)
+        if added:
+            self.visuals_changed.emit()
+        return added
 
     @property
     def wavelength(self) -> float:
