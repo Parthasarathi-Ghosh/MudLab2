@@ -1388,6 +1388,20 @@ Specimen controller, so a specimen was always present; here they live on
 the main-window menu, so `_update_data_op_actions` greys them out unless
 exactly one specimen with data is selected.
 
+**Live preview overlay.** `_SpecimenDialog` draws a live preview of the
+pending operation on the main plot while open: `showEvent` and every
+parameter-change signal call `_update_preview`, which asks the subclass
+`_compute_preview()` for `(x, y, show_original)` and forwards it to
+`main_window.set_pattern_preview(specimen, x, y, show_original)`; `reject`
+and a successful `_on_accept` call `clear_pattern_preview`. The result is
+computed NON-destructively by the `Specimen.preview_*` methods (same
+`pattern_ops` as the mutating ops, so the overlay matches what OK applies),
+and `PatternPlot.set_preview` draws it in `PREVIEW_COLOR` over the original
+(hiding the original only when `show_original` is False - Smooth's
+checkbox), preserving the user's zoom. Add Noise / Strip previews are
+representative (random). Peak Properties is a measurement and previews
+nothing. Guards: `verify_pattern_preview` + `verify_data_op_preview`.
+
 - **Remove Background** (`background.ui`): `bg_type` Linear/Pattern
   switches `bg_view_stack` (old swapped tables into bg_view_container).
   Linear: `bg_position` (pre-filled from `find_bg_position` = min(y), the
@@ -1402,8 +1416,8 @@ exactly one specimen with data is selected.
   - `SMOOTH_TYPES` map), `spin_degree` (re-filled per type from
   `SMOOTH_DEFAULT_DEGREES`, old `setup_smooth_variables`). Each type
   reads the degree differently (window half-width / sigma / spline factor).
-  `smooth_show_original` is **disabled**: its live overlay needs the
-  plot-controller port.
+  `smooth_show_original` keeps the un-smoothed original visible under the
+  live preview (drives `show_original` on the overlay; see below).
 - **Shift Pattern** (`shifting.ui`): `shift_position` reference list
   (Quartz/Silicon/Zincite/Corundum/Goethite/Gibbsite/Manual;
   `SHIFT_POSITIONS` = d-spacings in nm), `spin_shift_value`.
@@ -1429,8 +1443,7 @@ exactly one specimen with data is selected.
 - **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` +
   `cmd_sample_start`/`cmd_sample_end` (eye-dropper), `noise_level`
   (re-estimated whenever an endpoint moves; the user can override it,
-  which is why `compute_strip_pattern` takes an optional level). Live
-  plot preview still needs the plot-controller port.
+  which is why `compute_strip_pattern` takes an optional level).
 - **Peak Properties** (`peak_properties.ui`): start/end + sample buttons;
   area/FWHM recompute **live** on every position change. Read-only - it
   never touches the pattern, hence no OK button.

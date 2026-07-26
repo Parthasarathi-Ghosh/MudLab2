@@ -48,6 +48,7 @@ PAN_FRACTION = 0.1  # old _pan_x step: 10% of the visible span
 CROSSHAIR_COLOR = "#555555"
 HIGHLIGHT_COLOR = "#FF6600"
 RESIDUAL_COLOR = "#7048a8"  # difference-curve violet (Rietveld convention)
+PREVIEW_COLOR = "#E8590C"  # live data-op preview (warm orange, over the original)
 
 
 def _max_display_y(specimen: Specimen) -> float:
@@ -100,6 +101,9 @@ class PatternPlot:
         self._marker_artists: dict = {}
         self._last_pick_artist = None
         self._last_pick_time = 0.0
+        # Live data-op preview overlay (see set_preview): the result a data-op
+        # dialog would apply, drawn over the original while the dialog is open.
+        self._preview: dict | None = None
 
         self.draw_pattern()
 
@@ -117,6 +121,42 @@ class PatternPlot:
             self.canvas.setCursor(QCursor(Qt.CursorShape.CrossCursor))
         else:
             self.canvas.unsetCursor()
+
+    # ------------------------------------------------------------------
+    # Live data-op preview overlay
+    # ------------------------------------------------------------------
+    def set_preview(self, specimen, x, y, show_original: bool = True) -> None:
+        """Overlay a data-op preview curve ``(x, y)`` (intensity units) for
+        `specimen`, drawn in that specimen's plot coordinates. `show_original`
+        keeps the specimen's original experimental line visible under it;
+        otherwise only the preview shows. Redraws, preserving any user zoom."""
+        if specimen not in self.specimens or x is None or len(x) < 2:
+            return
+        self._preview = {
+            "specimen": specimen,
+            "x": np.asarray(x, dtype=float),
+            "y": np.asarray(y, dtype=float),
+            "show_original": show_original,
+        }
+        self._redraw_keep_view()
+
+    def clear_preview(self) -> None:
+        if self._preview is not None:
+            self._preview = None
+            self._redraw_keep_view()
+
+    def _redraw_keep_view(self) -> None:
+        view = self.user_view()  # the user's zoom, if any (None = home view)
+        self.draw_pattern()
+        if view is not None:
+            self.axes.set_xlim(view[0])
+            self.axes.set_ylim(view[1])
+        self.canvas.draw_idle()
+
+    def _preview_for(self, specimen) -> dict | None:
+        if self._preview is not None and self._preview["specimen"] is specimen:
+            return self._preview
+        return None
 
     @property
     def specimen(self) -> Specimen:
@@ -187,7 +227,13 @@ class PatternPlot:
                 spec_y_pos = spec_y_pos + stats_height
                 spec_scale = spec_scale * 0.65
 
-            if specimen.display_experimental and specimen.has_experimental_data:
+            preview = self._preview_for(specimen)
+            # The original experimental line is hidden only when a preview is
+            # active AND its dialog asked to hide the original (Smooth's
+            # "show original" off); otherwise it stays as the base reference.
+            hide_original = preview is not None and not preview["show_original"]
+            if (specimen.display_experimental and specimen.has_experimental_data
+                    and not hide_original):
                 x, y = specimen.experimental_pattern
                 axes.plot(
                     x, y * spec_scale + spec_y_pos,
@@ -196,6 +242,12 @@ class PatternPlot:
                     linestyle=project.display_exp_ls or "None",
                     marker=project.display_exp_marker or "",
                     markersize=3,
+                )
+                lines += 1
+            if preview is not None:
+                axes.plot(
+                    preview["x"], preview["y"] * spec_scale + spec_y_pos,
+                    color=PREVIEW_COLOR, linewidth=1.3, zorder=6,
                 )
                 lines += 1
             if specimen.display_calculated and specimen.has_calculated_data:

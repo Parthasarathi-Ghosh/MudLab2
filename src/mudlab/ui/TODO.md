@@ -304,7 +304,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Smooth Data | smoothing.ui, line_dialogs.py | lines/smoothing.glade | done (applies: all 6 types; Show Original overlay needs the plot-controller port) |
 | Shift Pattern | shifting.ui, line_dialogs.py | lines/shifting.glade | done (applies: auto-detect vs reference + manual; linear/displacement) |
 | Add Noise | add_noise.ui, line_dialogs.py | lines/add_noise.glade | done (applies) |
-| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (applies; modeless; Sample buttons pick start/end; live plot preview needs the plot-controller port) |
+| Strip Peak | strip_peak.ui, line_dialogs.py | lines/strip_peak.glade | done (applies; modeless; Sample buttons pick start/end; live plot preview via PatternPlot.set_preview / Specimen.preview_strip) |
 | Peak Properties | peak_properties.ui, line_dialogs.py | lines/peak_properties.glade | done (live area/FWHM; read-only; modeless; Sample buttons + copy-to-clipboard) |
 | Trim Data | trim_dialog.ui, specimen_dialogs.py | specimen/glade/trim_dialog.glade | done (applies; scope specimen/all, shared-range prefill, marker/exclusion removal warning) |
 | Statistics | statistics.ui, specimen_dialogs.py | specimen/glade/statistics.glade | done (unwired until the specimens context menu exists) |
@@ -577,6 +577,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   outer trial). Not essential; no checkbox needed.
 
 ### Other
+- [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)
 - [ ] About dialog branding + window/app icons - application/icons/

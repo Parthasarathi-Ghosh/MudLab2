@@ -83,7 +83,43 @@ class _SpecimenDialog(QDialog):
         if self._specimen is None:
             return  # nothing bound: refuse rather than pretend it worked
         if self._apply():
+            self._clear_preview()
             self.accept()
+
+    # ------------------------------------------------------------------
+    # Live preview overlay on the main plot (see PatternPlot.set_preview).
+    # ------------------------------------------------------------------
+    def _compute_preview(self):
+        """Return ``(x, y, show_original)`` for the live overlay, or None (no
+        preview / clear it). Overridden by the operations that preview."""
+        return None
+
+    def _update_preview(self) -> None:
+        main_window = self.parent()
+        if self._specimen is None or main_window is None \
+                or not hasattr(main_window, "set_pattern_preview"):
+            return
+        result = self._compute_preview()
+        if result is None:
+            main_window.clear_pattern_preview()
+        else:
+            x, y, show_original = result
+            main_window.set_pattern_preview(self._specimen, x, y, show_original)
+
+    def _clear_preview(self) -> None:
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "clear_pattern_preview"):
+            main_window.clear_pattern_preview()
+
+    def showEvent(self, event) -> None:
+        # Show the initial preview once the dialog (and its widgets) are up.
+        super().showEvent(event)
+        self._update_preview()
+
+    def reject(self) -> None:
+        # Cancel / window-close: drop the preview so the plot returns to normal.
+        self._clear_preview()
+        super().reject()
 
 
 class RemoveBackgroundDialog(_SpecimenDialog):
@@ -97,6 +133,11 @@ class RemoveBackgroundDialog(_SpecimenDialog):
             self.ui.bg_view_stack.setCurrentIndex
         )
         self.ui.btn_browse_bg.clicked.connect(self._browse_pattern)
+        # Live preview: any parameter change redraws the subtracted result.
+        self.ui.bg_type.currentIndexChanged.connect(self._update_preview)
+        self.ui.bg_position.valueChanged.connect(self._update_preview)
+        self.ui.bg_offset.valueChanged.connect(self._update_preview)
+        self.ui.bg_scale.valueChanged.connect(self._update_preview)
 
     def _on_specimen_bound(self) -> None:
         # Old find_bg_position: start from the pattern minimum, the best
@@ -129,6 +170,24 @@ class RemoveBackgroundDialog(_SpecimenDialog):
         x, _ = self._specimen.experimental_pattern
         self._bg_pattern = interp1d(bg_x, bg_y, bounds_error=False, fill_value=0)(x)
         self.ui.bg_pattern_file.setText(path)
+        self._update_preview()
+
+    def _compute_preview(self):
+        if self._specimen is None:
+            return None
+        bg_type = BG_TYPES[self.ui.bg_type.currentIndex()]
+        if bg_type == pattern_ops.BG_PATTERN:
+            if self._bg_pattern is None:
+                return None  # nothing to subtract until a file is chosen
+            x, y = self._specimen.preview_remove_background(
+                bg_type, self.ui.bg_offset.value(),
+                self._bg_pattern, self.ui.bg_scale.value(),
+            )
+        else:
+            x, y = self._specimen.preview_remove_background(
+                bg_type, self.ui.bg_position.value()
+            )
+        return x, y, True
 
     def _apply(self) -> bool:
         bg_type = BG_TYPES[self.ui.bg_type.currentIndex()]
@@ -156,18 +215,33 @@ class SmoothDataDialog(_SpecimenDialog):
         super().__init__(Ui_SmoothDataDialog, parent, specimen)
         self.ui.smooth_type.currentIndexChanged.connect(self._on_type_changed)
         self._on_type_changed(self.ui.smooth_type.currentIndex())
-        # Old smooth_show_original toggled a live overlay of the unsmoothed
-        # pattern; that needs the plot-controller port.
-        self.ui.smooth_show_original.setEnabled(False)
+        # Old smooth_show_original: keep the un-smoothed original visible under
+        # the smoothed preview (on by default).
+        self.ui.smooth_show_original.setChecked(True)
         self.ui.smooth_show_original.setToolTip(
-            "The live original-pattern overlay is not ported yet."
+            "Keep the original (un-smoothed) pattern visible under the preview."
         )
+        self.ui.smooth_type.currentIndexChanged.connect(self._update_preview)
+        self.ui.spin_degree.valueChanged.connect(self._update_preview)
+        self.ui.smooth_show_original.toggled.connect(self._update_preview)
 
     def _on_type_changed(self, index: int) -> None:
         # Old setup_smooth_variables: each method has its own sensible degree.
         self.ui.spin_degree.setValue(
             int(pattern_ops.default_smooth_degree(SMOOTH_TYPES[index]))
         )
+
+    def _compute_preview(self):
+        if self._specimen is None:
+            return None
+        try:
+            x, y = self._specimen.preview_smooth(
+                SMOOTH_TYPES[self.ui.smooth_type.currentIndex()],
+                self.ui.spin_degree.value(),
+            )
+        except ValueError:
+            return None  # degree too large for this pattern; no preview
+        return x, y, self.ui.smooth_show_original.isChecked()
 
     def _apply(self) -> bool:
         try:
@@ -201,6 +275,8 @@ class ShiftPatternDialog(_SpecimenDialog):
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_ShiftPatternDialog, parent, specimen)
         self.ui.shift_position.currentIndexChanged.connect(self._on_position_changed)
+        self.ui.shift_position.currentIndexChanged.connect(self._update_preview)
+        self.ui.spin_shift_value.valueChanged.connect(self._update_preview)
 
     def _on_specimen_bound(self) -> None:
         self._on_position_changed(self.ui.shift_position.currentIndex())
@@ -220,6 +296,15 @@ class ShiftPatternDialog(_SpecimenDialog):
                 self._specimen.detect_shift(SHIFT_POSITIONS[index])
             )
 
+    def _compute_preview(self):
+        if self._specimen is None:
+            return None
+        index = self.ui.shift_position.currentIndex()
+        x, y = self._specimen.preview_shift(
+            self.ui.spin_shift_value.value(), SHIFT_POSITIONS[index]
+        )
+        return x, y, True
+
     def _apply(self) -> bool:
         index = self.ui.shift_position.currentIndex()
         self._specimen.apply_shift(
@@ -234,6 +319,15 @@ class AddNoiseDialog(_SpecimenDialog):
 
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_AddNoiseDialog, parent, specimen)
+        self.ui.spin_fraction.valueChanged.connect(self._update_preview)
+
+    def _compute_preview(self):
+        if self._specimen is None:
+            return None
+        # Noise is random, so the preview is representative, not the exact draw
+        # OK will apply.
+        x, y = self._specimen.preview_add_noise(self.ui.spin_fraction.value())
+        return x, y, True
 
     def _apply(self) -> bool:
         self._specimen.add_noise(self.ui.spin_fraction.value())
@@ -271,6 +365,7 @@ class StripPeakDialog(_SpecimenDialog):
         # endpoint moved; the user can still override it afterwards.
         self.ui.strip_startx.valueChanged.connect(self._on_range_changed)
         self.ui.strip_endx.valueChanged.connect(self._on_range_changed)
+        self.ui.noise_level.valueChanged.connect(self._update_preview)
 
     def _on_range_changed(self, *_args) -> None:
         if self._specimen is None:
@@ -280,6 +375,20 @@ class StripPeakDialog(_SpecimenDialog):
         )
         if strip is not None:
             self.ui.noise_level.setValue(strip.noise_level)
+        self._update_preview()
+
+    def _compute_preview(self):
+        if self._specimen is None:
+            return None
+        strip = self._specimen.compute_strip_pattern(
+            self.ui.strip_startx.value(),
+            self.ui.strip_endx.value(),
+            self.ui.noise_level.value(),
+        )
+        if strip is None:
+            return None  # start/end too close: nothing to strip yet
+        x, y = self._specimen.preview_strip(strip)
+        return x, y, True
 
     def _apply(self) -> bool:
         strip = self._specimen.compute_strip_pattern(

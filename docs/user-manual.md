@@ -430,6 +430,14 @@ greyed out.
 > save the project, so if an operation goes wrong, close the project **without
 > saving** and reopen it. If you are unsure, save a copy first.
 
+While a Remove Background, Smooth, Shift, Strip Peak, or Add Noise dialog is
+open, the main plot shows a **live preview** of the result (an orange curve)
+drawn over your original pattern, so you can see exactly what each setting does
+before committing. Nothing is changed until you click **OK / Apply**; **Cancel**
+(or closing the dialog) removes the preview and leaves the pattern untouched.
+In the Smooth dialog, **Show original** keeps the un-smoothed pattern visible
+under the preview — turn it off to judge the smoothed curve on its own.
+
 ### Remove Background
 
 Subtracts a background so only the diffracted signal remains.

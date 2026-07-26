@@ -323,6 +323,54 @@ class Specimen(QObject):
             self._exp_x, self._exp_y, startx, endx
         )
 
+    # ------------------------------------------------------------------
+    # Non-destructive previews (the live data-op overlay). Each returns the
+    # experimental (x, y) the matching operation WOULD produce, without
+    # touching the stored pattern or emitting - so a dialog can draw the result
+    # before the user commits. They call the same pattern_ops as the mutating
+    # methods above, so the preview matches what OK applies.
+    # ------------------------------------------------------------------
+    def preview_remove_background(
+        self, bg_type=0, bg_position=0.0, bg_pattern=None, bg_scale=0.0
+    ):
+        from mudlab.calculations import pattern_ops
+
+        y = pattern_ops.remove_background(
+            self._exp_y, bg_type, bg_position, bg_pattern, bg_scale
+        )
+        return self._exp_x, y
+
+    def preview_smooth(self, smooth_type=0, smooth_degree=0.0):
+        from mudlab.calculations import pattern_ops
+
+        return self._exp_x, pattern_ops.smooth_data(
+            self._exp_y, smooth_type, smooth_degree
+        )
+
+    def preview_add_noise(self, noise_fraction=0.0):
+        from mudlab.calculations import pattern_ops
+
+        return self._exp_x, pattern_ops.add_noise(self._exp_y, noise_fraction)
+
+    def preview_shift(self, shift_value, shift_position=0.0):
+        """The 2θ axis after a shift (markers are not moved for a preview)."""
+        from mudlab.calculations import pattern_ops
+
+        if shift_value == 0.0:
+            return self._exp_x, self._exp_y
+        radius = self.goniometer.radius if self.goniometer is not None else 24.0
+        x = pattern_ops.apply_shift(
+            self._exp_x, shift_value, shift_position, radius, self.wavelength
+        )
+        return x, self._exp_y
+
+    def preview_strip(self, strip):
+        from mudlab.calculations import pattern_ops
+
+        if strip is None:
+            return self._exp_x, self._exp_y
+        return self._exp_x, pattern_ops.apply_strip(self._exp_x, self._exp_y, strip)
+
     def _trim_raw_calculated(self, min_2theta: float, max_2theta: float) -> None:
         """Clip the raw .mud calculated-pattern rows to the same range.
 

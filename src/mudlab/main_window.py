@@ -446,6 +446,21 @@ class MainWindow(QMainWindow):
         for plot in self.pattern_plots:
             plot.set_pick_cursor(False)
 
+    # ------------------------------------------------------------------
+    # Live data-op preview overlay (used by the line/data-op dialogs)
+    # ------------------------------------------------------------------
+    def set_pattern_preview(self, specimen, x, y, show_original: bool = True) -> None:
+        """Show a data-op preview curve for `specimen` on whichever plot(s)
+        display it. `show_original` keeps the original experimental line under
+        the preview."""
+        for plot in self.pattern_plots:
+            if specimen in plot.specimens:
+                plot.set_preview(specimen, x, y, show_original)
+
+    def clear_pattern_preview(self) -> None:
+        for plot in self.pattern_plots:
+            plot.clear_preview()
+
     def _start_sampling(self) -> None:
         # Old on_sample_point: the next click reports the data values.
         self.arm_position_pick(
