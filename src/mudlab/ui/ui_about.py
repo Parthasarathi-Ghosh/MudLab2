@@ -104,7 +104,7 @@ class Ui_AboutDialog(object):
         self.lbl_version.setText(QCoreApplication.translate("AboutDialog", u"Version", None))
         self.lbl_tagline.setText(QCoreApplication.translate("AboutDialog", u"X-ray Diffraction Analysis of Disordered Layered Minerals", None))
         self.lbl_description.setText(QCoreApplication.translate("AboutDialog", u"A desktop application for modelling and analysing powder X-ray diffraction patterns of disordered, mixed-layer clay minerals.", None))
-        self.lbl_credit.setText(QCoreApplication.translate("AboutDialog", u"Original MudLab by Mathijs Dumon.", None))
+        self.lbl_credit.setText(QCoreApplication.translate("AboutDialog", u"Original PyXRD by Mathijs Dumon.", None))
         self.lbl_libs.setText("")
     # retranslateUi
 

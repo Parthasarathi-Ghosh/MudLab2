@@ -72,6 +72,8 @@ def check_about_dialog():
     check("About: version label matches the package version",
           dlg.ui.lbl_version.text() == "Version %s" % mudlab.__version__)
     check("About: tagline present", "Diffraction" in dlg.ui.lbl_tagline.text())
+    check("About: credits original PyXRD by Mathijs Dumon",
+          dlg.ui.lbl_credit.text() == "Original PyXRD by Mathijs Dumon.")
     libs = dlg.ui.lbl_libs.text()
     check("About: library versions line filled",
           all(name in libs for name in ("Python", "PySide6", "NumPy", "SciPy", "Matplotlib")))
