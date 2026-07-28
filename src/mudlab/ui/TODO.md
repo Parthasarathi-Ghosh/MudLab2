@@ -581,6 +581,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)
 - [x] About dialog branding + window/app icons - about.ui, about_dialog.py (logo/name/version/tagline/lib versions); resources.py app_icon()/logo_pixmap; data/icons/ (mudlab.ico + sized PNGs); create_app/MainWindow setWindowIcon; MudLab.spec .exe icon; version 0.2.0; verify_about.py
+- [x] Per-phase plot curves - calculations/specimen.py calculate_specimen_pattern(return_phase_patterns) captures each phase's scaled contribution; Mixture.calculate stores it via Specimen.set_calculated_pattern(phase_patterns) into the transient Specimen.phase_patterns (never saved); PatternPlot.draw_pattern draws one curve per phase in phase.display_color, gated by display_phases + display_calculated. View > Show phase patterns (actionShowPhases) bulk-flips the shown specimens, recomputes on demand, mirrors per-specimen state (Sep column / Edit Specimen); _set_project recomputes at load when phases are on. verify_phase_curves.py + verify_show_phases_action.py
 - [ ] Splash screen - application/splash.py (optional)
 
 ### Not planned

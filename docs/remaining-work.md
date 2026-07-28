@@ -13,9 +13,14 @@ memory audit notes; update it as items land.
   disabled.
 - **Phase-intensity cache** — old-app performance optimization; deferred (correctness
   unaffected).
-- **Per-phase plot curves** — `display_color` is modeled/editable/round-tripped, but
-  the graph draws only the specimen total, so colour is metadata-only until a
-  per-phase overlay exists.
+  (**Per-phase plot curves — DONE.** Each phase's calculated contribution now
+  draws in its own `display_color`; a mixture recompute captures them on the
+  specimen (`phase_patterns`, transient/never saved) and the graph draws one
+  curve per phase under the total. Driven by the per-specimen `display_phases`
+  flag — the specimen dialog / tree "Sep" toggles, plus a new
+  **View ▸ Show phase patterns** convenience that bulk-flips the shown specimens
+  and recomputes on demand. Guarded by `tools/verify_phase_curves.py` and
+  `tools/verify_show_phases_action.py`.)
 
 ## Unported editors / dialogs (real remaining work)
 - **Splash screen** (optional).
@@ -152,7 +157,7 @@ line is stale or refers to an un-built phase-composition panel.
   now also done — see above.)
 
 ---
-**Biggest genuinely-remaining items:** the deferred-by-design plot overlays
-(per-phase curves, refinement progress), the optional splash screen, and the
-rare unported formats (`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs
-remain.
+**Biggest genuinely-remaining items:** the deferred-by-design refinement-progress
+plot, the optional splash screen, and the rare unported formats
+(`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs remain. (Per-phase curves
+are now done.)

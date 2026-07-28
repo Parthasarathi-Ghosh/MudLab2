@@ -257,6 +257,22 @@ class PatternPlot:
                     color=PREVIEW_COLOR, linewidth=1.3, zorder=6,
                 )
                 lines += 1
+            # Per-phase contributions (display_phases): each phase's calculated
+            # curve in its own display_color, drawn under the total. Only when
+            # the calculated pattern is shown (they are part of it).
+            phase_patterns = getattr(specimen, "phase_patterns", None)
+            if (specimen.display_phases and specimen.display_calculated
+                    and specimen.has_calculated_data and phase_patterns):
+                cx, _cy = specimen.calculated_pattern
+                for phase, phase_y in phase_patterns:
+                    phase_y = np.asarray(phase_y, dtype=float)
+                    if phase_y.shape != cx.shape:
+                        continue  # stale (grid changed); a recompute rebuilds it
+                    axes.plot(
+                        cx, phase_y * spec_scale + spec_y_pos,
+                        color=phase.display_color, linewidth=0.9, zorder=2,
+                    )
+                    lines += 1
             if specimen.display_calculated and specimen.has_calculated_data:
                 x, y = specimen.calculated_pattern
                 axes.plot(

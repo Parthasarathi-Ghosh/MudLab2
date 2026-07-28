@@ -89,10 +89,16 @@ def calculate_scaled_intensities(
     return total_intensity, scaled_phase_intensities, background_intensity
 
 
-def calculate_specimen_pattern(specimen, phases, scale, fractions, bgshift):
+def calculate_specimen_pattern(specimen, phases, scale, fractions, bgshift,
+                               return_phase_patterns=False):
     """Convenience wrapper: compute a specimen's calculated pattern from its
     assigned ``phases`` (one per mixture phase slot), ``scale``, phase
-    ``fractions`` and ``bgshift``. Returns (two_theta, total_intensity).
+    ``fractions`` and ``bgshift``. Returns ``(two_theta, total_intensity)``.
+
+    With ``return_phase_patterns=True`` also returns a third element: a list of
+    ``(phase, scaled_intensity)`` for each non-empty slot - the individual
+    phase contributions that sum (with the background) to the total, for the
+    per-phase plot overlay.
 
     The 2θ grid follows the experimental pattern when present (so the
     calculated curve overlays it point-for-point), else the goniometer's
@@ -117,7 +123,14 @@ def calculate_specimen_pattern(specimen, phases, scale, fractions, bgshift):
         correction_range,
         phases,
     )
-    total_intensity, _, _ = calculate_scaled_intensities(
+    total_intensity, scaled_phase_intensities, _ = calculate_scaled_intensities(
         phase_intensities, correction_range, scale, fractions, bgshift
     )
+    if return_phase_patterns:
+        # Row i of the scaled intensities is slot i; keep only the filled slots.
+        phase_patterns = [
+            (phase, scaled_phase_intensities[i])
+            for i, phase in enumerate(phases) if phase is not None
+        ]
+        return two_theta, total_intensity, phase_patterns
     return two_theta, total_intensity

@@ -69,6 +69,10 @@ class Specimen(QObject):
         # Transient reference-mineral overlay: [(2theta, rel_intensity), ...] or
         # None (Match Minerals preview). Never serialized.
         self.mineral_preview = None
+        # Per-phase calculated contributions: [(phase, intensity), ...] on the
+        # calculated x-grid, set alongside the total by a mixture recompute (for
+        # the per-phase plot overlay). Transient; never serialized.
+        self.phase_patterns = None
         # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
         # parts survive load/save round-trips.
         self.raw_properties: dict = {}
@@ -243,12 +247,17 @@ class Specimen(QObject):
     def has_calculated_data(self) -> bool:
         return self._calc_x.size > 1
 
-    def set_calculated_pattern(self, x, y) -> None:
+    def set_calculated_pattern(self, x, y, phase_patterns=None) -> None:
+        """Store the calculated total (and, when a mixture recompute provides
+        them, the per-phase contributions [(phase, intensity), ...] on the same
+        x-grid for the per-phase overlay). A set without `phase_patterns` clears
+        any stale ones - they always travel with the total they belong to."""
         x = np.asarray(x, dtype=float)
         y = np.asarray(y, dtype=float)
         if x.shape != y.shape:
             raise ValueError("x and y must have the same length")
         self._calc_x, self._calc_y = x, y
+        self.phase_patterns = list(phase_patterns) if phase_patterns else None
         self.data_changed.emit()
 
     # ------------------------------------------------------------------
@@ -442,6 +451,9 @@ class Specimen(QObject):
             else:
                 self._calc_x, self._calc_y = np.empty(0), np.empty(0)
             self._trim_raw_calculated(min_2theta, max_2theta)
+            # Per-phase curves are on the old x-grid; drop them (a recompute
+            # rebuilds them on the trimmed grid).
+            self.phase_patterns = None
 
         for marker in list(self._markers):
             if marker.position < min_2theta or marker.position > max_2theta:

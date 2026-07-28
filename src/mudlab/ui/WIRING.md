@@ -1756,6 +1756,21 @@ The old left pane of the `main_pained` splitter is now a `QDockWidget`
 | Cal | `specimen.display_calculated` | same; column existed only in FULL layout mode |
 | Sep | `specimen.display_phases` (show phase patterns separately) | same; FULL mode only |
 
+**Per-phase curves (2026-07-28).** `display_phases` is now functional. A mixture
+recompute (`Mixture.calculate`) captures each phase's scaled contribution and
+stores it on the specimen via `set_calculated_pattern(x, y, phase_patterns)` into
+the transient `Specimen.phase_patterns` (a `[(phase, curve)]` list, never
+serialized). `PatternPlot.draw_pattern` draws one curve per phase in
+`phase.display_color` under the total, gated on `display_phases &&
+display_calculated && phase_patterns`. Besides the Sep column / Edit Specimen
+checkbox, **View ▸ Show phase patterns** (`actionShowPhases`) is a convenience:
+`_on_show_phases_toggled` bulk-flips `display_phases` on the shown specimens
+(recomputing once when the curves have not been captured yet), and
+`_sync_show_phases_action` mirrors the shown specimens' state back onto the
+checkmark on every rebuild (read-only, signal-blocked — no loop). `_set_project`
+recomputes once at load when a stored project already has phases on, so the
+transient curves appear without a manual F5.
+
 - Selection is `ExtendedSelection`; row selection drives the old
   `current_specimen` / `current_specimens` model properties, which in turn
   drive the specimen/specimens action groups and the plot.

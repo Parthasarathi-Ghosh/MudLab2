@@ -14,6 +14,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Preparing experimental data](#preparing-experimental-data)
 - [Markers, peak detection, and mineral matching](#markers-peak-detection-and-mineral-matching)
 - [The goniometer emission spectrum](#the-goniometer-emission-spectrum)
+- [Viewing the plot](#viewing-the-plot)
 
 ---
 
@@ -635,3 +636,29 @@ spectrum), and the applied name is shown at the bottom of the tab.
 it on other specimens or projects; your saved setups then appear in the
 drop-down (marked *custom*). The `.gon` format is the same JSON the project file
 uses for a goniometer, so setups exported from the old MudLab load here too.
+
+---
+
+## Viewing the plot
+
+Each selected specimen is drawn on the shared graph with its experimental and
+calculated patterns stacked. A few view options live in the **View** menu.
+
+### Show phase patterns
+
+By default the graph draws only the specimen *total* calculated pattern. Turn on
+**View → Show phase patterns** to also overlay each phase's individual
+contribution, drawn in that phase's own colour (set per phase in Edit Phases).
+This shows how much each phase adds to the fit and where phases overlap.
+
+The overlay follows the calculated pattern: if a specimen's calculated curve is
+hidden, its phase curves are hidden too. The toggle is a convenience that flips
+the setting on every specimen currently shown; you can also set it per specimen
+from the specimen's display options (the **Sep** column in the specimens list,
+or *Display phases separately* in the Edit Specimen dialog). The menu tick
+mirrors whatever the shown specimens are set to.
+
+If you switch it on right after opening a project and nothing appears yet, the
+phase curves are recomputed the moment you toggle them (they are derived from the
+current fit and are not stored in the file); a **Refresh** (F5) also recomputes
+them. A project saved with the option on shows the curves as soon as it loads.

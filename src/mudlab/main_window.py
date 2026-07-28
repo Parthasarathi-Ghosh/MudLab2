@@ -123,6 +123,7 @@ class MainWindow(QMainWindow):
         self.ui.actionZoomReset.triggered.connect(self._zoom_reset)
         self.ui.actionRefreshGraph.triggered.connect(self._refresh_graph)
         self.ui.actionCrosshair.toggled.connect(self._on_crosshair_toggled)
+        self.ui.actionShowPhases.toggled.connect(self._on_show_phases_toggled)
         self.ui.actionSamplePoint.triggered.connect(self._start_sampling)
         self.ui.actionEditMarkers.triggered.connect(self._show_edit_markers)
         self.ui.actionEditProject.triggered.connect(self._show_edit_project)
@@ -225,6 +226,17 @@ class MainWindow(QMainWindow):
 
         self._shown_specimens = []
         self._update_title()
+        # Per-phase curves are transient (never saved). A project stored with
+        # 'display phases separately' on should show them without a manual F5,
+        # so recompute once - silently, and only when something needs it. This
+        # reproduces the stored calculated pattern while capturing phase_patterns.
+        if any(s is not None and s.display_phases for s in project.specimens):
+            project.blockSignals(True)
+            try:
+                for mixture in project.mixtures:
+                    mixture.calculate()
+            finally:
+                project.blockSignals(False)
         if project.specimens:
             # Old app auto-selected the first specimen after loading.
             self.select_specimen_row(0)
@@ -377,6 +389,7 @@ class MainWindow(QMainWindow):
             self.ui.plotStackLayout.addWidget(plot.canvas)
             self.pattern_plots.append(plot)
 
+        self._sync_show_phases_action()
         self._rebuild_nav_toolbar()
 
     def _refresh_graph(self) -> None:
@@ -424,6 +437,44 @@ class MainWindow(QMainWindow):
     def _on_crosshair_toggled(self, enabled: bool) -> None:
         for plot in self.pattern_plots:
             plot.set_crosshair_enabled(enabled)
+
+    def _on_show_phases_toggled(self, enabled: bool) -> None:
+        """Bulk-flip 'display phases separately' on the shown specimens.
+
+        This is a convenience over the per-specimen toggles (specimen dialog /
+        specimens tree); the checkmark is kept in step with those by
+        _sync_show_phases_action on every rebuild. When switched on before any
+        mixture has been refreshed the per-phase curves have not been captured
+        yet, so recompute once (no refinement) to populate them. Project
+        signals are muted so the loop redraws just once at the end."""
+        specimens = [s for s in self._shown_specimens if s is not None]
+        if not specimens:
+            return
+        need_calc = enabled and not any(
+            getattr(s, "phase_patterns", None) for s in specimens
+        )
+        self.project.blockSignals(True)
+        try:
+            if need_calc:
+                for mixture in self.project.mixtures:
+                    mixture.calculate()
+            for spec in specimens:
+                spec.display_phases = enabled
+        finally:
+            self.project.blockSignals(False)
+        self._refresh_plots()
+
+    def _sync_show_phases_action(self) -> None:
+        """Reflect the shown specimens' display_phases in the View toggle
+        without re-entering the toggle handler (checkmark only, no model
+        change), so per-specimen edits keep it honest."""
+        specimens = [s for s in self._shown_specimens if s is not None]
+        on = bool(specimens) and all(s.display_phases for s in specimens)
+        action = self.ui.actionShowPhases
+        if action.isChecked() != on:
+            blocked = action.blockSignals(True)
+            action.setChecked(on)
+            action.blockSignals(blocked)
 
     # ------------------------------------------------------------------
     # Eye-dropper position picking (old EyeDropper)

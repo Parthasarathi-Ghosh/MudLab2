@@ -99,6 +99,8 @@
     <addaction name="actionRefreshGraph"/>
     <addaction name="actionSaveGraph"/>
     <addaction name="separator"/>
+    <addaction name="actionShowPhases"/>
+    <addaction name="separator"/>
     <addaction name="actionZoomIn"/>
     <addaction name="actionZoomOut"/>
     <addaction name="actionZoomReset"/>
@@ -535,6 +537,17 @@
    </property>
    <property name="toolTip">
     <string>Toggle vertical crosshair cursor</string>
+   </property>
+  </action>
+  <action name="actionShowPhases">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show phase patterns</string>
+   </property>
+   <property name="toolTip">
+    <string>Overlay each phase's calculated contribution in its own colour</string>
    </property>
   </action>
   <action name="actionZoomIn">

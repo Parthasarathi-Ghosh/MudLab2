@@ -195,10 +195,11 @@ class Mixture:
             phases = self.phase_matrix[i] if i < len(self.phase_matrix) else []
             scale = float(self.scales[i]) if i < len(self.scales) else 1.0
             bgshift = float(self.bgshifts[i]) if i < len(self.bgshifts) else 0.0
-            two_theta, total = calculate_specimen_pattern(
-                specimen, phases, scale, self.fractions, bgshift
+            two_theta, total, phase_patterns = calculate_specimen_pattern(
+                specimen, phases, scale, self.fractions, bgshift,
+                return_phase_patterns=True,
             )
-            specimen.set_calculated_pattern(two_theta, total)
+            specimen.set_calculated_pattern(two_theta, total, phase_patterns)
 
     def current_residual(self) -> float:
         """Mean Rp of the current (un-optimised) solution against the
