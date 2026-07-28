@@ -9,13 +9,9 @@ remaining ports.
 from __future__ import annotations
 
 import os
-import platform
 
-import matplotlib
 import numpy as np
-import scipy
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6 import __version__ as PYSIDE6_VERSION
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
@@ -30,8 +26,10 @@ from PySide6.QtWidgets import (
     QStyleFactory,
 )
 
-from mudlab import APP_NAME, __version__
+from mudlab import APP_NAME
+from mudlab.about_dialog import AboutDialog
 from mudlab.calculations import get_nm_from_2t
+from mudlab.resources import app_icon
 from mudlab.edit_atom_types_dialog import EditAtomTypesDialog
 from mudlab.edit_markers_dialog import EditMarkersDialog
 from mudlab.edit_mixtures_dialog import EditMixturesDialog
@@ -86,6 +84,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setWindowIcon(app_icon())
 
         self.project = Project(parent=self)
         self.pattern_plots: list[PatternPlot] = []
@@ -904,11 +903,4 @@ class MainWindow(QMainWindow):
         )
 
     def _show_about(self) -> None:
-        QMessageBox.about(
-            self,
-            f"About {APP_NAME}",
-            f"<b>{APP_NAME}</b> {__version__}<br><br>"
-            f"Python {platform.python_version()}, PySide6 {PYSIDE6_VERSION}<br>"
-            f"NumPy {np.__version__}, SciPy {scipy.__version__}, "
-            f"Matplotlib {matplotlib.__version__}",
-        )
+        AboutDialog(self).exec()

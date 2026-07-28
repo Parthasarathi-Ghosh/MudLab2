@@ -18,8 +18,6 @@ memory audit notes; update it as items land.
   per-phase overlay exists.
 
 ## Unported editors / dialogs (real remaining work)
-- **About dialog** branding + window/app icons (currently a `QMessageBox.about`
-  placeholder).
 - **Splash screen** (optional).
 
 ## Placeholder / stubbed features (visible but not fully wired)
@@ -100,6 +98,13 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **About dialog + branding** — bundled the MudLab icon set under `data/icons/`;
+  the app/window/taskbar icon is wired (`resources.app_icon`, `create_app`
+  setWindowIcon, MainWindow setWindowIcon) and the frozen `.exe` uses `mudlab.ico`
+  (MudLab.spec). A branded `AboutDialog` (about.ui + about_dialog.py) replaces the
+  `QMessageBox.about` placeholder: logo, name, version, tagline, and the runtime
+  library versions. Version bumped to **0.2.0** (`__init__` + pyproject). Guarded
+  by `tools/verify_about.py`.
 - **Mineral-preview overlay** — selecting a mineral in Match Minerals (either
   list) now draws its reflections as magenta sticks on the main plot (2θ from
   d-spacing, height ∝ relative intensity), via a transient
@@ -147,6 +152,7 @@ line is stale or refers to an un-built phase-composition panel.
   now also done — see above.)
 
 ---
-**Biggest genuinely-remaining items:** About/branding. Then the deferred-by-design
-plot overlays (per-phase curves, refinement progress) and the rare unported
-formats (`.cpi`/`.rd`/`.brml`).
+**Biggest genuinely-remaining items:** the deferred-by-design plot overlays
+(per-phase curves, refinement progress), the optional splash screen, and the
+rare unported formats (`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs
+remain.

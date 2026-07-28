@@ -1890,7 +1890,7 @@ matching editor window (each will need its own `.ui` when ported).
 | `actionEditAtomTypes` | `edit_atom_types` | present atom types window |
 | `actionEditMixtures` | `edit_mixtures` | present mixtures window |
 | `actionManual` | - | `webbrowser.open(settings.MANUAL_URL)` |
-| `actionAbout` | - | about dialog (old one showed logo `mudlab.png` scaled 212x160 + `settings.VERSION`). *Connected to a QMessageBox placeholder.* |
+| `actionAbout` | `_show_about` -> `AboutDialog(self).exec()` | branded About dialog (`about.ui`, `about_dialog.py`): `resources.logo_pixmap` + name/version (`mudlab.__version__`)/tagline + runtime lib versions. App/window icon via `resources.app_icon` (set in `create_app` + `MainWindow.__init__`); `.exe` icon = `data/icons/mudlab.ico` (MudLab.spec). Guard: `verify_about.py`. |
 | `actionTrimData` | `trim_data` | `TrimController`/`TrimView`; reference = active specimen, falls back to first |
 | `actionAddNoise` | `add_noise` | single-specimen add-noise dialog |
 | `actionStripPeak` | `strip_peak` | single-specimen strip-peak dialog |
@@ -1946,9 +1946,12 @@ Port as a list of QActions toggled by a `set_layout_mode(mode)` method.
 - Temporary messages: `ui.statusBar.showMessage(...)` (old
   `status_message` decorator pushed e.g. "Updating display..."); the
   progress bar `status_progress` is shown during long operations.
-- Window icons + about logo live in the old repo at
-  `mudlab/application/icons/` (mudlab.ico, mudlab.png, 16-128 px PNGs) -
-  copy them over and set the window/app icon when branding is ported.
+- Window icons + about logo: the old `mudlab/application/icons/` set
+  (mudlab.ico, mudlab.png, 16-128 px PNGs) is now bundled under
+  `src/mudlab/data/icons/` and served by `mudlab/resources.py`
+  (`app_icon()` builds a multi-size QIcon, `logo_pixmap()` the About logo).
+  Applied in `create_app` (`app.setWindowIcon`) + `MainWindow.__init__`; the
+  frozen `.exe` icon is `data/icons/mudlab.ico` (MudLab.spec).
 
 ## Behaviors to keep in mind when wiring
 

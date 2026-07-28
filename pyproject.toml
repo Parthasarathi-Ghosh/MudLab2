@@ -1,6 +1,6 @@
 [project]
 name = "mudlab"
-version = "0.1.0"
+version = "0.2.0"
 description = "MudLab - Windows desktop application (PySide6 + NumPy/SciPy/Matplotlib)"
 requires-python = ">=3.14"
 dependencies = [

@@ -31,7 +31,7 @@ exe = EXE(
     console=False,
     # Force UTF-8 mode (PEP 540) inside the frozen app, matching the dev launchers.
     options=[("X utf8", None, "OPTION")],
-    icon=None,
+    icon="src/mudlab/data/icons/mudlab.ico",
 )
 
 coll = COLLECT(

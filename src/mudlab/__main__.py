@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication, QStyleFactory
 
 from mudlab import APP_NAME, ORG_NAME, __version__
 from mudlab.main_window import MainWindow
+from mudlab.resources import app_icon
 
 
 def create_app(argv: list[str] | None = None) -> QApplication:
@@ -15,6 +16,8 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)
     app.setOrganizationName(ORG_NAME)
+    # Taskbar / title-bar icon; every window without its own icon inherits it.
+    app.setWindowIcon(app_icon())
 
     # Prefer the modern Windows 11 style (also renders on Windows 10),
     # fall back to the classic Vista style. Both draw native controls,

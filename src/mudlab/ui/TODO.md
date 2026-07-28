@@ -580,7 +580,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 - [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)
-- [ ] About dialog branding + window/app icons - application/icons/
+- [x] About dialog branding + window/app icons - about.ui, about_dialog.py (logo/name/version/tagline/lib versions); resources.py app_icon()/logo_pixmap; data/icons/ (mudlab.ico + sized PNGs); create_app/MainWindow setWindowIcon; MudLab.spec .exe icon; version 0.2.0; verify_about.py
 - [ ] Splash screen - application/splash.py (optional)
 
 ### Not planned
