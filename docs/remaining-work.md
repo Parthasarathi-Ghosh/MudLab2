@@ -1,7 +1,7 @@
 # MudLab2 — remaining & deferred work
 
-Snapshot as of 2026-07-26 (local V1 @ `84a9924`, 2 commits ahead of origin @
-`8696ef3`, unpushed). The GTK→Qt/PySide6 port is far along: the analytics/calc
+Snapshot as of 2026-07-26 (V1 in sync with origin @ `423cbf5`). The GTK→Qt/PySide6
+port is far along: the analytics/calc
 engine is golden-validated, both major editors (Edit Phases, Edit Mixtures) are
 feature-complete, and the default-phase catalog now matches old MudLab/PyXRD (80
 entries, all R0–R3 models). This is the single canonical to-do — it folds in the
@@ -24,10 +24,6 @@ memory audit notes; update it as items land.
 
 ## Placeholder / stubbed features (visible but not fully wired)
 - **Exclusion-ranges import/export** in Edit Specimen — not ported.
-- **Mineral-preview overlay** — the Match Minerals "Specimen range" checkbox and
-  the magenta reference-peak preview it drove are deferred (checkbox disabled);
-  matching + label output are wired. Depends on a per-curve plot overlay (same
-  gap as per-phase curves / original-pattern overlay).
 
 ## Unported file formats
 - **`.cpi` / `.rd` / `.brml`** (rare). Done: Bruker RAW1–4, Rigaku `.raw`, `.xrdml`,
@@ -104,6 +100,12 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **Mineral-preview overlay** — selecting a mineral in Match Minerals (either
+  list) now draws its reflections as magenta sticks on the main plot (2θ from
+  d-spacing, height ∝ relative intensity), via a transient
+  `Specimen.mineral_preview` + `PatternPlot` sticks. The "Specimen range"
+  checkbox is re-enabled (limits sticks to the scanned 2θ range); the preview
+  clears on close. Guarded by `tools/verify_mineral_preview.py`.
 - **Original-pattern overlay (live data-op preview)** — the line/data-op dialogs
   (Remove Background, Smooth, Shift, Strip Peak, Add Noise) now draw a live
   preview of the result over the original pattern on the main plot while open,
@@ -141,10 +143,10 @@ line is stale or refers to an un-built phase-composition panel.
 - **Match Minerals** — real reference data (`data/mineral_references.csv`, 228
   minerals) + `score_minerals`; the dialog auto-matches against the target
   markers, lists scores, and "Append labels" writes abbreviations onto markers.
-  Guarded by `tools/verify_match_minerals.py`. (Preview overlay still deferred,
-  see above.)
+  Guarded by `tools/verify_match_minerals.py`. (Reference-peak preview overlay
+  now also done — see above.)
 
 ---
 **Biggest genuinely-remaining items:** About/branding. Then the deferred-by-design
-plot overlays (per-phase curves, original-pattern overlay, refinement progress)
-and the rare unported formats (`.cpi`/`.rd`/`.brml`).
+plot overlays (per-phase curves, refinement progress) and the rare unported
+formats (`.cpi`/`.rd`/`.brml`).

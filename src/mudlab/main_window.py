@@ -461,6 +461,19 @@ class MainWindow(QMainWindow):
         for plot in self.pattern_plots:
             plot.clear_preview()
 
+    def set_mineral_preview(self, specimen, peaks) -> None:
+        """Set the Match Minerals reference-peak overlay for `specimen` and
+        redraw the plot(s) showing it IN PLACE (no full rebuild), so a mineral
+        selection stays cheap and never discards an active data-op preview or
+        the user's zoom."""
+        specimen.mineral_preview = list(peaks) if peaks else None
+        for plot in self.pattern_plots:
+            if specimen in plot.specimens:
+                plot.refresh()
+
+    def clear_mineral_preview(self, specimen) -> None:
+        self.set_mineral_preview(specimen, None)
+
     def _start_sampling(self) -> None:
         # Old on_sample_point: the next click reports the data values.
         self.arm_position_pick(

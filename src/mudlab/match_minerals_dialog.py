@@ -17,7 +17,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QDialog, QWidget
 
-from mudlab.calculations import peak_detection as pd
+from mudlab.calculations import get_2t_from_nm, peak_detection as pd
 from mudlab.ui.ui_match_minerals import Ui_MatchMineralsDialog
 
 _SCORE_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -25,6 +25,9 @@ _SCORE_ROLE = Qt.ItemDataRole.UserRole + 1
 # has a handful of duplicate names (e.g. two "Albite, ordered"), so a mineral
 # must be identified by its row, never by its (non-unique) name.
 _INDEX_ROLE = Qt.ItemDataRole.UserRole + 2
+# The reference peaks [(d_angstrom, rel_intensity), ...] for the row, so
+# selecting it can draw the mineral-preview overlay without a name/index lookup.
+_PEAKS_ROLE = Qt.ItemDataRole.UserRole + 3
 
 
 class MatchMineralsDialog(QDialog):
@@ -56,9 +59,10 @@ class MatchMineralsDialog(QDialog):
         # --- all-minerals list (Name, Abbr) ---
         self.minerals_model = QStandardItemModel(self)
         self.minerals_model.setHorizontalHeaderLabels(["Mineral", "Abbr."])
-        for idx, (name, abbr, _peaks) in enumerate(self._minerals):
+        for idx, (name, abbr, peaks) in enumerate(self._minerals):
             name_item = _readonly_item(name)
             name_item.setData(idx, _INDEX_ROLE)  # remember which reference row
+            name_item.setData(peaks, _PEAKS_ROLE)  # for the preview overlay
             self.minerals_model.appendRow([name_item, _readonly_item(abbr)])
         self.ui.tv_minerals.setModel(self.minerals_model)
 
@@ -67,12 +71,19 @@ class MatchMineralsDialog(QDialog):
         self.matches_model.setHorizontalHeaderLabels(["Mineral", "Abbr.", "Score"])
         self.ui.tv_matches.setModel(self.matches_model)
 
-        # The specimen-range checkbox drove the (deferred) mineral-preview
-        # overlay in the old app; there is no such overlay in MudLab2 yet, so it
-        # has nothing to act on.
-        self.ui.chk_use_specimen_range.setEnabled(False)
+        # Selecting a mineral in either list draws its reflections on the main
+        # plot as magenta sticks (the old mineral-preview overlay). "Specimen
+        # range" limits them to the scanned 2theta range.
+        self._last_peaks: list = []
         self.ui.chk_use_specimen_range.setToolTip(
-            "Reserved for the mineral-preview overlay (not yet ported)."
+            "Show only reference peaks that fall within the specimen's 2θ range."
+        )
+        self.ui.chk_use_specimen_range.toggled.connect(self._refresh_preview)
+        self.ui.tv_minerals.selectionModel().selectionChanged.connect(
+            lambda *_a: self._on_row_selected(self.ui.tv_minerals)
+        )
+        self.ui.tv_matches.selectionModel().selectionChanged.connect(
+            lambda *_a: self._on_row_selected(self.ui.tv_matches)
         )
 
         # Old glade: btn_rtl = add (minerals -> matches), btn_ltr = remove.
@@ -121,10 +132,10 @@ class MatchMineralsDialog(QDialog):
         self.matches_model.removeRows(0, self.matches_model.rowCount())
         if not self._marker_peaks:
             return
-        for name, abbr, _mpeaks, _p_matches, score in pd.score_minerals(
+        for name, abbr, mpeaks, _p_matches, score in pd.score_minerals(
             self._marker_peaks, self._minerals
         ):
-            self._append_match_row(name, abbr, score)
+            self._append_match_row(name, abbr, score, peaks=mpeaks)
         # Select the best (top) match, as the old reload_matches did.
         if self.matches_model.rowCount():
             self.ui.tv_matches.setCurrentIndex(self.matches_model.index(0, 0))
@@ -144,7 +155,7 @@ class MatchMineralsDialog(QDialog):
                 scored = pd.score_minerals(self._marker_peaks, [(name, abbr, peaks)])
                 if scored:
                     score = scored[0][4]
-            self._append_match_row(name, abbr, score, idx)
+            self._append_match_row(name, abbr, score, idx, peaks=peaks)
 
     def _remove_selected_match(self) -> None:
         rows = sorted(
@@ -193,10 +204,13 @@ class MatchMineralsDialog(QDialog):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _append_match_row(self, name: str, abbr: str, score: float, idx=None) -> None:
+    def _append_match_row(self, name: str, abbr: str, score: float,
+                          idx=None, peaks=None) -> None:
         name_item = _readonly_item(name)
         if idx is not None:
             name_item.setData(idx, _INDEX_ROLE)  # remember the source row
+        if peaks is not None:
+            name_item.setData(peaks, _PEAKS_ROLE)  # for the preview overlay
         score_item = _readonly_item(f"{score:.5f}")
         score_item.setData(float(score), _SCORE_ROLE)
         self.matches_model.appendRow([name_item, _readonly_item(abbr), score_item])
@@ -208,6 +222,73 @@ class MatchMineralsDialog(QDialog):
             if self.matches_model.item(row, 0).data(_INDEX_ROLE) == idx:
                 return row
         return None
+
+    # ------------------------------------------------------------------
+    # Reference-peak preview overlay (magenta sticks on the main plot)
+    # ------------------------------------------------------------------
+    def _on_row_selected(self, tree_view) -> None:
+        rows = tree_view.selectionModel().selectedRows()
+        if not rows:
+            return  # transient deselection during (re)population: keep the last
+        item = tree_view.model().itemFromIndex(rows[0])
+        self._last_peaks = item.data(_PEAKS_ROLE) or []
+        self._refresh_preview()
+
+    def _preview_host(self):
+        """Walk up to the main window (has set_mineral_preview) so a selection
+        redraws the plot in place rather than triggering a full rebuild via
+        visuals_changed. None when there is no such host (fall back to the
+        model-driven path)."""
+        widget = self.parent()
+        while widget is not None:
+            if hasattr(widget, "set_mineral_preview"):
+                return widget
+            widget = widget.parent()
+        return None
+
+    def _refresh_preview(self) -> None:
+        if self.specimen is None:
+            return
+        peaks = self._preview_peaks()
+        host = self._preview_host()
+        if host is not None:
+            host.set_mineral_preview(self.specimen, peaks)  # lightweight redraw
+        else:
+            self.specimen.set_mineral_preview(peaks)  # model-driven fallback
+
+    def _preview_peaks(self):
+        """The selected mineral's reflections as ``[(2theta, rel_intensity)]``,
+        dropping any without a Bragg solution and (when "Specimen range" is on)
+        any outside the experimental 2theta range."""
+        if self.specimen is None or not self._last_peaks:
+            return []
+        wavelength = self.specimen.wavelength
+        x, _ = self.specimen.experimental_pattern
+        use_range = self.ui.chk_use_specimen_range.isChecked() and x.size > 0
+        if use_range:
+            x_min, x_max = float(np.min(x)), float(np.max(x))
+        out = []
+        for d_angstrom, rel_intensity in self._last_peaks:
+            nm = d_angstrom / 10.0
+            if nm <= wavelength / 2.0:
+                continue  # d < lambda/2 -> no Bragg reflection
+            two_theta = get_2t_from_nm(nm, wavelength)
+            if not np.isfinite(two_theta):
+                continue
+            if use_range and not (x_min <= two_theta <= x_max):
+                continue
+            out.append((two_theta, float(rel_intensity)))
+        return out
+
+    def reject(self) -> None:
+        # Closing (Close button / window-X) drops the preview from the plot.
+        if self.specimen is not None:
+            host = self._preview_host()
+            if host is not None:
+                host.clear_mineral_preview(self.specimen)
+            else:
+                self.specimen.set_mineral_preview(None)
+        super().reject()
 
 
 def _readonly_item(text: str) -> QStandardItem:

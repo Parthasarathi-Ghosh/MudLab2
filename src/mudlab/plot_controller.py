@@ -49,6 +49,7 @@ CROSSHAIR_COLOR = "#555555"
 HIGHLIGHT_COLOR = "#FF6600"
 RESIDUAL_COLOR = "#7048a8"  # difference-curve violet (Rietveld convention)
 PREVIEW_COLOR = "#E8590C"  # live data-op preview (warm orange, over the original)
+MINERAL_PREVIEW_COLOR = "#D6336C"  # Match Minerals reference-peak sticks (magenta)
 
 
 def _max_display_y(specimen: Specimen) -> float:
@@ -144,6 +145,12 @@ class PatternPlot:
         if self._preview is not None:
             self._preview = None
             self._redraw_keep_view()
+
+    def refresh(self) -> None:
+        """Redraw the current content in place (no rebuild), preserving zoom.
+        Reads specimen.mineral_preview + plot._preview, so an overlay update
+        never discards the other overlay or the user's zoom."""
+        self._redraw_keep_view()
 
     def _redraw_keep_view(self) -> None:
         view = self.user_view()  # the user's zoom, if any (None = home view)
@@ -261,6 +268,20 @@ class PatternPlot:
                     markersize=3,
                 )
                 lines += 1
+
+            # Match Minerals reference-peak overlay: magenta sticks at each
+            # reference reflection's 2theta, height = relative intensity scaled
+            # to the specimen's strongest displayed reflection (old mineral
+            # preview sticks).
+            mineral_preview = getattr(specimen, "mineral_preview", None)
+            peak_max = spec_max * spec_scale
+            if mineral_preview and peak_max > 0:
+                for position, rel_intensity in mineral_preview:
+                    top = spec_y_pos + (rel_intensity / 100.0) * peak_max
+                    axes.plot(
+                        [position, position], [spec_y_pos, top],
+                        color=MINERAL_PREVIEW_COLOR, linewidth=1.0, zorder=5,
+                    )
 
             # Old plot_label: specimen name in the left margin, right
             # aligned, y in data coordinates at the label position. With

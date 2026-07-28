@@ -46,7 +46,21 @@ class EditMarkersDialog(ObjectStoreDialog):
         # Sample button: pick the marker position directly on the plot.
         self.marker_widget.ui.cmd_sample.clicked.connect(self._on_sample_position)
 
+        self._match_dialog: MatchMineralsDialog | None = None
         self._reload_markers()
+
+    def _close_match_dialog(self) -> None:
+        """Close any open Match Minerals child (which clears its reference-peak
+        overlay via reject) and drop it, so reopening / closing never leaves an
+        orphaned window or a lingering preview on the plot."""
+        if self._match_dialog is not None:
+            self._match_dialog.close()  # -> reject clears the mineral preview
+            self._match_dialog.deleteLater()
+            self._match_dialog = None
+
+    def closeEvent(self, event) -> None:
+        self._close_match_dialog()
+        super().closeEvent(event)
 
     def _markers(self) -> tuple:
         return self.specimen.markers if self.specimen is not None else ()
@@ -161,6 +175,9 @@ class EditMarkersDialog(ObjectStoreDialog):
     def _on_match_minerals(self) -> None:
         if self.specimen is None:
             return
+        # Close any prior match dialog first (clears its overlay + no orphaned
+        # windows), then open a fresh one bound to the current selection.
+        self._close_match_dialog()
         targets = self._selected_markers() or list(self.specimen.markers)
         # Non-modal: keep a reference so it is not garbage-collected, and
         # refresh the marker list when it appends labels.

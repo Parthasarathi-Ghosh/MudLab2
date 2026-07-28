@@ -66,6 +66,9 @@ class Specimen(QObject):
         self._exclusion_ranges: list[tuple[float, float]] = []
         self.goniometer = None  # set from the .mud (Goniometer model)
         self.project = None  # set by Project.add_specimen
+        # Transient reference-mineral overlay: [(2theta, rel_intensity), ...] or
+        # None (Match Minerals preview). Never serialized.
+        self.mineral_preview = None
         # Verbatim .mud specimen properties (goniometer, ...) so unmodeled
         # parts survive load/save round-trips.
         self.raw_properties: dict = {}
@@ -145,6 +148,13 @@ class Specimen(QObject):
             marker.setParent(None)
             marker.deleteLater()
         self._markers.clear()
+        self.visuals_changed.emit()
+
+    def set_mineral_preview(self, peaks) -> None:
+        """Set the reference-mineral peak overlay - a list of ``(2theta,
+        rel_intensity)`` (or None / empty to clear) - and emit visuals_changed
+        so the plot redraws. Transient (Match Minerals preview); never saved."""
+        self.mineral_preview = list(peaks) if peaks else None
         self.visuals_changed.emit()
 
     def auto_add_peaks(

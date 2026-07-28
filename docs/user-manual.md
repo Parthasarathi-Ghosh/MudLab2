@@ -587,10 +587,14 @@ minerals) against your markers' peak positions and tells you which minerals fit.
 - **Append labels** adds the selected matches' abbreviations to your markers'
   labels (for example a quartz marker becomes `… , Qz`), so the identification
   shows on the plot. Applying the same mineral twice does not duplicate it.
+- **Selecting a mineral** in either list draws its reflections on the main plot
+  as **magenta sticks** (positioned by 2θ, with height proportional to each
+  reflection's relative intensity), so you can see at a glance whether they line
+  up with your pattern. Tick **Specimen range** to show only the reflections
+  that fall inside the scanned 2θ range.
 
-The dialog stays open alongside the plot so you can keep working. The *Specimen
-range* checkbox is reserved for a mineral-preview overlay that is not part of
-this release.
+The dialog stays open alongside the plot so you can keep working; closing it
+removes the reference-peak overlay.
 
 ---
 

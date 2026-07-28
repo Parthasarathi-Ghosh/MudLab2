@@ -420,7 +420,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 - [x] Edit Markers window - edit_markers_dialog.py (object-store shell + find peaks / match minerals extra row); EditMarkersView
 - [x] Edit Marker fields - edit_marker.ui, edit_marker_widget.py (specimen/glade/edit_marker.glade)
 - [x] Detect peaks - find_peaks_dialog.ui, detect_peaks_dialog.py (threshold/prominence histogram + draggable cut-off; OK adds markers via Specimen.auto_add_peaks / calculations.peak_detection)
-- [x] Match minerals - match_minerals.ui, match_minerals_dialog.py (real mineral_references.csv + score_minerals; auto-match, manual add/remove, append labels)
+- [x] Match minerals - match_minerals.ui, match_minerals_dialog.py (real mineral_references.csv + score_minerals; auto-match, manual add/remove, append labels; reference-peak preview overlay via Specimen.mineral_preview + PatternPlot magenta sticks, Specimen-range filter; verify_mineral_preview.py)
 
 ### Goniometer
 - [x] Wavelength distribution editor - wavelength_distribution.ui, wavelength_distribution_dialog.py (goniometer/glade/wavelength_distribution.glade); opened by the goniometer component's Edit emission spectrum button; editable (nm, fraction) table + Add/Remove + .wld import/export; Goniometer.set_wavelength_distribution persists edits; verify_wavelength_distribution.py

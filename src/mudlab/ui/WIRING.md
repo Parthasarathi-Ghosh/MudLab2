@@ -1700,8 +1700,18 @@ drawn: the "offset" style's special Y-offset line.
   markers' peaks (`score_minerals`), Append labels writes the chosen
   abbreviations onto the markers (emits `applied`, host list reloads).
   Button ids follow the old glade: `btn_rtl` = add (minerals -> matches),
-  `btn_ltr` = remove. The `chk_use_specimen_range` checkbox is disabled
-  (drove the deferred mineral-preview overlay).
+  `btn_ltr` = remove. **Mineral-preview overlay:** selecting a row in either
+  list (both selectionModels -> `_on_row_selected`) stamps the row's
+  `_PEAKS_ROLE` reflections onto `self._last_peaks` and calls
+  `Specimen.set_mineral_preview` with `_preview_peaks()` — each reference peak's
+  d-spacing (angstrom/10 -> nm) converted to 2theta via `get_2t_from_nm`,
+  dropping non-Bragg (`d <= lambda/2`) peaks and (when `chk_use_specimen_range`
+  is on) those outside the experimental range. That transient
+  `specimen.mineral_preview` [(2theta, rel_intensity)] bubbles via
+  `visuals_changed -> project -> _refresh_plots`, and `PatternPlot.draw_pattern`
+  draws magenta sticks (`MINERAL_PREVIEW_COLOR`, height = rel/100 * displayed
+  peak height). `reject()` clears it. Never serialized. Guard:
+  `tools/verify_mineral_preview.py`.
 
 ## Specimens context menu (old specimen_popup)
 
