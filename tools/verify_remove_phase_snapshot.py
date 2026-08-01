@@ -38,6 +38,7 @@ from PySide6.QtWidgets import QApplication
 
 from mudlab.file_parsers.mud_project import load_mud
 from mudlab.models.csds import DritsCSDSDistribution
+from mudlab.models.phase import Phase
 
 app = QApplication.instance() or QApplication([])
 results: list[tuple[str, bool]] = []
@@ -181,9 +182,32 @@ def check_aliasing_dedup():
           bool(s_uuids) and l_uuids.isdisjoint(s_uuids))
 
 
+def check_midchain_deletion():
+    """A<-B<-C: deleting the MIDDLE node B must keep C's transitively-resolved
+    values (snapshot must read through B while its own based_on is still intact)."""
+    project = load_mud(PATH)
+    kids = [p for p in project.phases if isinstance(p, Phase) and p.based_on is not None]
+    if len(kids) < 2:
+        print("  (no two based_on children to build a mid-chain; skipped)")
+        return
+    B = kids[0]
+    A = B.based_on
+    C = kids[1]
+    if not C.set_based_on(B):  # re-parent C onto B -> A <- B <- C
+        print("  (could not build a 3-level chain; skipped)")
+        return
+    C.inherit_sigma_star = B.inherit_sigma_star = True
+    A._sigma_star = 0.111  # a value distinct from B's / C's own
+    before = C.sigma_star   # reads through B -> A
+    project.remove_phase(B)  # delete the middle node
+    check("mid-chain: deleting the middle node keeps C's resolved value",
+          abs(C.sigma_star - before) < 1e-12 and C.based_on is not B)
+
+
 def main():
     check_preserves_pattern()
     check_aliasing_dedup()
+    check_midchain_deletion()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

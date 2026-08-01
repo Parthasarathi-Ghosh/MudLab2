@@ -144,13 +144,16 @@ class Project(QObject):
             return
         self._phases.remove(phase)
 
-        phase.set_based_on(None)
+        # Snapshot dependants BEFORE clearing the removed phase's own based_on:
+        # a dependant reading transitively through this phase (a mid-chain
+        # deletion, A<-B<-C removing B) must still see the fully resolved values,
+        # which snapshot_inherited reads through the removed phase's own, still
+        # intact, based_on link. Clearing it first would bake stale values.
         for other in self._phases:
             if other.based_on is phase:
-                # Bake the inherited values before detaching so the dependant's
-                # calculated pattern does not silently shift (snapshot-on-detach).
                 other.snapshot_inherited()
                 other.set_based_on(None)
+        phase.set_based_on(None)  # cleanup: drop the removed phase's own link
 
         removed_components = {id(c) for c in phase.components}
         snapshotted = []
