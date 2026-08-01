@@ -121,6 +121,33 @@ ask_detach_choice`, gated by `Phase/Component.has_inherited_values()`): "keep"
 snapshots first, "revert" is the old fall-back-to-own. Guarded by
 `verify_remove_phase_dialog.py` + `verify_detach_choice.py`.
 
+### Phase identity & the refiner (who owns refined values)
+
+**Default-phase load gives fully fresh identities.**
+`add_catalog_entry_to_project` → `Phase.create_empty` (fresh phase uuid) +
+`load_default_component` → `load_cmp`, which forces *every* component and atom
+uuid fresh (uuid_remap). Atom *types* are de-duplicated **by name** onto the
+project's own (reference data, shared, never refined). So loading the same
+default twice yields two fully independent phases with distinct
+phase/component/atom uuids and **no uuid clash** — only the atom-type objects are
+shared.
+
+**Phases are shared OBJECTS across mixtures.** A mixture resolves its
+`phase_uuids` against the project's single phase list, so the same phase in two
+mixtures (or two slots) is the *same object*. `enumerate_refinables` de-dups by
+`id(phase)`; the refiner's setters write the **structural** params (sigma\*, CSDS
+mean, R0 F, per-component d001/delta_c, relation values) **in place** on the
+shared Phase/Component. Fractions/scales/background are **per-mixture** (own
+arrays on each `Mixture`), fit by the inner `optimize_mixture`.
+
+Consequences (both intended, PyXRD behaviour): *same default twice in one mixture*
+→ two independent phases refined separately (their per-slot fractions are then
+non-identifiable — a degenerate fit, not a crash). *One phase in two mixtures* →
+the structure is shared, so **no mixture owns it**; the last mixture refined wins
+for the phase's structure, it optimises against that mixture's residual only, and
+the other mixture's stored calc is stale until recomputed. Refine independent
+structures by loading the phase twice. Guarded by `verify_add_default_phase.py`.
+
 ### Known gaps (candidate work)
 
 - **No integrity validator in the app** — the invariant above is enforced only by

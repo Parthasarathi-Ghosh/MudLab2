@@ -355,6 +355,32 @@ that cell whenever you like.
 > referenced the deleted phase go blank, ready for a replacement. Nothing is
 > left dangling and no error is raised.
 
+### Reusing a phase, and what refinement shares
+
+A phase is a single object in your project. Where it matters is **who shares its
+refined structure** — its sigma\*, CSDS mean, stacking parameters and per-layer
+cell values. Weight **fractions, scale and background** are always separate for
+each mixture; only the *structure* can be shared.
+
+> **I loaded the same default phase twice and put both in one mixture — do they
+> clash?** No. Each **Add default phase** creates a brand-new, independent phase
+> (its own identity throughout), so the two are refined separately with their own
+> structure. They do *not* share anything. One catch: two structurally identical
+> phases in the same mixture have interchangeable fractions — the fit can only
+> pin down their **sum**, not the split — so this is rarely what you want. Add a
+> phase twice only when you intend the two copies to be refined into *different*
+> structures.
+
+> **I put one phase into two different mixtures — which mixture "owns" the
+> refinement?** Neither: the two mixtures share that one phase's **structure**, so
+> refining either mixture changes the structure **everywhere the phase is used**,
+> and the last mixture you refine wins. Each mixture still keeps its own
+> fractions, scale and background. This is deliberate — the same clay has the same
+> structure in every sample — but be aware that refining one mixture will shift
+> the other's calculated pattern (press **Refresh**/F5 to bring it up to date). If
+> you want the two to refine into *independent* structures, add the phase twice
+> instead (see above).
+
 ### Adding and removing slots and specimens
 
 The grid is not fixed — you can grow or shrink it with the buttons below it:
