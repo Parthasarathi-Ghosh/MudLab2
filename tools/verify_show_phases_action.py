@@ -107,6 +107,7 @@ def main():
     check("baseline: no phase-coloured lines on the plot", _phase_lines(win) == 0)
 
     # User ticks the menu item.
+    win._dirty = False  # display_phases is persisted -> a real toggle must dirty
     win.ui.actionShowPhases.setChecked(True)
     check("toggle on: display_phases set on the shown specimen",
           spec.display_phases is True)
@@ -114,6 +115,8 @@ def main():
           bool(getattr(spec, "phase_patterns", None)))
     check("toggle on: one phase-coloured line per phase drawn",
           _phase_lines(win) == NPHASES)
+    check("toggle on: project marked dirty (persisted prop changed)",
+          win._dirty is True)
 
     # User unticks it.
     win.ui.actionShowPhases.setChecked(False)

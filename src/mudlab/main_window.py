@@ -450,6 +450,11 @@ class MainWindow(QMainWindow):
         specimens = [s for s in self._shown_specimens if s is not None]
         if not specimens:
             return
+        # display_phases is a persisted prop, so a real change should dirty the
+        # project like the Sep-column / Edit-Specimen paths do - but blockSignals
+        # below swallows the relayed visuals_changed (and with it _mark_dirty),
+        # so note whether anything changes and dirty explicitly.
+        changed = any(s.display_phases != enabled for s in specimens)
         need_calc = enabled and not any(
             getattr(s, "phase_patterns", None) for s in specimens
         )
@@ -462,6 +467,8 @@ class MainWindow(QMainWindow):
                 spec.display_phases = enabled
         finally:
             self.project.blockSignals(False)
+        if changed:
+            self._mark_dirty()
         self._refresh_plots()
 
     def _sync_show_phases_action(self) -> None:
