@@ -4,6 +4,8 @@
 # Build output
 /build/
 /dist/
+# Packaged portable zips produced by package.cmd
+/MudLab-*-portable.zip
 
 # Python bytecode
 __pycache__/

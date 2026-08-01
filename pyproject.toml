@@ -2,7 +2,7 @@
 name = "mudlab"
 # Source of truth for the version is src/mudlab/__init__.py __version__;
 # keep this equal to it (verify_about.py fails if they drift).
-version = "0.2.0"
+version = "0.2.0-rc1"
 description = "MudLab - Windows desktop application (PySide6 + NumPy/SciPy/Matplotlib)"
 requires-python = ">=3.14"
 dependencies = [
