@@ -34,8 +34,55 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     return app
 
 
+def _selftest() -> int:
+    """Release / frozen-build self-check: confirm the bundled data files actually
+    resolve through the real loaders (run as `MudLab --selftest`). Returns 0 if
+    every check passes, 1 otherwise. A QApplication must already exist (icons)."""
+    import traceback
+
+    from mudlab.resources import app_icon, logo_pixmap
+
+    checks: list[tuple[str, bool]] = []
+
+    def probe(name, fn):
+        try:
+            checks.append((name, bool(fn())))
+        except Exception:
+            checks.append((name, False))
+            traceback.print_exc()
+
+    probe("app icon (data/icons)", lambda: not app_icon().isNull())
+    probe("splash logo (data/icons)", lambda: not logo_pixmap(64).isNull())
+
+    def _scattering():
+        from mudlab.file_parsers.atom_type_library import atom_type_library_map
+        return len(atom_type_library_map()) > 0
+    probe("scattering-factor library (atomic_scattering_factors.csv)", _scattering)
+
+    def _composition():
+        from mudlab.calculations.composition import load_conversion_table
+        return len(load_conversion_table()) > 0
+    probe("composition table (composition_conversion.csv)", _composition)
+
+    def _catalog():
+        from mudlab.file_parsers.default_catalog import (
+            build_catalog_entry_by_name, default_catalog_entries)
+        entries = default_catalog_entries()
+        return bool(entries) and bool(build_catalog_entry_by_name(entries[0][0]))
+    probe("default catalog + a phase build (.cmp components)", _catalog)
+
+    ok = all(v for _, v in checks)
+    print("MudLab %s self-test:" % __version__)
+    for name, passed in checks:
+        print("  [%s] %s" % ("OK" if passed else "FAIL", name))
+    print("SELFTEST %s" % ("PASS" if ok else "FAIL"))
+    return 0 if ok else 1
+
+
 def main() -> int:
     app = create_app(sys.argv)
+    if "--selftest" in sys.argv:
+        return _selftest()
     splash, started = show_splash()   # branded splash while the window builds
     window = MainWindow()
     window.show()

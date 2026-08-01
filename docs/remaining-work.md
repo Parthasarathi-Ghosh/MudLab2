@@ -82,11 +82,14 @@ Folded in from the memory audit notes ([[mudlab2-peakdetect-mineral-audit]],
   chars long keeps the previous entry's abbreviation (old parser's exact bug).
 
 **Deployment:**
-- **Frozen-build bundling untested** — verify PyInstaller ships every `src/mudlab/data`
-  subdir (all with spaces in the name): `default components/`,
-  `default wavelength distributions/`, `default goniometers/`, plus the CSVs
-  (`mineral_references.csv`, `atomic_scattering_factors.csv`,
-  `composition_conversion.csv`) before a release.
+- **Frozen-build bundling — VERIFIED 2026-08-01.** A PyInstaller onedir build
+  (`MudLab.spec`, PyInstaller 6.21) ships the whole `src/mudlab/data` tree to
+  `_internal/mudlab/data` (all 27 `.cmp`, the 3 CSVs, icons, the goniometer +
+  wavelength presets); `MudLab.exe --selftest` runs the real loaders in the frozen
+  app and all resolve (the `os.path.dirname(__file__)`-relative paths work in the
+  bundle), and a bare launch runs without crash. Guarded by
+  `tools/verify_selftest.py`. Re-run `--selftest` on the built exe before each
+  release.
 
 ## Test-fixture / validation gaps (not features)
 - **R1G4** has no full-pattern `.mud` golden — validated via an old-app *matrix* golden
