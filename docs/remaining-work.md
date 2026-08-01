@@ -1,6 +1,6 @@
 # MudLab2 — remaining & deferred work
 
-Snapshot as of 2026-07-26 (V1 in sync with origin @ `423cbf5`). The GTK→Qt/PySide6
+Snapshot as of 2026-08-01 (V1 in sync with origin @ `1f0e4bb`). The GTK→Qt/PySide6
 port is far along: the analytics/calc
 engine is golden-validated, both major editors (Edit Phases, Edit Mixtures) are
 feature-complete, and the default-phase catalog now matches old MudLab/PyXRD (80
@@ -8,9 +8,17 @@ entries, all R0–R3 models). This is the single canonical to-do — it folds in
 memory audit notes; update it as items land.
 
 ## Deferred by design (working, intentionally postponed)
-- **Refinement progress/results plot** — residual-vs-iteration / parameter-landscape
-  plot (old `RefineHistory` / `refine_results.glade`). Record-history hook exists,
-  disabled.
+- **Refinement progress plot** — a residual-vs-iteration plot (old `RefineHistory` /
+  `refine_results.glade`); the `Refiner.record_history` hook exists but is disabled.
+  Feasible whenever the UI is built. **Keep ONE refiner with optional hooks — do NOT
+  fork a with-/without-hook copy:** the disabled hooks are a per-eval branch
+  (microseconds) against a per-eval `optimize_mixture` (seconds), so the overhead is
+  negligible; the only real perf levers are throttling the `on_progress` UI callback
+  and bounding the history, both UI-side.
+  - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
+    was the brute-force grid scan, which was intentionally removed (Basin Hopping
+    dominates it). Building it would require re-adding a *constrained* grid scan;
+    not on the roadmap.
 - **Phase-intensity cache** — old-app performance optimization; deferred (correctness
   unaffected).
   (**Per-phase plot curves — DONE.** Each phase's calculated contribution now
@@ -103,6 +111,23 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **Per-phase plot curves** — each phase's calculated contribution draws in its own
+  `display_color` (transient `Specimen.phase_patterns`), driven by `display_phases`
+  (specimen dialog / tree "Sep" toggles + a **View ▸ Show phase patterns**
+  convenience). Audited; pairing hardened (row-count guard + contract, audit #5).
+  Guarded by `verify_phase_curves.py` + `verify_show_phases_action.py`.
+- **Snapshot-on-detach** — deleting/detaching a base phase no longer silently
+  shifts a dependant's calculated pattern: `Phase/Component.snapshot_inherited()`
+  bake the resolved values first; `remove_phase` snapshots dependants (mid-chain
+  order-safe); Edit-Phases delete warns + names dependants; explicit detach offers
+  keep/revert without disturbing normal link/unlink. Model + UI, audited. See
+  `docs/dev-notes.md`. Guarded by `verify_snapshot_detach/_component`,
+  `verify_remove_phase_snapshot/_dialog`, `verify_detach_choice`,
+  `verify_detach_ui_noninterference`.
+- **Object-graph link integrity** — `docs/dev-notes.md` documents the
+  Mixture-Specimen-Phase uuid↔object model (+ phase identity / refiner sharing);
+  `tools/verify_link_integrity.py` asserts the invariant across the fixtures and
+  the deletion cascades.
 - **About dialog + branding** — bundled the MudLab icon set under `data/icons/`;
   the app/window/taskbar icon is wired (`resources.app_icon`, `create_app`
   setWindowIcon, MainWindow setWindowIcon) and the frozen `.exe` uses `mudlab.ico`
