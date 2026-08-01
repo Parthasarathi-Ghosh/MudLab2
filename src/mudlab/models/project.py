@@ -170,6 +170,22 @@ class Project(QObject):
         self.phases_changed.emit()
         self.data_changed.emit()
 
+    def phase_dependants(self, phase) -> list:
+        """Phases that read from `phase` - directly based_on it, or with a
+        component linked to one of its components. Deleting `phase` detaches them
+        (snapshot-on-detach bakes their values in first). Used to warn before a
+        base-phase deletion; order follows the project's phase list."""
+        comp_ids = {id(c) for c in getattr(phase, "components", [])}
+        out = []
+        for other in self._phases:
+            if other is phase:
+                continue
+            if other.based_on is phase or any(
+                    c.linked_with is not None and id(c.linked_with) in comp_ids
+                    for c in getattr(other, "components", [])):
+                out.append(other)
+        return out
+
     def _dedup_shared_atoms(self, components) -> None:
         """After snapshotting linked components (which SHARE the template's atom
         objects), give fresh-uuid copies to any component that ended up sharing

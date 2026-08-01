@@ -1261,12 +1261,22 @@ need the project + the phase model).
   `project.add_phase`, append the row, select it (so the editor binds it
   and the based_on / linked_with candidate combos, rebuilt on selection,
   pick it up).
-- **Remove** (`_on_remove_phase`): confirms first (old "Deleting a phase
-  is irreversible!"), then `project.remove_phase` (which cascades every
-  reference - see the phase-CRUD model notes), then `project.calculate()`
-  because a mixture that used the phase now has an empty cell and its
-  stored calculated pattern still carries the removed phase's contribution
-  until a recompute. Reselects a neighbour.
+- **Remove** (`_on_remove_phase`): confirms first via
+  `deletion_confirm_message(phase, project.phase_dependants(phase))` - when
+  other phases depend on this one (based_on it, or a component linked to its
+  components) the box NAMES them and says their values are kept (snapshot-on-
+  detach bakes them in before severing); otherwise the plain "Deleting a phase
+  is irreversible!". Then `project.remove_phase` (which cascades every reference
+  AND snapshots the dependants - see the phase-CRUD model notes + dev-notes.md),
+  then `project.calculate()` because a mixture that used the phase now has an
+  empty cell and its stored calculated pattern still carries the removed phase's
+  contribution until a recompute. Reselects a neighbour.
+- **Explicit detach** (phase editor `_on_based_on_changed`, component editor
+  `_on_linked_with_changed`): picking "(none)" while `has_inherited_values()`
+  offers `inheritance_detach.ask_detach_choice` (keep / revert / cancel) - "keep"
+  calls `snapshot_inherited()` before `set_based_on(None)` / `set_linked_with(None)`
+  so nothing changes; "revert" is the old fall-back-to-own; "cancel" restores the
+  combo. Guarded by `verify_remove_phase_dialog.py` + `verify_detach_choice.py`.
 - **Three views must stay in lock-step**: `project.phases`, the dialog's
   `self._phases` snapshot, and the tree rows. `_phases[index.row()]` is
   how a selection resolves to a phase, so any drift binds the editor to

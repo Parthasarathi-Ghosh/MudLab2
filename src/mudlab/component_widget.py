@@ -39,6 +39,7 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 from mudlab.atom_list_widget import AtomListWidget
 from mudlab.contents_widget import AtomContentsWidget
 from mudlab.file_parsers.cmp_components import CMP_FILTERS, load_cmp, save_cmp
+from mudlab.inheritance_detach import ask_detach_choice
 from mudlab.models.atom_relations import AtomContents, AtomRatio
 from mudlab.ratio_widget import AtomRatioWidget
 from mudlab.ucp_widget import UnitCellPropWidget
@@ -372,6 +373,17 @@ class EditComponentWidget(QWidget):
         target = self.ui.component_linked_with.currentData()
         if target is self._component.linked_with:
             return
+        # Unlinking would snap inherited values back to this component's own
+        # stored ones; offer to keep them (snapshot) instead.
+        if target is None and self._component.has_inherited_values():
+            source = (self._component.linked_with.name
+                      if self._component.linked_with else "")
+            choice = ask_detach_choice(self, "component", source)
+            if choice == "cancel":
+                self._bind_linking(self._component)  # restore the combo
+                return
+            if choice == "keep":
+                self._component.snapshot_inherited()
         if not self._component.set_linked_with(target):
             # Rejected (self-link / cycle): revert the combo to the current link.
             self._bind_linking(self._component)

@@ -111,8 +111,15 @@ The base can therefore be edited and then deleted with the dependants' patterns
 unchanged. Guarded by `verify_snapshot_detach.py`, `verify_snapshot_component.py`,
 `verify_remove_phase_snapshot.py`. NB: duplicate atom uuids across linked
 components are a benign, pre-existing norm (old-app inlining), so the dedup targets
-object aliasing, not uuid uniqueness. Still silent — a base-deletion confirmation
-dialog + an explicit-detach keep/revert choice are the remaining UI pieces.
+object aliasing, not uuid uniqueness.
+
+**UI.** Deleting a base in Edit Phases warns and names its dependants
+(`Project.phase_dependants` + `edit_phases_dialog.deletion_confirm_message`),
+saying their values are kept. Explicitly detaching in the phase / component
+editors (picking "(none)") offers keep-vs-revert (`inheritance_detach.
+ask_detach_choice`, gated by `Phase/Component.has_inherited_values()`): "keep"
+snapshots first, "revert" is the old fall-back-to-own. Guarded by
+`verify_remove_phase_dialog.py` + `verify_detach_choice.py`.
 
 ### Known gaps (candidate work)
 
@@ -122,6 +129,3 @@ dialog + an explicit-detach keep/revert choice are the remaining UI pieces.
   guardrail; there is no in-app `validate()`.
 - **`remove_mixture` staleness** — no recompute/clear/refresh; orphaned specimens
   keep a frozen calc + per-phase overlay forever.
-- **Snapshot-on-detach UI** — the model bakes silently (above). Still to add: a
-  base-deletion confirmation dialog (name the dependants) and an explicit-detach
-  keep-vs-revert choice in the phase / component editors.

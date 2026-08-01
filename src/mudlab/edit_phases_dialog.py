@@ -21,6 +21,25 @@ from mudlab.models.raw_pattern_phase import RawPatternPhase
 from mudlab.object_store_dialog import ObjectStoreDialog
 
 
+def deletion_confirm_message(phase, dependants) -> str:
+    """The confirm text for deleting `phase`. When other phases depend on it
+    (based_on it, or a component linked to its components) it names them and
+    explains that their values are kept (snapshot-on-detach bakes them in before
+    severing, so their patterns will not change). Otherwise the plain
+    irreversible-delete warning."""
+    if not dependants:
+        return ("Deleting a phase is irreversible!\n"
+                "Are you sure you want to continue?")
+    names = "\n".join("  • %s" % (d.name or "(unnamed)") for d in dependants)
+    return (
+        "%s is the reference for %d other phase(s):\n\n%s\n\n"
+        "Deleting it will detach them. Their current values are kept, so their "
+        "calculated patterns will not change.\n\n"
+        "Deleting a phase is irreversible. Continue?"
+        % (phase.name or "This phase", len(dependants), names)
+    )
+
+
 class EditPhasesDialog(ObjectStoreDialog):
     def __init__(self, parent: QWidget | None = None, project: Project | None = None) -> None:
         super().__init__(parent, title="Edit Phases", columns=("Phase", "R", "G"))
@@ -102,11 +121,13 @@ class EditPhasesDialog(ObjectStoreDialog):
             return
         phase = self._phases[index]
         # The old app confirms - deleting a phase is irreversible and also
-        # clears every based_on / linked_with / mixture reference to it.
+        # clears every based_on / linked_with / mixture reference to it. When
+        # other phases depend on this one, warn and name them: they are detached
+        # but their values are baked in first (snapshot-on-detach), so their
+        # patterns are preserved.
+        dependants = self.project.phase_dependants(phase)
         if QMessageBox.question(
-            self, "Remove phase",
-            "Deleting a phase is irreversible!\nAre you sure you want to "
-            "continue?",
+            self, "Remove phase", deletion_confirm_message(phase, dependants),
         ) != QMessageBox.StandardButton.Yes:
             return
         self.project.remove_phase(phase)  # cascades every reference to it

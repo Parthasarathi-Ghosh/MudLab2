@@ -187,6 +187,17 @@ class Phase:
             baked = True
         return baked
 
+    def has_inherited_values(self) -> bool:
+        """True if any value currently reads through to the based_on phase, so a
+        detach would change it unless snapshot_inherited() bakes it in first.
+        Non-mutating - used to decide whether to offer the keep/revert choice."""
+        if self.based_on is None:
+            return False
+        if (self.inherit_sigma_star or self.inherit_CSDS_distribution
+                or self.inherit_display_color):
+            return True
+        return any(r["inherited"] for r in self.probabilities.editable_params())
+
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` reads through to the based_on phase (so it is not
         independently editable / refinable here)."""

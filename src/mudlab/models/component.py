@@ -241,6 +241,17 @@ class Component:
                 apply()
         self.update_ucp_values()
 
+    def has_inherited_values(self) -> bool:
+        """True if any value currently reads through to the linked template, so an
+        unlink would change it unless snapshot_inherited() bakes it in first.
+        Non-mutating - used to decide whether to offer the keep/revert choice."""
+        if self.linked_with is None:
+            return False
+        return any(getattr(self, flag) for flag in (
+            "inherit_ucp_a", "inherit_ucp_b", "inherit_d001", "inherit_default_c",
+            "inherit_delta_c", "inherit_layer_atoms", "inherit_interlayer_atoms",
+            "inherit_atom_relations"))
+
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` currently reads through to a linked template (so it
         is not independently editable / refinable on this component)."""

@@ -19,6 +19,8 @@ from typing import Callable
 
 from PySide6.QtWidgets import QWidget
 
+from mudlab.inheritance_detach import ask_detach_choice
+
 from mudlab.component_widget import EditComponentWidget
 from mudlab.csds_widget import CSDSWidget
 from mudlab.probabilities_widget import ProbabilitiesWidget
@@ -183,6 +185,16 @@ class EditPhaseWidget(QWidget):
         target = self.ui.phase_based_on.currentData()
         if target is self._phase.based_on:
             return
+        # Detaching (picking "(none)") would snap inherited values back to this
+        # phase's own stored ones; offer to keep them (snapshot) instead.
+        if target is None and self._phase.has_inherited_values():
+            source = self._phase.based_on.name if self._phase.based_on else ""
+            choice = ask_detach_choice(self, "phase", source)
+            if choice == "cancel":
+                self._bind_based_on(self._phase)  # restore the combo
+                return
+            if choice == "keep":
+                self._phase.snapshot_inherited()
         if not self._phase.set_based_on(target):
             self._bind_based_on(self._phase)  # rejected (self / cycle) - revert
             return

@@ -153,8 +153,15 @@ phase** (the one showing *(not based on)*) and every phase based on it updates.
 
 ### Detaching
 
-Choose **(not based on)**. The link is removed, all inherit boxes for that phase
-are cleared, and every field returns to that phase's own values.
+Choose **(not based on)**. If the phase is currently inheriting any values, you
+are asked whether to **keep** them — the values it is showing are copied into the
+phase so nothing changes — or **revert to own**, which returns every field to that
+phase's own stored values (the older behaviour). The inherit boxes are cleared
+either way.
+
+Deleting the reference phase itself does the same automatically: the phases that
+depend on it are detached but their current values are kept, so their patterns do
+not change. The delete confirmation names those dependants.
 
 ---
 
@@ -222,9 +229,10 @@ inherits that property updates at once.
 
 ### Unlinking
 
-Choose **(not linked)** in the **Linked with** drop-down. The link is removed,
-all inherit boxes for that component are cleared, and every field returns to
-this component's own values.
+Choose **(not linked)** in the **Linked with** drop-down. If the component is
+currently inheriting any values, you are asked whether to **keep** them (copied
+into this component so nothing changes) or **revert to own** (return every field
+to this component's own stored values). The inherit boxes are cleared either way.
 
 ### Notes and tips
 
