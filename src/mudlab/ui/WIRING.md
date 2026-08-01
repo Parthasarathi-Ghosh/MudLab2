@@ -1117,8 +1117,17 @@ structural-parameter refinement, distinct from `btn_optimize`
   (-> `refiner.apply_*`); `failed`
   -> `QMessageBox` (the model was already restored by the engine).
   `closeEvent` cancels + joins the thread.
-- Deferred (not needed now): the progress/results plot (disabled
-  `Refiner.record_history` hook; no Create-plot / Show-plot / plot dialog).
+- **Progress plot (2026-08-01)** — a `grpProgress` group box holds a live
+  convergence plot (best Rp vs evaluations) on a matplotlib `FigureCanvasQTAgg`
+  (`_setup_progress_plot`). `_on_progress` only APPENDS `(n_evals, best_residual)`
+  and sets a dirty flag; a 150 ms `QTimer` (`_redraw_progress`) does the throttled
+  redraw, so thousands of evaluations never flood the GUI. `_start_progress`
+  (in `_on_refine`) resets the series + arms the timer; `_finish_progress`
+  (in `_on_finished`/`_on_failed`) stops it + forces a final redraw; `closeEvent`
+  stops the timer. Guarded by `tools/verify_refine_progress_plot.py`.
+- Deferred / dropped: the parameter-space / landscape plot (its brute-force grid
+  scan was removed; `Refiner.record_history` hook still available for a future
+  full-trajectory view).
 
 ## Add Phase dialog: add_phase.ui
 

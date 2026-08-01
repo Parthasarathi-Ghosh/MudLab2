@@ -13,7 +13,12 @@ stays responsive, a live status label shows the evaluation count + best Rp,
 and Cancel sets the engine's stop event (keeping the best result so far).
 The worker only mutates the plain calc models and emits no signals from the
 calc path; the recompute + plot redraw happen on the GUI thread in the
-finished handler. The progress/results PLOT stays deferred.
+finished handler.
+
+A live convergence plot (best Rp vs evaluations) fills the Progress group,
+fed by the same per-evaluation progress signal but redrawn on a throttle timer
+(so thousands of evaluations never flood the GUI). The parameter-landscape /
+brute-force view is intentionally NOT ported (see calculations/refinement.py).
 """
 
 from __future__ import annotations
@@ -22,7 +27,9 @@ import random
 import threading
 from typing import Callable
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QDialog, QDoubleSpinBox, QFormLayout, QHeaderView, QMessageBox,
     QSpinBox, QTableWidgetItem, QWidget,
@@ -101,6 +108,7 @@ class RefinementDialog(QDialog):
         self._worker: _RefineWorker | None = None
         self._stop_event: threading.Event | None = None
         self._cancelled = False
+        self._setup_progress_plot()
 
         table = self.ui.tbl_refinables
         table.setColumnCount(len(_HEADERS))
@@ -267,6 +275,56 @@ class RefinementDialog(QDialog):
             self._on_applied()
 
     # ------------------------------------------------------------------
+    # Live convergence plot (best Rp vs evaluations)
+    # ------------------------------------------------------------------
+    def _setup_progress_plot(self) -> None:
+        """Embed the convergence plot in the Progress group. Redraws are throttled
+        by a timer so a run of thousands of evaluations never floods the GUI - the
+        per-eval progress signal only appends a point; the timer redraws at most a
+        few times a second, with a final redraw when the run ends."""
+        self._prog_fig = Figure(figsize=(4.0, 1.8))
+        self._prog_fig.set_layout_engine("tight")
+        self._prog_canvas = FigureCanvasQTAgg(self._prog_fig)
+        self._prog_canvas.setMinimumHeight(140)
+        self.ui.progressLayout.addWidget(self._prog_canvas)
+        self._prog_ax = self._prog_fig.add_subplot(111)
+        self._prog_evals: list[int] = []
+        self._prog_best: list[float] = []
+        self._prog_dirty = False
+        self._prog_timer = QTimer(self)
+        self._prog_timer.setInterval(150)  # ms - the redraw throttle
+        self._prog_timer.timeout.connect(self._redraw_progress)
+        self._draw_progress()
+
+    def _draw_progress(self) -> None:
+        ax = self._prog_ax
+        ax.clear()
+        ax.set_xlabel("evaluations", fontsize=8)
+        ax.set_ylabel("best Rp (%)", fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.grid(True, alpha=0.3)
+        if self._prog_evals:
+            ax.plot(self._prog_evals, self._prog_best,
+                    color="#1971C2", linewidth=1.3)
+        self._prog_canvas.draw_idle()
+
+    def _redraw_progress(self, force: bool = False) -> None:
+        if self._prog_dirty or force:
+            self._prog_dirty = False
+            self._draw_progress()
+
+    def _start_progress(self) -> None:
+        self._prog_evals.clear()
+        self._prog_best.clear()
+        self._prog_dirty = False
+        self._draw_progress()
+        self._prog_timer.start()
+
+    def _finish_progress(self) -> None:
+        self._prog_timer.stop()
+        self._redraw_progress(force=True)
+
+    # ------------------------------------------------------------------
     # Running the refinement on a background thread (Phase C)
     # ------------------------------------------------------------------
     def _on_refine(self) -> None:
@@ -287,6 +345,7 @@ class RefinementDialog(QDialog):
 
         self._set_running(True)
         self.ui.lbl_status.setText("Refining...")
+        self._start_progress()
         self._thread.start()
 
     def _on_cancel(self) -> None:
@@ -300,9 +359,14 @@ class RefinementDialog(QDialog):
         self.ui.lbl_status.setText(
             "Refining... %d evaluations, best Rp = %.3f %%" % (n_evals, best_residual)
         )
+        # Append only - the throttle timer does the (expensive) redraw.
+        self._prog_evals.append(n_evals)
+        self._prog_best.append(best_residual)
+        self._prog_dirty = True
 
     def _on_finished(self, refiner) -> None:
         self._teardown_thread()
+        self._finish_progress()
         # Back on the GUI thread: recompute (this emits data_changed -> the plot
         # redraws) and show the outcome.
         self._mixture.calculate()
@@ -320,6 +384,7 @@ class RefinementDialog(QDialog):
 
     def _on_failed(self, message: str) -> None:
         self._teardown_thread()
+        self._finish_progress()
         self._set_running(False)
         self.ui.lbl_status.setText("Refinement failed.")
         QMessageBox.warning(
@@ -361,6 +426,7 @@ class RefinementDialog(QDialog):
             self._thread.quit()
             self._thread.wait()
             self._teardown_thread()
+        self._prog_timer.stop()
         super().closeEvent(event)
 
     def _on_apply(self, which: str) -> None:

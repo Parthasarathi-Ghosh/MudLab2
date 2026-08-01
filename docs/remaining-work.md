@@ -8,17 +8,11 @@ entries, all R0–R3 models). This is the single canonical to-do — it folds in
 memory audit notes; update it as items land.
 
 ## Deferred by design (working, intentionally postponed)
-- **Refinement progress plot** — a residual-vs-iteration plot (old `RefineHistory` /
-  `refine_results.glade`); the `Refiner.record_history` hook exists but is disabled.
-  Feasible whenever the UI is built. **Keep ONE refiner with optional hooks — do NOT
-  fork a with-/without-hook copy:** the disabled hooks are a per-eval branch
-  (microseconds) against a per-eval `optimize_mixture` (seconds), so the overhead is
-  negligible; the only real perf levers are throttling the `on_progress` UI callback
-  and bounding the history, both UI-side.
-  - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
-    was the brute-force grid scan, which was intentionally removed (Basin Hopping
-    dominates it). Building it would require re-adding a *constrained* grid scan;
-    not on the roadmap.
+- **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
+  was the brute-force grid scan, which was intentionally removed (Basin Hopping
+  dominates it). Building it would require re-adding a *constrained* grid scan; not
+  on the roadmap. (The residual-vs-iteration **progress plot is now DONE** — see
+  Recently completed.)
 - **Phase-intensity cache** — old-app performance optimization; deferred (correctness
   unaffected).
   (**Per-phase plot curves — DONE.** Each phase's calculated contribution now
@@ -111,6 +105,12 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **Refinement progress plot** — the Refinement window now shows a live
+  convergence plot (best Rp vs evaluations) in a "Progress" group, fed by the
+  existing per-evaluation progress signal and redrawn on a ~150 ms throttle timer
+  (a run of thousands of evaluations only appends points; a final redraw lands on
+  finish). One refiner, optional hooks — no forked copy. The parameter-landscape
+  view stays dropped. Guarded by `tools/verify_refine_progress_plot.py`.
 - **Per-phase plot curves** — each phase's calculated contribution draws in its own
   `display_color` (transient `Specimen.phase_patterns`), driven by `display_phases`
   (specimen dialog / tree "Sep" toggles + a **View ▸ Show phase patterns**
@@ -182,7 +182,7 @@ line is stale or refers to an un-built phase-composition panel.
   now also done — see above.)
 
 ---
-**Biggest genuinely-remaining items:** the deferred-by-design refinement-progress
-plot, the optional splash screen, and the rare unported formats
-(`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs remain. (Per-phase curves
-are now done.)
+**Biggest genuinely-remaining items:** the optional splash screen and the rare
+unported formats (`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs remain.
+(Per-phase curves, snapshot-on-detach and the refinement progress plot are now
+done; the parameter-landscape plot is intentionally dropped.)

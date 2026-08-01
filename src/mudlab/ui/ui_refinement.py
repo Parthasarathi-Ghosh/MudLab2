@@ -95,6 +95,13 @@ class Ui_RefinementDialog(object):
 
         self.refinementLayout.addLayout(self.refineRow)
 
+        self.grpProgress = QGroupBox(RefinementDialog)
+        self.grpProgress.setObjectName(u"grpProgress")
+        self.progressLayout = QVBoxLayout(self.grpProgress)
+        self.progressLayout.setObjectName(u"progressLayout")
+
+        self.refinementLayout.addWidget(self.grpProgress)
+
         self.grpResult = QGroupBox(RefinementDialog)
         self.grpResult.setObjectName(u"grpResult")
         self.resultLayout = QVBoxLayout(self.grpResult)
@@ -200,6 +207,7 @@ class Ui_RefinementDialog(object):
         self.btn_cancel.setToolTip(QCoreApplication.translate("RefinementDialog", u"Stop the running refinement and keep the best solution found so far.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_cancel.setText(QCoreApplication.translate("RefinementDialog", u"Cancel", None))
+        self.grpProgress.setTitle(QCoreApplication.translate("RefinementDialog", u"Progress", None))
         self.grpResult.setTitle(QCoreApplication.translate("RefinementDialog", u"Result - which solution do you want to keep?", None))
         self.lblInitial.setText(QCoreApplication.translate("RefinementDialog", u"Initial residual (Rp)", None))
         self.lbl_initial_residual.setText(QCoreApplication.translate("RefinementDialog", u"-", None))
