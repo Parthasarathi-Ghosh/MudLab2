@@ -25,7 +25,7 @@ memory audit notes; update it as items land.
   `tools/verify_show_phases_action.py`.)
 
 ## Unported editors / dialogs (real remaining work)
-- **Splash screen** (optional).
+- *(none — the splash screen, the last item here, is now done; see Recently completed.)*
 
 ## Placeholder / stubbed features (visible but not fully wired)
 - **Exclusion-ranges import/export** in Edit Specimen — not ported.
@@ -105,6 +105,13 @@ composition widget exists (composition is a *mixture* feature, and it's done), s
 line is stale or refers to an un-built phase-composition panel.
 
 ## Recently completed (was on this list)
+- **Splash screen** — a branded startup splash (`splash.py` + `ui/splash.ui`,
+  shown by `__main__.main` while the window builds, auto-closes after a ~700 ms
+  minimum). Deliberately DISTINCT from the old GTK MudLab (shared name + icon): a
+  deep teal-slate background echoing the app icon's crystal-lattice palette, the
+  reused icon, and the version number in a warm gold so the higher release number
+  stands out from the (capped) old app. Palette constants in `splash.py` are the
+  one place to retune. Guarded by `tools/verify_splash.py`.
 - **Refinement progress plot** — the Refinement window now shows a live
   convergence plot (best Rp vs evaluations) in a "Progress" group, fed by the
   existing per-evaluation progress signal and redrawn on a ~150 ms throttle timer
@@ -182,7 +189,9 @@ line is stale or refers to an un-built phase-composition panel.
   now also done — see above.)
 
 ---
-**Biggest genuinely-remaining items:** the optional splash screen and the rare
-unported formats (`.cpi`/`.rd`/`.brml`). No standalone editors/dialogs remain.
-(Per-phase curves, snapshot-on-detach and the refinement progress plot are now
-done; the parameter-landscape plot is intentionally dropped.)
+**Biggest genuinely-remaining items:** just the rare unported formats
+(`.cpi`/`.rd`/`.brml`) plus a handful of small audit-noted fixes (the goniometer
+live-recompute is the most user-visible) and pre-release housekeeping. No
+standalone editors/dialogs remain. (Per-phase curves, snapshot-on-detach, the
+refinement progress plot and the splash screen are done; the parameter-landscape
+plot is intentionally dropped.)

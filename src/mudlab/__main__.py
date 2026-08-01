@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication, QStyleFactory
 from mudlab import APP_NAME, ORG_NAME, __version__
 from mudlab.main_window import MainWindow
 from mudlab.resources import app_icon
+from mudlab.splash import show_splash, _MIN_VISIBLE_MS
 
 
 def create_app(argv: list[str] | None = None) -> QApplication:
@@ -35,8 +36,11 @@ def create_app(argv: list[str] | None = None) -> QApplication:
 
 def main() -> int:
     app = create_app(sys.argv)
+    splash, started = show_splash()   # branded splash while the window builds
     window = MainWindow()
     window.show()
+    window.raise_()
+    splash.finish_after(_MIN_VISIBLE_MS, started)  # closes on the event loop
     return app.exec()
 
 
