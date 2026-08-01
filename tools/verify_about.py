@@ -2,7 +2,8 @@
 """Durable harness for the About / branding work, run head-less.
 
 Covers:
-  - version bump + consistency (mudlab.__version__ == pyproject.toml);
+  - version well-formed + consistency (mudlab.__version__ is the single source;
+    pyproject.toml is asserted equal to it);
   - branding assets (resources.app_icon has every packaged size; the logo and
     the .ico exist) and that a QIcon built from them is a valid window icon;
   - the branded About dialog (name / version / tagline / library line / logo /
@@ -41,7 +42,11 @@ def check(label, ok):
 
 
 def check_version():
-    check("version bumped to 0.2.0", mudlab.__version__ == "0.2.0")
+    # src/mudlab/__init__.py __version__ is the single source of truth; assert it
+    # is well-formed (not a hardcoded value, so a bump touches only __init__ +
+    # pyproject) and that pyproject stays in step with it.
+    check("version is well-formed (semver)",
+          re.match(r"^\d+\.\d+\.\d+([.\-+].*)?$", mudlab.__version__) is not None)
     pyproject = open(os.path.join(_REPO, "pyproject.toml"), encoding="utf-8").read()
     pv = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE).group(1)
     check("pyproject version matches package version", pv == mudlab.__version__)
