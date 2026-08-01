@@ -37,6 +37,8 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 import numpy as np
 from PySide6.QtWidgets import QApplication
 
+import mudlab.calculations.specimen as calc_specimen
+from mudlab.calculations.specimen import calculate_specimen_pattern
 from mudlab.file_parsers.mud_project import load_mud, save_mud
 from mudlab.plot_controller import PatternPlot
 
@@ -158,11 +160,59 @@ def check_drawing():
     SPEC.display_phases = False
 
 
+# ----------------------------------------------------------------------
+# Pairing robustness (per-phase audit #5): each phase must be paired with ITS
+# OWN contribution, and a row-count mismatch must fail loudly, not mis-colour.
+# ----------------------------------------------------------------------
+def check_pairing():
+    i = MIXTURE.specimens.index(SPEC)
+    full = MIXTURE.phase_matrix[i]
+    scale = float(MIXTURE.scales[i])
+    bgshift = float(MIXTURE.bgshifts[i])
+    filled_slots = [j for j, p in enumerate(full) if p is not None]
+
+    ok = True
+    for m, j in enumerate(filled_slots):
+        # Recompute slot j's contribution IN ISOLATION (only phase j filled) and
+        # compare to the m-th captured pair - independent of any positional
+        # assumption, so a reordering would be caught.
+        isolated = [p if k == j else None for k, p in enumerate(full)]
+        _, _, iso = calculate_specimen_pattern(
+            SPEC, isolated, scale, MIXTURE.fractions, bgshift,
+            return_phase_patterns=True)
+        pair_phase, pair_row = SPEC.phase_patterns[m]
+        if not (pair_phase is full[j] and len(iso) == 1
+                and np.allclose(np.asarray(pair_row), np.asarray(iso[0][1]))):
+            ok = False
+    check("pairing: each phase is paired with its own isolated contribution", ok)
+
+    # The loud row-count guard: if the scaled-intensity row count stops matching
+    # the slot count, calculate_specimen_pattern must raise, not mis-pair.
+    orig = calc_specimen.calculate_scaled_intensities
+
+    def drop_a_row(*a, **k):
+        total, scaled, bg = orig(*a, **k)
+        return total, scaled[:-1], bg
+
+    calc_specimen.calculate_scaled_intensities = drop_a_row
+    try:
+        raised = False
+        try:
+            calculate_specimen_pattern(SPEC, full, scale, MIXTURE.fractions,
+                                       bgshift, return_phase_patterns=True)
+        except ValueError:
+            raised = True
+    finally:
+        calc_specimen.calculate_scaled_intensities = orig
+    check("pairing: a row-count mismatch raises instead of mis-pairing", raised)
+
+
 def main():
     print("fixture: %s (%d phases)" % (os.path.basename(PATH), len(FILLED)))
     check_capture()
     check_transient()
     check_drawing()
+    check_pairing()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

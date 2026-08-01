@@ -39,6 +39,11 @@ def calculate_phase_intensities(
     ``phases`` is the list of phases assigned to this specimen (one per
     mixture phase slot; ``None`` slots yield a zero pattern). Returns an
     array of shape ``(num_phases, num_observations)``.
+
+    CONTRACT (the per-phase overlay depends on it): exactly one row per slot,
+    in order - ``row[i]`` is ``phases[i]``'s contribution (a zero row when
+    ``phases[i]`` is ``None``). Do not drop, merge or reorder rows; downstream
+    (``calculate_specimen_pattern``) pairs each phase with its row by index.
     """
     range_stl = 2.0 * np.sin(range_theta) / wavelength
 
@@ -79,7 +84,11 @@ def calculate_scaled_intensities(
     phase_intensities, correction_range, scale, fractions, bgshift
 ):
     """Combine per-phase intensities with the phase fractions, specimen scale
-    and background shift into (total, scaled_phase_intensities, background)."""
+    and background shift into (total, scaled_phase_intensities, background).
+
+    Row order is preserved (the scaling is per-row), so ``scaled_phase_
+    intensities[i]`` stays ``phases[i]``'s contribution - see the pairing
+    contract in ``calculate_phase_intensities``."""
     fractions = np.asanyarray(fractions, dtype=float)
     background_intensity = bgshift * correction_range
     scaled_phase_intensities = (
@@ -127,7 +136,18 @@ def calculate_specimen_pattern(specimen, phases, scale, fractions, bgshift,
         phase_intensities, correction_range, scale, fractions, bgshift
     )
     if return_phase_patterns:
-        # Row i of the scaled intensities is slot i; keep only the filled slots.
+        # The (phase, curve) pairing is POSITIONAL: row i of the scaled
+        # intensities is slot i, because calculate_phase_intensities emits
+        # exactly one row per slot, in order (zeros for a None slot), and the
+        # scaling is per-row. Guard that invariant loudly - if the row count ever
+        # stops matching the slot count (e.g. a refactor that drops None rows)
+        # the pairing would silently mis-colour phases, so fail instead.
+        if scaled_phase_intensities.shape[0] != len(phases):
+            raise ValueError(
+                "per-phase row count %d != phase-slot count %d; the phase/curve "
+                "pairing is no longer positional"
+                % (scaled_phase_intensities.shape[0], len(phases))
+            )
         phase_patterns = [
             (phase, scaled_phase_intensities[i])
             for i, phase in enumerate(phases) if phase is not None
