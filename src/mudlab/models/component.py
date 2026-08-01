@@ -278,6 +278,90 @@ class Component:
             self.inherit_atom_relations = False
         return True
 
+    def snapshot_inherited(self) -> bool:
+        """Bake every inherited value into this component's OWN storage and clear
+        the inherit flags, so a following unlink (set_linked_with(None), or the
+        template's phase being deleted) leaves the resolved values - and thus the
+        calculated pattern - unchanged.
+
+        Atom lists and relations are baked by SHARING the template's objects (a
+        fresh own list holding the same Atom / relation objects), which keeps this
+        component's own relation->atom uuid references valid (cloning would break
+        them) and is safe because the template is being deleted, so nothing else
+        keeps reading them. Scalar cell / spacing values are copied; the calc
+        reads UnitCellProperty.value directly (update_value is not called during
+        the calc), so writing the resolved value is enough. All effective values
+        are read while the inherit flags are still set, then the flags are cleared.
+
+        Does NOT unlink; the caller does. Returns True if anything was baked.
+
+        NOTE: if two components share one template component, snapshotting both by
+        sharing would alias its atoms (a uuid clash on save). The bulk caller
+        (Project.remove_phase) is responsible for de-duplicating / cloning that
+        rare case; a single call here simply shares."""
+        if self.linked_with is None:
+            return False
+        baked = False
+        if self.inherit_ucp_a:
+            self._ucp_a.value = self.cell_a
+            baked = True
+        if self.inherit_ucp_b:
+            self._ucp_b.value = self.cell_b
+            baked = True
+        if self.inherit_default_c:
+            # d001 and default_c both gate on inherit_default_c (see _INHERIT_MAP).
+            self._default_c = self.default_c
+            self._d001 = self.d001
+            baked = True
+        if self.inherit_delta_c:
+            self._delta_c = self.delta_c
+            baked = True
+        if self.inherit_layer_atoms:
+            # lattice_d also gates on inherit_layer_atoms (see _INHERIT_MAP).
+            self._lattice_d = self.lattice_d
+            self._layer_atoms = list(self.layer_atoms)  # share objects, own list
+            baked = True
+        if self.inherit_interlayer_atoms:
+            self._interlayer_atoms = list(self.interlayer_atoms)
+            baked = True
+        if self.inherit_atom_relations:
+            self._atom_relations = list(self.atom_relations)
+            baked = True
+        self.inherit_ucp_a = self.inherit_ucp_b = False
+        self.inherit_d001 = self.inherit_default_c = self.inherit_delta_c = False
+        self.inherit_layer_atoms = self.inherit_interlayer_atoms = False
+        self.inherit_atom_relations = False
+        return baked
+
+    def reclone_atoms(self, atom_type_map: dict) -> None:
+        """Replace this component's atoms (and re-point its own relations / UCP
+        derivation sources) with fresh-uuid COPIES of the same values.
+
+        Used only to break the rare aliasing after a bulk snapshot, where two
+        components ended up sharing one template's atom objects (which would emit
+        duplicate atom uuids on save). Reuses the .cmp clone path - serialise,
+        make the atoms reference their types by name, remap every uuid fresh,
+        rebuild - so relations and UCP sources re-point consistently. The
+        component's own uuid / name / link state are untouched."""
+        import json
+
+        from mudlab.file_parsers.cmp_components import _make_standalone_portable
+        from mudlab.file_parsers.uuid_remap import UUID_RE, remap_uuids
+
+        entry = self.to_dict()
+        _make_standalone_portable(entry, self)  # atoms reference their types by name
+        text = json.dumps(entry, separators=(",", ":"))
+        [text], _ = remap_uuids([text], set(UUID_RE.findall(text)))  # every uuid fresh
+        clone = Component.from_dict(json.loads(text), atom_type_map)
+        amap = {a.uuid: a for a in clone._layer_atoms + clone._interlayer_atoms}
+        clone.resolve_ucp_props(amap)
+        clone.resolve_relations(amap)
+        self._layer_atoms = clone._layer_atoms
+        self._interlayer_atoms = clone._interlayer_atoms
+        self._atom_relations = clone._atom_relations
+        self._ucp_a = clone._ucp_a
+        self._ucp_b = clone._ucp_b
+
     # -- read-through c-axis / cell scalars (own value when not inherited) --
     @property
     def d001(self) -> float:

@@ -95,13 +95,24 @@ depends on it) removes cleanly; the base and siblings are unaffected. Deleting t
 ancestor and returns *its* own value) while each child **always stores its own
 value** (`to_dict` persists own, never the read-through values), a child that was
 *displaying/computing* the base's value but *storing* a different own value will,
-on detach, **silently revert to its own stored value** — sigma*, CSDS, the F/W
-stacking probabilities, and (via components) d001, cell params, even atom sets can
-change, and with them the child's calculated pattern. There is **no
-snapshot-on-detach**: the app does not bake the resolved values into the child
-before severing. The `remove_phase` docstring's "the dependant keeps the values it
-had stored" is literally true but easy to misread — it keeps its *own* stored
-values, not the ones it was showing through inheritance.
+on detach, revert to its own stored value — sigma*, CSDS, the F/W stacking
+probabilities, and (via components) d001, cell params, even atom sets — which
+would change the child's calculated pattern.
+
+**Snapshot-on-detach (implemented).** To stop that silent shift, `remove_phase`
+now BAKES each dependant's resolved values into its own storage before severing:
+`Phase.snapshot_inherited()` (sigma*/CSDS/color/probabilities) and
+`Component.snapshot_inherited()` (cell scalars + atom lists/relations). Component
+atoms are baked by SHARING the template's objects (a fresh own list of the same
+objects) so the component's own relation→atom uuid references stay valid; the
+rare case where two components share one template component is de-duplicated by
+`Component.reclone_atoms` (fresh-uuid copies via the `.cmp` serialize→remap path).
+The base can therefore be edited and then deleted with the dependants' patterns
+unchanged. Guarded by `verify_snapshot_detach.py`, `verify_snapshot_component.py`,
+`verify_remove_phase_snapshot.py`. NB: duplicate atom uuids across linked
+components are a benign, pre-existing norm (old-app inlining), so the dedup targets
+object aliasing, not uuid uniqueness. Still silent — a base-deletion confirmation
+dialog + an explicit-detach keep/revert choice are the remaining UI pieces.
 
 ### Known gaps (candidate work)
 
@@ -111,6 +122,6 @@ values, not the ones it was showing through inheritance.
   guardrail; there is no in-app `validate()`.
 - **`remove_mixture` staleness** — no recompute/clear/refresh; orphaned specimens
   keep a frozen calc + per-phase overlay forever.
-- **No snapshot-on-detach** — deleting a base silently shifts dependants' computed
-  values (scenario 4). If we add snapshotting (bake resolved → own before
-  severing), decide whether it is silent or user-confirmed.
+- **Snapshot-on-detach UI** — the model bakes silently (above). Still to add: a
+  base-deletion confirmation dialog (name the dependants) and an explicit-detach
+  keep-vs-revert choice in the phase / component editors.

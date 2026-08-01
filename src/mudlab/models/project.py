@@ -147,21 +147,45 @@ class Project(QObject):
         phase.set_based_on(None)
         for other in self._phases:
             if other.based_on is phase:
+                # Bake the inherited values before detaching so the dependant's
+                # calculated pattern does not silently shift (snapshot-on-detach).
+                other.snapshot_inherited()
                 other.set_based_on(None)
 
         removed_components = {id(c) for c in phase.components}
+        snapshotted = []
         if removed_components:
             for other in self._phases:
                 for comp in other.components:
                     if (comp.linked_with is not None
                             and id(comp.linked_with) in removed_components):
+                        comp.snapshot_inherited()  # bake before unlinking
+                        snapshotted.append(comp)
                         comp.set_linked_with(None)
+            self._dedup_shared_atoms(snapshotted)
 
         for mixture in self._mixtures:
             mixture.unset_phase(phase)
 
         self.phases_changed.emit()
         self.data_changed.emit()
+
+    def _dedup_shared_atoms(self, components) -> None:
+        """After snapshotting linked components (which SHARE the template's atom
+        objects), give fresh-uuid copies to any component that ended up sharing
+        atoms with an earlier one, so a save cannot emit duplicate atom uuids.
+        Rare - only when two components linked the same template component."""
+        seen: set[int] = set()
+        atom_type_map = None
+        for comp in components:
+            atoms = comp._layer_atoms + comp._interlayer_atoms
+            if any(id(a) in seen for a in atoms):
+                if atom_type_map is None:
+                    atom_type_map = self.atom_type_uuid_map()
+                comp.reclone_atoms(atom_type_map)
+                atoms = comp._layer_atoms + comp._interlayer_atoms
+            for a in atoms:
+                seen.add(id(a))
 
     def phase_uuid_map(self) -> dict:
         """uuid -> Phase, for resolving a mixture's phase-slot grid."""

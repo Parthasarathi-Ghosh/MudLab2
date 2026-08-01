@@ -135,7 +135,9 @@ def check_remove_clears_mixture(path, results):
 
 
 def check_remove_cascades_based_on(path, results):
-    """1+2. based_on links clear, and dependants fall back to their own values."""
+    """1+2. based_on links clear, and dependants keep the RESOLVED values they
+    were showing (snapshot-on-detach bakes them in before severing, so the
+    calculated pattern does not shift)."""
     project = load_mud(path)
     parent = None
     for phase in project.phases:
@@ -145,8 +147,10 @@ def check_remove_cascades_based_on(path, results):
     if parent is None:
         return
     dependants = [p for p in project.phases if p.based_on is parent]
-    own_f_before = [
-        [d.probabilities.own_f_value(i)
+    # The effective (read-through) F values a dependant is showing WHILE it still
+    # inherits - these must survive the removal, not revert to stale own values.
+    resolved_f_before = [
+        [d.probabilities.f_value(i)
          for i in range(d.probabilities.n_independents)]
         for d in dependants
     ]
@@ -154,9 +158,9 @@ def check_remove_cascades_based_on(path, results):
     project.remove_phase(parent)
     results.append(("2 dependants' based_on cleared",
                     all(d.based_on is None for d in dependants)))
-    results.append(("2 dependants keep their OWN stored F values",
+    results.append(("2 dependants keep their RESOLVED F values (snapshot-on-detach)",
                     all(
-                        all(abs(d.probabilities.f_value(i) - own_f_before[n][i]) < 1e-12
+                        all(abs(d.probabilities.f_value(i) - resolved_f_before[n][i]) < 1e-12
                             for i in range(d.probabilities.n_independents))
                         for n, d in enumerate(dependants)
                     )))

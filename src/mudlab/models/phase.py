@@ -148,6 +148,45 @@ class Phase:
                 clear()
         return True
 
+    def snapshot_inherited(self) -> bool:
+        """Bake every inherited value into this phase's OWN storage and clear the
+        inherit flags, so a following detach (set_based_on(None), or the parent
+        being deleted) leaves the resolved values - and thus the calculated
+        pattern - unchanged.
+
+        Object-valued fields (the CSDS distribution) are COPIED, not shared, so
+        two variants that inherited from the same base do not end up aliasing one
+        mutable object. Effective values are read while the inherit flags are
+        still set, then written back as own values.
+
+        Does NOT sever based_on itself - the caller detaches. Returns True if
+        anything was baked (there was live inheritance)."""
+        baked = False
+        if self.inherit_sigma_star:
+            self._sigma_star = self.sigma_star  # getter reads through, flag still on
+            baked = True
+        if self.inherit_CSDS_distribution:
+            self._CSDS = DritsCSDSDistribution(self.CSDS.average)  # clone, not share
+            baked = True
+        if self.inherit_display_color:
+            self._display_color = self.display_color
+            baked = True
+        self.inherit_sigma_star = False
+        self.inherit_CSDS_distribution = False
+        self.inherit_display_color = False
+        # Stacking probabilities: bake each inherited independent parameter via
+        # the model-agnostic editable_params interface (get = effective /
+        # read-through, set = own). Capture all effective values first, then
+        # write, so no read depends on a flag already cleared this pass.
+        rows = self.probabilities.editable_params()
+        pending = [(r, r["get"]()) for r in rows if r["inherited"]]
+        for row, value in pending:
+            row["set"](value)
+            row["set_inherited"](False)
+        if pending:
+            baked = True
+        return baked
+
     def is_inherited(self, attr: str) -> bool:
         """True when `attr` reads through to the based_on phase (so it is not
         independently editable / refinable here)."""
