@@ -1805,6 +1805,20 @@ checkmark on every rebuild (read-only, signal-blocked — no loop). `_set_projec
 recomputes once at load when a stored project already has phases on, so the
 transient curves appear without a manual F5.
 
+**Phase index / mixture legend (2026-08-04).** `PatternPlot._draw_mixture_legend`
+(port of the old `plot_mixtures`) draws an upper-right `AnchoredOffsetbox`
+(`frameon=False`, zorder 10) indexing every mixture that owns a displayed
+specimen (`any(s in mixture.specimens ...)`). Each block is the mixture name,
+then one row per phase slot — `"<label>: <fraction*100:>5.1f>"` — with a colour
+swatch (`FancyBboxPatch` in an `AuxTransformBox`, `mutation_scale=14`) per
+non-empty phase cell across the specimens, filled with that phase's
+`display_color` (the same colour its per-phase curve uses; a `getattr` +
+`display_calc_color` fallback keeps a colourless phase-like from erroring). It is
+**always drawn** (as in the old app, independent of `display_phases`) and simply
+shows nothing when no shown specimen is in a mixture. `draw_pattern`'s
+`axes.clear()` drops the previous legend, so no remove-old bookkeeping is needed.
+Harness: `tools/verify_mixture_legend.py`.
+
 - Selection is `ExtendedSelection`; row selection drives the old
   `current_specimen` / `current_specimens` model properties, which in turn
   drive the specimen/specimens action groups and the plot.

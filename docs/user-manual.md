@@ -715,3 +715,18 @@ If you switch it on right after opening a project and nothing appears yet, the
 phase curves are recomputed the moment you toggle them (they are derived from the
 current fit and are not stored in the file); a **Refresh** (F5) also recomputes
 them. A project saved with the option on shows the curves as soon as it loads.
+
+### Phase index
+
+The top-right corner of the plot carries a **phase index** for every mixture that
+owns a specimen currently on show. Each entry lists the mixture's name, then one
+line per phase slot giving its **label and fraction** (as a percentage), next to
+a small **colour swatch** for each specimen — in the same colour that phase's
+curve uses when *Show phase patterns* is on. So you can read off, at a glance,
+which phase is which colour and what proportion it makes up.
+
+Because a slot can hold a different phase in each specimen (the air-dried,
+glycolated and heated forms of one clay), a row shows one swatch per specimen —
+usually the same colour across the row, but a different colour wherever a slot
+holds a differently-coloured phase. The index appears automatically; it is empty
+(and hidden) only when none of the shown specimens belongs to a mixture.

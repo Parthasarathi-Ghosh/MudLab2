@@ -26,6 +26,15 @@ from typing import Callable
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.offsetbox import (
+    AnchoredOffsetbox,
+    AuxTransformBox,
+    HPacker,
+    TextArea,
+    VPacker,
+)
+from matplotlib.patches import FancyBboxPatch
+from matplotlib.transforms import IdentityTransform
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import QSizePolicy
@@ -373,6 +382,9 @@ class PatternPlot:
         for spec in marker_specs:
             self._draw_marker(*spec, xlim=xlim, y_top=ylim_top)
 
+        # Phase index: an upper-right legend of the mixtures on show.
+        self._draw_mixture_legend()
+
         if lines == 0:
             axes.text(
                 0.5, 0.5, "No pattern data",
@@ -385,6 +397,68 @@ class PatternPlot:
         # Old controller (controllers.py:108): the axes never autoscale, so
         # crosshair/highlight artists can never alter the view ranges.
         axes.set_autoscale_on(False)
+
+    def _draw_mixture_legend(self) -> None:
+        """Port of the old plot_mixtures: an upper-right index of every mixture
+        that owns a displayed specimen. Each block is the mixture name, then one
+        row per phase slot - "<label>: <fraction %>" and a colour swatch per
+        specimen-cell filling that slot, in the phase's display_color (the same
+        colour its per-phase curve uses). Always drawn (as in the old app); it
+        simply shows nothing when no displayed specimen belongs to a mixture.
+        `axes.clear()` at the top of draw_pattern drops the previous one, so no
+        remove-old bookkeeping is needed."""
+        project = self.project
+        mixtures = [
+            m for m in getattr(project, "mixtures", [])
+            if any(s in m.specimens for s in self.specimens)
+        ]
+        if not mixtures:
+            return
+
+        default_color = getattr(project, "display_calc_color", INK_PRIMARY)
+
+        def swatch(ec="#000000", fc=None):
+            # A fixed-size square (figure-fraction units), or an invisible spacer
+            # when both colours are None (old create_rect_patch).
+            box = AuxTransformBox(IdentityTransform())
+            box.add_artist(FancyBboxPatch(
+                (0, 0), width=0.02, height=0.02, boxstyle="square",
+                ec=ec, fc=fc, mutation_scale=14,
+                transform=self.figure.transFigure,
+                alpha=1.0 if (ec is not None or fc is not None) else 0.0,
+            ))
+            return box
+
+        def text(s, weight="normal"):
+            return TextArea(s, textprops=dict(
+                color=INK_PRIMARY, size="small", weight=weight))
+
+        blocks = []
+        for mixture in mixtures:
+            labels = mixture.phase_labels
+            fractions = mixture.fractions
+            # Title, padded with an invisible swatch per specimen so the name
+            # sits above the label column, not the swatches (old title_box).
+            title_row = [text(mixture.name, weight="bold")]
+            title_row += [swatch(ec=None) for _ in mixture.specimens]
+            rows = [HPacker(children=title_row, align="center", pad=0, sep=3)]
+            for i, label in enumerate(labels):
+                frac = float(fractions[i]) if i < len(fractions) else 0.0
+                children = [text("{}: {:>5.1f}".format(label, frac * 100.0))]
+                for row in mixture.phase_matrix:
+                    phase = row[i] if i < len(row) else None
+                    if phase is not None:
+                        children.append(swatch(
+                            fc=getattr(phase, "display_color", None) or default_color))
+                rows.append(HPacker(children=children, align="center", pad=0, sep=3))
+            blocks.append(VPacker(children=rows, align="right", pad=0, sep=3))
+
+        legend = AnchoredOffsetbox(
+            loc="upper right", pad=0.2, borderpad=0.3, frameon=False,
+            child=VPacker(children=blocks, align="right", pad=0, sep=6),
+        )
+        legend.set_zorder(10)
+        self.axes.add_artist(legend)
 
     # matplotlib line styles by marker style value (none/offset draw no line).
     _MARKER_LINE_STYLES = {
