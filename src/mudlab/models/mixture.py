@@ -187,6 +187,56 @@ class Mixture:
         if isinstance(mask, list) and 0 <= slot_index < len(mask):
             del mask[slot_index]
 
+    def _ensure_fractions_mask(self) -> list:
+        """The per-slot fractions refine mask (1 = refine that fraction), stored
+        in raw_properties so it round-trips. Created all-free the first time a
+        refine flag is set (the calc otherwise defaults to all-free), and kept the
+        same length as the phase slots."""
+        m = len(self.phase_labels)
+        mask = self.raw_properties.get("fractions_mask")
+        if not isinstance(mask, list):
+            mask = [1] * m
+        elif len(mask) != m:
+            mask = (list(mask) + [1] * m)[:m]  # keep what we can; pad/trim to m
+        self.raw_properties["fractions_mask"] = mask
+        return mask
+
+    def fraction_refine(self, slot_index: int) -> bool:
+        """Whether the phase slot's fraction is refined by Optimize. Default True
+        (the calc treats an absent/short mask as all-free), matching the engine."""
+        mask = self.raw_properties.get("fractions_mask")
+        if not isinstance(mask, list) or not (0 <= slot_index < len(mask)):
+            return True
+        return bool(mask[slot_index])
+
+    def set_fraction_refine(self, slot_index: int, refine: bool) -> None:
+        """Set whether the phase slot's fraction is refined by Optimize. Writes
+        (creating if needed) the fractions_mask so an unchecked fraction stays
+        fixed during the next optimise and the choice persists to the .mud."""
+        mask = self._ensure_fractions_mask()
+        if 0 <= slot_index < len(mask):
+            mask[slot_index] = 1 if refine else 0
+
+    def _normalize_fractions_mask(self) -> None:
+        """Clamp a stored fractions_mask to one entry per phase slot, padding new
+        slots as refinable (1). Does NOT create a mask where none exists (an
+        absent mask means all-free), and drops a non-list mask as garbage.
+
+        The optimiser reads the mask by index (`np.take` over its free indices),
+        so a length that drifted from the phase count - a corrupt or legacy .mud
+        (cf. the old-app save bug) - would IndexError when too long, or silently
+        hold the trailing slots fixed when too short. Called on load (from_dict)
+        so a mask reaching the optimiser always matches the phase count."""
+        mask = self.raw_properties.get("fractions_mask")
+        if mask is None:
+            return
+        if not isinstance(mask, list):
+            del self.raw_properties["fractions_mask"]  # garbage -> all-free
+            return
+        m = len(self.phase_labels)
+        if len(mask) != m:
+            self.raw_properties["fractions_mask"] = (mask + [1] * m)[:m]
+
     def calculate(self) -> None:
         """Compute and store every specimen's calculated pattern."""
         for i, specimen in enumerate(self.specimens):
@@ -276,6 +326,7 @@ class Mixture:
         mix.phase_matrix = [
             [phase_uuid_map.get(u) for u in row] for row in mix.phase_uuids
         ]
+        mix._normalize_fractions_mask()  # heal a length-drifted mask from disk
         return mix
 
     def to_dict(self) -> dict:

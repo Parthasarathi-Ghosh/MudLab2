@@ -171,6 +171,12 @@ port, produces the calculated pattern from scratch):
   is silent by default); the core does NOT swallow exceptions (fail loud - the
   GUI wraps it), the objective is guarded finite (_PENALTY), a diverged solve
   keeps the current solution.
+- [x] per-phase fraction refine checkbox (2026-08-04) - the fraction cell in the
+  Edit Mixtures matrix now has a checkbox (old app `fractions_mask`) bound to
+  Mixture.fraction_refine/set_fraction_refine. Unchecked = that phase's fraction
+  is held fixed by Optimize (for manual setting); the optimiser renormalises the
+  remaining free fractions to 1 - sum(fixed). Harnesses tools/verify_fraction_
+  refine.py (model + optimise) + tools/verify_fraction_refine_ui.py (checkbox).
 
 Regression harnesses (all head-less, bundled interpreter, exit 0 = pass /
 1 = regression / 2 = no samples; pass .mud paths to point elsewhere):

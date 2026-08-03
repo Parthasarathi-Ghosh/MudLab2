@@ -1014,6 +1014,21 @@ modeless by `actionEditMixtures`.
   validates (bad input reverts) and calls `on_changed` -> `mixture.
   calculate()`, so the pattern redraws live. Row/col constants live in the
   widget module.
+- Per-phase fraction refine flag (2026-08-04): the fraction cell also carries a
+  checkbox (`_set_cell(..., check=...)`, `ItemIsUserCheckable`) bound to
+  `Mixture.fraction_refine` / `set_fraction_refine` - the old app's
+  `fractions_mask`. Checked = Optimize refines this phase's fraction; unchecked
+  = the fraction is held fixed (for manual setting), and the optimiser
+  renormalises the remaining free fractions to `1 - sum(fixed)`. The mask lives
+  in `raw_properties["fractions_mask"]` (1 = refine), stays one-per-slot as slots
+  are added/removed, and round-trips. `_on_item_changed` syncs the check state to
+  the model before the (unchanged) fraction value falls through to the single
+  `on_changed`. `Mixture.from_dict` calls `_normalize_fractions_mask()` on load
+  so a length-drifted / garbage mask off disk (a corrupt or legacy .mud) is
+  padded/trimmed to the phase count (or dropped) - the optimiser reads the mask
+  by index and would otherwise IndexError on an over-long one. Harnesses:
+  `tools/verify_fraction_refine.py` (model + optimise + load-normalise),
+  `tools/verify_fraction_refine_ui.py` (the checkbox widget).
 - Phase-cell assignment (2026-07-21): each phase cell is a `QComboBox`
   (`_set_phase_combo`) offering "(none)" + every project phase; choosing one
   calls `Mixture.set_phase_at(specimen_i, slot_j, phase)`, which writes BOTH

@@ -143,7 +143,8 @@ class EditMixtureWidget(QWidget):
             # Per-phase-slot fraction + a combo assigning the phase in each cell.
             for j in range(m_slot):
                 row = _FIRST_PHASE_ROW + j
-                self._set_cell(row, _COL_FRACTION, self._fmt(mixture.fractions, j, 4), editable=True)
+                self._set_cell(row, _COL_FRACTION, self._fmt(mixture.fractions, j, 4),
+                               editable=True, check=mixture.fraction_refine(j))
                 for i in range(n_spec):
                     self._set_phase_combo(row, _FIRST_SPEC_COL + i, i, j)
 
@@ -238,6 +239,15 @@ class EditMixtureWidget(QWidget):
         if self._mixture is None:
             return
         row, col = item.row(), item.column()
+        # The fraction cell carries a "refine this fraction" checkbox; sync its
+        # state to the model. A toggle never changes the cell text, so the
+        # fraction fall-through below always parses and fires the single _notify
+        # that persists this mask change.
+        if row >= _FIRST_PHASE_ROW and col == _COL_FRACTION:
+            slot = row - _FIRST_PHASE_ROW
+            refine = item.checkState() == Qt.CheckState.Checked
+            if self._mixture.fraction_refine(slot) != refine:
+                self._mixture.set_fraction_refine(slot, refine)
         target = self._field_for(row, col)
         if target is None:
             return  # phase cell / corner - not editable
@@ -298,12 +308,22 @@ class EditMixtureWidget(QWidget):
             return f"{float(array[index]):.{decimals}f}"
         return ""
 
-    def _set_cell(self, row: int, col: int, text: str, editable: bool) -> None:
+    def _set_cell(self, row: int, col: int, text: str, editable: bool,
+                  check: bool | None = None) -> None:
         item = QTableWidgetItem(text)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         flags = Qt.ItemFlag.ItemIsEnabled
         if editable:
             flags |= Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
+        if check is not None:
+            # A per-phase "refine this fraction" checkbox lives on the fraction
+            # cell (old app: fractions_mask). Unchecked = the fraction is held
+            # fixed by Optimize.
+            flags |= Qt.ItemFlag.ItemIsUserCheckable
+            item.setCheckState(
+                Qt.CheckState.Checked if check else Qt.CheckState.Unchecked)
+            item.setToolTip("Refine this phase's fraction during Optimize "
+                            "(uncheck to hold it fixed).")
         item.setFlags(flags)
         self.ui.tbl_matrix.setItem(row, col, item)
 

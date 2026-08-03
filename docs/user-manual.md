@@ -315,6 +315,25 @@ that specimen**. Because it is per cell, the *same* slot can hold a *different*
 phase in different specimens — e.g. the air-dried, glycolated and heated forms
 of one clay across three columns.
 
+You can type directly into any numeric cell — the **Fraction** for each slot and
+the **Abs. scale** / **Bg. shift** for each specimen — and the pattern redraws as
+soon as you press Enter. A value that will not parse is rejected and the old one
+restored.
+
+### Choosing which fractions Optimize refines
+
+Each **Fraction** cell has a **checkbox**. It decides whether **Optimize** is
+allowed to change that phase's fraction:
+
+- **Ticked** (the default) — Optimize refines the fraction along with the others.
+- **Unticked** — the fraction is **held fixed** at whatever value you typed.
+  Optimize leaves it exactly as set and adjusts only the remaining (ticked)
+  fractions, rescaling them so all the fractions still add up to 1.
+
+Untick a box when you already **know** a phase's proportion — for example an
+internal standard you weighed in — and want to set it by hand while the fit
+solves for the rest. The setting is saved with the project.
+
 ### Assigning a phase to a slot
 
 Click a phase cell to open its drop-down. It lists **(none)** and every phase
