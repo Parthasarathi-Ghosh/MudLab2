@@ -207,12 +207,55 @@ def check_pairing():
     check("pairing: a row-count mismatch raises instead of mis-pairing", raised)
 
 
+# ----------------------------------------------------------------------
+# Regression: a RawPatternPhase in a mixture must draw in the per-phase overlay.
+# It used to lack `display_color`, so drawing the overlay raised AttributeError,
+# which blanked the whole plot after an Optimize with a raw phase assigned.
+# ----------------------------------------------------------------------
+def check_raw_phase_overlay():
+    from mudlab.models.raw_pattern_phase import RawPatternPhase
+
+    raw = RawPatternPhase(name="Raw")
+    check("RawPatternPhase has a display_color", hasattr(raw, "display_color"))
+    raw.display_color = "#123456"
+    back = RawPatternPhase.from_dict(raw.to_dict())
+    check("RawPatternPhase display_color round-trips", back.display_color == "#123456")
+
+    project = load_mud(PATH)
+    mix = project.mixtures[0]
+    spec = next(s for s in mix.specimens if s is not None)
+    ex, ey = spec.experimental_pattern
+    raw = RawPatternPhase(name="Raw")
+    raw.set_raw_pattern(np.asarray(ex, float), np.asarray(ey, float))
+    raw.display_color = "#123456"
+    project.add_phase(raw)
+    j = mix.add_phase_slot("Raw")
+    for i, s in enumerate(mix.specimens):
+        if s is not None:
+            mix.set_phase_at(i, j, raw)
+    mix.calculate()
+    shown = [s for s in mix.specimens if s is not None][:1]
+    shown[0].display_phases = True
+    shown[0].display_calculated = True
+    crashed = False
+    colors: set = set()
+    try:
+        plot = PatternPlot(shown, project)
+        colors = {ln.get_color() for ln in plot.axes.get_lines()}
+    except Exception:
+        crashed = True
+    check("raw phase in a mixture draws the per-phase overlay without crashing",
+          not crashed)
+    check("the raw phase is drawn in its display_color", "#123456" in colors)
+
+
 def main():
     print("fixture: %s (%d phases)" % (os.path.basename(PATH), len(FILLED)))
     check_capture()
     check_transient()
     check_drawing()
     check_pairing()
+    check_raw_phase_overlay()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

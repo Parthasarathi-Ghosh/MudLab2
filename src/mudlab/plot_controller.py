@@ -268,9 +268,14 @@ class PatternPlot:
                     phase_y = np.asarray(phase_y, dtype=float)
                     if phase_y.shape != cx.shape:
                         continue  # stale (grid changed); a recompute rebuilds it
+                    # getattr guard: a phase-like without a colour must never
+                    # blank the whole plot with an AttributeError (a raw phase
+                    # used to lack display_color).
+                    color = (getattr(phase, "display_color", None)
+                             or project.display_calc_color)
                     axes.plot(
                         cx, phase_y * spec_scale + spec_y_pos,
-                        color=phase.display_color, linewidth=0.9, zorder=2,
+                        color=color, linewidth=0.9, zorder=2,
                     )
                     lines += 1
             if specimen.display_calculated and specimen.has_calculated_data:

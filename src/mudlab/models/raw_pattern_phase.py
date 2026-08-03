@@ -68,6 +68,10 @@ class RawPatternPhase:
         self.type = "RawPatternPhase"
         self.uuid = _uuid.uuid4().hex
         self.name = name
+        # Plot colour (hex), like Phase.display_color - the per-phase overlay and
+        # the phase list read it. Round-trips via the stored raw_pattern line's
+        # colour (the old app kept the colour on that line).
+        self._display_color = "#000000"
         # A raw pattern is taken exactly as measured: no Lorentz-polarisation
         # factor and no machine correction (matches PyXRD's data_object).
         self.apply_lpf = False
@@ -113,6 +117,14 @@ class RawPatternPhase:
         pattern (>= 2 points). Same gate the mixture editor applies to Phase."""
         return self.raw_pattern_x.size > 1
 
+    @property
+    def display_color(self) -> str:
+        return self._display_color
+
+    @display_color.setter
+    def display_color(self, value) -> None:
+        self._display_color = str(value)
+
     # -- pattern data ------------------------------------------------------
     def set_raw_pattern(self, x, y) -> None:
         self.raw_pattern_x = np.asarray(x, dtype=float)
@@ -138,6 +150,7 @@ class RawPatternPhase:
         line_props["data"] = _encode_raw_pattern(
             self.raw_pattern_x, self.raw_pattern_y
         )
+        line_props["color"] = self._display_color
         props["raw_pattern"] = {
             "type": line.get("type", "PyXRDLine"),
             "properties": line_props,
@@ -158,4 +171,6 @@ class RawPatternPhase:
             phase.raw_pattern_x, phase.raw_pattern_y = x, y
             if line_props.get("uuid"):
                 phase._line_uuid = line_props["uuid"]
+            if line_props.get("color"):
+                phase._display_color = str(line_props["color"])
         return phase
