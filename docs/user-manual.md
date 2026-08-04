@@ -600,15 +600,15 @@ the specimens it could not trim.
 
 ### Convert between fixed and automatic (ADS) slit
 
-**Data → Convert data to fixed slit** and **Data → Convert data to ADS** rescale
+**Data → Convert to Fixed Slit** and **Data → Convert to ADS** rescale
 the selected specimen's measured intensities between the two divergence-slit
 geometries. A fixed divergence slit keeps the beam's angular width constant; an
 **automatic** (or *variable*) divergence slit — ADS — opens as the angle
 increases so the irradiated length on the sample stays constant, collecting more
 intensity at higher angles. The two therefore differ by a factor of **sin θ**:
 
-- **Convert data to ADS** multiplies the intensities by sin θ (fixed → ADS).
-- **Convert data to fixed slit** divides them by sin θ (ADS → fixed).
+- **Convert to ADS** multiplies the intensities by sin θ (fixed → ADS).
+- **Convert to Fixed Slit** divides them by sin θ (ADS → fixed).
 
 Use this to bring a pattern into the same geometry as a reference, a background
 scan, or the rest of your specimens before comparing or fitting them. Each
@@ -619,9 +619,11 @@ not undoable** until you reopen without saving. The two directions are inverses,
 so converting the wrong way can be undone by converting back.
 
 > **Note:** the conversion changes only the measured data, not the specimen's
-> goniometer. If you convert a pattern's geometry, set the **Divergence mode** on
-> the specimen's Goniometer tab to match, so the calculated pattern is corrected
-> the same way.
+> goniometer. MudLab2's confirmation reminds you of this: after converting, set
+> the **Divergence mode** on the specimen's Goniometer tab to match (**Automatic**
+> for ADS, **Fixed** for fixed slit) and press **F5 (Refresh Graph)** to
+> recompute, so the calculated pattern is corrected the same way. (Changing a
+> goniometer setting does not recompute on its own — F5 applies it.)
 
 ---
 

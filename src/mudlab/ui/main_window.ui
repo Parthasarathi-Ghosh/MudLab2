@@ -409,12 +409,12 @@
   </action>
   <action name="actionConvertToFixed">
    <property name="text">
-    <string>Convert data to fixed slit</string>
+    <string>Convert to Fixed Slit</string>
    </property>
   </action>
   <action name="actionConvertToADS">
    <property name="text">
-    <string>Convert data to ADS</string>
+    <string>Convert to ADS</string>
    </property>
   </action>
   <action name="actionEditPhases">

@@ -885,11 +885,18 @@ class MainWindow(QMainWindow):
         if specimen is None:
             return
         target = "ADS" if to_ads else "fixed slit"
+        # The conversion changes the DATA's geometry but not the goniometer, and a
+        # goniometer edit does not auto-recompute, so remind the user of both the
+        # matching mode and the F5 that applies it.
+        mode = "Automatic" if to_ads else "Fixed"
         reply = QMessageBox.question(
             self, "Convert data",
-            "Convert %s's experimental data to %s geometry?\n\nThis rescales the "
-            "pattern in place and cannot be undone (save the project to keep it)."
-            % (specimen.name, target),
+            "Convert %s's experimental data to %s geometry?\n\n"
+            "This rescales the pattern in place and cannot be undone "
+            "(save the project to keep it).\n\n"
+            "To make the calculated pattern match, set this specimen's "
+            "Goniometer → Divergence mode to %s afterwards, then press F5 "
+            "to recompute." % (specimen.name, target, mode),
         )
         if reply != QMessageBox.StandardButton.Yes:
             return

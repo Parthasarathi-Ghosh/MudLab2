@@ -31,11 +31,17 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 import numpy as np
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-# The conversion pops a modal confirmation; auto-accept it so the head-less run
-# does not block.
-QMessageBox.question = staticmethod(
-    lambda *a, **k: QMessageBox.StandardButton.Yes
-)
+# The conversion pops a modal confirmation; auto-accept it (and record its text,
+# to check the divergence-mode reminder) so the head-less run does not block.
+_last_confirm = {"text": ""}
+
+
+def _fake_question(*a, **k):
+    _last_confirm["text"] = a[2] if len(a) > 2 else k.get("text", "")
+    return QMessageBox.StandardButton.Yes
+
+
+QMessageBox.question = staticmethod(_fake_question)
 
 from mudlab.file_parsers.mud_project import load_mud
 from mudlab.main_window import MainWindow
@@ -104,11 +110,15 @@ def main():
     check("Convert to ADS rescales the pattern (x sin theta)",
           np.allclose(y_ads, y0 * sin_theta))
     check("Convert to ADS marks the project dirty", win._dirty is True)
+    check("ADS confirmation reminds to set Automatic mode + F5",
+          "Automatic" in _last_confirm["text"] and "F5" in _last_confirm["text"])
 
     win.ui.actionConvertToFixed.trigger()
     _x2, y_back = spec.experimental_pattern
     check("Convert to fixed inverts it (round-trip to original)",
           np.allclose(y_back, y0, atol=1e-6))
+    check("fixed confirmation reminds to set Fixed mode + F5",
+          "Fixed" in _last_confirm["text"] and "F5" in _last_confirm["text"])
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

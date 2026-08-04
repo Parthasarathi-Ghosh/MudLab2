@@ -1986,8 +1986,8 @@ QActions on `MainWindow` with two update methods
   ConvertToADS are greyed with them rather than following the old multi-specimen
   rule.*
 
-**Fixed <-> ADS slit conversion (2026-08-04).** `Convert data to fixed slit` /
-`Convert data to ADS` rescale the selected specimen's experimental pattern
+**Fixed <-> ADS slit conversion (2026-08-04).** `Convert to Fixed Slit` /
+`Convert to ADS` rescale the selected specimen's experimental pattern
 between fixed and automatic (ADS) divergence-slit geometry. An ADS slit opens
 with θ to hold the irradiated length constant, collecting ~sin θ the intensity a
 fixed slit would, so **fixed→ADS = × sin θ**, **ADS→fixed = ÷ sin θ** (the factor
@@ -1998,8 +1998,11 @@ untouched). Numerics: `pattern_ops.convert_slit(x, y, to_ads)`; model:
 dialog would give this parameterless op, then `data_changed` → plot refresh +
 dirty). It rescales the experimental data only — it does **not** flip the
 goniometer's divergence mode (faithful to the old app; the user sets the mode).
-Harnesses: `tools/verify_convert_slit.py` (transform + model),
-`tools/verify_convert_slit_ui.py` (menu wiring).
+Because of that, and because a goniometer edit does not auto-recompute (the
+`gonio.data_changed` no-listener gap), the confirmation **reminds** the user to
+set Goniometer → Divergence mode to the matching value (Automatic for ADS, Fixed
+for fixed) and press F5. Harnesses: `tools/verify_convert_slit.py` (transform +
+model), `tools/verify_convert_slit_ui.py` (menu wiring + the reminder text).
 
 ## Old actions NOT in the main window UI
 
