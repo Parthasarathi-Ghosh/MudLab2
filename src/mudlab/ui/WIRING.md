@@ -1325,7 +1325,15 @@ disabled, so the placeholder is never reachable.
 the Edit Specimen Goniometer tab (`goniometerLayout`); reuse it anywhere
 a goniometer setup is edited. Bound live to the specimen's `Goniometer`
 model (`bind_goniometer`) - edits write to the model, which feeds the
-intensity-correction calculations (batch 2 below).
+intensity-correction calculations (batch 2 below). `bind_goniometer(None)`
+disables the whole tab, so **every specimen must own a goniometer**:
+`Specimen.__init__` now defaults `self.goniometer = Goniometer()` (CuKα
+Bragg-Brentano; a `.mud` load overwrites it). Before this, an imported / added
+specimen had `goniometer = None` and the tab was greyed out (2026-08-05 fix;
+`verify_specimen_goniometer`). Note: import still uses the DEFAULT goniometer -
+the `.xrdml`/`.raw` instrument metadata is not parsed into it (a possible
+follow-up); the calc uses the experimental 2θ grid, so only the wavelength
+matters, and CuKα is the default.
 
 - Four groups with old ids kept: General (`gonio_radius_spb`,
   `gonio_min_2theta_spb` 0-160, `gonio_max_2theta_spb` 0-100,

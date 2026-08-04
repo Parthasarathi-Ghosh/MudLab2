@@ -685,7 +685,11 @@ removes the reference-peak overlay.
 
 ## The goniometer emission spectrum
 
-Each specimen carries a goniometer setup (**Edit Specimen → Goniometer** tab).
+Each specimen carries a goniometer setup (**Edit Specimen → Goniometer** tab). A
+newly imported or added specimen starts with a **default** setup (Cu Kα,
+Bragg–Brentano) — check it matches your instrument, edit any values that differ,
+or apply a **stored setup** (see below). Imported patterns keep their own 2θ
+range regardless, so the default range does not affect the fit.
 The X-ray source is described by its **emission spectrum** — the set of
 wavelengths it emits and their relative strengths. Most of the calculation uses
 the **dominant** wavelength (the strongest line), shown next to the

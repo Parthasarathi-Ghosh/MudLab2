@@ -16,6 +16,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 from mudlab.calculations import get_nm_from_2t
+from mudlab.models.goniometer import Goniometer
 from mudlab.models.properties import Prop
 
 DEFAULT_WAVELENGTH = 0.154056  # nm, CuKα1 (old settings default)
@@ -64,7 +65,10 @@ class Specimen(QObject):
         # Exclusion ranges: (from_2theta, to_2theta) pairs the fit / stats
         # ignore (old exclusion_ranges XYListStore). Set from the .mud on load.
         self._exclusion_ranges: list[tuple[float, float]] = []
-        self.goniometer = None  # set from the .mud (Goniometer model)
+        # Every specimen owns a goniometer (default CuKα Bragg-Brentano); a .mud
+        # load overwrites it from the file. A freshly imported / added specimen
+        # keeps this default so its Goniometer tab is editable, not greyed out.
+        self.goniometer = Goniometer()
         self.project = None  # set by Project.add_specimen
         # Transient reference-mineral overlay: [(2theta, rel_intensity), ...] or
         # None (Match Minerals preview). Never serialized.
