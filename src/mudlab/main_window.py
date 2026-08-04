@@ -152,9 +152,7 @@ class MainWindow(QMainWindow):
         # Trim takes the whole specimen list too (it can trim all of them).
         self.ui.actionTrimData.triggered.connect(self._show_trim_data)
         self._data_op_actions.append(self.ui.actionTrimData)
-        self.ui.actionSaveGraph.triggered.connect(
-            lambda: SaveGraphSizeDialog(self).exec()
-        )
+        self.ui.actionSaveGraph.triggered.connect(self._save_graph)
         # Strip Peak / Peak Properties are modeless: their Sample buttons
         # pick positions on the plot, so the plot must stay clickable.
         self._strip_peak_dialog: StripPeakDialog | None = None
@@ -527,6 +525,17 @@ class MainWindow(QMainWindow):
     def clear_pattern_preview(self) -> None:
         for plot in self.pattern_plots:
             plot.clear_preview()
+
+    def set_shift_reference(self, specimen, position: float) -> None:
+        """Show the Shift dialog's reference line (2theta) on the plot(s) that
+        display `specimen`."""
+        for plot in self.pattern_plots:
+            if specimen in plot.specimens:
+                plot.set_shift_reference(position)
+
+    def clear_shift_reference(self) -> None:
+        for plot in self.pattern_plots:
+            plot.clear_shift_reference()
 
     def set_mineral_preview(self, specimen, peaks) -> None:
         """Set the Match Minerals reference-peak overlay for `specimen` and
@@ -912,6 +921,38 @@ class MainWindow(QMainWindow):
         TrimDataDialog(
             self, specimen=specimen, specimens=list(self.project.specimens)
         ).exec()
+
+    def _save_graph(self) -> None:
+        """Export the current plot to an image (old on_save_graph ->
+        plot_controller.save). Qt's native file dialog cannot embed the size
+        options, so a small size/DPI dialog runs first, then the file picker,
+        then the plot saves at the chosen inch size + dpi."""
+        if not self.pattern_plots:
+            return
+        dialog = SaveGraphSizeDialog(self)
+        if not dialog.exec():  # QDialog.Accepted == 1; Rejected/closed == 0
+            return
+        width = float(dialog.ui.entry_width.value())
+        height = float(dialog.ui.entry_height.value())
+        dpi = float(dialog.ui.entry_dpi.value())
+        # Default name: the single shown specimen, else the project (old app).
+        shown = [s for s in self._shown_specimens if s is not None]
+        default_name = (shown[0].name if len(shown) == 1 and shown[0].name
+                        else self.project.name) or "graph"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Graph", default_name + ".png",
+            "PNG image (*.png);;PDF document (*.pdf);;SVG image (*.svg)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith((".png", ".pdf", ".svg")):
+            path += ".png"
+        try:
+            self.pattern_plots[0].save_figure(path, dpi, width / dpi, height / dpi)
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash
+            QMessageBox.warning(
+                self, "Save Graph", "Could not save the graph:\n\n%s" % exc
+            )
 
     def _show_strip_peak(self) -> None:
         specimen = self._data_op_specimen()

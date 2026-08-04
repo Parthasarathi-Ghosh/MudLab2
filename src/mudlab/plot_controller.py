@@ -34,7 +34,7 @@ from matplotlib.offsetbox import (
     VPacker,
 )
 from matplotlib.patches import FancyBboxPatch
-from matplotlib.transforms import IdentityTransform
+from matplotlib.transforms import Bbox, IdentityTransform
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import QSizePolicy
@@ -59,6 +59,7 @@ HIGHLIGHT_COLOR = "#FF6600"
 RESIDUAL_COLOR = "#7048a8"  # difference-curve violet (Rietveld convention)
 PREVIEW_COLOR = "#E8590C"  # live data-op preview (warm orange, over the original)
 MINERAL_PREVIEW_COLOR = "#D6336C"  # Match Minerals reference-peak sticks (magenta)
+SHIFT_REFERENCE_COLOR = "#1098AD"  # Shift dialog's fixed reference-position line (teal)
 
 
 def _max_display_y(specimen: Specimen) -> float:
@@ -114,6 +115,9 @@ class PatternPlot:
         # Live data-op preview overlay (see set_preview): the result a data-op
         # dialog would apply, drawn over the original while the dialog is open.
         self._preview: dict | None = None
+        # Shift dialog's fixed reference line (a 2theta position, degrees), drawn
+        # as a dotted vertical line while that dialog is open (see draw_pattern).
+        self._shift_reference: float | None = None
 
         self.draw_pattern()
 
@@ -155,11 +159,48 @@ class PatternPlot:
             self._preview = None
             self._redraw_keep_view()
 
+    def set_shift_reference(self, position: float) -> None:
+        """Show a fixed dotted vertical line at `position` (2theta, degrees) -
+        the Shift dialog's reference reflection, which the user aligns the
+        shifted peak onto. Redraws, preserving any user zoom."""
+        self._shift_reference = float(position)
+        self._redraw_keep_view()
+
+    def clear_shift_reference(self) -> None:
+        if self._shift_reference is not None:
+            self._shift_reference = None
+            self._redraw_keep_view()
+
     def refresh(self) -> None:
         """Redraw the current content in place (no rebuild), preserving zoom.
         Reads specimen.mineral_preview + plot._preview, so an overlay update
         never discards the other overlay or the user's zoom."""
         self._redraw_keep_view()
+
+    def save_figure(self, filename: str, dpi: float,
+                    i_width: float, i_height: float) -> None:
+        """Export the plot to `filename` (.png / .pdf / .svg) at the given inch
+        size and dpi (dpi is ignored for the vector formats), restoring the
+        on-screen size and dpi afterwards. Port of the old plot_controller.
+        save_figure."""
+        is_vector = filename.lower().endswith((".svg", ".pdf"))
+        original_dpi = self.figure.get_dpi()
+        original_size = self.figure.get_size_inches()
+        self.figure.set_size_inches((i_width, i_height))
+        if not is_vector:
+            self.figure.set_dpi(dpi)
+        self.canvas.draw()
+        bbox = Bbox.from_bounds(0, 0, i_width, i_height)
+        save_kwargs = {"bbox_inches": bbox}
+        if not is_vector:
+            save_kwargs["dpi"] = dpi
+        try:
+            self.figure.savefig(filename, **save_kwargs)
+        finally:
+            # Always restore the interactive size/dpi, even if saving failed.
+            self.figure.set_dpi(original_dpi)
+            self.figure.set_size_inches(original_size)
+            self.canvas.draw()
 
     def _redraw_keep_view(self) -> None:
         view = self.user_view()  # the user's zoom, if any (None = home view)
@@ -384,6 +425,14 @@ class PatternPlot:
 
         # Phase index: an upper-right legend of the mixtures on show.
         self._draw_mixture_legend()
+
+        # Shift dialog's reference line: a fixed dotted vertical at the target
+        # 2theta, so the user can line the shifted peak up against it.
+        if self._shift_reference is not None:
+            axes.axvline(
+                self._shift_reference, color=SHIFT_REFERENCE_COLOR,
+                linestyle=":", linewidth=1.3, zorder=9,
+            )
 
         if lines == 0:
             axes.text(

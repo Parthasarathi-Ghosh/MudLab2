@@ -1472,6 +1472,15 @@ nothing. Guards: `verify_pattern_preview` + `verify_data_op_preview`.
     default: it models the sample sitting off the focusing circle, so the
     correction shrinks as 2θ grows. `"Linear"` subtracts a constant and
     (only then) moves the markers with the data, as the old app did.
+  - **Reference line (2026-08-05, was missing).** The old app drew a fixed
+    dotted vertical at the reference reflection's target 2θ; MudLab2 hadn't
+    ported it (the dialog opened but no line showed). Now `ShiftPatternDialog`
+    computes the target 2θ (`get_2t_from_nm(SHIFT_POSITIONS[i], specimen.
+    wavelength)`) and drives `main_window.set_shift_reference` /
+    `clear_shift_reference` → `PatternPlot` draws a dotted vertical in
+    `SHIFT_REFERENCE_COLOR` (teal). It updates on `showEvent` + reference-combo
+    change, is FIXED against the shift value (the data moves toward it), clears
+    in Manual mode and on `accept`/`reject`. Harness: `verify_shift_reference`.
 - **Add Noise** (`add_noise.ui`): `spin_fraction` 0-1. Noise sigma is
   `fraction * max(y)` - scaled to the strongest reflection, not per-point.
 - **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` +
@@ -1626,7 +1635,13 @@ to hold on the baseline fixture.
   expander inside the save dialog; Qt native dialogs cannot embed custom
   widgets, so it runs as a small pre-dialog (presets fill
   `entry_width`/`entry_height`/`entry_dpi`), then the native save dialog
-  follows (with the plot controller port).
+  follows. **Fully wired 2026-08-05** (`MainWindow._save_graph`): the size
+  dialog → `QFileDialog.getSaveFileName` (PNG/PDF/SVG, default name from the
+  shown specimen or project) → `PatternPlot.save_figure(path, dpi, w/dpi, h/dpi)`
+  (port of the old `save_figure`: applies the inch size + dpi, saves with a
+  `Bbox` crop, then restores the on-screen size/dpi). Previously the action only
+  opened the size dialog and discarded the result — clicking OK did nothing.
+  Harness: `tools/verify_save_graph.py`.
 
 ## Markers: Edit Markers + Detect Peaks + Match Minerals
 
@@ -1940,7 +1955,7 @@ matching editor window (each will need its own `.ui` when ported).
 | `actionEditProject` | `edit_project` | present project view |
 | `actionQuit` | `exit` | confirm-discard-unsaved, then quit. *Connected to `close()`; confirmation still to port.* |
 | `actionRefreshGraph` | `refresh_graph` | `on_refresh_graph`: `update_all_mixtures()` + redraw. *Wired: `MainWindow._refresh_graph` -> `project.calculate()` (all mixtures, non-optimising) + `_refresh_plots`; F5.* |
-| `actionSaveGraph` | `save_graph` | `on_save_graph`: plot controller's save-figure dialog (default name from specimen/project) |
+| `actionSaveGraph` | `save_graph` | **Wired (2026-08-05):** `MainWindow._save_graph` → size dialog → file picker → `PatternPlot.save_figure`. See the Save Graph note above. (Was a no-op: opened the size dialog then discarded it.) |
 | `actionRemoveBackground` | `remove_bg` | single specimen: `specimen.remove_background()`; multiple: `project.remove_backgrounds(...)` |
 | `actionSmoothData` | `smooth_data` | single-specimen smoothing dialog |
 | `actionShiftPattern` | `shift_data` | single-specimen shift dialog |
@@ -2042,7 +2057,10 @@ Port as a list of QActions toggled by a `set_layout_mode(mode)` method.
 
 - Confirm-discard-unsaved-changes guard before Quit / New / Open
   (`model.check_for_changes()`).
-- Main window maximizes on startup (unless DEBUG in the old app).
+- Main window maximizes on startup (unless DEBUG in the old app). **DONE
+  2026-08-05:** `__main__.main` calls `window.showMaximized()` (was `show()`,
+  which left the `.ui`'s fixed 1280×800 default — not full width on wider
+  screens); the normal size stays the restore geometry.
 - After loading a project, the first specimen is auto-selected so the
   graph shows immediately.
 - Plot interactions handled by the old `MainPlotController`: vertical

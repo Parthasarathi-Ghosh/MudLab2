@@ -25,7 +25,7 @@ from __future__ import annotations
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
-from mudlab.calculations import pattern_ops
+from mudlab.calculations import get_2t_from_nm, pattern_ops
 from mudlab.csv_import_dialog import import_pattern
 from mudlab.file_parsers.xrd_import import PATTERN_FILTERS
 from mudlab.ui.ui_add_noise import Ui_AddNoiseDialog
@@ -276,10 +276,55 @@ class ShiftPatternDialog(_SpecimenDialog):
         super().__init__(Ui_ShiftPatternDialog, parent, specimen)
         self.ui.shift_position.currentIndexChanged.connect(self._on_position_changed)
         self.ui.shift_position.currentIndexChanged.connect(self._update_preview)
+        # The reference line marks the target 2theta; it moves with the chosen
+        # reference reflection but NOT with the shift value (the value shifts the
+        # data toward this fixed line).
+        self.ui.shift_position.currentIndexChanged.connect(self._update_shift_reference)
         self.ui.spin_shift_value.valueChanged.connect(self._update_preview)
 
     def _on_specimen_bound(self) -> None:
         self._on_position_changed(self.ui.shift_position.currentIndex())
+
+    # --- reference line on the main plot (a fixed dotted vertical) -----------
+    def _reference_2theta(self):
+        """Target 2theta of the selected reference reflection, or None in manual
+        mode (or without a bound specimen)."""
+        if self._specimen is None:
+            return None
+        index = self.ui.shift_position.currentIndex()
+        if index == SHIFT_MANUAL_INDEX:
+            return None
+        d_nm = SHIFT_POSITIONS[index]  # reference d-spacing (nm)
+        if d_nm <= 0:
+            return None
+        return get_2t_from_nm(d_nm, self._specimen.wavelength)
+
+    def _update_shift_reference(self) -> None:
+        main_window = self.parent()
+        if main_window is None or not hasattr(main_window, "set_shift_reference"):
+            return
+        position = self._reference_2theta()
+        if position is None:
+            main_window.clear_shift_reference()
+        else:
+            main_window.set_shift_reference(self._specimen, position)
+
+    def _clear_shift_reference(self) -> None:
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "clear_shift_reference"):
+            main_window.clear_shift_reference()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)  # base: shows the live preview
+        self._update_shift_reference()
+
+    def accept(self) -> None:
+        self._clear_shift_reference()
+        super().accept()
+
+    def reject(self) -> None:
+        self._clear_shift_reference()
+        super().reject()  # base: clears the preview, then closes
 
     def _on_position_changed(self, index: int) -> None:
         manual = index == SHIFT_MANUAL_INDEX

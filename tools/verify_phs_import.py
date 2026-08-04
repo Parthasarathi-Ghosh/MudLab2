@@ -149,6 +149,13 @@ def run(tmp):
           ichild is not None and iparent is not None
           and ichild.based_on is iparent)
 
+    # 6. The Import/Export file filter offers .phs only - no misleading "All
+    # files" option (import reads nothing else; export always writes .phs).
+    from mudlab.file_parsers.phs_phases import PHS_FILTERS
+    check("6 file filter is .phs only (no 'All files')",
+          "*.phs" in PHS_FILTERS
+          and "*.*" not in PHS_FILTERS and "All files" not in PHS_FILTERS)
+
 
 def main():
     print("=" * 72)

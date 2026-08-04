@@ -532,7 +532,11 @@ above or below the correct height.
 1. Pick the **Position** — a reference mineral present in your sample whose peak
    position is known exactly (quartz is the usual internal standard).
 2. MudLab2 finds that mineral's peak in your data and shows the offset, in °2θ,
-   between where it should be and where it actually is.
+   between where it should be and where it actually is. A **dotted vertical line**
+   appears on the plot at the reference's *target* position, so you can see where
+   the peak should line up; the live preview shows the shifted pattern moving
+   toward it as you adjust the value. The line stays fixed at the target (it does
+   not move with the value), and disappears in Manual mode and when you close.
 3. Press OK to correct the pattern by that amount.
 
 Choose **Manual** to type an offset yourself; the value resets to zero so a
@@ -778,3 +782,17 @@ glycolated and heated forms of one clay), a row shows one swatch per specimen �
 usually the same colour across the row, but a different colour wherever a slot
 holds a differently-coloured phase. The index appears automatically; it is empty
 (and hidden) only when none of the shown specimens belongs to a mixture.
+
+### Saving the graph as an image
+
+**Data → Save graph** exports the current plot to an image file. A small dialog
+appears first to choose the output **size** and **resolution**: pick one of the
+print presets (landscape/portrait, large/medium/small), or set the **width**,
+**height** (in pixels) and **DPI** by hand. Click **OK**, then choose where to
+save and in which format — **PNG**, **PDF**, or **SVG** (PDF and SVG are vector
+formats, so their DPI is not used). The file name defaults to the shown
+specimen's name (or the project's).
+
+The export uses the size you chose, not the size of the window, so you get the
+same picture regardless of how the window is arranged; the on-screen plot is left
+untouched.

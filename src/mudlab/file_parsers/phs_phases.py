@@ -25,8 +25,10 @@ from mudlab.file_parsers.uuid_remap import project_uuids, remap_uuids
 from mudlab.models.phase import Phase
 from mudlab.models.raw_pattern_phase import RawPatternPhase
 
-# Qt getOpenFileName / getSaveFileName filter for phase files.
-PHS_FILTERS = "Phase files (*.phs);;All files (*.*)"
+# Qt getOpenFileName / getSaveFileName filter for phase files. Only .phs is
+# offered - no "All files" option, since import reads nothing else and export
+# always writes .phs.
+PHS_FILTERS = "Phase files (*.phs)"
 
 _INHERIT_FLAGS = (
     "inherit_sigma_star", "inherit_CSDS_distribution", "inherit_display_color",

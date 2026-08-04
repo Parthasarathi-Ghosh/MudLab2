@@ -85,7 +85,9 @@ def main() -> int:
         return _selftest()
     splash, started = show_splash()   # branded splash while the window builds
     window = MainWindow()
-    window.show()
+    # Fill the available screen area (the .ui's fixed 1280x800 default left a gap
+    # on wider screens); the normal size is kept as the restore geometry.
+    window.showMaximized()
     window.raise_()
     splash.finish_after(_MIN_VISIBLE_MS, started)  # closes on the event loop
     return app.exec()
