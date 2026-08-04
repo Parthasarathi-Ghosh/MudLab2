@@ -288,6 +288,24 @@ class Specimen(QObject):
         self._exp_y = pattern_ops.add_noise(self._exp_y, noise_fraction)
         self.data_changed.emit()
 
+    def convert_to_fixed(self) -> None:
+        """Rescale the experimental pattern from automatic (ADS) to fixed-slit
+        divergence geometry in place (old Specimen.convert_to_fixed): divides by
+        sin(theta). Does not touch the goniometer's divergence mode."""
+        from mudlab.calculations import pattern_ops
+
+        self._exp_y = pattern_ops.convert_slit(self._exp_x, self._exp_y, to_ads=False)
+        self.data_changed.emit()
+
+    def convert_to_ads(self) -> None:
+        """Rescale the experimental pattern from fixed-slit to automatic (ADS)
+        divergence geometry in place (old Specimen.convert_to_ads): multiplies by
+        sin(theta). Does not touch the goniometer's divergence mode."""
+        from mudlab.calculations import pattern_ops
+
+        self._exp_y = pattern_ops.convert_slit(self._exp_x, self._exp_y, to_ads=True)
+        self.data_changed.emit()
+
     def detect_shift(self, shift_position: float) -> float:
         """The offset of a reference reflection from its expected position
         (a measurement; nothing is changed)."""

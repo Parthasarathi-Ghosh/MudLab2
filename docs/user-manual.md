@@ -598,6 +598,31 @@ set it to mean.
 A trim that would leave fewer than two data points is refused, and MudLab2 names
 the specimens it could not trim.
 
+### Convert between fixed and automatic (ADS) slit
+
+**Data → Convert data to fixed slit** and **Data → Convert data to ADS** rescale
+the selected specimen's measured intensities between the two divergence-slit
+geometries. A fixed divergence slit keeps the beam's angular width constant; an
+**automatic** (or *variable*) divergence slit — ADS — opens as the angle
+increases so the irradiated length on the sample stays constant, collecting more
+intensity at higher angles. The two therefore differ by a factor of **sin θ**:
+
+- **Convert data to ADS** multiplies the intensities by sin θ (fixed → ADS).
+- **Convert data to fixed slit** divides them by sin θ (ADS → fixed).
+
+Use this to bring a pattern into the same geometry as a reference, a background
+scan, or the rest of your specimens before comparing or fitting them. Each
+command acts on the single selected specimen (the menu items are greyed until
+exactly one specimen with data is selected), asks for confirmation, then rewrites
+the pattern in place — like the other data operations, this is **permanent and
+not undoable** until you reopen without saving. The two directions are inverses,
+so converting the wrong way can be undone by converting back.
+
+> **Note:** the conversion changes only the measured data, not the specimen's
+> goniometer. If you convert a pattern's geometry, set the **Divergence mode** on
+> the specimen's Goniometer tab to match, so the calculated pattern is corrected
+> the same way.
+
 ---
 
 ## Markers, peak detection, and mineral matching

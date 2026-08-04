@@ -163,6 +163,16 @@ class MainWindow(QMainWindow):
         self.ui.actionPeakProperties.triggered.connect(self._show_peak_properties)
         self._data_op_actions.append(self.ui.actionStripPeak)
         self._data_op_actions.append(self.ui.actionPeakProperties)
+        # Fixed <-> ADS divergence-slit conversion (parameterless, so no dialog -
+        # a confirmation gates the destructive rewrite).
+        self.ui.actionConvertToFixed.triggered.connect(
+            lambda: self._convert_slit(to_ads=False)
+        )
+        self.ui.actionConvertToADS.triggered.connect(
+            lambda: self._convert_slit(to_ads=True)
+        )
+        self._data_op_actions.append(self.ui.actionConvertToFixed)
+        self._data_op_actions.append(self.ui.actionConvertToADS)
         self._update_data_op_actions()
 
         # Model -> view plumbing.
@@ -864,6 +874,29 @@ class MainWindow(QMainWindow):
         if specimen is None:
             return
         dialog_cls(self, specimen=specimen).exec()
+
+    def _convert_slit(self, to_ads: bool) -> None:
+        """Rescale the selected specimen's experimental data between fixed and
+        automatic (ADS) divergence-slit geometry. Parameterless and destructive,
+        so a confirmation replaces the OK/Cancel gate the other data ops get from
+        their dialog; the specimen's data_changed then refreshes the plot and
+        marks the project dirty."""
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        target = "ADS" if to_ads else "fixed slit"
+        reply = QMessageBox.question(
+            self, "Convert data",
+            "Convert %s's experimental data to %s geometry?\n\nThis rescales the "
+            "pattern in place and cannot be undone (save the project to keep it)."
+            % (specimen.name, target),
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if to_ads:
+            specimen.convert_to_ads()
+        else:
+            specimen.convert_to_fixed()
 
     def _show_trim_data(self) -> None:
         specimen = self._data_op_specimen()

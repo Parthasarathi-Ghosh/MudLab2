@@ -1947,8 +1947,8 @@ matching editor window (each will need its own `.ui` when ported).
 | `actionShowPlotToolbar` | `show_plot_toolbar` (toggle) | show/hide nav toolbar. *Connected.* |
 | `actionAddSpecimen` | `add_specimen` | `project.add_specimen()` |
 | `actionImportSpecimens` | `import_specimens` | `project.import_multiple_specimen()` |
-| `actionConvertToFixed` | `convert_to_fixed` | loop over selected specimens: `convert_to_fixed()` |
-| `actionConvertToADS` | `convert_to_ads` | loop over selected specimens: `convert_to_ads()` |
+| `actionConvertToFixed` | `convert_to_fixed` | **Wired (2026-08-04):** `_convert_slit(to_ads=False)` -> confirm -> `Specimen.convert_to_fixed()` (experimental y / sin θ). A single-specimen data op (in `_data_op_actions`), not the old multi-specimen loop. |
+| `actionConvertToADS` | `convert_to_ads` | **Wired (2026-08-04):** `_convert_slit(to_ads=True)` -> confirm -> `Specimen.convert_to_ads()` (experimental y × sin θ). See below. |
 | `actionEditPhases` | `edit_phases` | present phases window |
 | `actionEditAtomTypes` | `edit_atom_types` | present atom types window |
 | `actionEditMixtures` | `edit_mixtures` | present mixtures window |
@@ -1980,7 +1980,26 @@ QActions on `MainWindow` with two update methods
   EditMarkers, SamplePoint (+ context-menu-only ones below).
 - **specimens_actions** - enabled iff one OR more specimens are selected:
   RemoveBackground, SaveGraph, TrimData, RefreshGraph, ConvertToFixed,
-  ConvertToADS (+ Remove Specimen, context-menu-only).
+  ConvertToADS (+ Remove Specimen, context-menu-only). *NOTE: MudLab2 made all
+  the data ops single-specimen (`_data_op_actions` / `_update_data_op_actions`,
+  enabled iff exactly one specimen with data is selected), so ConvertToFixed /
+  ConvertToADS are greyed with them rather than following the old multi-specimen
+  rule.*
+
+**Fixed <-> ADS slit conversion (2026-08-04).** `Convert data to fixed slit` /
+`Convert data to ADS` rescale the selected specimen's experimental pattern
+between fixed and automatic (ADS) divergence-slit geometry. An ADS slit opens
+with θ to hold the irradiated length constant, collecting ~sin θ the intensity a
+fixed slit would, so **fixed→ADS = × sin θ**, **ADS→fixed = ÷ sin θ** (the factor
+is the existing `get_fixed_to_ads_correction_range` = sin θ; ÷ leaves θ=0 points
+untouched). Numerics: `pattern_ops.convert_slit(x, y, to_ads)`; model:
+`Specimen.convert_to_fixed/ads` (mutate + `data_changed`); UI:
+`MainWindow._convert_slit` (a `QMessageBox` confirmation replaces the OK/Cancel a
+dialog would give this parameterless op, then `data_changed` → plot refresh +
+dirty). It rescales the experimental data only — it does **not** flip the
+goniometer's divergence mode (faithful to the old app; the user sets the mode).
+Harnesses: `tools/verify_convert_slit.py` (transform + model),
+`tools/verify_convert_slit_ui.py` (menu wiring).
 
 ## Old actions NOT in the main window UI
 

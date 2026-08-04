@@ -26,7 +26,11 @@ import numpy as np
 from scipy.integrate import trapezoid
 from scipy.interpolate import UnivariateSpline
 
-from mudlab.calculations.goniometer import get_2t_from_nm, get_t_from_nm
+from mudlab.calculations.goniometer import (
+    get_2t_from_nm,
+    get_fixed_to_ads_correction_range,
+    get_t_from_nm,
+)
 from mudlab.calculations.math_tools import add_noise as _add_noise
 from mudlab.calculations.math_tools import smooth as _smooth
 
@@ -161,6 +165,37 @@ def add_noise(y, noise_fraction: float = 0.0):
     if noise_fraction <= 0 or y.size == 0:
         return y.copy()
     return _add_noise(y, noise_fraction)
+
+
+# ----------------------------------------------------------------------
+# Divergence-slit conversion (fixed <-> automatic/ADS)
+# ----------------------------------------------------------------------
+def convert_slit(x, y, to_ads: bool):
+    """Rescale intensities between fixed and automatic (ADS) divergence-slit
+    geometry (old Specimen.convert_to_fixed / convert_to_ads).
+
+    An automatic divergence slit opens with theta to keep the irradiated sample
+    length constant, so it collects ~sin(theta) times the intensity a fixed slit
+    would at the same angle. Hence fixed -> ADS multiplies by sin(theta) and
+    ADS -> fixed divides by it (the correction factor is the existing
+    get_fixed_to_ads_correction_range = sin(theta)).
+
+    `x` is the 2-theta axis (degrees); `to_ads` True converts a fixed-slit
+    pattern to ADS, False converts an ADS pattern to fixed slit. Returns a new y
+    array (x is unchanged). Where sin(theta) == 0 (theta = 0) the point is left
+    unchanged, so ADS -> fixed never divides by zero.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if y.size == 0:
+        return y.copy()
+    factor = get_fixed_to_ads_correction_range(np.radians(x * 0.5))  # sin(theta)
+    if to_ads:
+        return y * factor
+    # ADS -> fixed: divide by sin(theta), leaving theta == 0 points untouched.
+    result = y.copy()
+    np.divide(y, factor, out=result, where=factor > 0)
+    return result
 
 
 # ----------------------------------------------------------------------
