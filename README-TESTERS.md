@@ -4,7 +4,7 @@ Thank you for helping test **MudLab**. This is a **pre-release** build shared fo
 feedback **before** the public release — please don't redistribute it.
 
 You can confirm the exact build from **Help → About** inside the app (it shows the
-version, e.g. `0.2.0-rc1`); please quote that version in any feedback.
+version, e.g. `0.2.0`); please quote that version in any feedback.
 
 ## Running it (no installation)
 
