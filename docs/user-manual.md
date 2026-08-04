@@ -690,6 +690,27 @@ it on other specimens or projects; your saved setups then appear in the
 drop-down (marked *custom*). The `.gon` format is the same JSON the project file
 uses for a goniometer, so setups exported from the old MudLab load here too.
 
+### Which goniometer the calculation uses
+
+The goniometer belongs to the **specimen**, so every specimen has its own. A
+specimen's calculated pattern — and the pattern of **each phase assigned to that
+specimen** — is always computed with **that specimen's own goniometer**: its
+wavelength, emission spectrum, slits, 2θ range and geometry correction. No other
+specimen's goniometer ever enters that specimen's calculation.
+
+This matters when a mixture spans several specimens (for example the air-dried,
+glycolated and heated preparations of one sample). Refining the mixture does
+**not** pick a single goniometer for the group: each specimen's pattern is
+computed with its own goniometer, and the fit is optimised against all of them
+together. The mixture's shared quantities — the phase **structures** and the
+phase **fractions** — are therefore fitted simultaneously through each
+specimen's own instrument setup, while **scale** and **background** stay
+per specimen. A practical consequence: the *same* phase produces a *different*
+calculated curve in each specimen precisely because each specimen's goniometer
+differs, so if two preparations were measured with different wavelengths or
+optics, MudLab2 accounts for that correctly rather than forcing one setup across
+the group.
+
 ---
 
 ## Viewing the plot
