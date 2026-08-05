@@ -30,6 +30,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="btn_optimize">
+       <property name="toolTip">
+        <string>Optimize fractions, scales and background shifts.</string>
+       </property>
+       <property name="text">
+        <string>Optimize</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="actionsSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -59,16 +69,6 @@
        </property>
        <property name="text">
         <string>Refine</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btn_optimize">
-       <property name="toolTip">
-        <string>Optimize fractions, scales and background shifts.</string>
-       </property>
-       <property name="text">
-        <string>Optimize</string>
        </property>
       </widget>
      </item>

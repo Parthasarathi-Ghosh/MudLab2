@@ -48,6 +48,11 @@ class Ui_EditMixtureWidget(object):
 
         self.actionsRow.addWidget(self.mixture_auto_run)
 
+        self.btn_optimize = QPushButton(EditMixtureWidget)
+        self.btn_optimize.setObjectName(u"btn_optimize")
+
+        self.actionsRow.addWidget(self.btn_optimize)
+
         self.actionsSpacer = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.actionsRow.addItem(self.actionsSpacer)
@@ -61,11 +66,6 @@ class Ui_EditMixtureWidget(object):
         self.btn_refine.setObjectName(u"btn_refine")
 
         self.actionsRow.addWidget(self.btn_refine)
-
-        self.btn_optimize = QPushButton(EditMixtureWidget)
-        self.btn_optimize.setObjectName(u"btn_optimize")
-
-        self.actionsRow.addWidget(self.btn_optimize)
 
 
         self.mixtureLayout.addLayout(self.actionsRow)
@@ -129,6 +129,10 @@ class Ui_EditMixtureWidget(object):
 #endif // QT_CONFIG(tooltip)
         self.mixture_auto_run.setText(QCoreApplication.translate("EditMixtureWidget", u"Auto run", None))
 #if QT_CONFIG(tooltip)
+        self.btn_optimize.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Optimize fractions, scales and background shifts.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_optimize.setText(QCoreApplication.translate("EditMixtureWidget", u"Optimize", None))
+#if QT_CONFIG(tooltip)
         self.btn_composition.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Show the chemical composition of this mixture.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_composition.setText(QCoreApplication.translate("EditMixtureWidget", u"Composition", None))
@@ -136,10 +140,6 @@ class Ui_EditMixtureWidget(object):
         self.btn_refine.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Refine the mixture parameters.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_refine.setText(QCoreApplication.translate("EditMixtureWidget", u"Refine", None))
-#if QT_CONFIG(tooltip)
-        self.btn_optimize.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Optimize fractions, scales and background shifts.", None))
-#endif // QT_CONFIG(tooltip)
-        self.btn_optimize.setText(QCoreApplication.translate("EditMixtureWidget", u"Optimize", None))
 #if QT_CONFIG(tooltip)
         self.btn_add_phase.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Add a phase row to this mixture", None))
 #endif // QT_CONFIG(tooltip)
