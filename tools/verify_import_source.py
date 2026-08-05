@@ -35,6 +35,7 @@ from PySide6.QtWidgets import QApplication
 import zipfile
 
 from mudlab.file_parsers.rasx_parser import parse_rasx_metadata
+from mudlab.file_parsers.uxd_parser import parse_uxd_metadata
 from mudlab.file_parsers.xrd_import import (
     build_source_string, parse_pattern_metadata,
 )
@@ -163,6 +164,38 @@ def main():
     rimported = win.import_specimen_files([rasx])
     check("rasx import applies its Ka1 to the goniometer",
           rimported and abs(rimported[0].goniometer.wavelength - 0.1540593) < 1e-6)
+
+    # --- .uxd metadata (Bruker DIFFRAC header, _KEY=VALUE) -------------------
+    uxd = _write("scan.uxd", "\n".join([
+        "; converted by XCH",
+        "_FILEVERSION=2",
+        "_GONIOMETER_RADIUS=217.500000",
+        "_DATEMEASURED='20-Jul-2022 15:27:56'",
+        "_WL_UNIT='A'",
+        "_WL1=1.540600", "_WL2=1.544390", "_WLRATIO=0.500000",
+        "_ANODE='Cu'", "_KV=40", "_MA=40",
+        "_STEPTIME=32.000000", "_STEPSIZE=0.020000", "_START=5.000000",
+        "_2THETACOUNTS",
+        "5.00 100", "5.02 200", "5.04 300", "5.06 400", "5.08 500",
+    ]))
+    umd = parse_uxd_metadata(uxd)
+    check("uxd _WL1 read as Ka1 (A->nm via _WL_UNIT)",
+          abs(umd.get("wavelength_ka1", 0) - 0.15406) < 1e-8)
+    check("uxd _WL2 read as Ka2", abs(umd.get("wavelength_ka2", 0) - 0.154439) < 1e-8)
+    check("uxd anode + kV + mA read",
+          umd.get("anode") == "Cu" and umd.get("voltage_kv") == 40.0
+          and umd.get("current_ma") == 40.0)
+    check("uxd _STEPTIME -> count time + date + radius",
+          umd.get("count_time") == 32.0
+          and umd.get("scan_date", "").startswith("20-Jul-2022")
+          and umd.get("radius_mm") == 217.5)
+    usrc = build_source_string(uxd, np.array([5.0, 5.02, 5.04, 5.06, 5.08]), umd)
+    for needle in ("X-ray tube: Cu, 40 kV, 40 mA", "Count time: 32.00 s per step",
+                   "Goniometer radius: 217.5 mm", "0.15406"):
+        check("uxd source lists %r" % needle, needle in usrc)
+    uimported = win.import_specimen_files([uxd])
+    check("uxd import applies its Ka1 to the goniometer",
+          uimported and abs(uimported[0].goniometer.wavelength - 0.15406) < 1e-6)
 
     # A plain-text import still gets a (base) source.
     imported2 = win.import_specimen_files([txt])

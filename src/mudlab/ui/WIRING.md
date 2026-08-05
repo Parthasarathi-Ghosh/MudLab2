@@ -130,8 +130,9 @@ open the same dialog when the specimens context menu is added.
   metadata)` - the file name + 2θ range/step/points (any format), plus any
   `parse_pattern_metadata` fields (`.xrdml`: wavelength / count time / sample /
   date / radius; `.rasx`: wavelength / X-ray tube target+kV+mA / date / scan
-  speed). The file's Kα1 wavelength is applied to the specimen's goniometer.
-  `.raw` / `.uxd` are axis-only for now (follow-up). Was empty before (2026-08-05;
+  speed; `.uxd`: wavelength / anode+kV+mA / count time / date / radius). The
+  file's Kα1 wavelength is applied to the specimen's goniometer. `.raw` is
+  axis-only for now (follow-up). Was empty before (2026-08-05;
   `verify_import_source`).
 - Display tab fields map to old specimen properties:
   `display_experimental/calculated/phases/derivatives/residuals`,
@@ -419,6 +420,10 @@ mudlab's `xrd_parsers`, validated against the real vendor files in
   `_COUNTS`/`_CPS` (single column; 2theta rebuilt from `_START`/`_STEPSIZE`).
   Counts are normalised to CPS by `_STEPTIME` (a `*CPS` marker = already CPS).
   First range only. Validated on `dh232.UXD` (2676 pts, 5-60 deg, quartz peak).
+  `parse_uxd_metadata` reads the same header for `_WL1`/`_WL2` (unit `_WL_UNIT`,
+  usually Angstrom→nm), `_ANODE`, `_KV`/`_MA`, `_STEPTIME`, `_DATEMEASURED` and
+  `_GONIOMETER_RADIUS`. (UXD tag semantics confirmed against the Bruker DIFFRAC
+  format + xylib's `BT86_.UXD` sample.)
 - **Bruker `.raw` v1-3** (`raw_parser.py`): ported from old mudlab's
   BrkRAWParser (NOT PyXRD - old mudlab fixed the RAW3 version detection, the
   RAW3 counting-time type, added CPS normalisation, and `x = min + step*n`).

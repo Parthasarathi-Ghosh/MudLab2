@@ -21,7 +21,7 @@ import numpy as np
 from mudlab.file_parsers.csv_io import CsvOptions, read_xy
 from mudlab.file_parsers.rasx_parser import parse_rasx, parse_rasx_metadata
 from mudlab.file_parsers.raw_parser import parse_raw
-from mudlab.file_parsers.uxd_parser import parse_uxd
+from mudlab.file_parsers.uxd_parser import parse_uxd, parse_uxd_metadata
 from mudlab.file_parsers.xrdml_parser import parse_xrdml, parse_xrdml_metadata
 
 # Vendor/binary formats with a fixed layout. Everything else (ASCII XY family
@@ -66,10 +66,11 @@ def parse_pattern(
 
 # Per-format metadata readers for the specimen "source" description (best-effort;
 # formats without one contribute just the file name + 2theta range built from the
-# data). .xrdml + .rasx are read; .raw / .uxd metadata is a follow-up.
+# data). .xrdml / .rasx / .uxd are read; .raw metadata is a follow-up.
 _VENDOR_METADATA = {
     ".xrdml": parse_xrdml_metadata,
     ".rasx": parse_rasx_metadata,
+    ".uxd": parse_uxd_metadata,
 }
 
 
@@ -105,7 +106,7 @@ def build_source_string(path: str, x, metadata: "dict | None" = None) -> str:
 
     ct = metadata.get("count_time")
     if ct is not None and ct != 1.0:
-        parts.append("Count time: %.2f s (intensities normalised to counts/s)" % ct)
+        parts.append("Count time: %.2f s per step" % ct)
 
     speed = metadata.get("scan_speed_deg_min")
     if speed:

@@ -101,6 +101,62 @@ def parse_uxd(path: str) -> tuple[np.ndarray, np.ndarray]:
     return np.asarray(xs), np.asarray(ys)
 
 
+def parse_uxd_metadata(path: str) -> dict:
+    """Best-effort instrument metadata from a Bruker *.UXD header (for the
+    specimen 'source' description). The header is `_KEY=VALUE` lines before the
+    first data block; wavelengths are in the unit named by `_WL_UNIT` ('A' =
+    Angstrom, the norm). Returns any of: wavelength_ka1 / wavelength_ka2 (nm),
+    anode, voltage_kv, current_ma, count_time (s), scan_date, radius_mm. Never
+    raises."""
+    meta: dict = {}
+    try:
+        with open(path, "r", encoding="utf-8-sig", errors="replace") as stream:
+            for raw in stream:
+                s = raw.strip()
+                if not s or s.startswith(";"):
+                    continue
+                up = s.upper()
+                if up.startswith(_MARKERS_PAIRED) or up.startswith(_MARKERS_SINGLE):
+                    break  # header ends at the first data block
+                if s.startswith("_") and "=" in s:
+                    key, _, val = s[1:].partition("=")
+                    meta[key.strip().upper()] = val.strip().strip("'").strip('"')
+    except OSError:
+        return {}  # unreadable file -> no metadata
+
+    def _f(key):
+        try:
+            return float(meta[key])
+        except (KeyError, ValueError, TypeError):
+            return None
+
+    # Wavelengths are in _WL_UNIT ('A' = Angstrom -> nm; 'NM' kept as-is).
+    unit = meta.get("WL_UNIT", "A").upper()
+    to_nm = 1.0 if unit in ("NM", "NANOMETER", "NANOMETRE") else 0.1
+    md: dict = {}
+    wl1, wl2 = _f("WL1"), _f("WL2")
+    if wl1 and wl1 > 0:
+        md["wavelength_ka1"] = wl1 * to_nm
+    if wl2 and wl2 > 0:
+        md["wavelength_ka2"] = wl2 * to_nm
+    if meta.get("ANODE"):
+        md["anode"] = meta["ANODE"]
+    kv, ma = _f("KV"), _f("MA")
+    if kv:
+        md["voltage_kv"] = kv
+    if ma:
+        md["current_ma"] = ma
+    steptime = _f("STEPTIME")
+    if steptime:
+        md["count_time"] = steptime
+    if meta.get("DATEMEASURED"):
+        md["scan_date"] = meta["DATEMEASURED"]
+    radius = _f("GONIOMETER_RADIUS")
+    if radius and radius > 0:
+        md["radius_mm"] = radius
+    return md
+
+
 def _wavelength_lines(goniometer) -> list[str]:
     """UXD wavelength fields from the goniometer's wavelength distribution.
     MudLab stores nm; UXD uses Angstrom (x10). WLRATIO is the second line's

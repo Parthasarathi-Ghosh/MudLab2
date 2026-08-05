@@ -476,9 +476,11 @@ specimen's goniometer** automatically:
   goniometer radius.
 - **Rigaku `.rasx`** — wavelength, X-ray tube (target, kV, mA), scan date and
   speed.
+- **Bruker `.uxd`** — wavelength, X-ray tube (anode, kV, mA), count time, scan
+  date, goniometer radius.
 
-Other formats (`.raw`, `.uxd`, plain text) currently contribute only the file
-name and 2θ range; set the rest of the goniometer yourself if needed.
+Other formats (`.raw`, plain text) currently contribute only the file name and
+2θ range; set the rest of the goniometer yourself if needed.
 
 ---
 
