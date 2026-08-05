@@ -32,6 +32,9 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 import numpy as np
 from PySide6.QtWidgets import QApplication
 
+import zipfile
+
+from mudlab.file_parsers.rasx_parser import parse_rasx_metadata
 from mudlab.file_parsers.xrd_import import (
     build_source_string, parse_pattern_metadata,
 )
@@ -127,6 +130,39 @@ def main():
     box_text = dlg.ui.specimen_source.toPlainText()
     check("Edit Specimen Source box is no longer empty",
           bool(box_text) and "File: scan.xrdml" in box_text)
+
+    # --- .rasx metadata (Rigaku MesurementConditions XML) --------------------
+    rasx = os.path.join(_TMP, "scan.rasx")
+    profile = "﻿" + "\n".join("%.2f\t%d\t1" % (2.0 + i * 0.02, 100 + i)
+                                   for i in range(6))
+    conditions = (
+        '<?xml version="1.0"?><MeasurementConditions>'
+        '<WavelengthKalpha1>1.540593</WavelengthKalpha1>'
+        '<WavelengthKalpha2>1.544414</WavelengthKalpha2>'
+        '<TargetName>Cu</TargetName>'
+        '<Voltage>40</Voltage><Current>75</Current>'
+        '<StartTime>2026-07-15T07:33:34Z</StartTime>'
+        '<Speed>6.0000</Speed></MeasurementConditions>'
+    )
+    with zipfile.ZipFile(rasx, "w") as z:
+        z.writestr("Data0/Profile0.txt", profile)
+        z.writestr("Data0/MesurementConditions0.xml", conditions)  # Rigaku spelling
+
+    rmd = parse_rasx_metadata(rasx)
+    check("rasx wavelength Ka1 read (from the conditions XML)",
+          abs(rmd.get("wavelength_ka1", 0) - 0.1540593) < 1e-8)
+    check("rasx anode + kV + mA read",
+          rmd.get("anode") == "Cu" and rmd.get("voltage_kv") == 40.0
+          and rmd.get("current_ma") == 75.0)
+    check("rasx scan date + speed read",
+          rmd.get("scan_date", "").startswith("2026-07-15")
+          and rmd.get("scan_speed_deg_min") == 6.0)
+    rsrc = build_source_string(rasx, np.array([2.0, 2.02, 2.04, 2.06, 2.08]), rmd)
+    for needle in ("X-ray tube: Cu, 40 kV, 75 mA", "Scan speed: 6", "0.15406"):
+        check("rasx source lists %r" % needle, needle in rsrc)
+    rimported = win.import_specimen_files([rasx])
+    check("rasx import applies its Ka1 to the goniometer",
+          rimported and abs(rimported[0].goniometer.wavelength - 0.1540593) < 1e-6)
 
     # A plain-text import still gets a (base) source.
     imported2 = win.import_specimen_files([txt])

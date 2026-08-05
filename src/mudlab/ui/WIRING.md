@@ -129,7 +129,10 @@ open the same dialog when the specimens context menu is added.
   `import_specimen_files` fills it via `xrd_import.build_source_string(path, x,
   metadata)` - the file name + 2θ range/step/points (any format), plus any
   `parse_pattern_metadata` fields (`.xrdml`: wavelength / count time / sample /
-  date / radius). Was empty before (2026-08-05; `verify_import_source`).
+  date / radius; `.rasx`: wavelength / X-ray tube target+kV+mA / date / scan
+  speed). The file's Kα1 wavelength is applied to the specimen's goniometer.
+  `.raw` / `.uxd` are axis-only for now (follow-up). Was empty before (2026-08-05;
+  `verify_import_source`).
 - Display tab fields map to old specimen properties:
   `display_experimental/calculated/phases/derivatives/residuals`,
   `display_stats_in_lbl` (Rp in label), `display_vshift` (-10..10),
@@ -402,7 +405,10 @@ mudlab's `xrd_parsers`, validated against the real vendor files in
   (Angstrom→nm), count time, sample name/id, scan timestamp and beam radius.
 - **`.rasx`** (`rasx_parser.py`, Rigaku - NEW, not in the lineage): a ZIP; read
   `Data<i>/Profile<j>.txt` (2theta, intensity, flag) via the shared
-  `xy_parser.parse_xy_lines`. Its 2theta grid matches the sample's `.txt`
+  `xy_parser.parse_xy_lines`. `parse_rasx_metadata` reads its
+  `Data<i>/MesurementConditions<j>.xml` (Rigaku's spelling; regex allows the
+  correct one too) for the Kα1/Kα2 wavelengths, X-ray target, kV/mA, start time
+  and scan speed. Its 2theta grid matches the sample's `.txt`
   export exactly (intensity scale differs by ~5x between vendor exports - each
   parser faithfully reads its own file).
 - **ASCII** (`xy_parser.py`): now BOM-tolerant (`utf-8-sig` + a BOM strip) and

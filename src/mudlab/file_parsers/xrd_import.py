@@ -19,7 +19,7 @@ import os
 import numpy as np
 
 from mudlab.file_parsers.csv_io import CsvOptions, read_xy
-from mudlab.file_parsers.rasx_parser import parse_rasx
+from mudlab.file_parsers.rasx_parser import parse_rasx, parse_rasx_metadata
 from mudlab.file_parsers.raw_parser import parse_raw
 from mudlab.file_parsers.uxd_parser import parse_uxd
 from mudlab.file_parsers.xrdml_parser import parse_xrdml, parse_xrdml_metadata
@@ -66,9 +66,10 @@ def parse_pattern(
 
 # Per-format metadata readers for the specimen "source" description (best-effort;
 # formats without one contribute just the file name + 2theta range built from the
-# data). Only .xrdml is read for now - .rasx / .raw metadata is a follow-up.
+# data). .xrdml + .rasx are read; .raw / .uxd metadata is a follow-up.
 _VENDOR_METADATA = {
     ".xrdml": parse_xrdml_metadata,
+    ".rasx": parse_rasx_metadata,
 }
 
 
@@ -106,6 +107,10 @@ def build_source_string(path: str, x, metadata: "dict | None" = None) -> str:
     if ct is not None and ct != 1.0:
         parts.append("Count time: %.2f s (intensities normalised to counts/s)" % ct)
 
+    speed = metadata.get("scan_speed_deg_min")
+    if speed:
+        parts.append("Scan speed: %g °/min" % speed)
+
     name, sid = metadata.get("sample_name"), metadata.get("sample_id")
     if name or sid:
         line = "Sample: %s" % (name or "")
@@ -123,6 +128,16 @@ def build_source_string(path: str, x, metadata: "dict | None" = None) -> str:
                      % (ka1, ka1 * 10.0))
         if ka2:
             parts.append("Wavelength Kα2: %.5f nm (%.4f Å)" % (ka2, ka2 * 10.0))
+
+    tube = []
+    if metadata.get("anode"):
+        tube.append(str(metadata["anode"]))
+    if metadata.get("voltage_kv"):
+        tube.append("%g kV" % metadata["voltage_kv"])
+    if metadata.get("current_ma"):
+        tube.append("%g mA" % metadata["current_ma"])
+    if tube:
+        parts.append("X-ray tube: %s" % ", ".join(tube))
 
     radius = metadata.get("radius_mm")
     if radius:

@@ -468,12 +468,17 @@ best guess at the file, so usually you can just confirm.
 
 After importing, the specimen's **Source** box (Edit Specimen → *General* tab)
 describes where the pattern came from: the **file name** and its **2θ range,
-step and point count** (for any format). For a PANalytical `.xrdml` it also lists
-what the file recorded — the **wavelength**, **count time**, **sample name**,
-**scan date**, and goniometer **radius** — and the file's Kα₁ **wavelength is
-applied to the specimen's goniometer** automatically. (Other vendor formats
-currently contribute only the file name and 2θ range; the rest of the goniometer
-is left at its default for you to set.)
+step and point count** (for any format). When the file records instrument
+details, those are listed too, and the file's Kα₁ **wavelength is applied to the
+specimen's goniometer** automatically:
+
+- **PANalytical `.xrdml`** — wavelength, count time, sample name, scan date,
+  goniometer radius.
+- **Rigaku `.rasx`** — wavelength, X-ray tube (target, kV, mA), scan date and
+  speed.
+
+Other formats (`.raw`, `.uxd`, plain text) currently contribute only the file
+name and 2θ range; set the rest of the goniometer yourself if needed.
 
 ---
 
