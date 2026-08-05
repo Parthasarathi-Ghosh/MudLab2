@@ -202,3 +202,55 @@ def parse_raw(path: str) -> tuple[np.ndarray, np.ndarray]:
     x = twotheta_min + twotheta_step * np.arange(count, dtype=float)
     y = counts.astype(float) / (count_time or 1.0)
     return x, y
+
+
+def _angstrom_to_nm(value):
+    """Convert an Angstrom wavelength to nm, or None if it is not a plausible
+    XRD wavelength (guards against a zero/garbage header field)."""
+    if not value or value <= 0:
+        return None
+    nm = float(value) / 10.0
+    return nm if 0.03 < nm < 0.4 else None  # ~0.3-4 Angstrom
+
+
+def parse_raw_metadata(path: str) -> dict:
+    """Best-effort metadata from a binary *.raw (for the specimen 'source'
+    description). Bruker RAW1 exposes the per-step count time and the Kα1/Kα2
+    wavelengths (Angstrom→nm); Bruker RAW3 exposes the per-step count time
+    (header+192). RAW2 / RAW4 and Rigaku 'FI' .raw have no mapped metadata here.
+    Returns any of: count_time (s), wavelength_ka1 / wavelength_ka2 (nm). Never
+    raises."""
+    md: dict = {}
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return md
+    if data[:4] == _RIGAKU_MAGIC:
+        return md  # Rigaku FI: axis-only, header not reverse-engineered
+
+    f = BytesIO(data)
+    try:
+        version = _read_version(f)
+        if version == "RAW1":
+            f.seek(4, SEEK_SET)             # past the "RAW " magic
+            f.read(4)                       # twotheta_count
+            time_step, = struct.unpack("f", f.read(4))
+            if time_step and time_step > 0:
+                md["count_time"] = float(time_step)
+            f.seek(60, SEEK_CUR)            # -> alpha1/alpha2 (as in _header_v1)
+            a1, a2 = struct.unpack("ff", f.read(8))
+            nm1, nm2 = _angstrom_to_nm(a1), _angstrom_to_nm(a2)
+            if nm1:
+                md["wavelength_ka1"] = nm1
+            if nm2:
+                md["wavelength_ka2"] = nm2
+        elif version == "RAW3":
+            f.seek(712 + 192, SEEK_SET)     # per-step count time (header+192)
+            count_time, = struct.unpack("f", f.read(4))
+            if count_time and 0 < count_time < 1e6:
+                md["count_time"] = float(count_time)
+        # RAW2 / RAW4: metadata offsets not mapped -> nothing.
+    except (struct.error, ValueError):
+        return md
+    return md

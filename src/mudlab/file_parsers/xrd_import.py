@@ -20,7 +20,7 @@ import numpy as np
 
 from mudlab.file_parsers.csv_io import CsvOptions, read_xy
 from mudlab.file_parsers.rasx_parser import parse_rasx, parse_rasx_metadata
-from mudlab.file_parsers.raw_parser import parse_raw
+from mudlab.file_parsers.raw_parser import parse_raw, parse_raw_metadata
 from mudlab.file_parsers.uxd_parser import parse_uxd, parse_uxd_metadata
 from mudlab.file_parsers.xrdml_parser import parse_xrdml, parse_xrdml_metadata
 
@@ -66,11 +66,14 @@ def parse_pattern(
 
 # Per-format metadata readers for the specimen "source" description (best-effort;
 # formats without one contribute just the file name + 2theta range built from the
-# data). .xrdml / .rasx / .uxd are read; .raw metadata is a follow-up.
+# data). All supported vendor formats are read; a plain-text file has no metadata.
+# (Bruker .raw gives count time + RAW1 wavelength; Rigaku 'FI' .raw yields nothing
+# - its header is not reverse-engineered.)
 _VENDOR_METADATA = {
     ".xrdml": parse_xrdml_metadata,
     ".rasx": parse_rasx_metadata,
     ".uxd": parse_uxd_metadata,
+    ".raw": parse_raw_metadata,
 }
 
 

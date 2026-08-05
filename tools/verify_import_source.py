@@ -32,9 +32,11 @@ sys.path.insert(0, os.path.join(_REPO, "src"))
 import numpy as np
 from PySide6.QtWidgets import QApplication
 
+import struct
 import zipfile
 
 from mudlab.file_parsers.rasx_parser import parse_rasx_metadata
+from mudlab.file_parsers.raw_parser import parse_raw_metadata
 from mudlab.file_parsers.uxd_parser import parse_uxd_metadata
 from mudlab.file_parsers.xrd_import import (
     build_source_string, parse_pattern_metadata,
@@ -196,6 +198,62 @@ def main():
     uimported = win.import_specimen_files([uxd])
     check("uxd import applies its Ka1 to the goniometer",
           uimported and abs(uimported[0].goniometer.wavelength - 0.15406) < 1e-6)
+
+    # --- .raw metadata (Bruker RAW1 count time + wavelength; RAW3 count time;
+    #     Rigaku FI -> nothing) ------------------------------------------------
+    def _raw1(count_time, a1=1.5406, a2=1.5444, tmin=5.0, step=0.02, n=5):
+        return (b"RAW " + struct.pack("I", n)
+                + struct.pack("fff", count_time, step, 0.0) + b"\0" * 4
+                + struct.pack("f", tmin) + b"\0" * 12
+                + b"synthetic".ljust(32, b"\0")
+                + struct.pack("ff", a1, a2) + b"\0" * 72
+                + struct.pack("I", 0)
+                + np.asarray([100.0] * n, dtype="<f4").tobytes())
+
+    def _raw3(count_time, tmin=5.0, step=0.02, n=5):
+        buf = bytearray(712 + 304 + n * 4)
+        buf[0:7] = b"RAW1.01"
+        struct.pack_into("<I", buf, 712 + 0, 304)          # header_length
+        struct.pack_into("<I", buf, 712 + 4, n)            # twotheta_count
+        struct.pack_into("<dd", buf, 712 + 8, tmin, tmin)  # theta_min, 2theta_min
+        struct.pack_into("<d", buf, 712 + 176, step)       # 2theta_step
+        struct.pack_into("<f", buf, 712 + 192, count_time)  # per-step count time
+        struct.pack_into("<I", buf, 712 + 256, 0)          # supp_headers_size
+        struct.pack_into("<%df" % n, buf, 712 + 304, *([100.0] * n))
+        return bytes(buf)
+
+    def _rigaku(start=2.0, end=2.08, step=0.02):
+        n = int(round((end - start) / step)) + 1
+        buf = bytearray(0x0B92 + 12 + n * 4)
+        buf[0:4] = b"FI\x00\x00"
+        struct.pack_into("<fff", buf, 0x0B92, start, end, step)
+        struct.pack_into("<%df" % n, buf, len(buf) - n * 4, *([50.0] * n))
+        return bytes(buf)
+
+    raw1 = os.path.join(_TMP, "bruker1.raw")
+    open(raw1, "wb").write(_raw1(2.0))
+    m1 = parse_raw_metadata(raw1)
+    check("Bruker RAW1 count time + Ka1/Ka2 wavelengths read",
+          m1.get("count_time") == 2.0
+          and abs(m1.get("wavelength_ka1", 0) - 0.15406) < 1e-6
+          and abs(m1.get("wavelength_ka2", 0) - 0.15444) < 1e-6)
+
+    raw3 = os.path.join(_TMP, "bruker3.raw")
+    open(raw3, "wb").write(_raw3(8.0))
+    check("Bruker RAW3 count time read (header+192)",
+          parse_raw_metadata(raw3).get("count_time") == 8.0)
+
+    rig = os.path.join(_TMP, "rigaku.raw")
+    open(rig, "wb").write(_rigaku())
+    check("Rigaku FI .raw yields no metadata (axis-only)",
+          parse_raw_metadata(rig) == {})
+
+    rsrc = build_source_string(raw1, np.array([5.0, 5.02, 5.04, 5.06, 5.08]), m1)
+    check("RAW1 source lists count time + wavelength",
+          "Count time: 2.00 s per step" in rsrc and "0.15406" in rsrc)
+    r1 = win.import_specimen_files([raw1])
+    check("RAW1 import applies its Ka1 to the goniometer",
+          r1 and abs(r1[0].goniometer.wavelength - 0.15406) < 1e-6)
 
     # A plain-text import still gets a (base) source.
     imported2 = win.import_specimen_files([txt])

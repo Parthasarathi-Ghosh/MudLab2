@@ -130,10 +130,11 @@ open the same dialog when the specimens context menu is added.
   metadata)` - the file name + 2θ range/step/points (any format), plus any
   `parse_pattern_metadata` fields (`.xrdml`: wavelength / count time / sample /
   date / radius; `.rasx`: wavelength / X-ray tube target+kV+mA / date / scan
-  speed; `.uxd`: wavelength / anode+kV+mA / count time / date / radius). The
-  file's Kα1 wavelength is applied to the specimen's goniometer. `.raw` is
-  axis-only for now (follow-up). Was empty before (2026-08-05;
-  `verify_import_source`).
+  speed; `.uxd`: wavelength / anode+kV+mA / count time / date / radius; Bruker
+  `.raw`: count time [RAW1+RAW3] + RAW1 Kα1/Kα2 wavelength). The file's Kα1
+  wavelength is applied to the specimen's goniometer. Rigaku 'FI' `.raw` stays
+  axis-only (its metadata header is not reverse-engineered). Was empty before
+  (2026-08-05; `verify_import_source`, 42/42).
 - Display tab fields map to old specimen properties:
   `display_experimental/calculated/phases/derivatives/residuals`,
   `display_stats_in_lbl` (Rp in label), `display_vshift` (-10..10),
@@ -427,6 +428,11 @@ mudlab's `xrd_parsers`, validated against the real vendor files in
 - **Bruker `.raw` v1-3** (`raw_parser.py`): ported from old mudlab's
   BrkRAWParser (NOT PyXRD - old mudlab fixed the RAW3 version detection, the
   RAW3 counting-time type, added CPS normalisation, and `x = min + step*n`).
+  `parse_raw_metadata` returns the per-step count time (RAW1 `time_step`; RAW3
+  header+192) and, for RAW1 only, the Kα1/Kα2 wavelengths from `alpha1`/`alpha2`
+  (Angstrom→nm, sanity-gated). RAW2/RAW4 and Rigaku 'FI' `.raw` return `{}` (no
+  mapped metadata). Tested on the real `uk3084R.raw` (RAW3, count time 31.9994 s)
+  + synthetic RAW1/RAW3/FI fixtures.
 - **Bruker `.raw` v4** (`raw_parser._parse_v4`): `RAW4.00`, the DIFFRAC.SUITE
   segment-based container, ported from **xylib**'s bruker_raw.cpp
   load_version4 (61-byte header, global metadata segments, then range blocks;

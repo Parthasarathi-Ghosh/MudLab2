@@ -478,9 +478,10 @@ specimen's goniometer** automatically:
   speed.
 - **Bruker `.uxd`** — wavelength, X-ray tube (anode, kV, mA), count time, scan
   date, goniometer radius.
+- **Bruker `.raw`** — count time (and, for the older RAW1 files, the wavelength).
 
-Other formats (`.raw`, plain text) currently contribute only the file name and
-2θ range; set the rest of the goniometer yourself if needed.
+Rigaku `.raw` and plain-text files contribute only the file name and 2θ range;
+set the rest of the goniometer yourself if needed.
 
 ---
 
