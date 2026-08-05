@@ -68,7 +68,10 @@ def parse_uxd(path: str) -> tuple[np.ndarray, np.ndarray]:
         except (KeyError, ValueError, TypeError):
             return default
 
-    steptime = fnum("STEPTIME", 1.0) or 1.0
+    steptime = fnum("STEPTIME", 1.0)
+    # A non-positive / NaN step time must not divide the counts (0 -> inf,
+    # negative -> sign flip); fall back to 1.0 (leave as counts).
+    steptime = steptime if (steptime and steptime > 0) else 1.0
     count_time = 1.0 if already_cps else steptime
     start = fnum("START", 0.0)
     step = fnum("STEPSIZE", 1.0)

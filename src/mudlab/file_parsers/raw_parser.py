@@ -68,9 +68,10 @@ def _header_v1(f) -> tuple[float, float, int, int, float]:
     # Normalise to CPS by the per-step count time, like RAW3 (the old app read
     # time_step here but never wired it to the normaliser, so RAW1 came out as
     # raw counts - an inconsistency, since RAW1's time_step means the same thing
-    # as RAW3's count time).
+    # as RAW3's count time). A non-positive / NaN time is left as counts (1.0),
+    # never dividing by 0 or flipping the sign.
     return (twotheta_min, twotheta_step, twotheta_count, data_start,
-            float(time_step) or 1.0)
+            time_step if time_step > 0 else 1.0)
 
 
 def _header_v2(f) -> tuple[float, float, int, int, float]:
@@ -104,7 +105,7 @@ def _header_v3(f) -> tuple[float, float, int, int, float]:
     supp_headers_size, = struct.unpack("I", f.read(4))
     data_start = header_start + header_length + supp_headers_size
     return (float(twotheta_min), float(twotheta_step), int(twotheta_count),
-            data_start, float(count_time) or 1.0)
+            data_start, count_time if count_time > 0 else 1.0)
 
 
 _HEADERS = {"RAW1": _header_v1, "RAW2": _header_v2, "RAW3": _header_v3}

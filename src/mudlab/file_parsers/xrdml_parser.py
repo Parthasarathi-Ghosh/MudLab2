@@ -35,9 +35,13 @@ def _common_counting_time(dp, ns: str) -> float:
     el = dp.find(_q("commonCountingTime", ns))
     if el is not None and el.text:
         try:
-            return float(el.text)
+            value = float(el.text)
         except ValueError:
-            pass
+            value = 0.0
+        # A zero / negative / garbage counting time must not divide the counts
+        # (0 -> inf, negative -> sign flip); fall back to 1.0 (leave as counts).
+        if value > 0:
+            return value
     return 1.0
 
 

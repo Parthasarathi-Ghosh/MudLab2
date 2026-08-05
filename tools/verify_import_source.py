@@ -259,6 +259,33 @@ def main():
     check("RAW1 import applies its Ka1 to the goniometer",
           r1 and abs(r1[0].goniometer.wavelength - 0.15406) < 1e-6)
 
+    # --- normalization guards: a non-positive count time must not poison the
+    #     intensities (0 -> inf via divide-by-zero; negative -> sign flip) -----
+    zx = _write("zero.xrdml",
+        '<?xml version="1.0"?><xrdMeasurements '
+        'xmlns="http://www.xrdml.com/XRDMeasurement/1.5"><xrdMeasurement><scan>'
+        '<dataPoints><positions axis="2Theta"><startPosition>10</startPosition>'
+        '<endPosition>10.4</endPosition></positions>'
+        '<commonCountingTime>0</commonCountingTime>'
+        '<intensities unit="counts">100 200 300 400 500</intensities>'
+        '</dataPoints></scan></xrdMeasurement></xrdMeasurements>')
+    zy = parse_pattern(zx)[1]
+    check("xrdml commonCountingTime=0 -> no divide-by-zero (finite counts)",
+          bool(np.all(np.isfinite(zy))) and abs(zy[0] - 100.0) < 1e-6)
+
+    negraw = os.path.join(_TMP, "neg.raw")
+    open(negraw, "wb").write(_raw1(-2.0))  # negative time_step
+    ny = parse_pattern(negraw)[1]
+    check("RAW1 negative time_step -> falls back to counts (no sign flip)",
+          bool(np.all(ny > 0)) and abs(ny[0] - 100.0) < 1e-6)
+
+    neguxd = _write("neg.uxd", "\n".join([
+        "_STEPTIME=-2.0", "_STEPSIZE=0.02", "_START=5.0",
+        "_2THETACOUNTS", "5.00 100", "5.02 100", "5.04 100"]))
+    uy = parse_pattern(neguxd)[1]
+    check("uxd negative _STEPTIME -> falls back to counts",
+          bool(np.all(uy > 0)) and abs(uy[0] - 100.0) < 1e-6)
+
     # A plain-text import still gets a (base) source.
     imported2 = win.import_specimen_files([txt])
     check("text import still gets a base source",
