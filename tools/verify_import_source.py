@@ -39,7 +39,7 @@ from mudlab.file_parsers.rasx_parser import parse_rasx_metadata
 from mudlab.file_parsers.raw_parser import parse_raw_metadata
 from mudlab.file_parsers.uxd_parser import parse_uxd_metadata
 from mudlab.file_parsers.xrd_import import (
-    build_source_string, parse_pattern_metadata,
+    build_source_string, parse_pattern, parse_pattern_metadata,
 )
 from mudlab.file_parsers.xrdml_parser import parse_xrdml_metadata
 from mudlab.main_window import MainWindow
@@ -237,6 +237,10 @@ def main():
           m1.get("count_time") == 2.0
           and abs(m1.get("wavelength_ka1", 0) - 0.15406) < 1e-6
           and abs(m1.get("wavelength_ka2", 0) - 0.15444) < 1e-6)
+    # RAW1 now normalises to CPS by its time_step (100 counts / 2 s = 50), like
+    # RAW3 - previously it came out as raw counts.
+    check("Bruker RAW1 intensities normalise to CPS (counts / time_step)",
+          abs(parse_pattern(raw1)[1][0] - 50.0) < 1e-6)
 
     raw3 = os.path.join(_TMP, "bruker3.raw")
     open(raw3, "wb").write(_raw3(8.0))

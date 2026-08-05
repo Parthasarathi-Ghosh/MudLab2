@@ -55,8 +55,8 @@ def _read_version(f) -> str:
 def _header_v1(f) -> tuple[float, float, int, int, float]:
     # Cursor is just past the 4-byte "RAW " marker.
     twotheta_count = int(struct.unpack("I", f.read(4))[0])
-    # time_step, twotheta_step, scan_mode:
-    _time_step, twotheta_step, _scan_mode = struct.unpack("fff", f.read(12))
+    # time_step (per-step counting time), twotheta_step, scan_mode:
+    time_step, twotheta_step, _scan_mode = struct.unpack("fff", f.read(12))
     f.seek(4, SEEK_CUR)                      # skip 4
     twotheta_min, = struct.unpack("f", f.read(4))
     f.seek(12, SEEK_CUR)                     # theta/khi/phi start (eulerian)
@@ -65,7 +65,12 @@ def _header_v1(f) -> tuple[float, float, int, int, float]:
     f.seek(72, SEEK_CUR)
     struct.unpack("I", f.read(4))            # isfollowed
     data_start = f.tell()
-    return twotheta_min, twotheta_step, twotheta_count, data_start, 1.0
+    # Normalise to CPS by the per-step count time, like RAW3 (the old app read
+    # time_step here but never wired it to the normaliser, so RAW1 came out as
+    # raw counts - an inconsistency, since RAW1's time_step means the same thing
+    # as RAW3's count time).
+    return (twotheta_min, twotheta_step, twotheta_count, data_start,
+            float(time_step) or 1.0)
 
 
 def _header_v2(f) -> tuple[float, float, int, int, float]:
@@ -183,8 +188,10 @@ def _parse_rigaku_fi(data: bytes) -> tuple[np.ndarray, np.ndarray]:
 
 def parse_raw(path: str) -> tuple[np.ndarray, np.ndarray]:
     """Parse a binary *.raw pattern; returns (two_theta, intensity) for its
-    first range. Bruker RAW v1-3 intensity is counts-per-second, v4 and Rigaku
-    are as stored (the raw-pattern phase scale is fit anyway)."""
+    first range. Bruker RAW1 and RAW3 intensity is normalised to counts-per-
+    second by the per-step count time; RAW2 (whose count time this reader does
+    not locate), RAW4 and Rigaku are as stored (the raw-pattern phase scale is
+    fit anyway)."""
     with open(path, "rb") as fh:
         data = fh.read()
     if data[:4] == _RIGAKU_MAGIC:

@@ -432,7 +432,11 @@ mudlab's `xrd_parsers`, validated against the real vendor files in
   header+192) and, for RAW1 only, the Kα1/Kα2 wavelengths from `alpha1`/`alpha2`
   (Angstrom→nm, sanity-gated). RAW2/RAW4 and Rigaku 'FI' `.raw` return `{}` (no
   mapped metadata). Tested on the real `uk3084R.raw` (RAW3, count time 31.9994 s)
-  + synthetic RAW1/RAW3/FI fixtures.
+  + synthetic RAW1/RAW3/FI fixtures. **CPS (2026-08-05):** RAW1 now also
+  normalises to counts-per-second by its `time_step` (`_header_v1` used to return
+  1.0 - a faithful port of an old-app oversight that left RAW1/RAW2 as raw counts
+  while RAW3 was CPS). RAW2's count time is still not located, so it stays counts;
+  v4 / Rigaku are as stored. Only RAW1/RAW3 (and `.xrdml` / `.uxd`) are CPS.
 - **Bruker `.raw` v4** (`raw_parser._parse_v4`): `RAW4.00`, the DIFFRAC.SUITE
   segment-based container, ported from **xylib**'s bruker_raw.cpp
   load_version4 (61-byte header, global metadata segments, then range blocks;
