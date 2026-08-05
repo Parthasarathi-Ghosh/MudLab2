@@ -37,7 +37,12 @@ from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.edit_project_dialog import EditProjectDialog
 from mudlab.edit_specimen_dialog import EditSpecimenDialog
 from mudlab.file_parsers import load_mud, save_mud
-from mudlab.file_parsers.xrd_import import PATTERN_FILTERS, parse_pattern
+from mudlab.file_parsers.xrd_import import (
+    PATTERN_FILTERS,
+    build_source_string,
+    parse_pattern,
+    parse_pattern_metadata,
+)
 from mudlab.line_dialogs import (
     AddNoiseDialog,
     PeakPropertiesDialog,
@@ -790,6 +795,13 @@ class MainWindow(QMainWindow):
                 continue
             specimen = Specimen(name=os.path.splitext(os.path.basename(path))[0])
             specimen.set_experimental_pattern(x, y)
+            # Describe the source file (old app's source box) and, where the file
+            # provides it, apply its wavelength to the specimen's goniometer.
+            metadata = parse_pattern_metadata(path)
+            specimen.source = build_source_string(path, x, metadata)
+            ka1 = metadata.get("wavelength_ka1")
+            if ka1 and specimen.goniometer is not None:
+                specimen.goniometer.set_wavelength_distribution([(ka1, 1.0)])
             self.project.add_specimen(specimen)
             imported.append(specimen)
 

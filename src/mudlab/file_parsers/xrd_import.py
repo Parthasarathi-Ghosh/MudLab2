@@ -22,7 +22,7 @@ from mudlab.file_parsers.csv_io import CsvOptions, read_xy
 from mudlab.file_parsers.rasx_parser import parse_rasx
 from mudlab.file_parsers.raw_parser import parse_raw
 from mudlab.file_parsers.uxd_parser import parse_uxd
-from mudlab.file_parsers.xrdml_parser import parse_xrdml
+from mudlab.file_parsers.xrdml_parser import parse_xrdml, parse_xrdml_metadata
 
 # Vendor/binary formats with a fixed layout. Everything else (ASCII XY family
 # and unknown extensions) is read as delimited text via the common CSV reader,
@@ -62,3 +62,70 @@ def parse_pattern(
     if parser is not None:
         return parser(path)
     return read_xy(path, options)
+
+
+# Per-format metadata readers for the specimen "source" description (best-effort;
+# formats without one contribute just the file name + 2theta range built from the
+# data). Only .xrdml is read for now - .rasx / .raw metadata is a follow-up.
+_VENDOR_METADATA = {
+    ".xrdml": parse_xrdml_metadata,
+}
+
+
+def parse_pattern_metadata(path: str) -> dict:
+    """Best-effort file metadata (wavelength, count time, sample, ...) for the
+    source description. Returns {} for formats without a metadata reader, and
+    never raises - the import must not fail over descriptive metadata."""
+    reader = _VENDOR_METADATA.get(os.path.splitext(path)[1].lower())
+    if reader is None:
+        return {}
+    try:
+        return reader(path) or {}
+    except Exception:  # noqa: BLE001 - metadata is purely descriptive
+        return {}
+
+
+def build_source_string(path: str, x, metadata: "dict | None" = None) -> str:
+    """The specimen 'source' text for an imported pattern (old app's
+    _build_source_string): the file name and the 2theta range/step/points read
+    from the data, plus any wavelength / count-time / sample metadata the file
+    provided. `x` is the 2theta axis; `metadata` comes from
+    `parse_pattern_metadata`."""
+    metadata = metadata or {}
+    parts = ["File: %s" % os.path.basename(path)]
+
+    x = np.asarray(x, dtype=float)
+    if x.size >= 2:
+        step = float(np.median(np.abs(np.diff(x))))
+        parts.append("2θ: %.4f° – %.4f°   step: %.4f°   (%d points)"
+                     % (float(np.min(x)), float(np.max(x)), step, x.size))
+    elif x.size == 1:
+        parts.append("2θ: %.4f°   (1 point)" % float(x[0]))
+
+    ct = metadata.get("count_time")
+    if ct is not None and ct != 1.0:
+        parts.append("Count time: %.2f s (intensities normalised to counts/s)" % ct)
+
+    name, sid = metadata.get("sample_name"), metadata.get("sample_id")
+    if name or sid:
+        line = "Sample: %s" % (name or "")
+        if sid:
+            line += " (id: %s)" % sid
+        parts.append(line.strip())
+
+    date = metadata.get("scan_date")
+    if date:
+        parts.append("Scanned: %s" % date)
+
+    ka1, ka2 = metadata.get("wavelength_ka1"), metadata.get("wavelength_ka2")
+    if ka1:
+        parts.append("Wavelength Kα1: %.5f nm (%.4f Å)  (applied to goniometer)"
+                     % (ka1, ka1 * 10.0))
+        if ka2:
+            parts.append("Wavelength Kα2: %.5f nm (%.4f Å)" % (ka2, ka2 * 10.0))
+
+    radius = metadata.get("radius_mm")
+    if radius:
+        parts.append("Goniometer radius: %.1f mm (from file)" % radius)
+
+    return "\n".join(parts)

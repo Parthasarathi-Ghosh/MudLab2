@@ -96,3 +96,58 @@ def parse_xrdml(path: str) -> tuple[np.ndarray, np.ndarray]:
                 if result is not None:
                     return result
     raise ValueError("No usable scan data in %r." % path)
+
+
+def _first_float(root, tag: str, ns: str):
+    for el in root.iter(_q(tag, ns)):
+        if el.text and el.text.strip():
+            try:
+                return float(el.text)
+            except ValueError:
+                pass
+    return None
+
+
+def parse_xrdml_metadata(path: str) -> dict:
+    """Best-effort instrument / scan metadata from a PANalytical *.XRDML, for the
+    specimen 'source' description. Every field is optional; returns a dict with
+    any of: wavelength_ka1 / wavelength_ka2 (nm), count_time (s), sample_name,
+    sample_id, scan_date, radius_mm. Never raises - a missing/odd file just
+    yields fewer keys."""
+    md: dict = {}
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError:
+        return md
+    ns = _ns(root)
+
+    ka1 = _first_float(root, "kAlpha1", ns)  # stored in Angstrom
+    ka2 = _first_float(root, "kAlpha2", ns)
+    if ka1 and ka1 > 0:
+        md["wavelength_ka1"] = ka1 / 10.0    # -> nm (MudLab's unit)
+    if ka2 and ka2 > 0:
+        md["wavelength_ka2"] = ka2 / 10.0
+
+    ct = _first_float(root, "commonCountingTime", ns)
+    if ct:
+        md["count_time"] = ct
+
+    # Sample name / id come from <sample> (not the author's <name>).
+    for sample in root.iter(_q("sample", ns)):
+        sname = sample.find(_q("name", ns))
+        sid = sample.find(_q("id", ns))
+        if sname is not None and sname.text and sname.text.strip():
+            md["sample_name"] = sname.text.strip()
+        if sid is not None and sid.text and sid.text.strip():
+            md["sample_id"] = sid.text.strip()
+        break
+
+    for el in root.iter(_q("startTimeStamp", ns)):
+        if el.text and el.text.strip():
+            md["scan_date"] = el.text.strip()
+            break
+
+    radius = _first_float(root, "radius", ns)  # incident-beam radius, mm
+    if radius and radius > 0:
+        md["radius_mm"] = radius
+    return md

@@ -464,6 +464,17 @@ settings (a header row is shown in italics), so you can tell at a glance whether
 the columns line up before clicking **OK**. The settings are pre-filled from a
 best guess at the file, so usually you can just confirm.
 
+### What import records about the file
+
+After importing, the specimen's **Source** box (Edit Specimen → *General* tab)
+describes where the pattern came from: the **file name** and its **2θ range,
+step and point count** (for any format). For a PANalytical `.xrdml` it also lists
+what the file recorded — the **wavelength**, **count time**, **sample name**,
+**scan date**, and goniometer **radius** — and the file's Kα₁ **wavelength is
+applied to the specimen's goniometer** automatically. (Other vendor formats
+currently contribute only the file name and 2θ range; the rest of the goniometer
+is left at its default for you to set.)
+
 ---
 
 ## Preparing experimental data

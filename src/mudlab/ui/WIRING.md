@@ -125,6 +125,11 @@ open the same dialog when the specimens context menu is added.
 
 - Tabs: General (specimen_name, specimen_sample_name, specimen_source),
   Display, Experimental, Calculated, Exclusion ranges, Goniometer.
+  `specimen_source` (a QPlainTextEdit) shows `specimen.source`; on Import,
+  `import_specimen_files` fills it via `xrd_import.build_source_string(path, x,
+  metadata)` - the file name + 2θ range/step/points (any format), plus any
+  `parse_pattern_metadata` fields (`.xrdml`: wavelength / count time / sample /
+  date / radius). Was empty before (2026-08-05; `verify_import_source`).
 - Display tab fields map to old specimen properties:
   `display_experimental/calculated/phases/derivatives/residuals`,
   `display_stats_in_lbl` (Rp in label), `display_vshift` (-10..10),
@@ -393,6 +398,8 @@ mudlab's `xrd_parsers`, validated against the real vendor files in
   2theta from `listPositions` or `startPosition`/`endPosition`+linspace;
   intensities normalised to counts-per-second by `<commonCountingTime>`.
   Matches old mudlab's XRDMLParser EXACTLY (max|Δ|=0) on real files.
+  `parse_xrdml_metadata` also reads (best-effort) the Kα1/Kα2 wavelengths
+  (Angstrom→nm), count time, sample name/id, scan timestamp and beam radius.
 - **`.rasx`** (`rasx_parser.py`, Rigaku - NEW, not in the lineage): a ZIP; read
   `Data<i>/Profile<j>.txt` (2theta, intensity, flag) via the shared
   `xy_parser.parse_xy_lines`. Its 2theta grid matches the sample's `.txt`
@@ -1330,10 +1337,12 @@ disables the whole tab, so **every specimen must own a goniometer**:
 `Specimen.__init__` now defaults `self.goniometer = Goniometer()` (CuKα
 Bragg-Brentano; a `.mud` load overwrites it). Before this, an imported / added
 specimen had `goniometer = None` and the tab was greyed out (2026-08-05 fix;
-`verify_specimen_goniometer`). Note: import still uses the DEFAULT goniometer -
-the `.xrdml`/`.raw` instrument metadata is not parsed into it (a possible
-follow-up); the calc uses the experimental 2θ grid, so only the wavelength
-matters, and CuKα is the default.
+`verify_specimen_goniometer`). Import now **applies the file's Kα1 wavelength**
+to that default goniometer when the format provides it (`.xrdml`, 2026-08-05);
+`.xrdml`/`.raw` slit/radius geometry is still NOT applied (only reported in the
+Source box - a follow-up). The calc uses the experimental 2θ grid, so beyond the
+wavelength the geometry defaults are harmless. See the import Source-box note
+(`build_source_string`) under the pattern-import dispatcher above.
 
 - Four groups with old ids kept: General (`gonio_radius_spb`,
   `gonio_min_2theta_spb` 0-160, `gonio_max_2theta_spb` 0-100,
