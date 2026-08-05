@@ -70,9 +70,16 @@ def mixture_composition(mixture, conversion: dict | None = None):
     for row in mixture.phase_matrix:
         totals: dict[int, float] = {}
         for j, phase in enumerate(row):
-            components = getattr(phase, "components", None) if phase is not None else None
+            # Clay-only composition: only a structural `type == "Phase"` phase
+            # contributes oxides. An empty cell, a raw-pattern accessory, or any
+            # future non-clay structural phase is skipped, so its fraction is not
+            # part of the per-specimen 100% (revisit this filter if a "bulk"
+            # composition including accessories is ever wanted).
+            if phase is None or getattr(phase, "type", None) != "Phase":
+                continue
+            components = phase.components
             if not components:
-                continue  # empty cell or a raw-pattern phase (no structure)
+                continue  # a Phase with no atoms yet contributes nothing
             phase_fract = float(mixture.fractions[j]) if j < len(mixture.fractions) else 0.0
             weights = _component_weights(phase)
             for k, component in enumerate(components):

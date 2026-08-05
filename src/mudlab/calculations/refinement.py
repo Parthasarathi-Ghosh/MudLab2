@@ -239,14 +239,19 @@ def _set_relation_value(relation, component, value: float) -> None:
 
 
 def enumerate_refinables(mixture) -> list[Refinable]:
-    """All refinable parameters of the mixture's (unique) phases, flagged or
-    not. The Refinement window shows the whole list; the Refiner uses only the
-    flagged ones."""
+    """All refinable parameters of the mixture's (unique) structural phases,
+    flagged or not. The Refinement window shows the whole list; the Refiner uses
+    only the flagged ones.
+
+    Only `type == "Phase"` phases are enumerated: a RawPatternPhase accessory has
+    no structure (no sigma*/CSDS/components), so `_phase_refinables` would raise
+    on it - skip it (its fraction is still fit by the fraction Optimize)."""
     refinables = []
     seen = set()
     for row in mixture.phase_matrix:
         for phase in row:
-            if phase is None or id(phase) in seen:
+            if (phase is None or getattr(phase, "type", None) != "Phase"
+                    or id(phase) in seen):
                 continue
             seen.add(id(phase))
             refinables.extend(_phase_refinables(phase))

@@ -60,6 +60,22 @@ def run():
     mix = project.mixtures[0]
     specimen_names, oxide_rows = mixture_composition(mix)
 
+    # A raw-pattern accessory (no structure, type != "Phase") must be excluded:
+    # the clay-only composition is unchanged and its fraction is not in the 100%.
+    import numpy as np
+    from mudlab.models.raw_pattern_phase import RawPatternPhase
+    mix_raw = load_mud(FIXTURE).mixtures[0]
+    raw = RawPatternPhase(name="Accessory")
+    raw.set_raw_pattern(np.linspace(5, 70, 50), np.ones(50))
+    slot = mix_raw.add_phase_slot("Acc")
+    for i in range(mix_raw.n):
+        mix_raw.set_phase_at(i, slot, raw)
+    _rn, oxide_rows_raw = mixture_composition(mix_raw)
+    check("a raw accessory is excluded (clay-only composition unchanged)",
+          all(abs(a - b) < 1e-9
+              for (_o1, p1), (_o2, p2) in zip(oxide_rows_raw, oxide_rows)
+              for a, b in zip(p1, p2)))
+
     # 1. Every column normalises to 100 (or all-zero).
     n_spec = len(specimen_names)
     col_sums = [sum(pcts[j] for _o, pcts in oxide_rows) for j in range(n_spec)]

@@ -77,6 +77,24 @@ def check_project(path):
     for kind in ("sigma*", "CSDS mean", "d001", "delta_c"):
         _check(results, "covers %s" % kind, any(kind in l for l in labels))
 
+    # 1b. A raw-pattern accessory in the mixture must NOT break enumeration (it
+    # has no structure, so _phase_refinables would raise on it) - it is skipped,
+    # adding no refinables, while its fraction is still fit by the fraction fit.
+    from mudlab.models.raw_pattern_phase import RawPatternPhase
+    mix_raw = load_mud(path).mixtures[0]
+    raw = RawPatternPhase(name="Accessory ref")
+    raw.set_raw_pattern(np.linspace(5, 70, 50), np.ones(50))
+    slot = mix_raw.add_phase_slot("Acc")
+    for i in range(mix_raw.n):
+        mix_raw.set_phase_at(i, slot, raw)
+    try:
+        n_with_raw = len(enumerate_refinables(mix_raw))
+        _check(results, "raw accessory does not break enumerate (skipped)",
+               n_with_raw == len(refs))
+    except Exception as exc:  # noqa: BLE001
+        _check(results, "raw accessory does not break enumerate (skipped): %s" % exc,
+               False)
+
     # 2. Perturb-and-recover on one flagged structural parameter.
     proj = load_mud(path)
     mix = proj.mixtures[0]
