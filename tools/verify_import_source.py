@@ -260,6 +260,15 @@ def main():
     check("text import still gets a base source",
           imported2 and "File: sample.txt" in imported2[0].source)
 
+    # --- the Source box survives a .mud save / reload ------------------------
+    from mudlab.file_parsers.mud_project import load_mud, save_mud
+    rt = os.path.join(_TMP, "rt.mud")
+    save_mud(win.project, rt)
+    sources = [s.source for s in load_mud(rt).specimens if s is not None and s.source]
+    check("specimen.source is saved to and read back from the .mud",
+          any("File: scan.xrdml" in s for s in sources)
+          and any("X-ray tube: Cu" in s for s in sources))
+
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
     print("--- import source / metadata verification ---")

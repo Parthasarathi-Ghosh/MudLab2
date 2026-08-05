@@ -50,7 +50,7 @@ PROJECT_PROPS = (
     "display_marker_base", "display_marker_top", "display_marker_align",
 )
 SPECIMEN_PROPS = (
-    "name", "sample_name",
+    "name", "sample_name", "source",
     "display_experimental", "display_calculated", "display_phases",
     "display_derivatives", "display_residuals", "display_stats_in_lbl",
     "display_vshift", "display_vscale", "display_residual_scale",
@@ -346,6 +346,4 @@ def _specimen_to_dict(specimen: Specimen) -> dict:
             },
         }
 
-    # 'source' is MudLab2-only; the old app's loader does not know it.
-    props.pop("source", None)
     return {"type": "Specimen", "properties": props}
