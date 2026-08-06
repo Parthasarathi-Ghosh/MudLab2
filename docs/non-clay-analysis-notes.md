@@ -554,6 +554,53 @@ isolated `nonclay/` Slice-1 engine (shared-unweighted Case A + null detection +
 semi-quant labels + optional CIF reference generation). Follow-ons: E4 (Si
 internal standard, now the accuracy priority) and E3c (collinearity threshold).
 
+## Finding 21 — the Si SRM 640f standard + structure validate the calculator on the REAL instrument and seed E4 (2026-08-06)
+
+Files supplied: the NIST **SRM 640f** Si CIF (certified a=5.431144, Si 8a,
+B_iso=0.556, Fd-3m #227; the 2.1 MB is NIST's certified Cu-Kα emission profile)
+and the user's measured `Si std ….xrdml` on their PANalytical Empyrean (fixed
+slits ½° div + 1° AS, X'Celerator, Cu, **no monochromator**, 240 mm radius,
+4–80°). The CIF's `Ge 111` monochromator fields describe NIST's own
+characterisation rig, not the user's instrument.
+
+Computed Si from the certified structure (from-CIF calculator + conventional LP)
+vs the measured Si standard:
+
+| hkl | measured | computed | ratio |
+|---|---|---|---|
+| 111 | 100 | 100 | 1.00 |
+| 220 | 61.6 | 64.0 | 0.96 |
+| 311 | 35.2 | 37.0 | 0.95 |
+| 400 | 9.7 | 9.5 | 1.03 |
+| 331 | 14.6 | 13.9 | 1.05 |
+
+Ratios 0.95–1.05, slope +0.001 (flat). Mean 2θ offset +0.208° (constant across
+peaks = sample-displacement/zero, exactly what a Si standard calibrates).
+
+DECISIVE: first end-to-end validation of the from-CIF calculator + LP against a
+REAL measurement on the user's OWN instrument (Findings 16–18 used only
+ICDD/other-calc). It confirms (a) the conventional LP is correct for this rig
+(fixed slits, no monochromator — empirically verified), so from-CIF REFERENCE
+GENERATION is trustworthy for the user's data; (b) the measured-Si /
+computed-|F|²·LP ratio is the instrument SCALE constant — the E4 seed for
+RIR-free ABSOLUTE quantification of accessories (their own |F|² from a CIF ×
+this scale → wt%), the only cure for the unobservable clay-relative bias
+(Finding 20). The measured Si peak widths also give the instrumental resolution
+function (Caglioti U,V,W) to broaden calculated stick references into fittable
+profiles (the Finding-19 gap), and the CIF carries NIST's certified emission
+profile for fundamental-parameters fitting.
+
+INSTRUMENT MATCH — RESOLVED (user's correction: the Si-standard rig is NOT
+`308 r1` but the `343 2 r3.mud` family). `343 2 r3.mud` goniometer: radius 24.0
+(the `.mud` stores radius in **cm**, so 24 cm = 240 mm = the xrdml — the earlier
+24-vs-240 was a cm/mm artifact, no mismatch), fixed divergence 0.5° (= the Si ½°
+slit), step 0.0167° (= Si), Cu. Only difference = stored wavelength convention:
+343 uses Cu Kα-average 1.54187 Å, the Si xrdml Kα1 1.540598 Å — both Cu,
+reconcile for absolute work, negligible for LP. So the instrument/geometry MATCH
+and the Si validation + E4 scale apply to this instrument's samples. CAVEAT: the
+Si calibration is instrument-specific — it applies to the 343 family (0.0167°
+step, 24 cm / 0.5° div), NOT to Dh537A (0.0131° step = a different instrument).
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.
