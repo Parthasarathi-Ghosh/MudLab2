@@ -309,6 +309,251 @@ honestly semi-quantitative. Reserve Case B (a real accessory Rietveld engine) fo
 when refinable accessory crystallography or internal-standard absolute quant is
 specifically wanted — the only regime where it buys something Case A cannot.
 
+## Finding 13 — reference-space (LP) gate on the real references (experiment E1, 2026-08-06)
+
+Re-ran the Finding-11 gate now that the 9 local references are UTF-8. Two are
+measured (`quartz.txt`, `talc.txt`); seven are CALCULATED — the "Large/Small CS"
+crystallite-size variants of albite, corundum, orthoclase, clinoptilolite.
+`check_reference_space` (slope of ratio(ref/standard) vs 2theta; ~0 =
+observed-space with LP present, strong POSITIVE = LP missing):
+
+| reference | standard | slope /deg | read |
+|---|---|---|---|
+| quartz.txt (measured) | ICDD 46-1045 (HIGH) | −0.0006 | observed-space — **CLEARED** |
+| talc.txt (measured) | approx | −0.009 | provisionally OK |
+| Albite L / S (calc) | approx | +0.006 / +0.001 | inconclusive |
+| Corundum L / S (calc) | ICDD 46-1212 (HIGH) | −0.017 / −0.017 | inconclusive |
+| Orthoclase L / S (calc) | approx | +0.016 / +0.028 | inconclusive |
+| Clinoptilolite (calc) | approx | −0.027 | inconclusive |
+
+**Only `quartz.txt` is decisively cleared.** The 6 calculated references are
+NOT cleared and NOT proven bad: the gate is inconclusive because the non-quartz
+standards were hand-entered/approximate, and the one high-confidence calculated
+anchor (corundum) shows peak-by-peak scatter (ratios 0.25–1.79) with a NEGATIVE
+slope — the wrong sign for LP-missing (a truly LP-free |F|² calc ramps strongly
+POSITIVE, since LP falls ~5× over 25–68°). Cross-mineral sign inconsistency
+(some +, some −) confirms the flags are standard-quality noise, not a shared LP
+defect (all 7 came from one pipeline → a real absence would be same-sign);
+Large/Small pairs agree within each mineral. So the gate METHOD is validated on
+quartz, but certifying the calculated references needs either a proper
+per-mineral standard (a CIF-derived, LP-included pattern) or an import-time
+"measured / calculated-with-LP" provenance flag. **Finding 11's precondition is
+currently UNMET for the calculated references** — do not trust quantification
+built on them yet.
+
+Data facts recorded this session: the provided fixtures may contain quartz as
+their ONLY non-clay; a Si-standard measurement for a future RIR / internal-
+standard test (E4 / Q1) is at `~/Downloads/Si std 18-12-2025.xrdml` (instrument
+possibly the same as `308 r1.mud`, to be confirmed).
+
+## Finding 14 — cross-specimen sharing is not the real lever; the error is LOCAL bias (E2 / E2b)
+
+Tested the open question "share one non-clay fraction across AD/EG/400". Spiked
+all three Dh537A specimens with the SAME absolute quartz amplitude c (truth
+genuinely shared), re-ran the shipped clay optimize, recovered c per-specimen vs
+jointly. The per-specimen error is a CONSTANT OFFSET, not scatter: AD ≈ 0,
+EG ≈ −0.50, 400 ≈ −0.10 (amplitude units) at every spike level — Finding-4 bias
+(clay misfit projected onto quartz at its peak), deterministic per treatment.
+
+- Shared-unweighted joint fit → constant ≈ −0.19 bias = the (energy-weighted)
+  AVERAGE of the offsets. HELPS the worst specimen (EG −0.50→−0.19), lowers
+  aggregate RMSE at ≥5% spikes (won 3/4), but HURTS the best (AD 0→−0.19).
+  Averaging cuts variance, not bias — and the error here IS bias.
+- **Global Rp does NOT identify the low-bias specimen**: AD and EG have nearly
+  equal global Rp (~14) but opposite bias. So 1/Rp² weighting (slightly WORSE,
+  −0.23) and "best global Rp" specimen (unreliable — ties AD/EG) both fail.
+
+Verdict: REJECT naive per-specimen mean, global-Rp weighting, and global-Rp
+best-specimen. KEEP shared-unweighted as the robust default (bounded averaged
+bias). The discriminating quality is LOCAL (clay-fit quality at the reference's
+peaks), which the per-specimen MIS-REGISTRATION NULL (Finding 8) already
+measures — weighting/gating by the null, not global Rp, is the principled fix
+(open experiment E2c). **This supersedes the "shared cross-specimen fraction"
+open question**: sharing alone is not the win; local-quality weighting is.
+
+## Finding 15 — collinearity is benign at the real level; the guard is a reporting convenience (E3 / E3b)
+
+The Large/Small-CS pairs are the collinearity worst case. On the AD grid: albite
+Large/Small cosine 0.979, reference Gram condition number 140 — genuinely
+collinear.
+
+- Un-spiked good-fit AD residual, fit [quartz | albite_L | albite_S] +
+  nuisances: stable ZEROS, no invented minerals. Finding 5's "invented minerals"
+  was a plain-NNLS-without-nuisance artifact — the nuisance formulation cures it.
+- Spiked with a known albite amount (as LargeCS): bvls + non-negativity put the
+  mass on the CORRECT variant (albite_L 105.7, albite_S 0.0), quartz exactly 0,
+  allocation std 0.1% of total — NO sloshing. The guard (merge cosine>0.97
+  columns to their mean) gives one stable "albite" number (112.6, true 111.9).
+  Both carry the same ~5% underestimate = the E2/Finding-4 local bias.
+
+Verdict: at the real collinearity level (cosine ≤0.98, cond ~140) collinearity
+is NOT a numerical hazard with the current formulation. KEEP a lightweight guard
+only as (a) a REPORTING convenience — merge same-mineral variants into one
+number so the user isn't shown "albite-LargeCS + albite-SmallCS" — and (b) a
+WARNING above a high-collinearity threshold. Not a core algorithm. Open
+experiment E3c: sweep synthetic near-duplicates (cosine→0.999) to locate where
+allocation destabilizes, to set that threshold. **This supersedes the "reference
+collinearity" open question**: it's a guard-rail, not a blocker.
+
+**Net (E1–E3):** the two risks the notes flagged (collinearity invention; needing
+cross-specimen sharing) are LESS severe than assumed — the nuisance formulation +
+non-negativity already handle collinearity, and sharing is a modest robustness
+gain. The real accuracy limiters are (1) the LOCAL clay-misfit bias at the
+accessory's peaks (E2) and (2) the UNVERIFIED reference intensity space of the
+calculated references (E1).
+
+## Finding 16 — a mineral structure (CIF) can be obtained and used here to make observed-space references (experiment E1b, 2026-08-06)
+
+Motivated by E1: the calculated CS references' intensity space is unverified and
+the hand-entered standards were too rough to certify them. Checked whether a
+crystal structure can be obtained and used to compute a proper LP-included
+pattern *inside* MudLab.
+
+- **Obtainable (free):** α-quartz CIF fetched from the Crystallography Open
+  Database (COD 9000775, ambient, P3₂21, a=4.916 c=5.4054). Free mineral-structure
+  sources: **COD and AMCSD** (both open); **BGMN** ships `.str` files. ICSD is
+  subscription; the CCDC/CSD holds organics / metal-organics, not minerals (the
+  "CCD" asked about was most likely COD).
+- **Usable here (no external library):** no powder-pattern package is bundled
+  (no pymatgen / gemmi / ASE), but MudLab ships Waasmaier-Kirfel scattering
+  factors. A ~150-line calculator (parse cell + symmetry ops + atoms → expand to
+  3 Si + 6 O → reciprocal metric tensor d(hkl) → F(hkl)=Σ f_j(s)·DW·exp(2πi(hx+
+  ky+lz)) → I=|F|²·LP) reproduces quartz: 101 at 26.63°=100, 100 at 20.85°=19.9
+  (ICDD 16, measured 19.1), 112 at 50.12°=12.8 (ICDD 13). Ratio-vs-2θ slope
+  computed/ICDD = **−0.004** (flat), matching quartz.txt/ICDD (−0.0006). LP is
+  applied explicitly, so the result is observed-space BY CONSTRUCTION and it
+  tracks both ICDD and the measured curve.
+
+**Consequences:**
+1. **E1 can be made decisive** — generate LP-included standards for the uncertain
+   references (corundum, albite, orthoclase, clinoptilolite) from their COD CIFs
+   and re-run the gate with real standards (open E1c; cross-check the calculator
+   on corundum first, where a HIGH-confidence ICDD standard exists).
+2. **Reference generation (Case-B seed)** — the same calculator can GENERATE
+   clean observed-space reference curves from structures, sidestepping the
+   provided files' unverified provenance entirely. This directly resolves the E1
+   blocker: don't depend on the CS files — generate references from CIFs.
+3. A structure-factor engine is also the first brick of Case B (calculated-
+   structure accessory + Rietveld-on-residual, Finding 12).
+
+Calculator lives this session in scratchpad `exp_e1b_quartz_from_cif.py` — worth
+graduating to a tracked prototype (`tools/`).
+
+## Finding 17 — the calculated CS references ARE observed-space; the E1 "suspect" flags were standard artifacts (experiment E1c, corundum, 2026-08-06)
+
+Turned the from-CIF calculator (Finding 16) into a decisive E1 gate: compute a
+mineral from a COD CIF (LP applied explicitly → observed-space by construction)
+and compare the PROVIDED file to it. On corundum (COD 1000032, R-3c, 12 Al +
+18 O):
+
+- provided `Corundum_LargeCS.txt` vs from-CIF: ratios 0.85–1.04, slope **−0.0055
+  (flat)** → the PROVIDED FILE IS OBSERVED-SPACE (LP present) → **CLEARED**.
+- The from-CIF calc and the provided file AGREE with each other (both put 43.36°
+  strongest, both ~40 at 37.78°); my hand-entered ICDD 46-1212 intensities
+  disagreed with BOTH (43.36=66, 37.78=21) — my approximate ICDD standard was the
+  outlier that produced E1's original "suspect" flag, not the files.
+
+**This SUPERSEDES Finding 13's "hold the calculated references": the CS files
+carry LP and are usable.** The E1 slope test is only as good as its standard; a
+CIF-derived standard makes it decisive, and it clears corundum. Also validates
+the calculator on a second crystal system (trigonal R-3c) beyond quartz.
+
+## Finding 18 — albite corroborates (not LP-missing), but feldspar reference intensities are structure-model dependent (E1d)
+
+Provided Albite Large/Small vs from-CIF albite (COD 9000525, triclinic C-1,
+disordered Al/Si): positions match; the provided/fromCIF slope is **−0.0146**
+(both variants) — NEGATIVE, the wrong sign for LP-absence (LP-missing would ramp
+POSITIVE), so albite too is consistent with observed-space. The residual
+deviation (22°: fromCIF 100 vs provided 65; a 35.6° peak fromCIF 29 vs provided
+2.5) traces to the ALBITE STRUCTURE MODEL — feldspar relative intensities depend
+strongly on Al/Si ordering, and the two sides used different albite structures.
+(C-centering absences h+k odd are handled correctly by the structure-factor sum.)
+
+Design consequence: for RIGID, ORDERED accessories (quartz, corundum) a
+reference/standard is robust; for FELDSPARS the reference carries structure-model
+(ordering) uncertainty — an extra accuracy limit for feldspar quantification
+specifically, independent of the LP-space question.
+
+**E1 RESOLVED:** all provided references are observed-space (quartz measured +
+matched; corundum decisive; albite corroborating; orthoclase / clinoptilolite by
+same-pipeline inference). The feature can use them. Separately, CIF-generated
+references remain the cleaner long-term route (guaranteed LP, no provenance
+doubt) and are the Case-B seed. The from-CIF calculator now spans quartz
+(P3₂21), corundum (R-3c) and albite (triclinic C-1) — general enough to be the
+reference/standard generator.
+
+## Finding 19 — do we need raw-pattern references? (design, 2026-08-06)
+
+Raised after the from-CIF calculator (Findings 16-18) + a BGMN `QUARTZ.STR` made
+structure-computed references possible. Conclusion: KEEP raw (measured)
+references, but as ONE of two complementary SOURCES behind a common fit-time
+container; and for the non-clay feature they are residual-fit curves, NOT
+mixture phases.
+
+- **Measured references stay PREFERRED for accuracy.** A same-instrument
+  measurement carries true peak widths, real crystallite-size broadening, real
+  (partial) preferred orientation, and exact LP/geometry — which a structure
+  pattern must MODEL (profile + PO + thermal). E1d showed calculated feldspar
+  intensities are ordering-dependent and can be materially off. The from-CIF
+  calculator gives correct positions + relative intensities but STICK heights
+  with no real widths, so a computed reference still needs a profile convolution
+  to fit the measured residual. Measured also covers poorly-crystalline /
+  structure-unknown accessories.
+- **Structure-computed references ADD what measured cannot:** composition
+  (derived from atoms), guaranteed LP-space (no provenance doubt), refinable
+  crystallography (Case B).
+- **Architecture:** `RawPatternPhase` remains the fit-time CONTAINER (a curve +
+  name); its curve is SOURCED from either an imported measurement OR the
+  structure calculator. The Case-A residual fit is source-agnostic. Composition
+  is available only when a structure backs the reference.
+- **Not mixture phases:** the feature fits references to the RESIDUAL (separate
+  problem); a raw accessory placed IN the mixture is zeroed by global Rp (earlier
+  F5/Rp test). So: reference-as-residual-curve, not mixture-slot.
+
+**BGMN `.str` notes (`QUARTZ.STR`):** it DOES list atoms (`SI+4`, `O-2` +
+`Wyckoff=a/c`), so composition IS derivable by expanding Wyckoff multiplicities
+(SG 154: a→3 Si, c→6 O = SiO2) — "no composition" = no explicit formula field,
+not truly absent. BUT `.str` gives a space-group NUMBER + Wyckoff, not explicit
+symmetry ops, so computing a pattern from it needs a space-group ops table
+(more than a CIF, which lists ops). `.str` is Rietveld-oriented
+(`GEWICHT`/`GOAL`/`SPHAR0`/`RP`) = a ready Case-B model, and uses ionic species
+(MudLab's scattering CSV has charged entries). RECOMMENDATION: use CIF
+(COD/AMCSD, explicit ops) as the structural source for our calculator; BGMN
+`.str` is a future Case-B import that would need a space-group table.
+
+## Finding 20 — null-weighting fails too; the per-specimen bias is unobservable → shared-unweighted stands, the Si standard is the accuracy path (E2c)
+
+Tested weighting/gating the cross-specimen fit by the per-specimen
+mis-registration null (Finding 8). It does NOT help — it is WORSE than
+shared-unweighted (bias −0.25…−0.34 vs −0.19), and null-selection is worst.
+Reason: the null measures what the misfit manufactures at SHIFTED (wrong)
+positions, but the bias is the misfit at the reference's TRUE peak. These
+differ — EG has a LOW null (~0.46) yet the LARGEST bias (−0.50), because its
+glycolated-clay reflection sits under quartz's true 26.6° peak but not at random
+offsets. So null-weighting up-weights exactly the wrong specimen.
+
+Conclusion: NEITHER global Rp NOR the mis-registration null identifies the
+low-bias specimen; the per-specimen bias (clay misfit projected onto the
+reference at its true position) is confounded with the accessory signal itself
+and is essentially UNOBSERVABLE from the specimen alone. Therefore:
+- **shared-unweighted is the robust default** (won E2c 3/3, E2b 3/4); no clever
+  weighting beats it.
+- the accuracy ceiling is set by clay-fit quality at the accessory peaks and is
+  NOT rescuable by specimen weighting.
+- the null remains valid as a DETECTION threshold (Finding 8), just not as a
+  bias predictor.
+- ⇒ the real accuracy lever is an **internal standard (Si, E4)** giving ABSOLUTE
+  quant, sidestepping the clay-relative bias. This elevates E4 from
+  "nice-to-have" to the primary accuracy path.
+
+**E1–E3 PROGRAM COMPLETE.** Net: reference space RESOLVED (E1, via the from-CIF
+calculator); collinearity BENIGN (E3, guard = convenience + warning); cross-
+specimen combination = shared-unweighted with an unobservable clay-relative bias
+whose only real cure is the Si internal standard (E2/E2c). Ready to assemble the
+isolated `nonclay/` Slice-1 engine (shared-unweighted Case A + null detection +
+semi-quant labels + optional CIF reference generation). Follow-ons: E4 (Si
+internal standard, now the accuracy priority) and E3c (collinearity threshold).
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.
