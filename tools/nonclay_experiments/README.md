@@ -23,6 +23,12 @@ Run head-less with the bundled interpreter from the repo root, e.g.
 | `e2c_nullweight.py` | 20 | Null-weighting (also fails; bias is unobservable). |
 | `e3_collinearity.py` | 15 | Collinearity diagnostics + guard on the un-spiked residual. |
 | `e3b_collinearity.py` | 15 | Collinearity with a known albite spike (bvls is stable). |
+| `e4_si_validate.py` | 21 | NIST SRM 640f Si structure vs the measured Si standard - validates the calculator + LP on the real instrument (E4 seed). |
+| `e5_realquartz.py` | 23 | Slice-1 decomposition on 3 real quartz-rich projects (oriented-mount intensity share is ~10x below wt%). |
+| `e5b_massbalance.py` | 24 | XRF mass-balance quartz quantification + the clay-composition gap (Fe/Mg). |
+| `e5c_feoxide.py` | 26 | XRD-detect leg: hematite/goethite (from CIF) not confidently detected -> Fe is in-clays. |
 
-See also the tracked prototypes `tools/prototype_nonclay.py` (Stage 1+2 engine)
-and `tools/prototype_nonclay_survey.py`.
+The `e5*` scripts read the local `~/Downloads/MudLab Test/` folder (3 `.mud`
+projects + XRF + Si + a quartz `.STR`). See also the tracked prototypes
+`tools/prototype_nonclay.py` (Stage 1+2 engine) and
+`tools/prototype_nonclay_survey.py`.

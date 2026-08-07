@@ -601,6 +601,155 @@ and the Si validation + E4 scale apply to this instrument's samples. CAVEAT: the
 Si calibration is instrument-specific — it applies to the 343 family (0.0167°
 step, 24 cm / 0.5° div), NOT to Dh537A (0.0131° step = a different instrument).
 
+## Finding 22 — XRF cross-check: clay model captures structure but not full chemistry; the samples are quartz-rich (E5 setup, 2026-08-07)
+
+User supplied XRF bulk chemistry + 3 new `.mud` projects (`348`, `416`,
+`AT460 r1`) on the Si-standard instrument (step 0.0167°, Cu Kα1 — so the E4
+absolute leg applies). `XRF compositions.csv` has two blocks: measured XRF (10
+oxides) + MudLab clay-model composition (5 oxides). Mapping: 348→AT-348/4,
+416→AT-416/1, AT460→AT-460/1. (Raw oxide values are the user's local data — kept
+out of this tracked doc; only conclusions/magnitudes recorded.)
+
+1. **The clay MODEL matches structure but NOT full chemistry.** Consistently
+   across the three: MudLab OVER-predicts Al2O3 (by ~6-9 wt%), UNDER-predicts
+   Fe2O3 (by ~5-9 wt%; these are Fe-rich clays, XRF Fe2O3 10-14%), and MISSES
+   ~4.3% of oxides entirely (MgO ~3, TiO2 ~0.9, Na2O, MnO, P2O5 all read 0 -
+   those atom types are absent from the phases). So the pattern fit captures
+   stacking/spacing but the atom types are idealized Al-clays. A real limitation
+   XRF exposes; it biases any chemistry-based mass balance.
+2. **The samples are quartz-rich.** An Al-tracer proxy (quartz = XRF SiO2 -
+   MudLab SiO2/Al2O3 x XRF Al2O3) gives ~14-17 wt% quartz for all three - real
+   test cases (unlike Dh537A ~0%). BUT this proxy is biased UPWARD by the Al
+   over-prediction (MudLab Al too high -> SiO2/Al2O3 too low -> quartz too high),
+   so 14-17% is an upper-ish bound.
+
+Consequence: the XRD-RESIDUAL quartz estimate (Slice-1, independent of the clay
+COMPOSITION) is likely more reliable here than the chemistry proxy; comparing the
+two is the cross-check, and their gap also measures the clay-composition error.
+These projects have quartz visible but NO quartz reference imported yet.
+NEXT (E5): generate a quartz reference (BGMN QUARTZ.STR / COD CIF / measured) on
+these grids, run the Slice-1 decomposition, reconcile XRD-residual vs
+XRF-chemistry quartz, and use the Si standard for the absolute (E4) scale.
+
+## Finding 23 — E5 on real quartz-rich samples: pipeline works, but oriented-mount intensity share is ~10x below quartz weight% (orientation, not RIR) (2026-08-07)
+
+Ran the Slice-1 decomposition on 348 / 416 / AT460 with the measured quartz.txt
+(user chose "measured curve first").
+- Clay fits are EXCELLENT (Rp 3.85-5.68) - well inside the quality gate.
+- Quartz is DETECTED in ALL 6 specimens (clears the null; nulls 0.12-0.31%).
+- Shared cross-specimen quartz estimate stable: ~1.36 / 1.49 / 1.52% (intensity
+  share) for 348 / 416 / AT460.
+
+BUT the intensity share (~1.5%) is ~10x SMALLER than the XRF chemistry weight%
+(~14-17%). Cause: these are ORIENTED Ca-mounts - the clay basal reflections are
+massively preferred-orientation-enhanced (sigma*), while quartz is randomly
+oriented (apply_lpf=False). So area(quartz)/area(clay) in intensity heavily
+under-represents quartz MASS. This is NOT an RIR-size factor - it is the clay
+orientation enhancement (~5-20x on basals). The shares are also nearly FLAT
+(~1.5%) while chemistry ranges 14-17%, so intensity share is not even a clean
+RELATIVE measure across samples if orientation varies.
+
+Consequence (important, reframes "semi-quantitative"): on oriented clay mounts,
+integrated-intensity share is off from weight % by the clay ORIENTATION factor
+(~10x here), not merely by an RIR. Converting to weight % needs the clay
+preferred-orientation correction (sigma*, which MudLab's clay LP T(theta)
+already models) PLUS the instrument scale (Si). Si alone gives quartz absolute
+(quartz is random) but the clay-relative normalisation needs the sigma*
+correction. So the honest oriented-mount readout is: reliable DETECTION +
+qualitative trend, with absolute wt% requiring an orientation-corrected
+calibration (E5b/E4). A randomly-oriented (bulk powder) mount removes the
+orientation factor - the classic reason bulk QPA uses random powders.
+
+## Finding 24 — E5b XRF mass balance: quartz ~9-14 wt%, and a large Fe2O3 deficit flags Fe-clays or an Fe-oxide accessory (2026-08-07)
+
+NNLS of XRF oxides onto [clay composition (shipped `mixture_composition`) |
+quartz (SiO2=100)] per sample:
+- QUARTZ = 11.1 / 9.3 / 13.7 wt% (of clay+quartz) for 348 / 416 / AT460 -
+  orientation-INDEPENDENT (chemistry), LOWER than the crude Al-tracer proxy
+  (14-17%) because the multi-oxide fit tempers the Al bias.
+- The fit pins SiO2 exactly via quartz (the only SiO2-flexible phase), so
+  quartz = the SiO2 the clay does not explain, and W_clay is set by Al2O3.
+  Al2O3 is over-predicted (Finding 22), so quartz still carries that bias;
+  improving the clay Al/Fe atom types is the key to tightening it.
+- BIG residual: Fe2O3 UNDER-explained by ~5-9 wt% (model ~4.7, XRF 9.7-13.6) +
+  MgO by ~2-3. Either the clays are Fe/Mg-bearing (model uses idealised
+  Al-clays) OR a separate Fe-OXIDE ACCESSORY (hematite ~33.2/35.6 deg, goethite
+  ~21.2 deg) - a second non-clay.
+
+The hybrid working as designed: XRF quantifies quartz + FLAGS the Fe/Mg gaps; the
+XRD-detect leg can resolve whether the Fe deficit is Fe-in-clays or an Fe-oxide
+accessory (fit a hematite/goethite reference to the residual). NEXT: (E5c)
+XRD-check the residual for an Fe-oxide accessory; then improve the clay
+composition (Fe/Mg/Al atom types) to tighten the quartz number.
+
+## Finding 25 — domain considerations, experimental-design physics, and data requirements (user input, 2026-08-07)
+
+**PLANNED OUTPUT: a scientific paper.** When the trials are done, draft a paper
+covering everything considered/tried, each option's merits/demerits, what does
+and does NOT violate the physics, and the final recommendation. Findings 1-24+
+are the evidence base - keep them COMPLETE and PHYSICS-EXPLICIT so the paper can
+be written from them.
+
+**Domain observations (user manual inspection of the 348/416/AT460 specimens):**
+- Confirmed: a little hematite/goethite is present (matches the Finding-24 Fe
+  deficit); possibly some non-clay DETRITAL MICA; the clay-fraction modelling was
+  done hastily (matches the Finding-22 composition bias).
+- DETRITAL-MICA CAVEAT (physics): detrital muscovite 002 = 10 Å = the SAME
+  spacing as illite, so in the residual it is largely ABSORBED by the illite fit
+  and is nearly invisible to the residual method. Separating detrital mica from
+  authigenic illite by oriented XRD is intrinsically hard (both 10 Å; mica is
+  sharper/larger-crystallite) - a real limitation to state in the paper.
+
+**Experimental-design physics:**
+- A SINGLE PROJECT = TREATMENT VARIANTS of ONE physical sample. A non-clay
+  present in one specimen is present in ALL (AD / EG / heated) at the same
+  amount - the physical basis for the SHARED cross-specimen fraction (Finding
+  14). Confirmed correct by the mineralogy, not just the statistics.
+- HEAT TREATMENT (350-550 C) destroys/modifies many clay species (smectite &
+  kaolinite collapse / dehydroxylate), so the HEATED specimen shows a HIGHER
+  relative % of non-clay minerals -> the heated pattern is the MOST SENSITIVE
+  for non-clay detection/quantification. (348/416/AT460 have only AD+GL, no
+  heated -> recommend including a heated specimen for non-clay work.)
+
+**Data requirements (essential vs optional) - toward the UI design ("what do we
+want from the user?"):**
+- ESSENTIAL: a `.mud` with a GOOD clay fit (low Rp - the residual is only as
+  clean as the clay fit); the XRD pattern(s); at least one non-clay REFERENCE
+  (a measured curve or a structure) to identify/fit against.
+- OPTIONAL, each unlocking a capability: XRF oxides -> mass-balance
+  QUANTIFICATION (weight %) + flags missing phases (the Fe deficit); a Si
+  standard on the same instrument -> ABSOLUTE scale; a CIF/STR structure ->
+  generate references without a measurement + composition for the mass balance;
+  a HEATED specimen -> better non-clay sensitivity.
+- WHAT TO ASK THE USER (UI): required = choose a well-fit mixture + load
+  reference pattern(s) for the suspected non-clays; optional = paste/import XRF
+  oxides, load a Si standard, load CIF/STR structures.
+
+## Finding 26 — E5c: hematite/goethite not confidently detected; the Fe deficit is mostly Fe-in-clays (2026-08-07)
+
+Generated hematite (COD 9000139, Fe2O3, a=5.038 c=13.772) + goethite (COD
+9002158, FeOOH) references from CIF (from-CIF calculator, broadened to ~0.12 deg
+FWHM), fit to the AD residuals with the detection rule:
+- Quartz DETECTED all 3 (1.4-1.6% intensity, clears null).
+- Hematite NOT detected (0.15-0.31%, at/below null 0.15-0.33%) - marginal.
+- Goethite NOT detected (0.03-0.23%, below null).
+
+No confident discrete Fe-oxide accessory - consistent with the user's "little
+hematite/goethite." BUT: (1) ORIENTED-MOUNT SUPPRESSION (Finding 23) means a
+randomly-oriented Fe-oxide is ~10x suppressed, so even a few % hematite shows
+only ~0.2-0.5% intensity - exactly where these marginal signals sit; oriented-
+mount non-detection does NOT rule out a few % hematite. (2) So the ~5-9% Fe2O3
+deficit (Finding 24) is most likely dominated by Fe-IN-CLAYS (idealised Al-only
+clay atom types missing octahedral Fe), with possibly a little hematite the
+oriented mount cannot confirm. Definitive resolution needs a HEATED specimen or
+a RANDOM-POWDER mount (Finding 25). Detrital mica not fittable (muscovite 002 =
+10 A = illite; micas orient like clays -> absorbed by the illite fit).
+
+Conclusion -> (b): the Fe deficit is a CLAY-COMPOSITION problem, so improving the
+mass-balance accuracy requires editing the CLAY atom types (Fe/Mg-bearing
+illite/smectite) - a USER modelling task; the non-clay feature only READS the
+clay composition and stays frozen w.r.t. the clay model.
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.
