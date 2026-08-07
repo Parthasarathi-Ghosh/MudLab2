@@ -750,6 +750,43 @@ mass-balance accuracy requires editing the CLAY atom types (Fe/Mg-bearing
 illite/smectite) - a USER modelling task; the non-clay feature only READS the
 clay composition and stays frozen w.r.t. the clay model.
 
+## Finding 27 — clarifications (Q1-Q4) + E5 must be REDONE with heated specimens (2026-08-08)
+
+User clarifying questions after E5; ANSWERS (to be shown at the start of the next
+session):
+1. RAW vs STRUCTURE/CIF quartz reference: worth trying from-CIF quartz as METHOD
+   VALIDATION - it will NOT change the quartz QUANTITY (that comes from XRF via
+   the orientation factor, Finding 23) but it validates the from-CIF reference-
+   generation path so we can make references for minerals with NO measured
+   standard (feldspar, etc.). Use the COD CIF (validated E1b) + Si-resolution
+   broadening; the BGMN `.str` needs a space-group/Wyckoff table (deferred to
+   Case B).
+2. MICA: NOT tried, deliberately. Detrital muscovite 002 = 10 A = illite
+   (absorbed by the illite fit) AND micas orient like clays (not a random
+   accessory); XRF also cannot separate them (both K-Al-silicates). So detrital
+   mica is INDISTINGUISHABLE from illite by BOTH legs of the hybrid - a hard
+   limitation for the paper. (Can fit a muscovite reference to demonstrate.)
+3. IRON OXIDES: a SINGLE FREE-AMPLITUDE fit per sample (NOT varying fractions /
+   not a spike series) - the fit finds the best hematite/goethite amount in the
+   actual residual and tests it vs the null. Notation "0.15% (null 0.20) X" =
+   best-fit 0.15% intensity share, detection floor (null) 0.20%; 0.15 < 0.20 ->
+   below the floor -> NOT detected. A hematite SPIKE-SENSITIVITY test would bound
+   the oriented-mount detection limit (how much hematite hides below the floor).
+4. HEATED vs AD/GL: 348/416/AT460 had ONLY AD+GL (no heated). AD vs GL: quartz
+   detected in both, shares similar (1.3-2.0%), scatter from glycol expanding the
+   smectite basal (changes the clay area). Heated UNTESTED on quartz-bearing data
+   (only Dh537A 400C, E2, which had the worst clay fit Rp 30.5). "Heated enhances
+   non-clay detection" (Finding 25) is sound physics but UNTESTED -> gap.
+
+**ACTION: E5 MUST BE REDONE.** The user forgot to include HEATED variants in
+348/416/AT460 and will update the `.mud` files. Once done, re-run E5/E5b/E5c with
+the heated specimens - the heated pattern should show a HIGHER relative non-clay %
+(Finding 25), directly testing that hypothesis and improving non-clay detection.
+Findings 23-26 are AD+GL-only and PROVISIONAL until the heated re-run.
+
+Three exposed follow-ups: (a) from-CIF quartz vs measured; (b) muscovite fit to
+demonstrate the mica limitation; (c) hematite spike-sensitivity (detection limit).
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.
