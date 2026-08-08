@@ -851,6 +851,104 @@ share but NOT the XRF quantity. RECOMMENDATION: use CIF-constructed references
 (goniometer Ka1 + Si width) as the default; validates the from-CIF generation path
 for the feature. (BGMN .str would give the same once a SG/Wyckoff table is added.)
 
+## Finding 30 — (c): baseline removal doesn't help the modeled fit; heated helps ID not quant for illite-rich samples; the quartz strategy (2026-08-08)
+
+Part 1 - BASELINE REMOVAL on the modeled Ca-AD residual: fitting quartz with a
+morphological baseline strip vs the standard nuisance-column fit changes the
+quartz area by only +1 / -3 / -2% (348/416/AT460) - NEGLIGIBLE. Confirms
+Finding 6: the nuisance columns already absorb the broad clay-shape drift, so a
+baseline strip adds nothing on a MODELED residual. (Baseline removal is only
+relevant when fitting WITHOUT a clay model - e.g. a heated specimen with no
+model - to isolate sharp peaks from a broad hump.)
+
+Part 2 - HEATED K-series (K-AD/400/550), clean quartz 100 (0.426) share of the
+baseline-stripped pattern:
+- Q100 share stays ~2-3% across AD->400->550 (does NOT rise toward weight%).
+  These are ILLITE-rich (ISK-dominated) samples, and ILLITE (mica) is thermally
+  STABLE - its 10 A basal survives 550 C and stays strong/oriented. So heating
+  does NOT convert them to random powder for the total-pattern share; the
+  orientation suppression PERSISTS. (The random-powder advantage is real for
+  KAOLINITE/SMECTITE-rich samples - basals weaken/vanish - but LIMITED for
+  illite-rich.)
+- Q101 share (12-22%) INCREASES with heating, 100/101 FALLS (0.16->0.11):
+  collapsed-smectite 003 piles onto illite 003 at 26.6 -> 101 MORE contaminated
+  when heated. The 101 share (~15%) coincidentally matching the XRF weight%
+  (~15%) is a TRAP (101 = quartz + clay 003), not a quartz measure.
+
+RECOMMENDATION (quartz):
+1. Reference: CIF via the goniometer + Si width (F29).
+2. Fit locus: the residual (Pattern - total clays) on AD/EG (clays intact,
+   Rp<6). Use both peaks with the CLEAN 100 (0.426) as the ANCHOR; never trust
+   the 101 (0.334) alone (illite/smectite 003 overlap, worse when heated).
+3. Baseline removal: SKIP on modeled residuals (<3%); only for model-less fits.
+4. Heated specimens: use for IDENTIFICATION (clean quartz, no glycol-smectite
+   overlap) - but for illite-rich samples they do NOT deliver quartz weight%
+   (the illite basal survives).
+5. Quartz weight%: XRF mass balance is the quantifier (orientation-independent,
+   F24); XRD identifies + gives the orientation-biased intensity ratio. Headline
+   deliverable (quartz fraction vs total-clay fraction): the XRD residual gives
+   it in INTENSITY (biased low for quartz by orientation), XRF gives it in
+   WEIGHT.
+
+For OTHER non-clays: mineral-specific strategies (user's point) - each has its
+own overlaps / orientation / thermal behaviour.
+
+## Finding 31 — what we ask from the user + the non-clay UI spec (toward Slice 2, 2026-08-08)
+
+The feature decomposes a clay-dominated pattern into clay vs non-clay and
+quantifies the non-clays (headline: QUARTZ FRACTION vs TOTAL CLAY FRACTION).
+Which non-clays to include is the USER's choice, exactly like clay phases (today:
+quartz only; more later, each with a mineral-specific strategy).
+
+**INPUTS - tiered by what they unlock:**
+
+ESSENTIAL (detection + relative intensity):
+- A `.mud` with a GOOD clay fit (low Rp) - the residual is only as clean as the
+  clay fit. Analyse the AD/EG specimens (clays intact); heated = identification.
+- The user SELECTS the non-clay phases to look for (quartz default/dominant;
+  feldspar, calcite, Fe-oxide, ... optional).
+- Per non-clay: a REFERENCE PATTERN, source = either
+  (i) a MEASURED curve (import), or
+  (ii) a STRUCTURE (CIF preferred, or BGMN `.str`) -> the app CONSTRUCTS the
+       reference via the SPECIMEN GONIOMETER + instrumental width (F29). CIF
+       better.
+
+OPTIONAL - for QUANTIFICATION in WEIGHT % (the XRF route):
+- The sample's XRF BULK OXIDE composition (the mass-balance constraint; without
+  it -> intensity-share only, orientation-biased, F23).
+- Each non-clay's COMPOSITION for the mass balance:
+  known mineral -> formula -> oxides (quartz = SiO2); or from the CIF/`.str`
+  atoms x Wyckoff multiplicities; or user-entered oxide wt% (EPMA/literature).
+
+OPTIONAL - for ABSOLUTE scale + reference broadening (the Si route):
+- A Si standard MEASUREMENT on the SAME instrument (+ its CIF) -> the
+  instrumental resolution (FWHM for reference construction) + the absolute scale
+  (E4).
+
+FROM THE `.mud` ALREADY (no user action): the goniometer (wavelength, Soller,
+radius, divergence mode) - used to construct references and set the LP.
+
+**NON-CLAY UI (Slice 2 - what the dialog collects):**
+- A NON-CLAY PHASE MANAGER (mirrors the clay phase editor): add/remove non-clay
+  phases; per phase: name/mineral; reference source
+  [Import measured curve] | [Load CIF/.str -> construct via the goniometer];
+  composition (for the mass balance) [pick mineral -> auto oxides] |
+  [from CIF/Wyckoff] | [enter oxide wt%].
+- An XRF INPUT: paste/import the sample's bulk oxide composition.
+- A Si-STANDARD input (optional): load the Si measurement + CIF.
+- A RESULTS panel: per phase x specimen detection (clears the null?), the XRD
+  intensity share, the XRF mass-balance weight %, quartz-vs-total-clay; with
+  SEMI-QUANT labelling + FLAGS (XRF-vs-model oxide residuals -> improve the clay
+  atom types; the orientation caveat; the illite-003 overlap on the 101).
+
+**Design notes carried from the trials:** CIF reference via goniometer + Si width
+(F29); use both quartz peaks, anchor on the clean 100 / 0.426, not the 101
+(F28/F30); fit locus = residual on AD/EG, no baseline strip on modeled residuals
+(F30); weight % from the XRF mass balance, intensity share is orientation-biased
+low (F23); the UI FLAGS XRF-vs-model oxide gaps to prompt clay-atom-type fixes
+(F22/F26); non-clays are RESIDUAL-fit curves, NOT mixture phases (F19); the
+engine stays READ-ONLY over the clay path.
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.

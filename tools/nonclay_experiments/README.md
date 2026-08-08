@@ -28,6 +28,7 @@ Run head-less with the bundled interpreter from the repo root, e.g.
 | `e5b_massbalance.py` | 24 | XRF mass-balance quartz quantification + the clay-composition gap (Fe/Mg). |
 | `e5c_feoxide.py` | 26 | XRD-detect leg: hematite/goethite (from CIF) not confidently detected -> Fe is in-clays. |
 | `e5d_cifquartz.py` | 29 | CIF quartz reference (built via the specimen goniometer + Si width) vs the measured curve - CIF is cleaner. |
+| `e5e_baseline_heated.py` | 30 | Baseline removal (no help on modeled residuals) + heated K-series quartz shares (illite survives -> limited random-powder gain). |
 
 The `e5*` scripts read the local `~/Downloads/MudLab Test/` folder (3 `.mud`
 projects + XRF + Si + a quartz `.STR`). See also the tracked prototypes
