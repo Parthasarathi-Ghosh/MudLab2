@@ -26,6 +26,7 @@ from mudlab.calculations.composition import load_conversion_table
 from mudlab.nonclay.chemistry import mass_balance
 from mudlab.nonclay.decompose import decompose_mixture
 from mudlab.nonclay.references import load_reference
+from mudlab.nonclay.structure import reference_from_cif
 from mudlab.nonclay.ui_nonclay import Ui_NonclayDialog
 
 _PATTERN_FILTER = (
@@ -51,6 +52,7 @@ class NonclayDialog(QDialog):
         self._setup_xrf_table()
 
         self.ui.btn_add_ref.clicked.connect(self._on_add)
+        self.ui.btn_add_cif.clicked.connect(self._on_add_cif)
         self.ui.btn_remove_ref.clicked.connect(self._on_remove)
         self.ui.btn_run.clicked.connect(self._on_run)
         self.ui.btn_copy.clicked.connect(self._on_copy)
@@ -102,6 +104,26 @@ class NonclayDialog(QDialog):
             ref = load_reference(path)
         except Exception as exc:  # surface, don't crash
             QMessageBox.warning(self, "Could not load reference", "%s" % exc)
+            return
+        self.add_reference(ref)
+
+    def _on_add_cif(self) -> None:
+        path, _filter = QFileDialog.getOpenFileName(
+            self, "Add non-clay reference from a structure", "",
+            "Structure files (*.cif);;All files (*)")
+        if not path:
+            return
+        specs = [s for s in self._mixture.specimens if s is not None]
+        if not specs:
+            QMessageBox.warning(
+                self, "No specimen", "The mixture has no specimen goniometer to "
+                "build the reference with.")
+            return
+        try:
+            ref = reference_from_cif(path, specs[0].goniometer)
+        except Exception as exc:  # surface the ValueError message
+            QMessageBox.warning(
+                self, "Could not build reference from CIF", "%s" % exc)
             return
         self.add_reference(ref)
 

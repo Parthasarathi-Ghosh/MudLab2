@@ -51,6 +51,11 @@ class Ui_NonclayDialog(object):
 
         self.refsButtons.addWidget(self.btn_add_ref)
 
+        self.btn_add_cif = QPushButton(self.grp_refs)
+        self.btn_add_cif.setObjectName(u"btn_add_cif")
+
+        self.refsButtons.addWidget(self.btn_add_cif)
+
         self.btn_remove_ref = QPushButton(self.grp_refs)
         self.btn_remove_ref.setObjectName(u"btn_remove_ref")
 
@@ -148,6 +153,10 @@ class Ui_NonclayDialog(object):
         self.btn_add_ref.setToolTip(QCoreApplication.translate("NonclayDialog", u"Add a measured non-clay reference curve (e.g. quartz).", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_add_ref.setText(QCoreApplication.translate("NonclayDialog", u"Add measured\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_add_cif.setToolTip(QCoreApplication.translate("NonclayDialog", u"Build a reference from a crystal structure (CIF with explicit symmetry ops, e.g. from COD/AMCSD), using this specimen's goniometer.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_add_cif.setText(QCoreApplication.translate("NonclayDialog", u"Add from CIF\u2026", None))
         self.btn_remove_ref.setText(QCoreApplication.translate("NonclayDialog", u"Remove", None))
 #if QT_CONFIG(tooltip)
         self.btn_run.setToolTip(QCoreApplication.translate("NonclayDialog", u"Decompose every specimen against the loaded references.", None))

@@ -205,6 +205,52 @@ def run(path):
           dlg2._massbalance is not None
           and "weight %" in dlg2.ui.lbl_summary.text().lower())
     dlg2.deleteLater()
+
+    # 8. CIF reference construction (self-contained minimal alpha-quartz CIF).
+    import tempfile
+    from mudlab.nonclay import structure
+    cif_text = (
+        "data_quartz\n"
+        "_cell_length_a 4.9137\n_cell_length_b 4.9137\n_cell_length_c 5.4047\n"
+        "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 120\n"
+        "loop_\n_space_group_symop_operation_xyz\n"
+        "x,y,z\ny,x,2/3-z\n-y,x-y,2/3+z\n-x,-x+y,1/3-z\n-x+y,-x,1/3+z\nx-y,-y,-z\n"
+        "loop_\n_atom_site_label\n_atom_site_fract_x\n_atom_site_fract_y\n"
+        "_atom_site_fract_z\nSi 0.4697 0.0000 0.0000\nO 0.4135 0.2669 0.1191\n"
+    )
+    g = [s for s in mix3.specimens if s is not None][0].goniometer
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_q_%d.cif" % os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(cif_text)
+    try:
+        cif_ref = structure.reference_from_cif(tmp, g, name="quartz-CIF")
+        cx = np.asarray(cif_ref.raw_pattern_x)
+        cy = np.asarray(cif_ref.raw_pattern_y)
+
+        def _pk(pos, w=0.3):
+            sel = (cx >= pos - w) & (cx <= pos + w)
+            return float(cy[sel].max()) if np.any(sel) else 0.0
+
+        check("8 from-CIF quartz: 101 (26.66) strongest, 100 (20.85) present",
+              _pk(26.66) > 50 and _pk(20.85) > 3 and _pk(26.66) > _pk(20.85))
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+    tmp2 = tmp + "-noops.cif"
+    with open(tmp2, "w", encoding="utf-8") as fh:
+        fh.write("_cell_length_a 4.9\n_cell_length_b 4.9\n_cell_length_c 5.4\n"
+                 "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 120\n")
+    try:
+        raised = False
+        try:
+            structure.reference_from_cif(tmp2, g)
+        except ValueError:
+            raised = True
+        check("8 a CIF without explicit symmetry ops is rejected clearly", raised)
+    finally:
+        if os.path.exists(tmp2):
+            os.remove(tmp2)
     return None
 
 

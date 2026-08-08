@@ -48,6 +48,16 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="btn_add_cif">
+            <property name="toolTip">
+             <string>Build a reference from a crystal structure (CIF with explicit symmetry ops, e.g. from COD/AMCSD), using this specimen's goniometer.</string>
+            </property>
+            <property name="text">
+             <string>Add from CIF&#8230;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="btn_remove_ref">
             <property name="text">
              <string>Remove</string>
