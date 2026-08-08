@@ -272,6 +272,19 @@ def run(path):
     wp3 = dict(zip(mb3.components, mb3.weight_pct)) if mb3 else {}
     check("9 a manual composition makes an unknown reference quantifiable (~15%)",
           mb3 is not None and abs(wp3.get("mystery", 0.0) - 15.0) < 3.0)
+
+    # 10. #4 instrumental FWHM from a (synthetic) Si standard.
+    from mudlab.nonclay.instrument import instrumental_fwhm
+    si_x = np.arange(20.0, 90.0, 0.01)
+    si_y = np.zeros_like(si_x)
+    true_fwhm = 0.15
+    sig = true_fwhm / 2.355
+    for pos in (28.44, 47.30, 56.12, 69.13, 76.37, 88.03):
+        si_y += 100.0 * np.exp(-0.5 * ((si_x - pos) / sig) ** 2)
+    check("10 instrumental FWHM from a synthetic Si standard (~0.15 deg)",
+          abs(instrumental_fwhm(si_x, si_y) - true_fwhm) < 0.02)
+    check("10 instrumental FWHM falls back to the default on a flat pattern",
+          abs(instrumental_fwhm(si_x, np.zeros_like(si_x), default=0.10) - 0.10) < 1e-9)
     return None
 
 

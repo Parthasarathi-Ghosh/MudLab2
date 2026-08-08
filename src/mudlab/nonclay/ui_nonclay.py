@@ -103,6 +103,25 @@ class Ui_NonclayDialog(object):
 
         self.rootLayout.addLayout(self.topRow)
 
+        self.siRow = QHBoxLayout()
+        self.siRow.setObjectName(u"siRow")
+        self.btn_si = QPushButton(NonclayDialog)
+        self.btn_si.setObjectName(u"btn_si")
+
+        self.siRow.addWidget(self.btn_si)
+
+        self.lbl_si = QLabel(NonclayDialog)
+        self.lbl_si.setObjectName(u"lbl_si")
+
+        self.siRow.addWidget(self.lbl_si)
+
+        self.siSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.siRow.addItem(self.siSpacer)
+
+
+        self.rootLayout.addLayout(self.siRow)
+
         self.tbl_results = QTableWidget(NonclayDialog)
         self.tbl_results.setObjectName(u"tbl_results")
         self.tbl_results.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -173,6 +192,11 @@ class Ui_NonclayDialog(object):
         self.btn_run.setText(QCoreApplication.translate("NonclayDialog", u"Run", None))
         self.grp_xrf.setTitle(QCoreApplication.translate("NonclayDialog", u"XRF oxides (wt %, optional)", None))
         self.lbl_xrf_hint.setText(QCoreApplication.translate("NonclayDialog", u"Enter the sample's bulk oxide wt % for a weight-% (quartz vs clay) result.", None))
+#if QT_CONFIG(tooltip)
+        self.btn_si.setToolTip(QCoreApplication.translate("NonclayDialog", u"Load a Si-standard measurement to set the instrumental peak width used when building references from a CIF.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_si.setText(QCoreApplication.translate("NonclayDialog", u"Si standard\u2026", None))
+        self.lbl_si.setText(QCoreApplication.translate("NonclayDialog", u"Reference width: 0.10\u00b0 (default)", None))
         self.lbl_summary.setText("")
 #if QT_CONFIG(tooltip)
         self.btn_copy.setToolTip(QCoreApplication.translate("NonclayDialog", u"Copy the results to the clipboard as CSV.", None))

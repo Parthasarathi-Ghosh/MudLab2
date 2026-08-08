@@ -24,8 +24,10 @@ from PySide6.QtWidgets import (
 )
 
 from mudlab.calculations.composition import load_conversion_table
+from mudlab.file_parsers.xrd_import import parse_pattern
 from mudlab.nonclay.chemistry import mass_balance, mineral_composition
 from mudlab.nonclay.decompose import decompose_mixture
+from mudlab.nonclay.instrument import instrumental_fwhm
 from mudlab.nonclay.references import load_reference
 from mudlab.nonclay.structure import reference_from_cif
 from mudlab.nonclay.ui_nonclay import Ui_NonclayDialog
@@ -94,6 +96,7 @@ class NonclayDialog(QDialog):
         self._compositions: list = []
         self._result = None
         self._massbalance = None
+        self._fwhm = 0.10  # reference peak width (deg); set from a Si standard
 
         name = getattr(mixture, "name", "") or "mixture"
         self.setWindowTitle("Non-clay decomposition - %s" % name)
@@ -102,6 +105,7 @@ class NonclayDialog(QDialog):
         self.ui.btn_add_ref.clicked.connect(self._on_add)
         self.ui.btn_add_cif.clicked.connect(self._on_add_cif)
         self.ui.btn_edit_comp.clicked.connect(self._on_edit_composition)
+        self.ui.btn_si.clicked.connect(self._on_si_standard)
         self.ui.btn_remove_ref.clicked.connect(self._on_remove)
         self.ui.btn_run.clicked.connect(self._on_run)
         self.ui.btn_copy.clicked.connect(self._on_copy)
@@ -182,12 +186,29 @@ class NonclayDialog(QDialog):
                 "build the reference with.")
             return
         try:
-            ref, composition = reference_from_cif(path, specs[0].goniometer)
+            ref, composition = reference_from_cif(
+                path, specs[0].goniometer, fwhm=self._fwhm)
         except Exception as exc:  # surface the ValueError message
             QMessageBox.warning(
                 self, "Could not build reference from CIF", "%s" % exc)
             return
         self.add_reference(ref, composition)
+
+    def _on_si_standard(self) -> None:
+        """Load a Si-standard measurement and set the instrumental peak width used
+        when building references from a CIF (Finding 21)."""
+        path, _filter = QFileDialog.getOpenFileName(
+            self, "Load a Si-standard measurement", "", _PATTERN_FILTER)
+        if not path:
+            return
+        try:
+            x, y = parse_pattern(path)
+        except Exception as exc:
+            QMessageBox.warning(self, "Could not load Si standard", "%s" % exc)
+            return
+        self._fwhm = instrumental_fwhm(x, y)
+        self.ui.lbl_si.setText(
+            "Reference width: %.3f° (from Si standard)" % self._fwhm)
 
     def _on_remove(self) -> None:
         row = self.ui.list_refs.currentRow()
