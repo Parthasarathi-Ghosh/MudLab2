@@ -179,6 +179,32 @@ def run(path):
           and np.allclose(before3[2], mix3.bgshifts))
     check("6 dialog CSV export is non-empty", len(dlg._csv_text().strip()) > 0)
     dlg.deleteLater()
+
+    # 7. XRF mass balance recovers a known clay:quartz split (self-consistent).
+    from mudlab.nonclay import chemistry
+    from mudlab.calculations.composition import mixture_composition
+    _n, oxide_rows = mixture_composition(mix3)
+    order = [o for o, _pcts in oxide_rows]
+    clay_vec = [pcts[0] for _o, pcts in oxide_rows]
+    xrf = {o: 0.85 * clay_vec[k] + (15.0 if o == "SiO2" else 0.0)
+           for k, o in enumerate(order)}
+    mb = chemistry.mass_balance(mix3, xrf, [_synthetic_quartz()])
+    wpct = dict(zip(mb.components, mb.weight_pct)) if mb else {}
+    check("7 XRF mass balance recovers the known clay:quartz split (~15%)",
+          mb is not None and abs(wpct.get("synthetic-quartz", 0.0) - 15.0) < 3.0)
+    check("7 mass balance returns None without XRF",
+          chemistry.mass_balance(mix3, {}, [_synthetic_quartz()]) is None)
+
+    # 7b. dialog weight-% path: fill the XRF table, run, get a mass balance.
+    dlg2 = NonclayDialog(load_mud(path).mixtures[0])
+    dlg2.add_reference(_synthetic_quartz())
+    for k, oxide in enumerate(dlg2._xrf_oxides):
+        dlg2.ui.tbl_xrf.item(k, 0).setText("%.3f" % xrf.get(oxide, 0.0))
+    dlg2.run()
+    check("7 dialog computes the XRF weight-% mass balance",
+          dlg2._massbalance is not None
+          and "weight %" in dlg2.ui.lbl_summary.text().lower())
+    dlg2.deleteLater()
     return None
 
 

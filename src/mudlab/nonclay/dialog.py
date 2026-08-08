@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QWidget,
 )
 
+from mudlab.calculations.composition import load_conversion_table
+from mudlab.nonclay.chemistry import mass_balance
 from mudlab.nonclay.decompose import decompose_mixture
 from mudlab.nonclay.references import load_reference
 from mudlab.nonclay.ui_nonclay import Ui_NonclayDialog
@@ -42,9 +44,11 @@ class NonclayDialog(QDialog):
         self._mixture = mixture
         self._references: list = []
         self._result = None
+        self._massbalance = None
 
         name = getattr(mixture, "name", "") or "mixture"
         self.setWindowTitle("Non-clay decomposition - %s" % name)
+        self._setup_xrf_table()
 
         self.ui.btn_add_ref.clicked.connect(self._on_add)
         self.ui.btn_remove_ref.clicked.connect(self._on_remove)
@@ -58,6 +62,31 @@ class NonclayDialog(QDialog):
     def _set_results_enabled(self, on: bool) -> None:
         self.ui.btn_copy.setEnabled(on)
         self.ui.btn_export.setEnabled(on)
+
+    def _setup_xrf_table(self) -> None:
+        """One editable wt% cell per reporting oxide (optional user input)."""
+        self._xrf_oxides = [n for n, _f in load_conversion_table().values()]
+        table = self.ui.tbl_xrf
+        table.setColumnCount(1)
+        table.setRowCount(len(self._xrf_oxides))
+        table.setHorizontalHeaderLabels(["wt %"])
+        table.setVerticalHeaderLabels(self._xrf_oxides)
+        for i in range(len(self._xrf_oxides)):
+            table.setItem(i, 0, QTableWidgetItem(""))
+        table.resizeColumnsToContents()
+
+    def _read_xrf(self) -> dict:
+        out = {}
+        for i, oxide in enumerate(self._xrf_oxides):
+            item = self.ui.tbl_xrf.item(i, 0)
+            text = item.text().strip() if item is not None else ""
+            if not text:
+                continue
+            try:
+                out[oxide] = float(text)
+            except ValueError:
+                continue
+        return out
 
     def add_reference(self, reference) -> None:
         """Add an already-loaded reference (used by the UI and the harness)."""
@@ -84,10 +113,14 @@ class NonclayDialog(QDialog):
         del self._references[row]
 
     def run(self) -> None:
-        """Recompute the clay fit (read-only) and decompose against the loaded
-        references. Also the public entry the harness drives."""
+        """Recompute the clay fit (read-only), decompose against the loaded
+        references, and (if XRF oxides were entered) compute the weight-% mass
+        balance. Also the public entry the harness drives."""
         self._mixture.calculate()  # make the residual current; does not refit
         self._result = decompose_mixture(self._mixture, self._references, detect=True)
+        xrf = self._read_xrf()
+        self._massbalance = (mass_balance(self._mixture, xrf, self._references)
+                             if xrf else None)
         self._populate()
         self._set_results_enabled(True)
 
@@ -119,11 +152,22 @@ class NonclayDialog(QDialog):
 
         rp = ", ".join("%s Rp %.1f" % (s.name, s.rp) for s in specs)
         tot = ", ".join("%s %.1f%%" % (s.name, s.nonclay_pct) for s in specs)
-        self.ui.lbl_summary.setText(
-            "Clay fit: %s.   Total non-clay (intensity share): %s.   "
-            "Semi-quantitative - an intensity share, NOT weight %%; oriented "
-            "mounts bias non-clays low (use XRF for weight %%). "
-            "✓ = detected above the mis-registration null." % (rp, tot))
+        parts = []
+        mb = self._massbalance
+        if mb is not None:
+            wpct = dict(zip(mb.components, mb.weight_pct))
+            nonclay = ", ".join("%s %.1f wt%%" % (n, wpct[n])
+                                for n in mb.components if n != "clay")
+            parts.append(
+                "WEIGHT %% (XRF mass balance): %s vs clay %.1f wt%%. "
+                "Unexplained oxides %.1f%% - improve the clay Fe/Mg atom types."
+                % (nonclay or "(no known non-clay composition)",
+                   wpct.get("clay", 0.0), mb.unexplained_pct))
+        parts.append("Clay fit: %s.   XRD intensity share (non-clay): %s." % (rp, tot))
+        parts.append("The XRD share is semi-quantitative (orientation-biased low); "
+                     "the XRF weight % is orientation-independent. "
+                     "✓ = detected above the mis-registration null.")
+        self.ui.lbl_summary.setText("   ".join(parts))
 
     # ------------------------------------------------------------------
     def _csv_text(self) -> str:
@@ -139,6 +183,13 @@ class NonclayDialog(QDialog):
                 rr = sr.references[i]
                 row.append("%.2f%s" % (rr.pct, " (detected)" if rr.detected else ""))
             writer.writerow(row)
+        mb = self._massbalance
+        if mb is not None:
+            writer.writerow([])
+            writer.writerow(["weight % (XRF mass balance)"])
+            for comp_name, wp in zip(mb.components, mb.weight_pct):
+                writer.writerow([comp_name, "%.1f" % wp])
+            writer.writerow(["unexplained oxides %", "%.1f" % mb.unexplained_pct])
         return buffer.getvalue()
 
     def _on_copy(self) -> None:

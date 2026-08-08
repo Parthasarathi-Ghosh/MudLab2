@@ -24,7 +24,7 @@ class Ui_NonclayDialog(object):
     def setupUi(self, NonclayDialog):
         if not NonclayDialog.objectName():
             NonclayDialog.setObjectName(u"NonclayDialog")
-        NonclayDialog.resize(560, 460)
+        NonclayDialog.resize(640, 520)
         self.rootLayout = QVBoxLayout(NonclayDialog)
         self.rootLayout.setObjectName(u"rootLayout")
         self.lbl_title = QLabel(NonclayDialog)
@@ -33,6 +33,8 @@ class Ui_NonclayDialog(object):
 
         self.rootLayout.addWidget(self.lbl_title)
 
+        self.topRow = QHBoxLayout()
+        self.topRow.setObjectName(u"topRow")
         self.grp_refs = QGroupBox(NonclayDialog)
         self.grp_refs.setObjectName(u"grp_refs")
         self.refsLayout = QHBoxLayout(self.grp_refs)
@@ -67,7 +69,29 @@ class Ui_NonclayDialog(object):
         self.refsLayout.addLayout(self.refsButtons)
 
 
-        self.rootLayout.addWidget(self.grp_refs)
+        self.topRow.addWidget(self.grp_refs)
+
+        self.grp_xrf = QGroupBox(NonclayDialog)
+        self.grp_xrf.setObjectName(u"grp_xrf")
+        self.grp_xrf.setMaximumSize(QSize(190, 16777215))
+        self.xrfLayout = QVBoxLayout(self.grp_xrf)
+        self.xrfLayout.setObjectName(u"xrfLayout")
+        self.tbl_xrf = QTableWidget(self.grp_xrf)
+        self.tbl_xrf.setObjectName(u"tbl_xrf")
+
+        self.xrfLayout.addWidget(self.tbl_xrf)
+
+        self.lbl_xrf_hint = QLabel(self.grp_xrf)
+        self.lbl_xrf_hint.setObjectName(u"lbl_xrf_hint")
+        self.lbl_xrf_hint.setWordWrap(True)
+
+        self.xrfLayout.addWidget(self.lbl_xrf_hint)
+
+
+        self.topRow.addWidget(self.grp_xrf)
+
+
+        self.rootLayout.addLayout(self.topRow)
 
         self.tbl_results = QTableWidget(NonclayDialog)
         self.tbl_results.setObjectName(u"tbl_results")
@@ -118,7 +142,7 @@ class Ui_NonclayDialog(object):
 
     def retranslateUi(self, NonclayDialog):
         NonclayDialog.setWindowTitle(QCoreApplication.translate("NonclayDialog", u"Non-clay decomposition", None))
-        self.lbl_title.setText(QCoreApplication.translate("NonclayDialog", u"Fit non-clay reference patterns to the clay-subtracted residual (EXPERIMENTAL). Values are a semi-quantitative intensity share, not weight %.", None))
+        self.lbl_title.setText(QCoreApplication.translate("NonclayDialog", u"Fit non-clay reference patterns to the clay-subtracted residual (EXPERIMENTAL). The XRD share is semi-quantitative (orientation-biased); add XRF oxides for a weight %.", None))
         self.grp_refs.setTitle(QCoreApplication.translate("NonclayDialog", u"Non-clay reference patterns", None))
 #if QT_CONFIG(tooltip)
         self.btn_add_ref.setToolTip(QCoreApplication.translate("NonclayDialog", u"Add a measured non-clay reference curve (e.g. quartz).", None))
@@ -129,6 +153,8 @@ class Ui_NonclayDialog(object):
         self.btn_run.setToolTip(QCoreApplication.translate("NonclayDialog", u"Decompose every specimen against the loaded references.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_run.setText(QCoreApplication.translate("NonclayDialog", u"Run", None))
+        self.grp_xrf.setTitle(QCoreApplication.translate("NonclayDialog", u"XRF oxides (wt %, optional)", None))
+        self.lbl_xrf_hint.setText(QCoreApplication.translate("NonclayDialog", u"Enter the sample's bulk oxide wt % for a weight-% (quartz vs clay) result.", None))
         self.lbl_summary.setText("")
 #if QT_CONFIG(tooltip)
         self.btn_copy.setToolTip(QCoreApplication.translate("NonclayDialog", u"Copy the results to the clipboard as CSV.", None))
