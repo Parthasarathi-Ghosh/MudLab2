@@ -16,9 +16,11 @@ from mudlab.nonclay.decompose import (
     NonclayResult, ReferenceResult, SpecimenResult,
     decompose_mixture, decompose_specimen,
 )
+from mudlab.nonclay.dialog import NonclayDialog
 from mudlab.nonclay.references import load_reference, reference_from_arrays
 
 __all__ = [
     "decompose_mixture", "decompose_specimen", "load_reference",
     "reference_from_arrays", "NonclayResult", "SpecimenResult", "ReferenceResult",
+    "NonclayDialog",
 ]

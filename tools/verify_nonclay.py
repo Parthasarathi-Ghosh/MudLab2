@@ -150,6 +150,29 @@ def run(path):
     shared = estimator.shared_fit(specs2, [ref])
     check("5 shared cross-specimen amplitude is finite", np.all(np.isfinite(shared))
           and len(shared) == 1)
+
+    # 6. Slice-2 dialog: builds, runs, populates, stays read-only.
+    from PySide6.QtWidgets import QApplication
+    from mudlab.nonclay import NonclayDialog
+    _app = QApplication.instance() or QApplication([])
+    proj3 = load_mud(path)
+    mix3 = proj3.mixtures[0]
+    mix3.calculate()
+    before3 = (mix3.fractions.copy(), mix3.scales.copy(), mix3.bgshifts.copy())
+    dlg = NonclayDialog(mix3)
+    dlg.add_reference(_synthetic_quartz())
+    dlg.run()
+    table = dlg.ui.tbl_results
+    n_spec = len([s for s in mix3.specimens if s is not None])
+    check("6 dialog populates the results table (refs x specimens)",
+          table.rowCount() == 1 and table.columnCount() == n_spec
+          and table.item(0, 0) is not None)
+    check("6 dialog is read-only (mixture fractions/scales/bg unchanged)",
+          np.allclose(before3[0], mix3.fractions)
+          and np.allclose(before3[1], mix3.scales)
+          and np.allclose(before3[2], mix3.bgshifts))
+    check("6 dialog CSV export is non-empty", len(dlg._csv_text().strip()) > 0)
+    dlg.deleteLater()
     return None
 
 

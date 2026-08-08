@@ -1,0 +1,161 @@
+"""Read-only non-clay decomposition dialog (EXPERIMENTAL, Slice 2).
+
+Mirrors CompositionDialog: it reports what mudlab.nonclay computes and NEVER
+edits the mixture. The user loads measured non-clay reference curves and runs the
+Case-A decomposition; the results are an intensity share (semi-quantitative), not
+weight %. Delete src/mudlab/nonclay/ to retract the whole feature.
+
+Deferred to Slice 2b (Finding 31): CIF/.str reference construction via the
+goniometer, XRF mass-balance weight %, and the Si absolute scale. This first cut
+covers measured references + the residual decomposition + detection.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import os
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QDialog, QFileDialog, QListWidgetItem, QMessageBox,
+    QTableWidgetItem, QWidget,
+)
+
+from mudlab.nonclay.decompose import decompose_mixture
+from mudlab.nonclay.references import load_reference
+from mudlab.nonclay.ui_nonclay import Ui_NonclayDialog
+
+_PATTERN_FILTER = (
+    "Pattern files (*.xy *.txt *.dat *.csv *.xrdml *.raw *.rasx *.uxd);;"
+    "All files (*)"
+)
+
+
+class NonclayDialog(QDialog):
+    def __init__(self, mixture, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        # Free the dialog when it closes (as CompositionDialog does).
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.ui = Ui_NonclayDialog()
+        self.ui.setupUi(self)
+        self._mixture = mixture
+        self._references: list = []
+        self._result = None
+
+        name = getattr(mixture, "name", "") or "mixture"
+        self.setWindowTitle("Non-clay decomposition - %s" % name)
+
+        self.ui.btn_add_ref.clicked.connect(self._on_add)
+        self.ui.btn_remove_ref.clicked.connect(self._on_remove)
+        self.ui.btn_run.clicked.connect(self._on_run)
+        self.ui.btn_copy.clicked.connect(self._on_copy)
+        self.ui.btn_export.clicked.connect(self._on_export)
+        self.ui.btn_close.clicked.connect(self.accept)
+        self._set_results_enabled(False)
+
+    # ------------------------------------------------------------------
+    def _set_results_enabled(self, on: bool) -> None:
+        self.ui.btn_copy.setEnabled(on)
+        self.ui.btn_export.setEnabled(on)
+
+    def add_reference(self, reference) -> None:
+        """Add an already-loaded reference (used by the UI and the harness)."""
+        self._references.append(reference)
+        self.ui.list_refs.addItem(QListWidgetItem(reference.name))
+
+    def _on_add(self) -> None:
+        path, _filter = QFileDialog.getOpenFileName(
+            self, "Add non-clay reference", "", _PATTERN_FILTER)
+        if not path:
+            return
+        try:
+            ref = load_reference(path)
+        except Exception as exc:  # surface, don't crash
+            QMessageBox.warning(self, "Could not load reference", "%s" % exc)
+            return
+        self.add_reference(ref)
+
+    def _on_remove(self) -> None:
+        row = self.ui.list_refs.currentRow()
+        if row < 0:
+            return
+        self.ui.list_refs.takeItem(row)
+        del self._references[row]
+
+    def run(self) -> None:
+        """Recompute the clay fit (read-only) and decompose against the loaded
+        references. Also the public entry the harness drives."""
+        self._mixture.calculate()  # make the residual current; does not refit
+        self._result = decompose_mixture(self._mixture, self._references, detect=True)
+        self._populate()
+        self._set_results_enabled(True)
+
+    def _on_run(self) -> None:
+        if not self._references:
+            QMessageBox.information(
+                self, "No references", "Add at least one non-clay reference first.")
+            return
+        self.run()
+
+    # ------------------------------------------------------------------
+    def _populate(self) -> None:
+        res = self._result
+        specs, refs = res.specimens, res.reference_names
+        table = self.ui.tbl_results
+        table.setColumnCount(len(specs))
+        table.setRowCount(len(refs))
+        table.setHorizontalHeaderLabels([s.name for s in specs])
+        table.setVerticalHeaderLabels(list(refs))
+        align = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        for i in range(len(refs)):
+            for j, sr in enumerate(specs):
+                rr = sr.references[i]
+                item = QTableWidgetItem(
+                    "%.2f%% %s" % (rr.pct, "✓" if rr.detected else "–"))
+                item.setTextAlignment(align)
+                table.setItem(i, j, item)
+        table.resizeColumnsToContents()
+
+        rp = ", ".join("%s Rp %.1f" % (s.name, s.rp) for s in specs)
+        tot = ", ".join("%s %.1f%%" % (s.name, s.nonclay_pct) for s in specs)
+        self.ui.lbl_summary.setText(
+            "Clay fit: %s.   Total non-clay (intensity share): %s.   "
+            "Semi-quantitative - an intensity share, NOT weight %%; oriented "
+            "mounts bias non-clays low (use XRF for weight %%). "
+            "✓ = detected above the mis-registration null." % (rp, tot))
+
+    # ------------------------------------------------------------------
+    def _csv_text(self) -> str:
+        if not self._result:
+            return ""
+        res = self._result
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["reference", *[s.name for s in res.specimens]])
+        for i, ref_name in enumerate(res.reference_names):
+            row = [ref_name]
+            for sr in res.specimens:
+                rr = sr.references[i]
+                row.append("%.2f%s" % (rr.pct, " (detected)" if rr.detected else ""))
+            writer.writerow(row)
+        return buffer.getvalue()
+
+    def _on_copy(self) -> None:
+        QApplication.clipboard().setText(self._csv_text())
+
+    def _on_export(self) -> None:
+        name = (getattr(self._mixture, "name", "") or "nonclay").strip()
+        path, _filter = QFileDialog.getSaveFileName(
+            self, "Export non-clay results", "%s nonclay.csv" % name,
+            "CSV files (*.csv);;All files (*)")
+        if not path:
+            return
+        if not os.path.splitext(path)[1]:
+            path += ".csv"
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as handle:
+                handle.write(self._csv_text())
+        except OSError as exc:
+            QMessageBox.warning(
+                self, "Export failed", "Could not write the file:\n\n%s" % exc)
