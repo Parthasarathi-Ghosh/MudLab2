@@ -62,6 +62,11 @@ class Ui_EditMixtureWidget(object):
 
         self.actionsRow.addWidget(self.btn_composition)
 
+        self.btn_nonclay = QPushButton(EditMixtureWidget)
+        self.btn_nonclay.setObjectName(u"btn_nonclay")
+
+        self.actionsRow.addWidget(self.btn_nonclay)
+
         self.btn_refine = QPushButton(EditMixtureWidget)
         self.btn_refine.setObjectName(u"btn_refine")
 
@@ -136,6 +141,10 @@ class Ui_EditMixtureWidget(object):
         self.btn_composition.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Show the chemical composition of this mixture.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_composition.setText(QCoreApplication.translate("EditMixtureWidget", u"Composition", None))
+#if QT_CONFIG(tooltip)
+        self.btn_nonclay.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Estimate non-clay minerals (e.g. quartz) from the clay-subtracted residual (experimental).", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_nonclay.setText(QCoreApplication.translate("EditMixtureWidget", u"Non-clay\u2026", None))
 #if QT_CONFIG(tooltip)
         self.btn_refine.setToolTip(QCoreApplication.translate("EditMixtureWidget", u"Refine the mixture parameters.", None))
 #endif // QT_CONFIG(tooltip)

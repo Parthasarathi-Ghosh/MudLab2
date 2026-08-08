@@ -60,6 +60,17 @@ class EditMixtureWidget(QWidget):
         self.ui.btn_add_specimen.clicked.connect(self._on_add_specimen)
         self.ui.btn_add_both.clicked.connect(self._on_add_both)
         self.ui.btn_composition.clicked.connect(self._on_composition)
+        # >>> NONCLAY (experimental, optional) — the ONLY mainstream seam. To
+        # retract: delete this block + the _on_nonclay method below + the
+        # btn_nonclay button in edit_mixture.ui (recompile) + the
+        # src/mudlab/nonclay package. Defensive: if the package is deleted the
+        # button hides itself and the app still runs.
+        try:
+            import mudlab.nonclay  # noqa: F401  (presence check)
+            self.ui.btn_nonclay.clicked.connect(self._on_nonclay)
+        except Exception:
+            self.ui.btn_nonclay.setVisible(False)
+        # <<< NONCLAY
         self._install_header_menus()
         self.ui.mixture_auto_run.toggled.connect(
             lambda checked: self._on_auto_toggled("auto_run", checked)
@@ -213,6 +224,17 @@ class EditMixtureWidget(QWidget):
         from mudlab.composition_dialog import CompositionDialog
 
         CompositionDialog(self._mixture, self).exec()
+
+    # >>> NONCLAY (experimental, optional) — retract with the wiring block above.
+    def _on_nonclay(self) -> None:
+        """Estimate non-clay minerals (e.g. quartz) from the clay-subtracted
+        residual (experimental; READ-ONLY over the clay path)."""
+        if self._mixture is None:
+            return
+        from mudlab.nonclay import NonclayDialog
+
+        NonclayDialog(self._mixture, self).exec()
+    # <<< NONCLAY
 
     def _update_residual_label(self) -> None:
         if self._mixture is None:

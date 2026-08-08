@@ -63,6 +63,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="btn_nonclay">
+       <property name="toolTip">
+        <string>Estimate non-clay minerals (e.g. quartz) from the clay-subtracted residual (experimental).</string>
+       </property>
+       <property name="text">
+        <string>Non-clay&#8230;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="btn_refine">
        <property name="toolTip">
         <string>Refine the mixture parameters.</string>
