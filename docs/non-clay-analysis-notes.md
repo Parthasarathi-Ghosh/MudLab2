@@ -949,6 +949,23 @@ low (F23); the UI FLAGS XRF-vs-model oxide gaps to prompt clay-atom-type fixes
 (F22/F26); non-clays are RESIDUAL-fit curves, NOT mixture phases (F19); the
 engine stays READ-ONLY over the clay path.
 
+## Remaining / future work (2026-08-08)
+
+The shipped feature is complete for its planned scope (Slices 1-3 + 2b: measured +
+CIF references, XRF weight%, composition input, Si reference width). Deferred:
+- BGMN `.str` references (needs a space-group/Wyckoff table; CIF-with-explicit-ops
+  only for now); 2theta-dependent (Caglioti) reference width; more built-in
+  minerals; read B from the CIF.
+- Heated-specimen decomposition workflow (loose K-saturated heated specimens exist
+  but need clay modelling of the collapsed state, or a direct two-peak analysis).
+- Clay-composition improvement (USER task: Fe/Mg octahedral atom types) to sharpen
+  the mass balance (Findings 22, 26).
+- Mineral-specific strategies for non-quartz non-clays; E4 (Si internal-standard
+  spike) + E3c (collinearity threshold) research follow-ons.
+- Stated LIMITATIONS (not bugs): detrital mica is indistinguishable from illite by
+  both XRD and XRF (Finding 27); oriented-mount intensity share is orientation-
+  biased low vs weight% (Finding 23).
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.

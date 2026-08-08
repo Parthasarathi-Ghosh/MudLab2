@@ -69,19 +69,22 @@ def _edit_composition(parent, oxides, current, name):
     box.accepted.connect(dlg.accept)
     box.rejected.connect(dlg.reject)
     layout.addWidget(box)
-    if dlg.exec() != QDialog.DialogCode.Accepted:
-        return None
-    raw = {}
-    for i, ox in enumerate(oxides):
-        item = table.item(i, 0)
-        text = item.text().strip() if item is not None else ""
-        if not text:
-            continue
-        try:
-            raw[ox] = float(text)
-        except ValueError:
-            continue
-    return _normalize_composition(raw)
+    accepted = dlg.exec() == QDialog.DialogCode.Accepted
+    result = None
+    if accepted:
+        raw = {}
+        for i, ox in enumerate(oxides):
+            item = table.item(i, 0)
+            text = item.text().strip() if item is not None else ""
+            if not text:
+                continue
+            try:
+                raw[ox] = float(text)
+            except ValueError:
+                continue
+        result = _normalize_composition(raw)
+    dlg.deleteLater()  # free the modal (it is parented to `parent`)
+    return result
 
 
 class NonclayDialog(QDialog):
@@ -236,15 +239,21 @@ class NonclayDialog(QDialog):
     def run(self) -> None:
         """Recompute the clay fit (read-only), decompose against the loaded
         references, and (if XRF oxides were entered) compute the weight-% mass
-        balance. Also the public entry the harness drives."""
-        self._mixture.calculate()  # make the residual current; does not refit
-        self._result = decompose_mixture(self._mixture, self._references, detect=True)
-        xrf = self._read_xrf()
-        self._massbalance = (
-            mass_balance(self._mixture, xrf, self._references, self._compositions)
-            if xrf else None)
-        self._populate()
-        self._set_results_enabled(True)
+        balance. Also the public entry the harness drives. The mis-registration
+        null makes this take a moment, so it runs under a wait cursor."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self._mixture.calculate()  # make the residual current; does not refit
+            self._result = decompose_mixture(
+                self._mixture, self._references, detect=True)
+            xrf = self._read_xrf()
+            self._massbalance = (
+                mass_balance(self._mixture, xrf, self._references, self._compositions)
+                if xrf else None)
+            self._populate()
+            self._set_results_enabled(True)
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def _on_run(self) -> None:
         if not self._references:

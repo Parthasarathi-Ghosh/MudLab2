@@ -2,9 +2,9 @@
 
 A reference is a fixed curve the Case-A fit scales; ``RawPatternPhase`` is the
 container. The curve can come from a measured file (preferred for accuracy -
-Finding 19) or, later, from a structure via the from-CIF calculator in
-``tools/nonclay_experiments/structure_pattern.py``. ``apply_lpf`` stays False:
-the reference is taken in observed-intensity space (Finding 11); the E1 gate
+Finding 19) or from a structure via ``mudlab.nonclay.structure.reference_from_cif``.
+``apply_lpf`` stays False (RawPatternPhase's default): the reference is taken in
+observed-intensity space (Finding 11); the E1 gate
 (``tools/nonclay_experiments/e1_refspace.py``) checks that precondition.
 """
 
