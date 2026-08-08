@@ -58,6 +58,16 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="btn_edit_comp">
+            <property name="toolTip">
+             <string>Set the oxide composition (wt %) of the selected reference by hand, for the XRF mass balance.</string>
+            </property>
+            <property name="text">
+             <string>Composition&#8230;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="btn_remove_ref">
             <property name="text">
              <string>Remove</string>

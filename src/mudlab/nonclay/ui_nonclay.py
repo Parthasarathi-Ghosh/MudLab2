@@ -56,6 +56,11 @@ class Ui_NonclayDialog(object):
 
         self.refsButtons.addWidget(self.btn_add_cif)
 
+        self.btn_edit_comp = QPushButton(self.grp_refs)
+        self.btn_edit_comp.setObjectName(u"btn_edit_comp")
+
+        self.refsButtons.addWidget(self.btn_edit_comp)
+
         self.btn_remove_ref = QPushButton(self.grp_refs)
         self.btn_remove_ref.setObjectName(u"btn_remove_ref")
 
@@ -157,6 +162,10 @@ class Ui_NonclayDialog(object):
         self.btn_add_cif.setToolTip(QCoreApplication.translate("NonclayDialog", u"Build a reference from a crystal structure (CIF with explicit symmetry ops, e.g. from COD/AMCSD), using this specimen's goniometer.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_add_cif.setText(QCoreApplication.translate("NonclayDialog", u"Add from CIF\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_edit_comp.setToolTip(QCoreApplication.translate("NonclayDialog", u"Set the oxide composition (wt %) of the selected reference by hand, for the XRF mass balance.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_edit_comp.setText(QCoreApplication.translate("NonclayDialog", u"Composition\u2026", None))
         self.btn_remove_ref.setText(QCoreApplication.translate("NonclayDialog", u"Remove", None))
 #if QT_CONFIG(tooltip)
         self.btn_run.setToolTip(QCoreApplication.translate("NonclayDialog", u"Decompose every specimen against the loaded references.", None))

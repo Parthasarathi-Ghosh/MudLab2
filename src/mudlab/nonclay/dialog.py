@@ -18,8 +18,9 @@ import os
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QFileDialog, QListWidgetItem, QMessageBox,
-    QTableWidgetItem, QWidget,
+    QApplication, QDialog, QDialogButtonBox, QFileDialog, QLabel,
+    QListWidgetItem, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget,
 )
 
 from mudlab.calculations.composition import load_conversion_table
@@ -33,6 +34,52 @@ _PATTERN_FILTER = (
     "Pattern files (*.xy *.txt *.dat *.csv *.xrdml *.raw *.rasx *.uxd);;"
     "All files (*)"
 )
+
+
+def _normalize_composition(raw):
+    """Drop non-positive oxides and normalise the rest to 100 wt% (the pure-phase
+    convention the mass balance uses). Returns {} if nothing positive."""
+    kept = {ox: v for ox, v in raw.items() if v > 0}
+    total = sum(kept.values())
+    if not total:
+        return {}
+    return {ox: 100.0 * v / total for ox, v in kept.items()}
+
+
+def _edit_composition(parent, oxides, current, name):
+    """Modal editor for a reference's oxide wt%. Returns the normalised dict, {}
+    (cleared), or None (cancelled)."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Composition - %s" % name)
+    layout = QVBoxLayout(dlg)
+    hint = QLabel("Oxide wt % of the pure mineral (normalised to 100 on OK):")
+    hint.setWordWrap(True)
+    layout.addWidget(hint)
+    table = QTableWidget(len(oxides), 1)
+    table.setHorizontalHeaderLabels(["wt %"])
+    table.setVerticalHeaderLabels(list(oxides))
+    for i, ox in enumerate(oxides):
+        text = ("%.2f" % current[ox]) if ox in current else ""
+        table.setItem(i, 0, QTableWidgetItem(text))
+    layout.addWidget(table)
+    box = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+    box.accepted.connect(dlg.accept)
+    box.rejected.connect(dlg.reject)
+    layout.addWidget(box)
+    if dlg.exec() != QDialog.DialogCode.Accepted:
+        return None
+    raw = {}
+    for i, ox in enumerate(oxides):
+        item = table.item(i, 0)
+        text = item.text().strip() if item is not None else ""
+        if not text:
+            continue
+        try:
+            raw[ox] = float(text)
+        except ValueError:
+            continue
+    return _normalize_composition(raw)
 
 
 class NonclayDialog(QDialog):
@@ -54,6 +101,7 @@ class NonclayDialog(QDialog):
 
         self.ui.btn_add_ref.clicked.connect(self._on_add)
         self.ui.btn_add_cif.clicked.connect(self._on_add_cif)
+        self.ui.btn_edit_comp.clicked.connect(self._on_edit_composition)
         self.ui.btn_remove_ref.clicked.connect(self._on_remove)
         self.ui.btn_run.clicked.connect(self._on_run)
         self.ui.btn_copy.clicked.connect(self._on_copy)
@@ -100,11 +148,14 @@ class NonclayDialog(QDialog):
             composition = mineral_composition(getattr(reference, "name", ""))
         self._references.append(reference)
         self._compositions.append(composition)
+        self.ui.list_refs.addItem(
+            QListWidgetItem(self._ref_label(reference.name, composition)))
+
+    @staticmethod
+    def _ref_label(name, composition):
         if composition:
-            label = "%s  [%s]" % (reference.name, ", ".join(sorted(composition)))
-        else:
-            label = "%s  (no composition)" % reference.name
-        self.ui.list_refs.addItem(QListWidgetItem(label))
+            return "%s  [%s]" % (name, ", ".join(sorted(composition)))
+        return "%s  (no composition)" % name
 
     def _on_add(self) -> None:
         path, _filter = QFileDialog.getOpenFileName(
@@ -145,6 +196,21 @@ class NonclayDialog(QDialog):
         self.ui.list_refs.takeItem(row)
         del self._references[row]
         del self._compositions[row]
+
+    def _on_edit_composition(self) -> None:
+        row = self.ui.list_refs.currentRow()
+        if row < 0:
+            QMessageBox.information(
+                self, "No reference", "Select a reference in the list first.")
+            return
+        current = self._compositions[row] or {}
+        comp = _edit_composition(
+            self, self._xrf_oxides, current, self._references[row].name)
+        if comp is None:  # cancelled
+            return
+        self._compositions[row] = comp or None
+        self.ui.list_refs.item(row).setText(
+            self._ref_label(self._references[row].name, comp))
 
     def run(self) -> None:
         """Recompute the clay fit (read-only), decompose against the loaded

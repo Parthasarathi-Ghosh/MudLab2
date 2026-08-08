@@ -257,6 +257,21 @@ def run(path):
     finally:
         if os.path.exists(tmp2):
             os.remove(tmp2)
+
+    # 9. #3b manual composition: the normalise helper + a manually-composed
+    # reference (no built-in composition) becomes quantifiable.
+    from mudlab.nonclay.dialog import _normalize_composition
+    norm = _normalize_composition({"SiO2": 60.0, "Al2O3": 20.0,
+                                   "Fe2O3": 0.0, "junk": -5})
+    check("9 _normalize_composition drops <=0 and sums to 100",
+          abs(sum(norm.values()) - 100.0) < 1e-6
+          and "Fe2O3" not in norm and "junk" not in norm)
+    unknown = nonclay.reference_from_arrays(np.arange(4, 40, 0.5),
+                                            np.ones(72), "mystery")
+    mb3 = chemistry.mass_balance(mix3, xrf, [unknown], [{"SiO2": 100.0}])
+    wp3 = dict(zip(mb3.components, mb3.weight_pct)) if mb3 else {}
+    check("9 a manual composition makes an unknown reference quantifiable (~15%)",
+          mb3 is not None and abs(wp3.get("mystery", 0.0) - 15.0) < 3.0)
     return None
 
 
