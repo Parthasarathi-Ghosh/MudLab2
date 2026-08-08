@@ -170,10 +170,48 @@ def _stick(cell, atoms, wk, wavelength, hmax=10, tt_lo=4.0, tt_hi=80.0, b_iso=0.
     return sorted(acc.items())
 
 
+def _load_element_info():
+    """``{element name: (atom_nr, atomic_weight)}`` from the scattering CSV."""
+    info = {}
+    with open(_SCAT_CSV, encoding="utf-8") as handle:
+        header = handle.readline().split(",")
+        idx = {name: i for i, name in enumerate(header)}
+        for line in handle:
+            p = line.split(",")
+            if p[idx["charge"]].strip() != "0":
+                continue
+            info[p[idx["name"]]] = (int(p[idx["atom_nr"]]), float(p[idx["weight"]]))
+    return info
+
+
+def _oxide_composition(full_atoms):
+    """Oxide wt% (normalised to 100) from the expanded CIF atoms, via the same
+    conversion table the clay composition uses (cation -> oxide). ``{}`` when no
+    cation converts. Oxides outside the table (e.g. CO2 in calcite) are dropped -
+    the returned oxides still normalise to 100 among themselves."""
+    from mudlab.calculations.composition import load_conversion_table
+    conv = load_conversion_table()          # atom_nr -> (oxide, factor)
+    el_info = _load_element_info()           # element -> (atom_nr, weight)
+    totals = {}
+    for el, _x, _y, _z, occ in full_atoms:
+        info = el_info.get(el)
+        if info is None:
+            continue
+        nr, weight = info
+        if nr in conv:
+            oxide, factor = conv[nr]
+            totals[oxide] = totals.get(oxide, 0.0) + occ * weight * factor
+    total = sum(totals.values())
+    if not total:
+        return {}
+    return {ox: 100.0 * v / total for ox, v in totals.items()}
+
+
 def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
                        tt_lo=4.0, tt_hi=80.0):
-    """Build a non-clay reference (RawPatternPhase) from a CIF, at the
-    goniometer's wavelength, broadened to ``fwhm`` (deg 2theta). Raises
+    """Build a non-clay reference from a CIF at the goniometer's wavelength,
+    broadened to ``fwhm`` (deg 2theta). Returns ``(reference, composition)`` where
+    composition is the derived oxide wt% dict (for the XRF mass balance). Raises
     ValueError with a clear message if the CIF is unusable."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
@@ -204,4 +242,5 @@ def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
         y = 100.0 * y / y.max()
     if name is None:
         name = os.path.splitext(os.path.basename(path))[0]
-    return reference_from_arrays(x, y, name)
+    composition = _oxide_composition(full)
+    return reference_from_arrays(x, y, name), composition

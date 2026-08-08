@@ -23,10 +23,17 @@ from scipy.optimize import nnls
 from mudlab.calculations.composition import mixture_composition
 
 # Ideal oxide compositions (wt%) for common non-clay minerals, over the reporting
-# oxides. Extend as more non-clays are supported (some, e.g. calcite, carry
-# oxides outside the clay set - handle those when added).
+# oxides. A CIF-derived composition (structure._oxide_composition) is preferred
+# when available; this table serves measured references matched by name. Some
+# minerals (e.g. calcite) carry oxides outside the clay set (CO2) - only the
+# in-table oxides are used.
 MINERAL_OXIDES = {
     "quartz": {"SiO2": 100.0},
+    "albite": {"Na2O": 11.8, "Al2O3": 19.4, "SiO2": 68.7},       # NaAlSi3O8
+    "orthoclase": {"K2O": 16.9, "Al2O3": 18.3, "SiO2": 64.8},    # KAlSi3O8
+    "microcline": {"K2O": 16.9, "Al2O3": 18.3, "SiO2": 64.8},
+    "k-feldspar": {"K2O": 16.9, "Al2O3": 18.3, "SiO2": 64.8},
+    "calcite": {"CaO": 100.0},                                   # CaO only (CO2 = LOI)
 }
 
 
@@ -49,13 +56,16 @@ class MassBalanceResult:
     unexplained_pct: float  # sum(|residual|) / sum(xrf) * 100
 
 
-def mass_balance(mixture, xrf_oxides, references, specimen_index=0):
+def mass_balance(mixture, xrf_oxides, references, compositions=None,
+                 specimen_index=0):
     """Solve the oxide mass balance for one sample.
 
     ``xrf_oxides`` = ``{oxide_name: wt%}``; ``references`` = the non-clay
-    RawPatternPhases (compositions looked up by name via MINERAL_OXIDES). Returns
-    a MassBalanceResult, or None when the clay composition or the XRF is missing
-    (nothing to solve). Non-clays with no known composition are skipped."""
+    RawPatternPhases. ``compositions`` (optional, parallel to ``references``) are
+    explicit oxide dicts - a CIF-derived one takes precedence; where absent the
+    composition is matched by name via MINERAL_OXIDES. Returns a
+    MassBalanceResult, or None when the clay composition or the XRF is missing.
+    Non-clays with no known composition are skipped."""
     _names, oxide_rows = mixture_composition(mixture)
     order = [oxide for oxide, _pcts in oxide_rows]
     clay = np.array([
@@ -67,9 +77,12 @@ def mass_balance(mixture, xrf_oxides, references, specimen_index=0):
         return None
 
     cols, comp_names = [clay], ["clay"]
-    for ref in references:
-        comp = mineral_composition(getattr(ref, "name", ""))
-        if comp is None:
+    for i, ref in enumerate(references):
+        comp = compositions[i] if (compositions is not None
+                                   and i < len(compositions)) else None
+        if not comp:
+            comp = mineral_composition(getattr(ref, "name", ""))
+        if not comp:
             continue
         cols.append(np.array([comp.get(o, 0.0) for o in order], dtype=float))
         comp_names.append(getattr(ref, "name", "non-clay"))

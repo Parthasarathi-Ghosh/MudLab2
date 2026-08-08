@@ -223,7 +223,7 @@ def run(path):
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(cif_text)
     try:
-        cif_ref = structure.reference_from_cif(tmp, g, name="quartz-CIF")
+        cif_ref, cif_comp = structure.reference_from_cif(tmp, g, name="quartz-CIF")
         cx = np.asarray(cif_ref.raw_pattern_x)
         cy = np.asarray(cif_ref.raw_pattern_y)
 
@@ -233,6 +233,12 @@ def run(path):
 
         check("8 from-CIF quartz: 101 (26.66) strongest, 100 (20.85) present",
               _pk(26.66) > 50 and _pk(20.85) > 3 and _pk(26.66) > _pk(20.85))
+        check("8 from-CIF quartz composition is ~pure SiO2",
+              abs(cif_comp.get("SiO2", 0.0) - 100.0) < 1.0)
+        mb2 = chemistry.mass_balance(mix3, xrf, [cif_ref], [cif_comp])
+        wp2 = dict(zip(mb2.components, mb2.weight_pct)) if mb2 else {}
+        check("8 mass balance uses the CIF-derived composition (~15% quartz)",
+              mb2 is not None and abs(wp2.get("quartz-CIF", 0.0) - 15.0) < 3.0)
     finally:
         if os.path.exists(tmp):
             os.remove(tmp)

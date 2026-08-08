@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from mudlab.calculations.composition import load_conversion_table
-from mudlab.nonclay.chemistry import mass_balance
+from mudlab.nonclay.chemistry import mass_balance, mineral_composition
 from mudlab.nonclay.decompose import decompose_mixture
 from mudlab.nonclay.references import load_reference
 from mudlab.nonclay.structure import reference_from_cif
@@ -44,6 +44,7 @@ class NonclayDialog(QDialog):
         self.ui.setupUi(self)
         self._mixture = mixture
         self._references: list = []
+        self._compositions: list = []
         self._result = None
         self._massbalance = None
 
@@ -90,10 +91,20 @@ class NonclayDialog(QDialog):
                 continue
         return out
 
-    def add_reference(self, reference) -> None:
-        """Add an already-loaded reference (used by the UI and the harness)."""
+    def add_reference(self, reference, composition=None) -> None:
+        """Add a reference plus its oxide composition (for the mass balance). A
+        CIF-derived composition is passed in; otherwise it is matched by name.
+        The list shows which oxides each reference contributes (quantifiable), or
+        '(no composition)'. Used by the UI and the harness."""
+        if not composition:
+            composition = mineral_composition(getattr(reference, "name", ""))
         self._references.append(reference)
-        self.ui.list_refs.addItem(QListWidgetItem(reference.name))
+        self._compositions.append(composition)
+        if composition:
+            label = "%s  [%s]" % (reference.name, ", ".join(sorted(composition)))
+        else:
+            label = "%s  (no composition)" % reference.name
+        self.ui.list_refs.addItem(QListWidgetItem(label))
 
     def _on_add(self) -> None:
         path, _filter = QFileDialog.getOpenFileName(
@@ -120,12 +131,12 @@ class NonclayDialog(QDialog):
                 "build the reference with.")
             return
         try:
-            ref = reference_from_cif(path, specs[0].goniometer)
+            ref, composition = reference_from_cif(path, specs[0].goniometer)
         except Exception as exc:  # surface the ValueError message
             QMessageBox.warning(
                 self, "Could not build reference from CIF", "%s" % exc)
             return
-        self.add_reference(ref)
+        self.add_reference(ref, composition)
 
     def _on_remove(self) -> None:
         row = self.ui.list_refs.currentRow()
@@ -133,6 +144,7 @@ class NonclayDialog(QDialog):
             return
         self.ui.list_refs.takeItem(row)
         del self._references[row]
+        del self._compositions[row]
 
     def run(self) -> None:
         """Recompute the clay fit (read-only), decompose against the loaded
@@ -141,8 +153,9 @@ class NonclayDialog(QDialog):
         self._mixture.calculate()  # make the residual current; does not refit
         self._result = decompose_mixture(self._mixture, self._references, detect=True)
         xrf = self._read_xrf()
-        self._massbalance = (mass_balance(self._mixture, xrf, self._references)
-                             if xrf else None)
+        self._massbalance = (
+            mass_balance(self._mixture, xrf, self._references, self._compositions)
+            if xrf else None)
         self._populate()
         self._set_results_enabled(True)
 
