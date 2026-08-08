@@ -27,6 +27,7 @@ Run head-less with the bundled interpreter from the repo root, e.g.
 | `e5_realquartz.py` | 23 | Slice-1 decomposition on 3 real quartz-rich projects (oriented-mount intensity share is ~10x below wt%). |
 | `e5b_massbalance.py` | 24 | XRF mass-balance quartz quantification + the clay-composition gap (Fe/Mg). |
 | `e5c_feoxide.py` | 26 | XRD-detect leg: hematite/goethite (from CIF) not confidently detected -> Fe is in-clays. |
+| `e5d_cifquartz.py` | 29 | CIF quartz reference (built via the specimen goniometer + Si width) vs the measured curve - CIF is cleaner. |
 
 The `e5*` scripts read the local `~/Downloads/MudLab Test/` folder (3 `.mud`
 projects + XRF + Si + a quartz `.STR`). See also the tracked prototypes

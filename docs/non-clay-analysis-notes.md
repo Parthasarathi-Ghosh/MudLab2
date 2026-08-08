@@ -787,6 +787,70 @@ Findings 23-26 are AD+GL-only and PROVISIONAL until the heated re-run.
 Three exposed follow-ups: (a) from-CIF quartz vs measured; (b) muscovite fit to
 demonstrate the mica limitation; (c) hematite spike-sensitivity (detection limit).
 
+## Finding 28 — heated variants (K-saturated, loose); the two quartz peaks + the illite-003 overlap; heating helps (2026-08-08)
+
+Re-examined 348/416/AT460: each has 5 specimens. The heated variants (400, 550 C)
+are K-SATURATED and LOOSE (not in the mixture); the AD/EG (Ca-saturated) are in
+the mixture. Full set per sample: Ca-AD, Ca-EG(GL), K-AD, K-400, K-550 (files
+have 400+550, no 500).
+
+Measured both quartz peaks per specimen - 101 (d=3.343 A = 0.334 nm, 26.66) and
+100 (d=4.257 A = 0.426 nm, 20.86):
+- QUARTZ 101 (0.334) OVERLAPS the illite/mica 003 (3.33 A = 26.75) - a CLASSIC
+  clay-XRD collision - plus glycol-smectite 005. So 101 is CONTAMINATED: it swings
+  with the clay (348 K: 5.0/5.5/6.8 across AD/400/550) and is grossly inflated in
+  glycolated (348 Ca-GL 14.1 = quartz + smectite 005 + illite 003).
+- QUARTZ 100 (0.426) is CLEAN and ~CONSTANT across each heating series (348 K:
+  0.8/0.7/0.8; 416 K: 0.9/0.7/0.7) - the RELIABLE quartz measure.
+- 100/101 RATIO = a quartz-purity diagnostic (pure quartz ~0.18-0.22). Measured
+  mostly BELOW (0.08-0.16), lowest in glycolated (Ca-GL 0.08-0.11) = most 101
+  contamination.
+
+Can the two peaks + treatments improve quartz determination? YES:
+1. PREFER the clean 0.426 (100) over the illite-003-contaminated 0.334 (101).
+2. Fit the FULL quartz reference (both peaks, fixed 100/101 ratio): the clean 100
+   ANCHORS the amplitude, so an illite-003-inflated 101 cannot over-estimate
+   quartz. (Concrete reason the residual method resists the overlap.)
+3. HEATING helps: K-550 collapses expandable clays -> removes the glycol-smectite
+   004/005 overlaps -> cleaner quartz region; K-550 is the best quartz specimen.
+   Realizes Finding 25.
+4. QUARTZ IS CONSTANT within each cation-mount heating series (same mount
+   re-heated) = an internal consistency check.
+
+CAVEATS: heated = K-saturated (SEPARATE mounts from the Ca-AD/EG in the mixture),
+so "quartz constant" holds WITHIN the K series and WITHIN the Ca series, not
+across; and heated are UNMODELED (loose) -> to DECOMPOSE them the collapsed-clay
+state must be modeled + added to the mixture (user task), or use the direct
+two-peak analysis. This UPDATES the Q4 answer (Finding 27): heated variants DO
+exist (loose, K-saturated), and they materially help.
+
+GENERAL COMMENT (user, design scope): which non-clay phases to include is the
+USER's choice (like clay phases). Quartz is the most common + usually dominant
+non-clay; the headline deliverable is QUARTZ FRACTION vs TOTAL CLAY FRACTION.
+
+Q1 (user's call): construct the quartz reference from the CIF via the SPECIMEN
+GONIOMETER (wavelength distribution / Soller, not a generic Gaussian); use both
+measured + CIF today, CIF preferred.
+
+## Finding 29 — Q1 result: CIF quartz reference (via the goniometer) beats the measured curve (2026-08-08)
+
+Goniometer here is single-wavelength Ka1 (0.154056 nm), so the clays were computed
+without a Ka2 doublet. Constructed the quartz reference the SAME way: from-CIF
+structure factors (LP incl.) at the goniometer Ka1, broadened to the Si 0.11 deg
+FWHM. On 348 Ca-AD (clay Rp 4.58):
+- measured quartz.txt: quartz 1.61%, null 0.25%, detected, 100/101 = 0.19.
+- CIF (via goniometer): quartz 1.08%, null 0.12%, detected, 100/101 = 0.20.
+
+Both detect quartz with the textbook 100/101 (~0.19-0.20). The CIF reference is
+CLEANER: lower null (0.12 vs 0.25 -> better signal-to-null), textbook ratio, built
+in the SAME Ka1 space as the clay model with the Si-derived instrumental width ->
+matched to THIS instrument, and available for ANY mineral with no measured
+standard. The share differs (1.08 vs 1.61) because it depends on the reference
+peak WIDTH (measured curve is from an unknown instrument) - affects the intensity
+share but NOT the XRF quantity. RECOMMENDATION: use CIF-constructed references
+(goniometer Ka1 + Si width) as the default; validates the from-CIF generation path
+for the feature. (BGMN .str would give the same once a SG/Wyckoff table is added.)
+
 ## Proposed design (evidence-based)
 
 - **Stage 0** unchanged clay optimize. Clay path stays frozen.
