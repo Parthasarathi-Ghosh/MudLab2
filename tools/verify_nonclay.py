@@ -326,6 +326,21 @@ def run(path):
     finally:
         if os.path.exists(tmp4):
             os.remove(tmp4)
+
+    # 12. model-less direct fit (heated / no clay model): recovers a spiked ref.
+    proj4 = load_mud(path)
+    mix4 = proj4.mixtures[0]
+    mix4.calculate()
+    s4 = [s for s in mix4.specimens if s is not None][0]
+    ref4 = _synthetic_quartz()
+    row4 = estimator.reference_intensities(s4, [ref4])[0]
+    x4, y4 = s4.experimental_pattern
+    y4 = np.asarray(y4, dtype=float)
+    c4 = 0.10 * float(np.max(y4)) / float(np.max(row4)) if np.max(row4) else 0.0
+    s4.set_experimental_pattern(x4, y4 + c4 * row4)
+    fit_d = estimator.fit_specimen_direct(s4, [ref4])
+    check("12 model-less direct fit recovers a spiked reference (amp > 0.5x)",
+          fit_d["amps"][0] > 0.5 * c4 and np.isfinite(fit_d["nonclay_pct"]))
     return None
 
 

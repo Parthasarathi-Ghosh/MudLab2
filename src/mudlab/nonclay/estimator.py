@@ -133,3 +133,44 @@ def specimen_rp(specimen) -> float:
     _x, exp = specimen.experimental_pattern
     total = specimen.calculated_pattern[1]
     return float(Rp(np.asarray(exp, dtype=float), np.asarray(total, dtype=float)))
+
+
+def morphological_baseline(y, width):
+    """Rolling min-then-max opening + smooth: a baseline that follows the broad
+    structure and passes under the sharp peaks. The model-less stand-in for the
+    clay subtraction, for a specimen with NO usable clay model (a heat-treated
+    specimen whose expandable clays are degraded - identification, not
+    quantification; Findings 25, 30)."""
+    from scipy.ndimage import (
+        maximum_filter1d, minimum_filter1d, uniform_filter1d,
+    )
+    w = max(3, int(width))
+    y = np.asarray(y, dtype=float)
+    base = minimum_filter1d(y, w, mode="nearest")
+    base = maximum_filter1d(base, w, mode="nearest")
+    return uniform_filter1d(base, w, mode="nearest")
+
+
+def fit_specimen_direct(specimen, references, basis=None, width=230, signed=False):
+    """MODEL-LESS fit: strip a morphological baseline from the RAW pattern and fit
+    the references to the sharp residue, with a free constant nuisance and
+    non-negative reference amplitudes. Use for specimens with no clay model
+    (heat-treated / degraded clays) - for IDENTIFICATION; the share is still an
+    intensity share, orientation-limited like the modelled path."""
+    x, y = specimen.experimental_pattern
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    target = y - morphological_baseline(y, width)
+    if basis is None:
+        basis = reference_intensities(specimen, references)
+    basis = np.asarray(basis, dtype=float)
+    n = basis.shape[0]
+    design = np.column_stack([basis.T, np.ones_like(x)])  # + free constant
+    amps = np.asarray(_bvls(design, target, n, signed=signed)[:n], dtype=float)
+    areas = np.array([area(a * row, x) for a, row in zip(amps, basis)], dtype=float)
+    a_total = area(np.clip(target, 0.0, None), x)  # total sharp signal
+    a_nc = float(areas.sum())
+    return {
+        "amps": amps, "areas": areas, "a_total": a_total, "a_nonclay": a_nc,
+        "nonclay_pct": 100.0 * a_nc / a_total if a_total else 0.0,
+    }

@@ -949,6 +949,40 @@ low (F23); the UI FLAGS XRF-vs-model oxide gaps to prompt clay-atom-type fixes
 (F22/F26); non-clays are RESIDUAL-fit curves, NOT mixture phases (F19); the
 engine stays READ-ONLY over the clay path.
 
+## Finding 32 — model-less direct fit for heated/unmodeled specimens; a promising orientation-robust share (2026-08-08)
+
+The heated (K-saturated 400/550) specimens are loose (not in a mixture) and their
+degraded clays cannot be modelled, so the residual method (which needs a clay
+fit) does not apply. Added a MODEL-LESS direct fit
+(`estimator.fit_specimen_direct`): strip a morphological baseline from the raw
+pattern and fit the references (non-negative) + a free constant to the sharp
+residue. Ran on the real heated + K-AD specimens with a quartz reference:
+
+| sample | K-AD | K-400 | K-550 |
+|---|---|---|---|
+| 348 | 11.7 % | 12.2 % | 13.7 % |
+| 416 | 10.9 % | 11.9 % | 13.3 % |
+| AT460 | 11.6 % | 11.3 % | 11.5 % |
+
+STRIKING: the model-less quartz share (~11-14 %) is MUCH higher than the modelled
+oriented-mount residual share (~1.5 %, Finding 23) and CLOSE to the XRF chemistry
+weight % (~9-14 %, Finding 24). Stripping the broad baseline removes most of the
+orientation-enhanced clay BACKGROUND, so the sharp-signal denominator is far
+smaller and the quartz share rises toward the mass fraction. Consistent across
+AD -> 400 -> 550 (quartz is constant).
+
+CAVEAT (do not over-claim): this is a promising SEMI-QUANT estimator, NOT a
+validated weight %. The ~12 % matching XRF on n=3 samples could be partly the
+baseline-strip denominator coinciding. It needs a spike test (add known quartz,
+check the model-less share tracks truth) and more samples. IF it holds, the
+model-less baseline-strip share is a more orientation-robust XRD estimator than
+the modelled-residual share, usable on ANY specimen (heated or not) with no clay
+model - and it would partly REOPEN the orientation limit (Finding 23: the bias
+may be largely removable by baseline stripping). Capability is in
+`estimator.fit_specimen_direct` (harness 27/27); not yet exposed in the UI (the
+dialog is mixture-scoped, the heated specimens are loose - a per-specimen /
+sibling-scan entry point is further work).
+
 ## Remaining / future work (2026-08-08)
 
 The shipped feature is complete for its planned scope (Slices 1-3 + 2b: measured +
