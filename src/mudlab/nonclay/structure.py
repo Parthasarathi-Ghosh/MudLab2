@@ -228,11 +228,18 @@ def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
         raise ValueError("The CIF has no atom sites with recognised elements.")
 
     full = _expand(atoms, sym)
+    if name is None:
+        name = os.path.splitext(os.path.basename(path))[0]
     wavelength = float(goniometer.wavelength) * 10.0  # nm -> Angstrom
+    return _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi)
+
+
+def _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi):
+    """Sticks -> broadened reference (+ derived oxide composition). Shared by the
+    CIF and .str paths."""
     sticks = _stick(cell, full, wk, wavelength, tt_lo=tt_lo, tt_hi=tt_hi)
     if not sticks:
         raise ValueError("The structure produced no reflections in range.")
-
     x = np.arange(tt_lo, tt_hi, 0.01)
     y = np.zeros_like(x)
     sigma = fwhm / 2.355
@@ -240,7 +247,93 @@ def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
         y += inten * np.exp(-0.5 * ((x - tt) / sigma) ** 2)
     if y.max() > 0:
         y = 100.0 * y / y.max()
+    return reference_from_arrays(x, y, name), _oxide_composition(full)
+
+
+def _parse_str(text):
+    """Parse a BGMN ``.str``: ``(sg_number, cell_angstrom, atom_specs)`` where each
+    atom_spec is ``(element_token, wyckoff_letter, {coord: value})``. BGMN cell
+    lengths are in nm (converted to Angstrom here)."""
+    def field(key):
+        m = re.search(r"(?:^|[\s=])%s=(-?[0-9.]+)" % key, text)
+        return float(m.group(1)) if m else None
+
+    sg = re.search(r"SpacegroupNo=(\d+)", text)
+    sg_no = int(sg.group(1)) if sg else None
+    a = field("A")
+    b = field("B")
+    c = field("C")
+    if a is not None:
+        cell = (a * 10.0, (b if b is not None else a) * 10.0,
+                (c if c is not None else a) * 10.0,
+                field("ALPHA") or 90.0, field("BETA") or 90.0,
+                field("GAMMA") or 90.0)
+    else:
+        cell = (None,) * 6
+
+    atoms = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s.startswith("E="):
+            continue
+        el = re.search(r"E=([A-Za-z]+)", s)
+        wy = re.search(r"Wyckoff=([A-Za-z])", s)
+        if not el or not wy:
+            continue
+        coords = {}
+        for coord in ("x", "y", "z", "occ"):
+            m = re.search(r"(?:^|[\s])%s=(-?[0-9.]+)" % coord, s)
+            if m:
+                coords[coord] = float(m.group(1))
+        atoms.append((el.group(1), wy.group(1), coords))
+    return sg_no, cell, atoms
+
+
+def reference_from_str(path, goniometer, name=None, fwhm=0.10,
+                       tt_lo=4.0, tt_hi=80.0):
+    """Build a non-clay reference from a BGMN ``.str`` (space-group number +
+    Wyckoff letters), using the built-in space-group table. Returns
+    ``(reference, composition)``. Raises ValueError (clear message) if the space
+    group or a special Wyckoff position is not in the table - the CIF path
+    handles anything with explicit ops."""
+    from mudlab.nonclay import spacegroups
+
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        text = handle.read()
+    sg_no, cell, atom_specs = _parse_str(text)
+    if sg_no is None or cell[0] is None:
+        raise ValueError("The .str is missing a space group number or unit cell.")
+    ops = spacegroups.SG_OPS.get(sg_no)
+    if not ops:
+        raise ValueError(
+            "Space group %d is not in the built-in .str table yet - export the "
+            "structure as a CIF (explicit symmetry operations)." % sg_no)
+    sym = [op.split(",") for op in ops]
+
+    wk, known = _load_wk()
+    asym = []
+    for element, letter, coords in atom_specs:
+        el = _element_of(element, known)
+        if el is None:
+            continue
+        if all(k in coords for k in ("x", "y", "z")):
+            rx, ry, rz = coords["x"], coords["y"], coords["z"]
+        else:
+            rep = spacegroups.WYCKOFF.get((sg_no, letter))
+            if rep is None:
+                raise ValueError(
+                    "Wyckoff position '%s' of space group %d is not in the "
+                    "built-in .str table yet - use a CIF." % (letter, sg_no))
+            env = {"x": coords.get("x", 0.0), "y": coords.get("y", 0.0),
+                   "z": coords.get("z", 0.0)}
+            rx, ry, rz = [eval(p, {"__builtins__": {}}, env) for p in rep.split(",")]
+        asym.append((el, rx % 1.0, ry % 1.0, rz % 1.0, coords.get("occ", 1.0)))
+    if not asym:
+        raise ValueError("The .str has no atom sites with recognised elements.")
+
+    full = _expand(asym, sym)
     if name is None:
-        name = os.path.splitext(os.path.basename(path))[0]
-    composition = _oxide_composition(full)
-    return reference_from_arrays(x, y, name), composition
+        m = re.search(r"PHASE=(\S+)", text)
+        name = m.group(1).rstrip("/") if m else os.path.splitext(os.path.basename(path))[0]
+    wavelength = float(goniometer.wavelength) * 10.0
+    return _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi)

@@ -285,6 +285,47 @@ def run(path):
           abs(instrumental_fwhm(si_x, si_y) - true_fwhm) < 0.02)
     check("10 instrumental FWHM falls back to the default on a flat pattern",
           abs(instrumental_fwhm(si_x, np.zeros_like(si_x), default=0.10) - 0.10) < 1e-9)
+
+    # 11. BGMN .str reference (embedded quartz.str) + the unsupported-SG message.
+    str_text = (
+        "PHASE=Quartz //\nSpacegroupNo=154 //\n"
+        "PARAM=A=0.4913_0.49^0.4935 PARAM=C=0.5404_0.538^0.545 GAMMA=120 //\n"
+        "E=SI+4  Wyckoff=a x=0.47 TDS=0.0056\n"
+        "E=O-2  Wyckoff=c x=0.415 y=0.268 z=0.786 TDS=0.0096\n"
+    )
+    tmp3 = os.path.join(tempfile.gettempdir(), "mudlab_q_%d.str" % os.getpid())
+    with open(tmp3, "w", encoding="utf-8") as fh:
+        fh.write(str_text)
+    try:
+        sref, scomp = structure.reference_from_str(tmp3, g, name="quartz-str")
+        sx = np.asarray(sref.raw_pattern_x)
+        sy = np.asarray(sref.raw_pattern_y)
+
+        def _spk(pos, w=0.3):
+            sel = (sx >= pos - w) & (sx <= pos + w)
+            return float(sy[sel].max()) if np.any(sel) else 0.0
+
+        check("11 BGMN .str quartz: 101 strongest, ~pure SiO2",
+              _spk(26.66) > 50 and _spk(26.66) > _spk(20.85)
+              and abs(scomp.get("SiO2", 0.0) - 100.0) < 1.0)
+    finally:
+        if os.path.exists(tmp3):
+            os.remove(tmp3)
+
+    tmp4 = tmp3 + "-unsup.str"
+    with open(tmp4, "w", encoding="utf-8") as fh:
+        fh.write("SpacegroupNo=99 //\nPARAM=A=0.5 PARAM=C=0.5 GAMMA=90 //\n"
+                 "E=SI+4 Wyckoff=a x=0.1 y=0.1 z=0.1\n")
+    try:
+        raised = False
+        try:
+            structure.reference_from_str(tmp4, g)
+        except ValueError:
+            raised = True
+        check("11 an unsupported .str space group is rejected clearly", raised)
+    finally:
+        if os.path.exists(tmp4):
+            os.remove(tmp4)
     return None
 
 

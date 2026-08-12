@@ -50,10 +50,10 @@
           <item>
            <widget class="QPushButton" name="btn_add_cif">
             <property name="toolTip">
-             <string>Build a reference from a crystal structure (CIF with explicit symmetry ops, e.g. from COD/AMCSD), using this specimen's goniometer.</string>
+             <string>Build a reference from a crystal structure - a CIF with explicit symmetry ops (COD/AMCSD) or a BGMN .str - using this specimen's goniometer.</string>
             </property>
             <property name="text">
-             <string>Add from CIF&#8230;</string>
+             <string>Add structure&#8230;</string>
             </property>
            </widget>
           </item>
