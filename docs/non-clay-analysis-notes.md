@@ -1013,6 +1013,101 @@ as a weight % (share is width-arbitrary), but AREA-robust (matches the modelled
 residual 6.0 AND recovers a spike exactly). Probe scripts (scratchpad):
 `exp_f32_baseline_sens.py` (width sweep), inline spike test.
 
+## Finding 34 — Literature check of the 100/101-ratio quartz method (2026-08-13)
+
+Evaluated a user-proposed quartz method (clay model available): anchor on the
+clean quartz 100 (4.26 A / 20.85 deg), predict 101 (3.34 A / 26.66 deg) from the
+fixed structural ratio, subtract to reveal the illite-003 "base". Two assumptions
+checked against the literature AND our data.
+
+**#1 the 100/101 ratio is constant — VERIFIED as a structural constant.** Our
+measured pure quartz = 0.191 (height) / 0.189 (area); our from-CIF calc ~0.20
+(Finding 28); ICDD/PDF range ~0.16-0.22 (101 is the 100% line, 100 ~16-22%). The
+multi-peak scheme is codified: NIOSH 7500 uses 101(3.34) / 100(4.26) / 112(1.82)
+as primary / secondary / tertiary quartz lines. CAVEAT: the OBSERVED 100/101 ratio
+is not perfectly invariant in real quartz - it drifts with grain size /
+crystallinity / preferred orientation (documented as a provenance proxy) and with
+microabsorption in coarse grains. Treat 0.19-0.20 as nominal, not exact.
+
+**#2 the quartz 100 is clean of clay — VERIFIED as ESTABLISHED PRACTICE, not
+universally clean.** 4.26 A is the standard fallback quartz peak precisely because
+3.34 A overlaps mica/illite 003 (10 A / 3 = 3.33 A); NIOSH 7500: "if interferences
+with the primary silica peak are present, use a less sensitive peak" (i.e. 4.26).
+But NIOSH 7500 lists **feldspars, micas, montmorillonite** as quartz interferences,
+and the **glycol-smectite 004 (17 A / 4 = 4.25 A) directly overlaps quartz 100 on
+EG mounts** (ODP lab methods). Oriented mounts suppress the clay hk bands
+(favourable) but not feldspar or the smectite integer orders. Our 3 samples
+(illite/kaolinite, smectite-poor, feldspar-poor at 4.26) are the favourable case:
+clay model ~0 at 20.85 in all 6 specimens, and residual(100) ~= 0.19 x
+residual(101) across all 6 (self-consistent - independent proof both residual
+peaks are quartz).
+
+**VERDICT.** The method is a 2-point, peak-height restatement of Case A (same clean-
+100 anchor + fixed ratio + clay-model subtraction) - correct in principle but less
+robust (a single ~5-count channel vs the integrated LSQ over the whole reference)
+and blind to 100-contamination. Same orientation limit -> an intensity share, not
+weight %. Its real value is the **cross-peak ratio check**: residual(100) /
+residual(101) vs 0.19 flags exactly the literature failure modes - ratio too HIGH =
+excess at 100 (feldspar / smectite-004, #2 violated); too LOW = illite-003 not
+removed (clay-model misfit at 101, the Fe/Mg composition work). RECOMMENDATION: add
+it as a lightweight quartz-specific DIAGNOSTIC in the results (NOT feeding the
+fraction math); keep quantification = Case A intensity share + XRF weight %.
+
+Sources: NIOSH Manual of Analytical Methods 7500 (crystalline silica by XRD); ODP
+Leg 190/196 shipboard XRD lab methods (smectite/quartz-100 overlap); Zhou X., Liu
+D., Bu H., Deng L., Liu H., Yuan P., Du P., Song H. (2018) "XRD-based quantitative
+analysis of clay minerals using reference intensity ratios, mineral intensity
+factors, Rietveld, and full pattern summation methods: A critical review", Solid
+Earth Sciences 3(1), 16-29, doi:10.1016/j.sesci.2017.12.002; quartz 100/101
+provenance-ratio literature.
+
+## Finding 35 — LP/orientation, peak-snap, and profile reconstruction (2026-08-13)
+
+Three user questions on the quartz path, with literature and decisions.
+
+**Q1 (LP vs orientation) - REJECTED (no change).** Literature confirms quartz is
+equant, not platy, so it takes NO preferred orientation, unlike clays (adding
+non-platy grains even lowers sigma*). We already treat quartz as random (the
+reference carries no orientation factor; only the clay basals are sigma*-enhanced).
+The conflation: preferred orientation != LP. LP = (1+cos^2 2th)/(sin^2 th cos th)
+is universal geometry applied to EVERY reflection of EVERY phase - a random powder
+pattern inherently CONTAINS LP (it is what makes 101 the 100% line, 100 ~20%). A
+measured quartz reference already carries LP; the from-CIF reference applies it
+explicitly; both are needed because the residual is observed (LP-weighted) space
+and LP spans ~35x over 4-35 deg. The orientation BIAS (share != wt%, Finding 23)
+comes from the clay basals being sigma*-enhanced, NOT from quartz LP - so it cannot
+be removed by dropping LP; weight % comes from XRF. Verdict: LP stays; quartz is
+already random; nothing to change.
+
+**Q2 (snap the reference to the experimental peaks) - TAKE THE USEFUL PART.** Peak
+shifts are real and follow the specimen-displacement law dth2 ~= -2 s cos(th)/R
+(angle-dependent, NOT a constant offset; lit: 100 um -> 0.07 deg at 20 deg, R=150mm;
+zero-shift < 0.05 deg). USEFUL = fit ONE bounded physical displacement/zero
+parameter (cos(th) law, >=2 peaks = quartz 100 + 101), NOT free per-peak snapping
+(over-parameterises, can latch onto a clay/feldspar peak). Guards: (a) gate on
+confident quartz ID first (the Finding-34 cross-peak ratio check); (b) bound it
+~+/-0.1 deg; (c) often REDUNDANT - the clay model already fits a machine correction
+for the same specimen, so add the quartz snap only when residual misalignment is
+seen at 20.85/26.66. Snap (align to truth) and the mis-registration null (test
+around truth) are complementary. DECISION: adopt the ratio-check diagnostic + an
+optional bounded displacement snap gated on it; TO IMPLEMENT LATER.
+
+**Q3 (reconstruct profiles at experimental positions, known FWHM + ratio) - DO NOT
+build a parallel reconstruction.** This is already what the from-CIF calculator
+does (|F|^2 . LP sticks broadened to the Si-standard FWHM) and Case A already fits
+the WHOLE reference (all quartz peaks, not just 100). The only new element is Q2's
+position snap. A separate peak-by-peak build would duplicate the reference builder
+with a weaker intensity model (100 + ratio vs all reflections' structure factors).
+Caveat: the Si FWHM is instrumental; strongly size-broadened quartz would need a
+broader width. Verdict: fold Q2's displacement into the existing reference/fit if
+needed; do not build a parallel reconstruction.
+
+Sources: Hillier / Clays & Clay Minerals - "Preferred orientation of mineral grains
+in sample mounts ... how random are powder samples?" + "Variation of preferred
+orientation in oriented clay mounts"; ICAL (Montana) XRD clay technical report;
+specimen-displacement correction in powder XRD (PMC9901925). LP factor = standard
+powder-diffraction geometry (Klug & Alexander).
+
 ## Remaining / future work (2026-08-08)
 
 The shipped feature is complete for its planned scope (Slices 1-3 + 2b: measured +
