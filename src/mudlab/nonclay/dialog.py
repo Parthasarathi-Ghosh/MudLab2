@@ -18,9 +18,9 @@ import os
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QDialogButtonBox, QFileDialog, QLabel,
-    QListWidgetItem, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QApplication, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
+    QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from mudlab.calculations.composition import load_conversion_table
@@ -87,14 +87,128 @@ def _edit_composition(parent, oxides, current, name):
     return result
 
 
+def modelless_results(specimens, references, width_deg=3.8):
+    """Per-specimen model-less fit for the modal + the harness. The baseline width
+    is given in DEGREES and converted to points per specimen from its own 2theta
+    step. Returns a list of (specimen, areas, shares) - the AREA is the robust
+    detector; the SHARE is a relative intensity number, width-dependent, NOT a
+    weight % (Findings 32-33)."""
+    import numpy as np
+
+    from mudlab.nonclay.estimator import fit_specimen_direct
+
+    out = []
+    for s in specimens:
+        x = np.asarray(s.experimental_pattern[0], dtype=float)
+        step = float(np.median(np.diff(x))) if x.size > 1 else 0.0
+        w_pts = max(3, int(round(width_deg / step))) if step else 230
+        fit = fit_specimen_direct(s, references, width=w_pts)
+        total = fit["a_total"] or 0.0
+        areas = [float(a) for a in fit["areas"]]
+        shares = [100.0 * a / total if total else 0.0 for a in areas]
+        out.append((s, areas, shares))
+    return out
+
+
+def _modelless_dialog(parent, specimens, references) -> None:
+    """Modal: the MODEL-LESS fit on specimens with NO clay model (heat-degraded
+    clays; identification, not modelling). Strips a morphological baseline from
+    the raw pattern and fits the references to the sharp residue. The recovered
+    AREA is a detector (tracks a spike 1:1); the SHARE is a relative intensity
+    number, NOT a weight % - it moves with the baseline width, so the width is a
+    visible control here (Findings 32-33). Weight % still comes from the XRF
+    balance. Self-contained + freed on close, so retracting the package removes
+    it whole."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Model-less non-clay - unmodeled / heated specimens")
+    dlg.resize(560, 440)
+    layout = QVBoxLayout(dlg)
+    hint = QLabel(
+        "Fit the loaded references to a baseline-stripped raw pattern, for "
+        "specimens with NO clay model (heat-degraded clays). The recovered AREA "
+        "is a detector (tracks a spike 1:1); the SHARE is a relative intensity "
+        "number, NOT a weight % - it depends on the baseline width (try it). "
+        "Weight % still comes from the XRF mass balance.")
+    hint.setWordWrap(True)
+    layout.addWidget(hint)
+
+    lst = QListWidget()
+    for s in specimens:
+        item = QListWidgetItem(getattr(s, "name", "") or "specimen")
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setCheckState(Qt.CheckState.Checked)
+        lst.addItem(item)
+    layout.addWidget(lst)
+
+    controls = QHBoxLayout()
+    controls.addWidget(QLabel("Baseline width (deg):"))
+    spin = QDoubleSpinBox()
+    spin.setRange(0.5, 12.0)
+    spin.setSingleStep(0.5)
+    spin.setValue(3.8)  # ~230 pts at a 0.0167 deg step (the notes' default)
+    controls.addWidget(spin)
+    run_btn = QPushButton("Run model-less")
+    controls.addWidget(run_btn)
+    controls.addStretch(1)
+    layout.addLayout(controls)
+
+    table = QTableWidget()
+    table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+    layout.addWidget(table)
+
+    box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+    box.rejected.connect(dlg.reject)
+    box.accepted.connect(dlg.accept)
+    layout.addWidget(box)
+
+    ref_names = [getattr(r, "name", "ref") for r in references]
+    align = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+
+    def _run() -> None:
+        chosen = [specimens[i] for i in range(lst.count())
+                  if lst.item(i).checkState() == Qt.CheckState.Checked]
+        headers = []
+        for name in ref_names:
+            headers += ["%s area" % name, "%s share" % name]
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.setRowCount(len(chosen))
+        table.setVerticalHeaderLabels(
+            [getattr(s, "name", "") or "specimen" for s in chosen])
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            for r, (_s, areas, shares) in enumerate(
+                    modelless_results(chosen, references, spin.value())):
+                for k in range(len(references)):
+                    ai = QTableWidgetItem("%.1f" % areas[k])
+                    ai.setTextAlignment(align)
+                    si = QTableWidgetItem("%.2f%%" % shares[k])
+                    si.setTextAlignment(align)
+                    table.setItem(r, 2 * k, ai)
+                    table.setItem(r, 2 * k + 1, si)
+        finally:
+            QApplication.restoreOverrideCursor()
+        table.resizeColumnsToContents()
+
+    run_btn.clicked.connect(_run)
+    _run()  # populate immediately (all specimens checked)
+    dlg.exec()
+    dlg.deleteLater()
+
+
 class NonclayDialog(QDialog):
-    def __init__(self, mixture, parent: QWidget | None = None) -> None:
+    def __init__(self, mixture, parent: QWidget | None = None,
+                 extra_specimens=None) -> None:
         super().__init__(parent)
         # Free the dialog when it closes (as CompositionDialog does).
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.ui = Ui_NonclayDialog()
         self.ui.setupUi(self)
         self._mixture = mixture
+        # Loose / unmodeled specimens (in the project but not in this mixture,
+        # e.g. heat-treated variants) offered to the model-less fit (Findings
+        # 32-33). Empty -> the model-less button hides itself.
+        self._extra_specimens = [s for s in (extra_specimens or []) if s is not None]
         self._references: list = []
         self._compositions: list = []
         self._result = None
@@ -110,6 +224,8 @@ class NonclayDialog(QDialog):
         self.ui.btn_edit_comp.clicked.connect(self._on_edit_composition)
         self.ui.btn_si.clicked.connect(self._on_si_standard)
         self.ui.btn_remove_ref.clicked.connect(self._on_remove)
+        self.ui.btn_modelless.clicked.connect(self._on_modelless)
+        self.ui.btn_modelless.setVisible(bool(self._extra_specimens))
         self.ui.btn_run.clicked.connect(self._on_run)
         self.ui.btn_copy.clicked.connect(self._on_copy)
         self.ui.btn_export.clicked.connect(self._on_export)
@@ -236,6 +352,22 @@ class NonclayDialog(QDialog):
         self._compositions[row] = comp or None
         self.ui.list_refs.item(row).setText(
             self._ref_label(self._references[row].name, comp))
+
+    def _on_modelless(self) -> None:
+        """Open the model-less fit on the project's loose / unmodeled specimens
+        (heat-treated variants with no clay model). Needs at least one reference;
+        does NOT touch the clay path or the modeled results above."""
+        if not self._references:
+            QMessageBox.information(
+                self, "No references", "Add at least one non-clay reference first.")
+            return
+        if not self._extra_specimens:
+            QMessageBox.information(
+                self, "No loose specimens",
+                "No unmodeled (loose / heat-treated) specimens were found in the "
+                "project for this mixture.")
+            return
+        _modelless_dialog(self, self._extra_specimens, self._references)
 
     def run(self) -> None:
         """Recompute the clay fit (read-only), decompose against the loaded

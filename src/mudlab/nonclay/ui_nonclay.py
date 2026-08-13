@@ -119,6 +119,11 @@ class Ui_NonclayDialog(object):
 
         self.siRow.addItem(self.siSpacer)
 
+        self.btn_modelless = QPushButton(NonclayDialog)
+        self.btn_modelless.setObjectName(u"btn_modelless")
+
+        self.siRow.addWidget(self.btn_modelless)
+
 
         self.rootLayout.addLayout(self.siRow)
 
@@ -197,6 +202,10 @@ class Ui_NonclayDialog(object):
 #endif // QT_CONFIG(tooltip)
         self.btn_si.setText(QCoreApplication.translate("NonclayDialog", u"Si standard\u2026", None))
         self.lbl_si.setText(QCoreApplication.translate("NonclayDialog", u"Reference width: 0.10\u00b0 (default)", None))
+#if QT_CONFIG(tooltip)
+        self.btn_modelless.setToolTip(QCoreApplication.translate("NonclayDialog", u"Run the model-less fit on unmodeled / heat-treated specimens that have no clay model (identification: the recovered area is a detector; the share is NOT a weight %). Hidden when the project has no loose specimens.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_modelless.setText(QCoreApplication.translate("NonclayDialog", u"Model-less (heated)\u2026", None))
         self.lbl_summary.setText("")
 #if QT_CONFIG(tooltip)
         self.btn_copy.setToolTip(QCoreApplication.translate("NonclayDialog", u"Copy the results to the clipboard as CSV.", None))

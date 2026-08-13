@@ -164,6 +164,16 @@
        </property>
       </spacer>
      </item>
+     <item>
+      <widget class="QPushButton" name="btn_modelless">
+       <property name="toolTip">
+        <string>Run the model-less fit on unmodeled / heat-treated specimens that have no clay model (identification: the recovered area is a detector; the share is NOT a weight %). Hidden when the project has no loose specimens.</string>
+       </property>
+       <property name="text">
+        <string>Model-less (heated)&#8230;</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>

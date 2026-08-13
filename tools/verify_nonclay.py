@@ -341,6 +341,21 @@ def run(path):
     fit_d = estimator.fit_specimen_direct(s4, [ref4])
     check("12 model-less direct fit recovers a spiked reference (amp > 0.5x)",
           fit_d["amps"][0] > 0.5 * c4 and np.isfinite(fit_d["nonclay_pct"]))
+
+    # 13. model-less UI exposure: the dialog offers loose / heated specimens
+    #     (button visible only then) and modelless_results computes area + share.
+    from mudlab.nonclay.dialog import modelless_results
+    dlg_ml = NonclayDialog(mix4, extra_specimens=[s4])  # s4 acts as a loose spec
+    dlg_none = NonclayDialog(mix4)                      # no loose specimens
+    check("13 model-less button shows only with loose specimens",
+          dlg_ml.ui.btn_modelless.isVisibleTo(dlg_ml)
+          and not dlg_none.ui.btn_modelless.isVisibleTo(dlg_none))
+    rows_ml = modelless_results([s4], [ref4], width_deg=3.8)
+    check("13 modelless_results returns a positive area + finite share per specimen",
+          len(rows_ml) == 1 and len(rows_ml[0][1]) == 1
+          and rows_ml[0][1][0] > 0.0 and np.isfinite(rows_ml[0][2][0]))
+    dlg_ml.deleteLater()
+    dlg_none.deleteLater()
     return None
 
 

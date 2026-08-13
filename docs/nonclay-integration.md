@@ -13,7 +13,7 @@ The non-clay feature is **experimental** and built to be removed cleanly. It is
 - `tools/nonclay_experiments/` — throwaway reproducibility scripts and the
   from-CIF calculator (`structure_pattern.py`).
 - `docs/non-clay-analysis-notes.md` — the design / evidence notes (Findings
-  1–31).
+  1–33); `docs/nonclay-algorithm.md` — the paper-ready methods write-up.
 
 ## The one mainstream seam — grep token `NONCLAY`
 - `src/mudlab/ui/edit_mixture.ui` — the `btn_nonclay` button ("Non-clay…", next

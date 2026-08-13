@@ -228,12 +228,17 @@ class EditMixtureWidget(QWidget):
     # >>> NONCLAY (experimental, optional) — retract with the wiring block above.
     def _on_nonclay(self) -> None:
         """Estimate non-clay minerals (e.g. quartz) from the clay-subtracted
-        residual (experimental; READ-ONLY over the clay path)."""
+        residual (experimental; READ-ONLY over the clay path). Also offers the
+        model-less fit on the project's loose / unmodeled specimens (heat-treated
+        variants not in this mixture)."""
         if self._mixture is None:
             return
         from mudlab.nonclay import NonclayDialog
 
-        NonclayDialog(self._mixture, self).exec()
+        in_mixture = list(self._mixture.specimens or [])
+        loose = [s for s in self._specimens
+                 if s is not None and not any(s is m for m in in_mixture)]
+        NonclayDialog(self._mixture, self, extra_specimens=loose).exec()
     # <<< NONCLAY
 
     def _update_residual_label(self) -> None:
