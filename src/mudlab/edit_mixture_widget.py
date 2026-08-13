@@ -237,7 +237,8 @@ class EditMixtureWidget(QWidget):
 
         in_mixture = list(self._mixture.specimens or [])
         loose = [s for s in self._specimens
-                 if s is not None and not any(s is m for m in in_mixture)]
+                 if s is not None and s.has_experimental_data
+                 and not any(s is m for m in in_mixture)]
         NonclayDialog(self._mixture, self, extra_specimens=loose).exec()
     # <<< NONCLAY
 

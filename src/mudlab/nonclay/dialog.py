@@ -100,7 +100,8 @@ def modelless_results(specimens, references, width_deg=3.8):
     out = []
     for s in specimens:
         x = np.asarray(s.experimental_pattern[0], dtype=float)
-        step = float(np.median(np.diff(x))) if x.size > 1 else 0.0
+        # abs(): a pattern stored high-to-low 2theta must not collapse the window.
+        step = abs(float(np.median(np.diff(x)))) if x.size > 1 else 0.0
         w_pts = max(3, int(round(width_deg / step))) if step else 230
         fit = fit_specimen_direct(s, references, width=w_pts)
         total = fit["a_total"] or 0.0
