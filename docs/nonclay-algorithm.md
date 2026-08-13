@@ -6,7 +6,7 @@ clay model. The headline output is the **quartz fraction vs the total clay
 fraction**; the user chooses which non-clay minerals to include (as with clay
 phases). This is the paper-ready statement of the shipped feature
 (`src/mudlab/nonclay/`); the supporting evidence is in
-[`non-clay-analysis-notes.md`](non-clay-analysis-notes.md) (Findings 1–31).
+[`non-clay-analysis-notes.md`](non-clay-analysis-notes.md) (Findings 1–33).
 
 The method is **additive and read-only**: it never changes the clay
 optimize/refine/calc path; it only *reads* the fitted clay pattern.
@@ -111,6 +111,39 @@ them. Each dataset is used for its strength.
 
 ---
 
+## Model-less path — heat-treated / unmodeled specimens
+
+Heat treatment (500–550 °C) degrades the expandable clays, so a clay model cannot
+be fit — heating is for *identification*, not modelling. For such a specimen there
+is no clay pattern to subtract, so Stages 0–1 are replaced by a **data-driven
+baseline**:
+
+1. Estimate a baseline that follows the broad structure and passes *under* the
+   sharp peaks — a **morphological opening** (rolling minimum then rolling maximum
+   over a window `w`, then a smoothing average).
+2. `target(2θ) = exp(2θ) − baseline(2θ)` — the sharp accessory peaks on ~zero.
+3. Fit the references to `target` exactly as in Stage 2, but with a single **free
+   constant** in place of the clay/correction nuisance columns (reference
+   amplitudes still `≥ 0`).
+
+What this path yields, and what it does not (Findings 32–33):
+
+- The recovered reference **area is robust** — it matches the modelled-residual
+  area on air-dried specimens *and* recovers a known added-quartz spike **1:1**. So
+  the model-less path is a valid **detector / relative-area** tool on any specimen,
+  including heated ones with no clay model.
+- The **share** (non-clay area ÷ total sharp signal) is **not** a weight %: its
+  denominator is "whatever survives the baseline", which the window `w` alone moves
+  from ~33 % (narrow) to ~3 % (wide) for the *same* specimen. An early apparent
+  match between this share and the XRF weight % was an artefact of the chosen `w`.
+  **Weight % still comes from the XRF balance; the model-less share must not be
+  quoted as a mass fraction.**
+- It remains orientation-limited like the modelled path (the references are
+  observed-intensity space; an oriented mount suppresses accessory intensity
+  relative to weight %).
+
+---
+
 ## Reference construction
 
 - **Measured curve** — imported as-is (observed-intensity space by construction).
@@ -120,8 +153,11 @@ them. Each dataset is used for its strength.
   `|F|²·LP` at the **specimen goniometer's wavelength**; broaden each stick to the
   **instrumental FWHM** (measured from a Si standard, else a 0.10° default). The
   same atom list yields the mineral's **oxide composition** for the mass balance.
-  (A CIF with only a space-group *number*, or a BGMN `.str` with Wyckoff letters,
-  needs a space-group operations table — not yet supported.)
+- **From a BGMN `.str`** (or a CIF giving only a space-group *number*) — the same
+  construction, but the symmetry is supplied by a curated **space-group operations
+  + Wyckoff-representative table** (standard ITA setting) keyed by the space-group
+  number and Wyckoff letters; quartz (space groups 152 / 154) is verified against
+  a CIF, and the table is extended per mineral as needed.
 
 The reference must be **observed-intensity space** (LP included): the residual
 keeps its LP weighting (subtraction removes the clay *term*, not a common
