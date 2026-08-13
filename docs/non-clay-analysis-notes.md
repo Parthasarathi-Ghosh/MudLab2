@@ -983,6 +983,36 @@ may be largely removable by baseline stripping). Capability is in
 dialog is mixture-scoped, the heated specimens are loose - a per-specimen /
 sibling-scan entry point is further work).
 
+## Finding 33 — Finding 32 DEBUNKED: the model-less share is baseline-width-dependent (2026-08-08)
+
+Probed Finding 32 (the model-less baseline-strip quartz share ~12% ~= XRF wt%).
+Baseline-WIDTH sensitivity test (348/416/AT460 Ca-AD, quartz reference): the
+model-less SHARE swings strongly with the width -
+348: 33% (0.5 deg) -> 21% (1.0) -> 15% (1.9) -> 11% (3.84, what I used) ->
+5.7% (7.7) -> 2.7% (11.7 deg); same trend for 416/AT460. So the ~12% ~= XRF match
+was an ARTIFACT of the baseline width I happened to pick (230 pts = 3.84 deg);
+anywhere 2.7-42% is available. The model-less share is NOT a principled weight %
+- it is "quartz fraction of whatever sharp signal survives the chosen baseline".
+**The ORIENTATION LIMIT (Finding 23) STANDS; weight % still comes from XRF.**
+
+Mechanism: a narrow baseline hugs the data -> only the sharpest peaks survive ->
+quartz prominent (share high); a wide baseline -> more clay retained -> quartz
+small (share low). The share is monotonic in width, so it encodes an arbitrary
+choice, not physics.
+
+BUT the quartz AREA is robust: ~6-9 across widths, ~matching the modelled-residual
+quartz area (6.0). So the model-less direct fit remains a valid DETECTION /
+relative-quartz-AREA tool for specimens with no clay model (heated) - just not a
+weight-% quantifier.
+
+Spike-response test (348 + 416 Ca-AD, add c x quartz for c=0.5..4): the recovered
+model-less quartz AREA tracks the added quartz 1:1 (ratio 1.00 at every level) -
+so the AREA is a valid detector / relative-quartz tool even without a clay model.
+Finding 32's headline is therefore corrected: promising weight-% proxy -> DEBUNKED
+as a weight % (share is width-arbitrary), but AREA-robust (matches the modelled
+residual 6.0 AND recovers a spike exactly). Probe scripts (scratchpad):
+`exp_f32_baseline_sens.py` (width sweep), inline spike test.
+
 ## Remaining / future work (2026-08-08)
 
 The shipped feature is complete for its planned scope (Slices 1-3 + 2b: measured +
