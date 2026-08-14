@@ -387,10 +387,16 @@ class NonclayDialog(QDialog):
                 mass_balance(self._mixture, xrf, self._references, self._compositions)
                 if xrf else None)
             # Quartz cross-peak ratio diagnostic (read-only; silent for non-quartz
-            # references). Does NOT feed the fractions above.
+            # references). Does NOT feed the fractions above. Gated on DETECTION:
+            # the residual ratio is only meaningful where quartz is actually
+            # present - otherwise res_101 (area above the window floor) is just
+            # noise and would report a spurious verdict.
             self._ratio_checks = []
-            for ref in self._references:
-                for s in [s for s in self._mixture.specimens if s is not None]:
+            specs = [s for s in self._mixture.specimens if s is not None]
+            for s, sr in zip(specs, self._result.specimens):
+                for i, ref in enumerate(self._references):
+                    if not sr.references[i].detected:
+                        continue
                     rc = quartz_ratio_check(s, ref)
                     if rc is not None:
                         self._ratio_checks.append(

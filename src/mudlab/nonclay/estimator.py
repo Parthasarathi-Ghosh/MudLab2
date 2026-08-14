@@ -167,6 +167,11 @@ def quartz_ratio_check(specimen, reference, tt_100=20.85, tt_101=26.66,
                          misfit at 3.34 A)
       no-quartz-signal   the 101 residual is <= 0 (nothing to check)
 
+    Apply this only where the reference is DETECTED (the dialog gates on the
+    decompose detection flag): on a specimen with no quartz, res_101 is the area
+    above the window floor - i.e. noise - and the returned verdict is meaningless
+    (the ``no-quartz-signal`` guard only catches a perfectly flat residual).
+
     A LOOSE band (lo=0.5, hi=2.0) is used deliberately: the real 100/101 ratio
     drifts with quartz grain size / orientation (Finding 34), so only clear
     violations are flagged.

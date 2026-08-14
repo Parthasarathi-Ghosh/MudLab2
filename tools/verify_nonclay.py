@@ -377,6 +377,39 @@ def run(path):
     nonq = nonclay.reference_from_arrays(xg, yg, "non-quartz")
     check("14 ratio check is silent (None) for a non-quartz reference",
           estimator.quartz_ratio_check(s5, nonq) is None)
+
+    # 15. the dialog gates the ratio diagnostic on DETECTION: a strong quartz
+    #     spike produces a ratio line; an absent quartz (residual ~0) produces
+    #     none (no spurious verdict from noise-level residual).
+    mix6 = load_mud(path).mixtures[0]
+    mix6.calculate()
+    qref6 = _synthetic_quartz()
+    present = [s for s in mix6.specimens if s is not None]
+    srow = estimator.reference_intensities(present[0], [qref6])[0]
+    xp, yp = present[0].experimental_pattern
+    yp = np.asarray(yp, dtype=float)
+    present[0].set_experimental_pattern(
+        np.asarray(xp, dtype=float),
+        yp + 2.0 * float(np.max(yp)) / float(np.max(srow)) * srow)
+    d6 = NonclayDialog(mix6)
+    d6.add_reference(qref6)
+    d6.run()
+    has_present = len(d6._ratio_checks) > 0
+    d6.deleteLater()
+
+    mix7 = load_mud(path).mixtures[0]
+    mix7.calculate()
+    for s in [s for s in mix7.specimens if s is not None]:
+        xs7, _ = s.experimental_pattern
+        s.set_experimental_pattern(np.asarray(xs7, dtype=float),
+                                   np.asarray(s.calculated_pattern[1], dtype=float).copy())
+    d7 = NonclayDialog(mix7)
+    d7.add_reference(qref6)
+    d7.run()
+    has_absent = len(d7._ratio_checks) > 0
+    d7.deleteLater()
+    check("15 ratio diagnostic gated on detection (present -> line, absent -> none)",
+          has_present and not has_absent)
     return None
 
 
