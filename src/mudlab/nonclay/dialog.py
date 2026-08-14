@@ -27,6 +27,7 @@ from mudlab.calculations.composition import load_conversion_table
 from mudlab.file_parsers.xrd_import import parse_pattern
 from mudlab.nonclay.chemistry import mass_balance, mineral_composition
 from mudlab.nonclay.decompose import decompose_mixture
+from mudlab.nonclay.estimator import quartz_ratio_check
 from mudlab.nonclay.instrument import instrumental_fwhm
 from mudlab.nonclay.references import load_reference
 from mudlab.nonclay.structure import reference_from_cif, reference_from_str
@@ -214,6 +215,7 @@ class NonclayDialog(QDialog):
         self._compositions: list = []
         self._result = None
         self._massbalance = None
+        self._ratio_checks: list = []  # quartz cross-peak diagnostic (Finding 35)
         self._fwhm = 0.10  # reference peak width (deg); set from a Si standard
 
         name = getattr(mixture, "name", "") or "mixture"
@@ -384,6 +386,15 @@ class NonclayDialog(QDialog):
             self._massbalance = (
                 mass_balance(self._mixture, xrf, self._references, self._compositions)
                 if xrf else None)
+            # Quartz cross-peak ratio diagnostic (read-only; silent for non-quartz
+            # references). Does NOT feed the fractions above.
+            self._ratio_checks = []
+            for ref in self._references:
+                for s in [s for s in self._mixture.specimens if s is not None]:
+                    rc = quartz_ratio_check(s, ref)
+                    if rc is not None:
+                        self._ratio_checks.append(
+                            (getattr(s, "name", ""), getattr(ref, "name", ""), rc))
             self._populate()
             self._set_results_enabled(True)
         finally:
@@ -429,10 +440,44 @@ class NonclayDialog(QDialog):
                 % (nonclay or "(no known non-clay composition)",
                    wpct.get("clay", 0.0), mb.unexplained_pct))
         parts.append("Clay fit: %s.   XRD intensity share (non-clay): %s." % (rp, tot))
+        ratio_line = self._ratio_summary()
+        if ratio_line:
+            parts.append(ratio_line)
         parts.append("The XRD share is semi-quantitative (orientation-biased low); "
                      "the XRF weight % is orientation-independent. "
                      "✓ = detected above the mis-registration null.")
         self.ui.lbl_summary.setText("   ".join(parts))
+
+    _RATIO_FLAG = {
+        "consistent": "ok",
+        "excess-at-100": "HIGH - feldspar / smectite-004 at 4.26?",
+        "excess-at-101": "LOW - clay-model misfit at illite-003?",
+        "no-quartz-signal": "no signal",
+    }
+
+    def _ratio_summary(self) -> str:
+        """One line per quartz-like reference: each specimen's residual 100/101
+        ratio vs the reference's own (structural) ratio, with a flag. A DIAGNOSTIC
+        only - it does not change the fractions above (Findings 34-35)."""
+        if not self._ratio_checks:
+            return ""
+        by_ref: dict = {}
+        for sname, rname, rc in self._ratio_checks:
+            by_ref.setdefault(rname, []).append((sname, rc))
+        segments = []
+        for rname, items in by_ref.items():
+            rho_ref = items[0][1]["rho_ref"]
+            cells = []
+            for sname, rc in items:
+                robs = rc["rho_obs"]
+                flag = self._RATIO_FLAG.get(rc["verdict"], rc["verdict"])
+                if robs == robs:  # not NaN
+                    cells.append("%s %.2f (%s)" % (sname, robs, flag))
+                else:
+                    cells.append("%s (%s)" % (sname, flag))
+            segments.append("Quartz 100/101 check [%s, structural %.2f]: %s."
+                            % (rname, rho_ref, "; ".join(cells)))
+        return "   ".join(segments)
 
     # ------------------------------------------------------------------
     def _csv_text(self) -> str:
@@ -455,6 +500,15 @@ class NonclayDialog(QDialog):
             for comp_name, wp in zip(mb.components, mb.weight_pct):
                 writer.writerow([comp_name, "%.1f" % wp])
             writer.writerow(["unexplained oxides %", "%.1f" % mb.unexplained_pct])
+        if self._ratio_checks:
+            writer.writerow([])
+            writer.writerow(["quartz 100/101 cross-peak check (diagnostic only)",
+                             "residual ratio", "reference ratio", "verdict"])
+            for sname, rname, rc in self._ratio_checks:
+                robs = rc["rho_obs"]
+                writer.writerow(["%s / %s" % (sname, rname),
+                                 "%.3f" % robs if robs == robs else "n/a",
+                                 "%.3f" % rc["rho_ref"], rc["verdict"]])
         return buffer.getvalue()
 
     def _on_copy(self) -> None:

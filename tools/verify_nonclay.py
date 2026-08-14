@@ -356,6 +356,27 @@ def run(path):
           and rows_ml[0][1][0] > 0.0 and np.isfinite(rows_ml[0][2][0]))
     dlg_ml.deleteLater()
     dlg_none.deleteLater()
+
+    # 14. quartz cross-peak ratio DIAGNOSTIC (Findings 34-35): consistent on a
+    #     strong quartz spike; auto-gated to None for a non-quartz reference.
+    proj5 = load_mud(path)
+    mix5 = proj5.mixtures[0]
+    mix5.calculate()
+    s5 = [s for s in mix5.specimens if s is not None][0]
+    qref5 = _synthetic_quartz()
+    row5 = estimator.reference_intensities(s5, [qref5])[0]
+    x5, y5 = s5.experimental_pattern
+    big = 3.0 * float(np.max(y5)) / float(np.max(row5))
+    s5.set_experimental_pattern(x5, np.asarray(y5, dtype=float) + big * row5)
+    rc5 = estimator.quartz_ratio_check(s5, qref5)
+    check("14 quartz ratio check is consistent on a strong quartz spike",
+          rc5 is not None and rc5["verdict"] == "consistent"
+          and 0.10 < rc5["rho_obs"] < 0.40)
+    xg = np.arange(4.0, 40.0, 0.02)
+    yg = np.exp(-0.5 * ((xg - 30.0) / 0.12) ** 2)  # a peak only at 30 deg
+    nonq = nonclay.reference_from_arrays(xg, yg, "non-quartz")
+    check("14 ratio check is silent (None) for a non-quartz reference",
+          estimator.quartz_ratio_check(s5, nonq) is None)
     return None
 
 

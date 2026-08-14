@@ -109,6 +109,16 @@ A mineral is **reported as detected** only when all three hold:
 The **XRD leg identifies and detects** the non-clays; the **XRF leg quantifies**
 them. Each dataset is used for its strength.
 
+**Diagnostic — quartz cross-peak ratio check.** For a quartz-like reference, the
+residual area at the 100 (20.85°) and 101 (26.66°) is compared to the reference's
+*own* 100/101 ratio (self-calibrated, ~0.19 — no hard-coded constant; the check is
+silent for any reference without peaks at both). Consistency confirms both residual
+peaks are quartz; a ratio **too high** flags extra intensity at 4.26 Å (feldspar /
+glycol-smectite 004 — the clean-100 assumption breaking), **too low** flags an
+un-removed illite-003 (a clay-model misfit at 3.34 Å). A deliberately loose band is
+used, because the real ratio drifts with quartz grain size / orientation. This is a
+**diagnostic only** — it never changes the reported fractions.
+
 ---
 
 ## Model-less path — heat-treated / unmodeled specimens

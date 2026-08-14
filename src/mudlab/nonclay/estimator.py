@@ -135,6 +135,70 @@ def specimen_rp(specimen) -> float:
     return float(Rp(np.asarray(exp, dtype=float), np.asarray(total, dtype=float)))
 
 
+def _window_area(x, y, center, half):
+    """Integrated area of ``y`` above its window-minimum over
+    ``[center-half, center+half]`` (a peak area above a local baseline) plus the
+    peak height. Returns ``(area, height)``; ``(0, 0)`` for an empty window."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    m = (x >= center - half) & (x <= center + half)
+    if not np.any(m):
+        return 0.0, 0.0
+    xs, ys = x[m], y[m]
+    base = float(ys.min())
+    return float(np.trapezoid(ys - base, xs)), float(ys.max() - base)
+
+
+def quartz_ratio_check(specimen, reference, tt_100=20.85, tt_101=26.66,
+                       half=0.6, gate_frac=0.05, lo=0.5, hi=2.0):
+    """Cross-peak consistency DIAGNOSTIC for a quartz-like reference (Findings
+    34-35). Compares the RESIDUAL area ratio at the quartz 100 (``tt_100``) and
+    101 (``tt_101``) to the REFERENCE's OWN 100/101 area ratio - self-calibrated,
+    ~0.19, no hard-coded constant. READ-ONLY, and it does NOT feed the fraction
+    math; it only flags where the two literature assumptions break (Finding 34).
+
+    Auto-gated: returns ``None`` when the reference lacks a peak at BOTH positions
+    (a non-quartz reference stays silent). Verdicts:
+
+      consistent        residual ratio within [lo, hi] x the reference ratio
+      excess-at-100      ratio too HIGH -> extra intensity at 4.26 A (feldspar /
+                         glycol-smectite 004); the clean-100 assumption is broken
+      excess-at-101      ratio too LOW  -> illite-003 not removed (clay-model
+                         misfit at 3.34 A)
+      no-quartz-signal   the 101 residual is <= 0 (nothing to check)
+
+    A LOOSE band (lo=0.5, hi=2.0) is used deliberately: the real 100/101 ratio
+    drifts with quartz grain size / orientation (Finding 34), so only clear
+    violations are flagged.
+    """
+    row = np.asarray(reference_intensities(specimen, [reference])[0], dtype=float)
+    if row.size == 0 or row.max() <= 0:
+        return None
+    xref = np.asarray(specimen.experimental_pattern[0], dtype=float)
+    ref_a, ref_ha = _window_area(xref, row, tt_100, half)
+    ref_b, ref_hb = _window_area(xref, row, tt_101, half)
+    # Auto-gate: the reference must actually peak at BOTH 100 and 101.
+    thresh = gate_frac * float(row.max())
+    if ref_ha < thresh or ref_hb < thresh or ref_b <= 0:
+        return None
+    rho_ref = ref_a / ref_b
+    x, resid, _clay, _corr = specimen_residual(specimen)
+    res_a, _ = _window_area(x, resid, tt_100, half)
+    res_b, _ = _window_area(x, resid, tt_101, half)
+    if res_b <= 0:
+        verdict, rho_obs = "no-quartz-signal", float("nan")
+    else:
+        rho_obs = res_a / res_b
+        if rho_obs > hi * rho_ref:
+            verdict = "excess-at-100"
+        elif rho_obs < lo * rho_ref:
+            verdict = "excess-at-101"
+        else:
+            verdict = "consistent"
+    return {"verdict": verdict, "rho_obs": rho_obs, "rho_ref": rho_ref,
+            "res_100": res_a, "res_101": res_b}
+
+
 def morphological_baseline(y, width):
     """Rolling min-then-max opening + smooth: a baseline that follows the broad
     structure and passes under the sharp peaks. The model-less stand-in for the
