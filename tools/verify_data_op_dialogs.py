@@ -142,14 +142,19 @@ _, spec = fresh_specimen()
 before_x, _ = spec.experimental_pattern
 before_x = before_x.copy()
 dlg = ShiftPatternDialog(None, specimen=spec)
-check("shift: value disabled for a reference preset",
-      not dlg.ui.spin_shift_value.isEnabled())
+check("shift: value editable for a reference preset (adjustable if auto fails)",
+      dlg.ui.spin_shift_value.isEnabled())
 # Silicon: this fixture's silicon line sits ~0.49 deg below its theoretical
 # position, so auto-detect must report that - a non-trivial detection.
 dlg.ui.shift_position.setCurrentIndex(1)
 check("shift: auto-detects the real offset (%.4f)"
       % dlg.ui.spin_shift_value.value(),
       abs(dlg.ui.spin_shift_value.value() - (-0.49307609)) < 1e-4)
+# The auto-detected offset stays editable, so a wrong detection can be corrected.
+dlg.ui.spin_shift_value.setValue(-0.30)
+check("shift: reference offset can be overridden by hand",
+      dlg.ui.spin_shift_value.isEnabled()
+      and abs(dlg.ui.spin_shift_value.value() - (-0.30)) < 1e-9)
 dlg.ui.shift_position.setCurrentIndex(6)  # Manual
 check("shift: value enabled in manual mode", dlg.ui.spin_shift_value.isEnabled())
 check("shift: manual resets to 0 (not the previous reference's offset)",

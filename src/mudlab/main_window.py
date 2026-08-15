@@ -147,7 +147,6 @@ class MainWindow(QMainWindow):
         for action, dialog_cls in (
             (self.ui.actionRemoveBackground, RemoveBackgroundDialog),
             (self.ui.actionSmoothData, SmoothDataDialog),
-            (self.ui.actionShiftPattern, ShiftPatternDialog),
             (self.ui.actionAddNoise, AddNoiseDialog),
         ):
             action.triggered.connect(
@@ -158,14 +157,19 @@ class MainWindow(QMainWindow):
         self.ui.actionTrimData.triggered.connect(self._show_trim_data)
         self._data_op_actions.append(self.ui.actionTrimData)
         self.ui.actionSaveGraph.triggered.connect(self._save_graph)
-        # Strip Peak / Peak Properties are modeless: their Sample buttons
-        # pick positions on the plot, so the plot must stay clickable.
+        # Strip Peak / Peak Properties / Shift are modeless: Strip and Peak
+        # Properties' Sample buttons pick positions on the plot, and Shift needs
+        # the plot to stay interactive (zoom/scroll) while the preview is aligned
+        # to the reference reflection - so the plot must stay clickable.
         self._strip_peak_dialog: StripPeakDialog | None = None
         self._peak_props_dialog: PeakPropertiesDialog | None = None
+        self._shift_pattern_dialog: ShiftPatternDialog | None = None
         self.ui.actionStripPeak.triggered.connect(self._show_strip_peak)
         self.ui.actionPeakProperties.triggered.connect(self._show_peak_properties)
+        self.ui.actionShiftPattern.triggered.connect(self._show_shift_pattern)
         self._data_op_actions.append(self.ui.actionStripPeak)
         self._data_op_actions.append(self.ui.actionPeakProperties)
+        self._data_op_actions.append(self.ui.actionShiftPattern)
         # Fixed <-> ADS divergence-slit conversion (parameterless, so no dialog -
         # a confirmation gates the destructive rewrite).
         self.ui.actionConvertToFixed.triggered.connect(
@@ -978,6 +982,20 @@ class MainWindow(QMainWindow):
         self._strip_peak_dialog.show()
         self._strip_peak_dialog.raise_()
         self._strip_peak_dialog.activateWindow()
+
+    def _show_shift_pattern(self) -> None:
+        specimen = self._data_op_specimen()
+        if specimen is None:
+            return
+        # Modeless so the plot stays interactive (zoom/scroll) while the preview
+        # is aligned to the reference; rebuilt per open to bind the current
+        # selection (see _show_strip_peak).
+        if self._shift_pattern_dialog is not None:
+            self._shift_pattern_dialog.close()
+        self._shift_pattern_dialog = ShiftPatternDialog(self, specimen=specimen)
+        self._shift_pattern_dialog.show()
+        self._shift_pattern_dialog.raise_()
+        self._shift_pattern_dialog.activateWindow()
 
     def _show_peak_properties(self) -> None:
         specimen = self._data_op_specimen()

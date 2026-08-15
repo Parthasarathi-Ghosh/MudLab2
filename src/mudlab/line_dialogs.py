@@ -327,16 +327,19 @@ class ShiftPatternDialog(_SpecimenDialog):
         super().reject()  # base: clears the preview, then closes
 
     def _on_position_changed(self, index: int) -> None:
-        manual = index == SHIFT_MANUAL_INDEX
-        self.ui.spin_shift_value.setEnabled(manual)
-        if manual:
-            # Old setup_shift_variables resets to 0 in manual mode, so the
-            # previous reference's detected offset is not silently reused.
+        # The value is ALWAYS editable: picking a reference offers a detected
+        # offset, but the user can still fine-tune it - or set it by hand when
+        # detection fails - exactly as the old ShiftDataController did ("the
+        # user can adjust the spinbox to add further manual corrections").
+        self.ui.spin_shift_value.setEnabled(True)
+        if index == SHIFT_MANUAL_INDEX:
+            # Manual: no reference to detect against, so start from 0 (old
+            # setup_shift_variables) rather than reusing the last offset.
             self.ui.spin_shift_value.setValue(0.0)
         elif self._specimen is not None:
-            # Find where the reference reflection actually sits and offer that
-            # offset. A reference outside the scanned range detects 0.0 (the
-            # old app's guard) - it simply has nothing to measure against.
+            # Reference: offer where the reflection actually sits. A reference
+            # outside the scanned range detects 0.0 (the old app's guard) - it
+            # simply has nothing to measure against, so the user adjusts by hand.
             self.ui.spin_shift_value.setValue(
                 self._specimen.detect_shift(SHIFT_POSITIONS[index])
             )
