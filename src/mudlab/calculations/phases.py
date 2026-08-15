@@ -100,9 +100,16 @@ def _get_raw_intensity(range_theta, range_stl, phase):
 
 def get_intensity(range_theta, range_stl, soller1, soller2, mcr_2theta, phase):
     """Diffracted intensity for a single phase, with the Lorentz-polarisation
-    factor applied when ``phase.apply_lpf`` is set."""
+    factor applied when ``phase.apply_lpf`` is set AND the probability model is
+    valid. An invalid model already yields a zero ``intensity`` (see
+    ``_get_diffracted_intensity``), so gating the LP factor on ``valid_probs``
+    keeps the result the same (0 x LP = 0) while ensuring the invalid-matrix guard
+    fires before ``sigma_star`` is read - the LP path never dereferences calc
+    state the invalid branch does not populate (upstream MudLab crashed here when
+    an invalid model nulled ``sigma_star``). ``apply_lpf`` is False for a
+    RawPatternPhase, so the ``and`` short-circuits before touching ``valid_probs``."""
     intensity = get_diffracted_intensity(range_theta, range_stl, phase)
-    if phase.apply_lpf:
+    if phase.apply_lpf and phase.valid_probs:
         return intensity * get_lorentz_polarisation_factor(
             range_theta, phase.sigma_star, soller1, soller2, mcr_2theta
         )
