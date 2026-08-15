@@ -152,9 +152,9 @@ def check_auto_match_scores():
     check("auto match rows == score_minerals output (names/abbr/scores/order)", same)
     check("matches sorted by descending score",
           scores == sorted(scores, reverse=True))
-    # Quartz self-match must land at the very top.
-    top_names = [dlg.matches_model.item(r, 0).text() for r in range(min(5, n))]
-    check("Quartz scores in the top 5 of its own pattern", _QUARTZ in top_names)
+    # Quartz self-match must rank #1 on its own pattern.
+    check("Quartz is the #1 match on its own pattern",
+          n > 0 and dlg.matches_model.item(0, 0).text() == _QUARTZ)
     dlg.deleteLater()
 
 
@@ -321,6 +321,27 @@ def check_search_filter():
     dlg.deleteLater()
 
 
+def check_scoring_bugfixes():
+    """Lock in the score_minerals fixes: a two-peak DISTINCT-intensity match is
+    scored (the old code NaN-dropped it via a 2-point linregress std-error), and
+    a genuinely proportional match outranks a flat coincidental one (the old
+    i_factor=0.5 tie shortcut no longer dominates real fits)."""
+    _abbr, q_peaks = _BY_NAME[_QUARTZ]
+    two = sorted(q_peaks, key=lambda p: p[0], reverse=True)[:2]  # 4.26 & 3.34 A
+    observed = [(d, inten) for d, inten in two]  # distinct catalog intensities
+    names = [nm for nm, *_ in pd.score_minerals(observed, _MINERALS)]
+    check("two-peak distinct-intensity match is scored, not NaN-dropped (quartz)",
+          _QUARTZ in names)
+
+    (d1, _), (d2, _) = two
+    obs = [(d1, 20.0), (d2, 100.0)]
+    proportional = ("Proportional", "Pr", [(d1, 20.0), (d2, 100.0)])
+    flat = ("Flat", "Fl", [(d1, 50.0), (d2, 50.0)])
+    sc = {nm: s for nm, ab, mp, pm, s in pd.score_minerals(obs, [proportional, flat])}
+    check("proportional-intensity match outranks a flat coincidental one",
+          sc.get("Proportional", 0.0) > sc.get("Flat", 0.0))
+
+
 def main():
     check_loads_reference_set()
     check_duplicate_name_manual_add()
@@ -330,6 +351,7 @@ def main():
     check_append_labels()
     check_edit_markers_wiring()
     check_search_filter()
+    check_scoring_bugfixes()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

@@ -315,59 +315,65 @@ def score_minerals(peak_list, minerals):
     ``minerals`` - ``(name, abbreviation, peaks)`` where ``peaks`` is a list of
     ``(d_angstrom, relative_intensity)``.
 
-    For each mineral, its (up to 15) strongest reflections are matched to the
+    For each mineral, its (up to 15) largest-d reflections are matched to the
     nearest observed peak within 1% of position; a mineral with at least the
-    required number of matches is scored on how well matched positions and
-    intensities line up (via linear regression) and how many matched.  Returns
-    ``(name, abbreviation, mpeaks, p_matches, score)`` tuples, best first.
+    required number of matches is scored as
+
+        score = (number of matches) * position_factor * intensity_factor
+
+    ``position_factor`` in [0, 1] rewards close positions (1 = exact, 0 = at the
+    1% edge). ``intensity_factor`` in [0, 1] is the SCALE-INVARIANT Pearson
+    correlation of the matched catalog vs observed intensities, clamped at 0; it
+    is 0.5 (neutral) when undefined - fewer than two matches, or either intensity
+    set constant - so a coincidental flat match never outweighs a genuine one.
+    Returns ``(name, abbreviation, mpeaks, p_matches, score)`` tuples, best first.
+
+    This corrects the old scoring, whose intensity term compared catalog
+    intensities on a 0-100 scale against observed intensities normalised to
+    [0, 1] (so a perfect match scored ~0.001), and which dropped any mineral with
+    exactly two distinct-intensity matches via a NaN from a 2-point linregress
+    standard error - e.g. quartz, matched on its 4.26/3.34 A lines, vanished.
     """
     max_pos_dev = 0.01  # fraction
     min_peaks_needed = max(1, min(2, len(peak_list)))
     scores = []
     for mineral, abbreviation, mpeaks in minerals:
-        tot_score = 0
+        mpeaks = sorted(mpeaks, key=lambda peak: peak[0], reverse=True)[:15]
         p_matches = []
         i_matches = []
         already_matched = []
-        mpeaks = sorted(mpeaks, key=lambda peak: peak[0], reverse=True)
-        if len(mpeaks) > 15:
-            mpeaks = mpeaks[:15]
-
-        for i, (mpos, mint) in enumerate(mpeaks):
+        for mpos, mint in mpeaks:
             epos, eint = find_closest(mpos, peak_list)
             if abs(epos - mpos) / mpos <= max_pos_dev and epos not in already_matched:
                 p_matches.append([mpos, epos])
                 i_matches.append([mint, eint])
                 already_matched.append(epos)
 
-        if len(p_matches) >= min_peaks_needed:
-            p_matches = np.array(p_matches)
-            i_matches = np.array(i_matches)
+        if len(p_matches) < min_peaks_needed:
+            continue
+        p_matches = np.array(p_matches, dtype=float)
+        i_matches = np.array(i_matches, dtype=float)
+        n = p_matches.shape[0]
 
-            i_matches[:, 1] = i_matches[:, 1] / np.max(i_matches[:, 1])
+        # Position factor: mean closeness within the 1% window -> [0, 1].
+        pos_dev = np.mean(np.abs(p_matches[:, 1] - p_matches[:, 0]) / p_matches[:, 0])
+        pos_factor = max(0.0, 1.0 - pos_dev / max_pos_dev)
 
-            if len(p_matches) >= 2:
-                p_slope, p_intercept, p_r_value, p_value, p_std_err = stats.linregress(
-                    p_matches[:, 0], p_matches[:, 1])
-                p_factor = (p_r_value ** 2) * min(1.0 / (abs(1.0 - p_slope) + 1E-50), 1000.) / 1000.0
-                if np.unique(i_matches[:, 0]).size >= 2:
-                    i_slope, i_intercept, i_r_value, p_value, i_std_err = stats.linregress(
-                        i_matches[:, 0], i_matches[:, 1])
-                    i_factor = (1.0 - min(i_std_err / 0.25, 5.0) / 5.0) * min(
-                        1.0 / (abs(1.0 - i_slope) + 1E-50), 1000.) / 1000.0
-                else:
-                    i_factor = 0.5  # all reference intensities identical, skip intensity regression
-            else:
-                # Single observed peak: score by positional accuracy alone
-                p_dev = abs(p_matches[0, 1] - p_matches[0, 0]) / p_matches[0, 0]
-                p_factor = 1.0 - p_dev / max_pos_dev
-                i_factor = 0.5  # neutral weight for single-peak match
-            tot_score = len(p_matches) * p_factor * i_factor
+        # Intensity factor: scale-invariant correlation of catalog vs observed
+        # intensities. Undefined (n < 2, or a constant column) -> 0.5 neutral, so
+        # it neither NaNs out a real match nor lets a flat coincidence dominate.
+        mint, eint = i_matches[:, 0], i_matches[:, 1]
+        if n >= 2 and np.unique(mint).size >= 2 and np.unique(eint).size >= 2:
+            corr = np.corrcoef(mint, eint)[0, 1]
+            int_factor = max(0.0, corr) if np.isfinite(corr) else 0.5
+        else:
+            int_factor = 0.5
 
-        if tot_score > 0:
-            scores.append((mineral, abbreviation, mpeaks, p_matches, tot_score))
+        score = n * pos_factor * int_factor
+        if score > 0:
+            scores.append((mineral, abbreviation, mpeaks, p_matches, score))
 
-    scores = sorted(scores, key=lambda score: score[-1], reverse=True)
+    scores.sort(key=lambda s: s[-1], reverse=True)
     return scores
 
 
