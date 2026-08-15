@@ -17,8 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QDialog,
     QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
-    QPushButton, QSizePolicy, QSpacerItem, QToolButton,
-    QTreeView, QVBoxLayout, QWidget)
+    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QToolButton, QTreeView, QVBoxLayout, QWidget)
 
 class Ui_MatchMineralsDialog(object):
     def setupUi(self, MatchMineralsDialog):
@@ -100,6 +100,12 @@ class Ui_MatchMineralsDialog(object):
 
         self.mineralsColumn.addWidget(self.minerals_lbl)
 
+        self.edit_search = QLineEdit(MatchMineralsDialog)
+        self.edit_search.setObjectName(u"edit_search")
+        self.edit_search.setClearButtonEnabled(True)
+
+        self.mineralsColumn.addWidget(self.edit_search)
+
         self.tv_minerals = QTreeView(MatchMineralsDialog)
         self.tv_minerals.setObjectName(u"tv_minerals")
         self.tv_minerals.setRootIsDecorated(False)
@@ -140,5 +146,9 @@ class Ui_MatchMineralsDialog(object):
 #endif // QT_CONFIG(tooltip)
         self.btn_ltr.setText(QCoreApplication.translate("MatchMineralsDialog", u"\u25ba", None))
         self.minerals_lbl.setText(QCoreApplication.translate("MatchMineralsDialog", u"All minerals:", None))
+        self.edit_search.setPlaceholderText(QCoreApplication.translate("MatchMineralsDialog", u"Search minerals\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.edit_search.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"Filter the list by mineral name or abbreviation.", None))
+#endif // QT_CONFIG(tooltip)
     # retranslateUi
 

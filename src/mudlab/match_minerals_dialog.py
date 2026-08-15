@@ -13,7 +13,7 @@ markers.
 from __future__ import annotations
 
 import numpy as np
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QModelIndex, Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QDialog, QWidget
 
@@ -92,6 +92,9 @@ class MatchMineralsDialog(QDialog):
         self.ui.btn_auto_match.clicked.connect(self._on_auto_match)
         self.ui.btn_apply.clicked.connect(self._on_apply)
         self.ui.buttonBox.rejected.connect(self.reject)
+        # Search box: filter the all-minerals list by name/abbreviation as the
+        # user types (the old app's Ctrl+F tree search, always visible here).
+        self.ui.edit_search.textChanged.connect(self._filter_minerals)
 
         self._marker_peaks = self._compute_marker_peaks()
         self.ui.btn_auto_match.setEnabled(bool(self._marker_peaks))
@@ -222,6 +225,21 @@ class MatchMineralsDialog(QDialog):
             if self.matches_model.item(row, 0).data(_INDEX_ROLE) == idx:
                 return row
         return None
+
+    def _filter_minerals(self, text: str) -> None:
+        """Filter the all-minerals list to rows whose name OR abbreviation
+        contains the search text (case-insensitive); an empty box shows all.
+        Rows are hidden in the view, so the model, indices and selection/data
+        logic are untouched (228 references, so a linear pass is fine)."""
+        needle = text.strip().lower()
+        root = QModelIndex()
+        tv = self.ui.tv_minerals
+        for row in range(self.minerals_model.rowCount()):
+            name = self.minerals_model.item(row, 0).text().lower()
+            abbr_item = self.minerals_model.item(row, 1)
+            abbr = abbr_item.text().lower() if abbr_item is not None else ""
+            hidden = bool(needle) and needle not in name and needle not in abbr
+            tv.setRowHidden(row, root, hidden)
 
     # ------------------------------------------------------------------
     # Reference-peak preview overlay (magenta sticks on the main plot)

@@ -283,6 +283,44 @@ def check_duplicate_name_manual_add():
     dlg.deleteLater()
 
 
+def check_search_filter():
+    """The search box filters the all-minerals list by name/abbreviation (the
+    old app's Ctrl+F tree search, always visible here)."""
+    from PySide6.QtCore import QModelIndex
+    spec = quartz_specimen()
+    dlg = MatchMineralsDialog(specimen=spec, targets=list(spec.markers))
+    root = QModelIndex()
+    n = dlg.minerals_model.rowCount()
+
+    def visible():
+        return [r for r in range(n) if not dlg.ui.tv_minerals.isRowHidden(r, root)]
+
+    check("search: empty box shows all references", len(visible()) == n)
+
+    dlg.ui.edit_search.setText("quartz")
+    vis = visible()
+    names_ok = all("quartz" in dlg.minerals_model.item(r, 0).text().lower()
+                   or "quartz" in (dlg.minerals_model.item(r, 1).text().lower()
+                                   if dlg.minerals_model.item(r, 1) else "")
+                   for r in vis)
+    quartz_shown = any(dlg.minerals_model.item(r, 0).text().startswith("Quartz")
+                       for r in vis)
+    check("search 'quartz' shows only matching rows incl. Quartz",
+          0 < len(vis) < n and names_ok and quartz_shown)
+
+    dlg.ui.edit_search.setText(_BY_NAME[_QUARTZ][0])  # by abbreviation
+    check("search by abbreviation matches",
+          any(dlg.minerals_model.item(r, 0).text().startswith("Quartz")
+              for r in visible()))
+
+    dlg.ui.edit_search.setText("zzznope")
+    check("search with no match hides every row", len(visible()) == 0)
+
+    dlg.ui.edit_search.setText("")
+    check("clearing the search restores all rows", len(visible()) == n)
+    dlg.deleteLater()
+
+
 def main():
     check_loads_reference_set()
     check_duplicate_name_manual_add()
@@ -291,6 +329,7 @@ def main():
     check_manual_add_remove()
     check_append_labels()
     check_edit_markers_wiring()
+    check_search_filter()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

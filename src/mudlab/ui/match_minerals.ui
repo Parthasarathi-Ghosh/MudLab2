@@ -135,6 +135,19 @@
         </widget>
        </item>
        <item>
+        <widget class="QLineEdit" name="edit_search">
+         <property name="clearButtonEnabled">
+          <bool>true</bool>
+         </property>
+         <property name="placeholderText">
+          <string>Search minerals&#8230;</string>
+         </property>
+         <property name="toolTip">
+          <string>Filter the list by mineral name or abbreviation.</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QTreeView" name="tv_minerals">
          <property name="rootIsDecorated">
           <bool>false</bool>
