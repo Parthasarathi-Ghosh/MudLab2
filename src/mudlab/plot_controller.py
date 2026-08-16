@@ -82,6 +82,7 @@ class PatternPlot:
         on_motion: Callable | None = None,
         on_click: Callable | None = None,
         on_marker_pick: Callable | None = None,
+        on_range_select: Callable | None = None,
     ) -> None:
         if not specimens:
             raise ValueError("PatternPlot needs at least one specimen")
@@ -90,6 +91,7 @@ class PatternPlot:
         self._on_motion = on_motion
         self._on_click = on_click
         self._on_marker_pick = on_marker_pick
+        self._on_range_select = on_range_select
 
         self.figure = Figure(facecolor=SURFACE)
         self.canvas = FigureCanvasQTAgg(self.figure)
@@ -102,6 +104,9 @@ class PatternPlot:
         self.axes = self.figure.add_subplot(111)
 
         self._crosshair_enabled = False
+        # Range-select mode (Strip Peak / Peak Properties): reuses the crosshair
+        # drag-highlight to sweep a [start, end] range, reported on release.
+        self._range_select_enabled = False
         self._crosshair_line = None
         self.drag_start_x: float | None = None
         self._drag_source_lines: list[tuple[np.ndarray, np.ndarray]] = []
@@ -700,12 +705,25 @@ class PatternPlot:
     def set_crosshair_enabled(self, enabled: bool) -> None:
         self._crosshair_enabled = enabled
         if not enabled:
-            if self.drag_start_x is not None:
+            if self.drag_start_x is not None and not self._range_select_enabled:
                 self._end_drag_highlight()
             if self._crosshair_line is not None:
                 self._crosshair_line.remove()
                 self._crosshair_line = None
                 self.canvas.draw_idle()
+
+    def set_range_select_enabled(self, enabled: bool) -> None:
+        """Arm/disarm drag-to-select-a-range. While armed a left-drag reuses the
+        crosshair drag-highlight to mark the swept span, and on release reports
+        ``(x0, x1)`` (ascending, degrees 2theta) via ``on_range_select`` - the
+        Strip Peak / Peak Properties dialogs use this instead of two eye-dropper
+        picks. Independent of the crosshair toggle."""
+        self._range_select_enabled = enabled
+        if not enabled and self.drag_start_x is not None and not self._crosshair_enabled:
+            self._end_drag_highlight()
+
+    def _drag_highlight_armed(self) -> bool:
+        return self._crosshair_enabled or self._range_select_enabled
 
     def _update_crosshair(self, x_pos: float) -> None:
         if not self._crosshair_enabled:
@@ -729,7 +747,7 @@ class PatternPlot:
     # Drag-measurement highlight
     # ------------------------------------------------------------------
     def _start_drag_highlight(self, x_pos: float | None) -> None:
-        if not self._crosshair_enabled or x_pos is None:
+        if x_pos is None or not self._drag_highlight_armed():
             return
         self.drag_start_x = x_pos
         self._drag_source_lines = []
@@ -821,11 +839,18 @@ class PatternPlot:
 
     def _on_button_release(self, event) -> None:
         if event.button == 1 and self.drag_start_x is not None:
+            x0 = self.drag_start_x
+            x1 = self._event_x(event)
             self._end_drag_highlight()
             if self._on_motion is not None:
-                x_pos = self._event_x(event)
                 # Deferred, like the old GLib.idle_add refresh.
-                QTimer.singleShot(0, lambda: self._on_motion(self, x_pos))
+                QTimer.singleShot(0, lambda: self._on_motion(self, x1))
+            # A genuine drag in range-select mode reports the swept [x0, x1]
+            # range (a plain click leaves x1 == x0 and reports nothing).
+            if (self._range_select_enabled and self._on_range_select is not None
+                    and x1 >= 0 and x1 != x0):
+                lo, hi = (x0, x1) if x0 <= x1 else (x1, x0)
+                self._on_range_select(self, lo, hi)
 
     def _on_key_press(self, event) -> None:
         if event.key == "left":

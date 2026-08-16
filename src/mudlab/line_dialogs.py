@@ -22,6 +22,7 @@ Old-app parity notes:
 
 from __future__ import annotations
 
+from PySide6.QtCore import QEvent
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
@@ -382,42 +383,106 @@ class AddNoiseDialog(_SpecimenDialog):
         return True
 
 
-def _arm_sample(dialog: QDialog, spinbox) -> None:
-    """Arm the main window's eye-dropper so the next plot click fills the
-    given spinbox with the picked 2-theta position."""
-    main_window = dialog.parent()
-    if main_window is not None and hasattr(main_window, "arm_position_pick"):
-        main_window.arm_position_pick(
-            lambda plot, x: spinbox.setValue(x),
-            "Click the position on the pattern...",
-        )
+class _RangeSelectMixin:
+    """Drag-to-select-a-range for a data-op dialog.
+
+    Instead of two eye-dropper Sample buttons (one click per endpoint), the user
+    sweeps the [start, end] range by dragging across the pattern - reusing the
+    plot's crosshair drag-highlight (see PatternPlot.set_range_select_enabled).
+    While the dialog is shown it arms the main window's range pick; a drag fills
+    the dialog's two spinboxes, which stay editable for fine-tuning. The subclass
+    supplies the spinboxes via ``_range_spinboxes()``.
+
+    Mixed in BEFORE ``_SpecimenDialog`` so its showEvent/accept/reject wrap the
+    base (which drives the live preview)."""
+
+    def _range_spinboxes(self):
+        raise NotImplementedError
+
+    def _arm_range(self) -> None:
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "arm_range_pick"):
+            main_window.arm_range_pick(
+                self._on_range_selected,
+                "Drag across the pattern to select the start and end positions...",
+            )
+
+    def _disarm_range(self) -> None:
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "disarm_range_pick"):
+            main_window.disarm_range_pick()
+
+    def _on_range_selected(self, _plot, x0: float, x1: float) -> None:
+        start_spin, end_spin = self._range_spinboxes()
+        start_spin.setValue(x0)
+        end_spin.setValue(x1)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)  # base: live preview
+        self._arm_range()
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        # Re-arm when this dialog becomes the active window, so that if both
+        # range dialogs are open the one the user is working in owns the drag.
+        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
+            self._arm_range()
+
+    def accept(self) -> None:
+        self._disarm_range()
+        super().accept()
+
+    def reject(self) -> None:
+        self._disarm_range()
+        super().reject()
 
 
-class StripPeakDialog(_SpecimenDialog):
-    """Replace a contaminant peak with the background line under it (old
-    StripPeakController).
+class StripPeakDialog(_RangeSelectMixin, _SpecimenDialog):
+    """Remove or attenuate a contaminant peak (old StripPeakController).
 
-    Modeless: the Sample buttons pick the start/end positions on the plot, so
-    the plot must stay clickable.
+    One control, ``Keep peak %``: it attenuates the peak toward the straight
+    line joining the range endpoints, keeping the chosen fraction of its height
+    above that line. **0 % is the classic strip** (the peak flattened onto the
+    line); 100 % leaves the data unchanged; 30 % keeps a third of it. Because the
+    endpoints sit on the line the background stays continuous - no notch. The
+    retained ``Noise level`` adds endpoint-scaled scatter (auto-estimated, so a
+    plain 0 % strip does not look artificially clean; set 0 for a clean result).
+    Everything goes through the same StripPattern + apply_strip, so the live
+    preview matches what OK applies.
+
+    Modeless: the user drags across the pattern to select the peak range, so the
+    plot must stay clickable.
     """
 
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_StripPeakDialog, parent, specimen)
-        self.ui.cmd_sample_start.clicked.connect(
-            lambda: _arm_sample(self, self.ui.strip_startx)
-        )
-        self.ui.cmd_sample_end.clicked.connect(
-            lambda: _arm_sample(self, self.ui.strip_endx)
-        )
         # Old update_strip_pattern re-estimated the noise level whenever an
         # endpoint moved; the user can still override it afterwards.
         self.ui.strip_startx.valueChanged.connect(self._on_range_changed)
         self.ui.strip_endx.valueChanged.connect(self._on_range_changed)
         self.ui.noise_level.valueChanged.connect(self._update_preview)
+        self.ui.keep_percent.valueChanged.connect(self._update_preview)
+
+    def _range_spinboxes(self):
+        return self.ui.strip_startx, self.ui.strip_endx
+
+    def _current_pattern(self):
+        """The StripPattern that would be applied (None if the range is
+        degenerate). Keep 0% + noise reproduces the old straight-line strip."""
+        if self._specimen is None:
+            return None
+        return self._specimen.compute_reduce_pattern(
+            self.ui.strip_startx.value(),
+            self.ui.strip_endx.value(),
+            self.ui.keep_percent.value() / 100.0,
+            self.ui.noise_level.value(),
+        )
 
     def _on_range_changed(self, *_args) -> None:
         if self._specimen is None:
             return
+        # Auto-estimate the noise floor from the endpoint scatter (old strip
+        # behaviour) so a plain strip looks natural; the user can override it.
         strip = self._specimen.compute_strip_pattern(
             self.ui.strip_startx.value(), self.ui.strip_endx.value()
         )
@@ -426,53 +491,41 @@ class StripPeakDialog(_SpecimenDialog):
         self._update_preview()
 
     def _compute_preview(self):
-        if self._specimen is None:
-            return None
-        strip = self._specimen.compute_strip_pattern(
-            self.ui.strip_startx.value(),
-            self.ui.strip_endx.value(),
-            self.ui.noise_level.value(),
-        )
-        if strip is None:
-            return None  # start/end too close: nothing to strip yet
-        x, y = self._specimen.preview_strip(strip)
+        pattern = self._current_pattern()
+        if pattern is None:
+            return None  # start/end too close: nothing to do yet
+        x, y = self._specimen.preview_strip(pattern)
         return x, y, True
 
     def _apply(self) -> bool:
-        strip = self._specimen.compute_strip_pattern(
-            self.ui.strip_startx.value(),
-            self.ui.strip_endx.value(),
-            self.ui.noise_level.value(),
-        )
-        if strip is None:
+        pattern = self._current_pattern()
+        if pattern is None:
             QMessageBox.warning(
                 self, "Strip peak",
                 "Set a start and end position at least two data points apart.",
             )
             return False
-        self._specimen.apply_strip(strip)
+        self._specimen.apply_strip(pattern)
         return True
 
 
-class PeakPropertiesDialog(_SpecimenDialog):
+class PeakPropertiesDialog(_RangeSelectMixin, _SpecimenDialog):
     """Measure a peak's integrated area and FWHM (old
     CalculatePeakPropertiesController).
 
     Read-only: it never changes the pattern, so it has no OK button - results
-    update live as the positions change.
+    update live as the positions change. The user drags across the pattern to
+    select the peak range, so it is modeless (the plot must stay clickable).
     """
 
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_PeakPropertiesDialog, parent, specimen)
-        self.ui.cmd_sample_start.clicked.connect(
-            lambda: _arm_sample(self, self.ui.peak_startx)
-        )
-        self.ui.cmd_sample_end.clicked.connect(
-            lambda: _arm_sample(self, self.ui.peak_endx)
-        )
         self.ui.btn_copy_results.clicked.connect(self._copy_results)
         self.ui.peak_startx.valueChanged.connect(self._recalculate)
         self.ui.peak_endx.valueChanged.connect(self._recalculate)
+
+    def _range_spinboxes(self):
+        return self.ui.peak_startx, self.ui.peak_endx
 
     def _apply(self) -> bool:
         """A measurement: nothing to apply."""

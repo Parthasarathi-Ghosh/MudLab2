@@ -25,6 +25,12 @@ class Ui_PeakPropertiesDialog(object):
             PeakPropertiesDialog.setObjectName(u"PeakPropertiesDialog")
         self.dialogLayout = QVBoxLayout(PeakPropertiesDialog)
         self.dialogLayout.setObjectName(u"dialogLayout")
+        self.lbl_hint = QLabel(PeakPropertiesDialog)
+        self.lbl_hint.setObjectName(u"lbl_hint")
+        self.lbl_hint.setWordWrap(True)
+
+        self.dialogLayout.addWidget(self.lbl_hint)
+
         self.peakForm = QFormLayout()
         self.peakForm.setObjectName(u"peakForm")
         self.lbl_startpos = QLabel(PeakPropertiesDialog)
@@ -32,44 +38,24 @@ class Ui_PeakPropertiesDialog(object):
 
         self.peakForm.setWidget(0, QFormLayout.ItemRole.LabelRole, self.lbl_startpos)
 
-        self.startRow = QHBoxLayout()
-        self.startRow.setObjectName(u"startRow")
         self.peak_startx = QDoubleSpinBox(PeakPropertiesDialog)
         self.peak_startx.setObjectName(u"peak_startx")
         self.peak_startx.setDecimals(2)
         self.peak_startx.setMaximum(180.000000000000000)
 
-        self.startRow.addWidget(self.peak_startx)
-
-        self.cmd_sample_start = QPushButton(PeakPropertiesDialog)
-        self.cmd_sample_start.setObjectName(u"cmd_sample_start")
-
-        self.startRow.addWidget(self.cmd_sample_start)
-
-
-        self.peakForm.setLayout(0, QFormLayout.ItemRole.FieldRole, self.startRow)
+        self.peakForm.setWidget(0, QFormLayout.ItemRole.FieldRole, self.peak_startx)
 
         self.lbl_endpos = QLabel(PeakPropertiesDialog)
         self.lbl_endpos.setObjectName(u"lbl_endpos")
 
         self.peakForm.setWidget(1, QFormLayout.ItemRole.LabelRole, self.lbl_endpos)
 
-        self.endRow = QHBoxLayout()
-        self.endRow.setObjectName(u"endRow")
         self.peak_endx = QDoubleSpinBox(PeakPropertiesDialog)
         self.peak_endx.setObjectName(u"peak_endx")
         self.peak_endx.setDecimals(2)
         self.peak_endx.setMaximum(180.000000000000000)
 
-        self.endRow.addWidget(self.peak_endx)
-
-        self.cmd_sample_end = QPushButton(PeakPropertiesDialog)
-        self.cmd_sample_end.setObjectName(u"cmd_sample_end")
-
-        self.endRow.addWidget(self.cmd_sample_end)
-
-
-        self.peakForm.setLayout(1, QFormLayout.ItemRole.FieldRole, self.endRow)
+        self.peakForm.setWidget(1, QFormLayout.ItemRole.FieldRole, self.peak_endx)
 
         self.lbl_result = QLabel(PeakPropertiesDialog)
         self.lbl_result.setObjectName(u"lbl_result")
@@ -118,18 +104,17 @@ class Ui_PeakPropertiesDialog(object):
 
     def retranslateUi(self, PeakPropertiesDialog):
         PeakPropertiesDialog.setWindowTitle(QCoreApplication.translate("PeakPropertiesDialog", u"Peak Properties", None))
+        self.lbl_hint.setText(QCoreApplication.translate("PeakPropertiesDialog", u"Drag across the pattern to select the peak, or type the start/end below.", None))
         self.lbl_startpos.setText(QCoreApplication.translate("PeakPropertiesDialog", u"Start position", None))
+#if QT_CONFIG(tooltip)
+        self.peak_startx.setToolTip(QCoreApplication.translate("PeakPropertiesDialog", u"Start of the range - set by dragging on the pattern, or type a value.", None))
+#endif // QT_CONFIG(tooltip)
         self.peak_startx.setSuffix(QCoreApplication.translate("PeakPropertiesDialog", u" \u00b02\u03b8", None))
-#if QT_CONFIG(tooltip)
-        self.cmd_sample_start.setToolTip(QCoreApplication.translate("PeakPropertiesDialog", u"Select the position directly on the pattern", None))
-#endif // QT_CONFIG(tooltip)
-        self.cmd_sample_start.setText(QCoreApplication.translate("PeakPropertiesDialog", u"Sample", None))
         self.lbl_endpos.setText(QCoreApplication.translate("PeakPropertiesDialog", u"End position", None))
-        self.peak_endx.setSuffix(QCoreApplication.translate("PeakPropertiesDialog", u" \u00b02\u03b8", None))
 #if QT_CONFIG(tooltip)
-        self.cmd_sample_end.setToolTip(QCoreApplication.translate("PeakPropertiesDialog", u"Select the position directly on the pattern", None))
+        self.peak_endx.setToolTip(QCoreApplication.translate("PeakPropertiesDialog", u"End of the range - set by dragging on the pattern, or type a value.", None))
 #endif // QT_CONFIG(tooltip)
-        self.cmd_sample_end.setText(QCoreApplication.translate("PeakPropertiesDialog", u"Sample", None))
+        self.peak_endx.setSuffix(QCoreApplication.translate("PeakPropertiesDialog", u" \u00b02\u03b8", None))
         self.lbl_result.setText(QCoreApplication.translate("PeakPropertiesDialog", u"Peak area:", None))
         self.peak_area_result.setText(QCoreApplication.translate("PeakPropertiesDialog", u"0.0", None))
         self.lbl_fwhm.setText(QCoreApplication.translate("PeakPropertiesDialog", u"FWHM [\u00b02\u03b8]:", None))

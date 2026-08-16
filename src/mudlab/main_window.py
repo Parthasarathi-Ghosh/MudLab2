@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
         self._shown_specimens: list[Specimen] = []
         self._dirty = False
         self._pending_pick = None
+        self._range_pick_callback = None
 
         self._setup_plot_area()
         self._setup_specimens_panel()
@@ -396,10 +397,15 @@ class MainWindow(QMainWindow):
                     on_motion=self._on_plot_motion,
                     on_click=self._on_plot_click,
                     on_marker_pick=self._on_marker_picked,
+                    on_range_select=self._on_plot_range_select,
                 )
             )
         for plot in plots:
             plot.set_crosshair_enabled(self.ui.actionCrosshair.isChecked())
+            # Keep a rebuilt plot in step with an open range-select dialog.
+            if self._range_pick_callback is not None:
+                plot.set_range_select_enabled(True)
+                plot.set_pick_cursor(True)
             view = restore_views.get(plot.view_key)
             if view is not None:
                 plot.restore_view(view)
@@ -519,6 +525,33 @@ class MainWindow(QMainWindow):
         self.ui.statusBar.clearMessage()
         for plot in self.pattern_plots:
             plot.set_pick_cursor(False)
+
+    def arm_range_pick(
+        self, callback,
+        hint: str = "Drag across the pattern to select the start and end...",
+    ) -> None:
+        """Arm range selection: a left-drag on a pattern highlights the swept
+        span and, on release, calls ``callback(plot, x0, x1)`` (ascending 2theta).
+        Unlike the one-shot position pick this STAYS armed - so the range can be
+        refined by dragging again - until :meth:`disarm_range_pick`; the caller
+        (a data-op dialog) disarms when it closes. Used by Strip Peak / Peak
+        Properties instead of the old two eye-dropper Sample buttons."""
+        self._range_pick_callback = callback
+        self.ui.statusBar.showMessage(hint)
+        for plot in self.pattern_plots:
+            plot.set_range_select_enabled(True)
+            plot.set_pick_cursor(True)
+
+    def disarm_range_pick(self) -> None:
+        self._range_pick_callback = None
+        self.ui.statusBar.clearMessage()
+        for plot in self.pattern_plots:
+            plot.set_range_select_enabled(False)
+            plot.set_pick_cursor(False)
+
+    def _on_plot_range_select(self, plot, x0: float, x1: float) -> None:
+        if self._range_pick_callback is not None:
+            self._range_pick_callback(plot, x0, x1)
 
     # ------------------------------------------------------------------
     # Live data-op preview overlay (used by the line/data-op dialogs)

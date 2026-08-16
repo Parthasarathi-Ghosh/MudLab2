@@ -7,6 +7,16 @@
   </property>
   <layout class="QVBoxLayout" name="dialogLayout">
    <item>
+    <widget class="QLabel" name="lbl_hint">
+     <property name="text">
+      <string>Drag across the pattern to select the peak, or type the start/end below.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QFormLayout" name="stripForm">
      <item row="0" column="0">
       <widget class="QLabel" name="lbl_startpos">
@@ -16,31 +26,20 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <layout class="QHBoxLayout" name="startRow">
-       <item>
-        <widget class="QDoubleSpinBox" name="strip_startx">
-         <property name="suffix">
-          <string> °2θ</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="maximum">
-          <double>180.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="cmd_sample_start">
-         <property name="toolTip">
-          <string>Select the position directly on the pattern</string>
-         </property>
-         <property name="text">
-          <string>Sample</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QDoubleSpinBox" name="strip_startx">
+       <property name="toolTip">
+        <string>Start of the range - set by dragging on the pattern, or type a value.</string>
+       </property>
+       <property name="suffix">
+        <string> °2θ</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
      </item>
      <item row="1" column="0">
       <widget class="QLabel" name="lbl_endpos">
@@ -50,43 +49,70 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <layout class="QHBoxLayout" name="endRow">
-       <item>
-        <widget class="QDoubleSpinBox" name="strip_endx">
-         <property name="suffix">
-          <string> °2θ</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="maximum">
-          <double>180.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="cmd_sample_end">
-         <property name="toolTip">
-          <string>Select the position directly on the pattern</string>
-         </property>
-         <property name="text">
-          <string>Sample</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QDoubleSpinBox" name="strip_endx">
+       <property name="toolTip">
+        <string>End of the range - set by dragging on the pattern, or type a value.</string>
+       </property>
+       <property name="suffix">
+        <string> °2θ</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
      </item>
      <item row="2" column="0">
+      <widget class="QLabel" name="lbl_keep">
+       <property name="text">
+        <string>Keep peak</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="keep_percent">
+       <property name="toolTip">
+        <string>How much of the peak's height above the background line to keep: 0% flattens it onto the line (a strip), 100% leaves it unchanged. Fractions are allowed; the value cannot go below 0.</string>
+       </property>
+       <property name="suffix">
+        <string> %</string>
+       </property>
+       <property name="decimals">
+        <number>1</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>100.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
       <widget class="QLabel" name="lbl_noise">
        <property name="text">
         <string>Noise level</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
+     <item row="3" column="1">
       <widget class="QDoubleSpinBox" name="noise_level">
+       <property name="toolTip">
+        <string>Random scatter added to the patched range so it does not look artificially clean (auto-estimated from the endpoints; set to 0 for a clean result).</string>
+       </property>
        <property name="decimals">
         <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
        </property>
        <property name="maximum">
         <double>1000000.000000000000000</double>

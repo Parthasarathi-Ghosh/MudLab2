@@ -348,6 +348,15 @@ class Specimen(QObject):
             self._exp_x, self._exp_y, startx, endx, noise_level
         )
 
+    def compute_reduce_pattern(self, startx, endx, keep_fraction, noise_level=0.0):
+        """Preview the "Keep peak %" attenuation (nothing is changed). Returns a
+        StripPattern, so preview_strip / apply_strip handle it like a strip."""
+        from mudlab.calculations import pattern_ops
+
+        return pattern_ops.compute_reduce_pattern(
+            self._exp_x, self._exp_y, startx, endx, keep_fraction, noise_level
+        )
+
     def apply_strip(self, strip) -> None:
         from mudlab.calculations import pattern_ops
 

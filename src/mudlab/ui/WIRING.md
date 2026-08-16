@@ -1521,13 +1521,29 @@ nothing. Guards: `verify_pattern_preview` + `verify_data_op_preview`.
     in Manual mode and on `accept`/`reject`. Harness: `verify_shift_reference`.
 - **Add Noise** (`add_noise.ui`): `spin_fraction` 0-1. Noise sigma is
   `fraction * max(y)` - scaled to the strongest reflection, not per-point.
-- **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` +
-  `cmd_sample_start`/`cmd_sample_end` (eye-dropper), `noise_level`
-  (re-estimated whenever an endpoint moves; the user can override it,
-  which is why `compute_strip_pattern` takes an optional level).
-- **Peak Properties** (`peak_properties.ui`): start/end + sample buttons;
-  area/FWHM recompute **live** on every position change. Read-only - it
-  never touches the pattern, hence no OK button.
+- **Strip Peak** (`strip_peak.ui`): `strip_startx`/`strip_endx` + `keep_percent`
+  (fractional %, min 0) + `noise_level`. One unified op via
+  `compute_reduce_pattern` -> `bg_line + keep*(y-bg_line) [+ noise]` as a
+  StripPattern (endpoints stay on the line, so no background notch; `apply_strip`
+  handles it unchanged). **Keep 0 % = the classic strip** (flatten onto the
+  line), 100 % = unchanged; the separate "straight line" mode was dropped as
+  redundant. `noise_level` is retained and auto-estimated on a range change (old
+  `compute_strip_pattern` estimate; user-overridable, 0 for a clean result), so
+  Keep 0 % + noise reproduces the old strip exactly. verify_strip_reduce.py.
+- **Peak Properties** (`peak_properties.ui`): start/end; area/FWHM recompute
+  **live** on every position change. Read-only - it never touches the pattern,
+  hence no OK button.
+- **Range selection (2026-08-16, replaced the Sample buttons).** Strip Peak and
+  Peak Properties used to pick each endpoint with an eye-dropper
+  `cmd_sample_start`/`cmd_sample_end` button (one plot click each). Both are gone;
+  the range is now swept by **dragging across the pattern**, reusing the
+  crosshair drag-highlight. `_RangeSelectMixin` (line_dialogs) arms
+  `main_window.arm_range_pick` on `showEvent`/window-activation and disarms on
+  `accept`/`reject`; a left-drag drives `PatternPlot.set_range_select_enabled` →
+  the existing `_start/_update/_end_drag_highlight` and, on release,
+  `on_range_select(plot, x0, x1)` fills BOTH spinboxes (ascending). The boxes stay
+  editable. Range-select is independent of the Crosshair toggle. Harness:
+  `verify_range_select`.
 - **Trim Data** (`trim_dialog.ui`): irreversibility warning, `cmb_scope`
   (This specimen only / All loaded specimens -> `TRIM_SCOPES`),
   `spin_min_2theta`/`spin_max_2theta` 0-180. Switching to "all" pre-fills
@@ -1918,11 +1934,17 @@ active.)
   cursor and, on the next left click on a pattern, calls
   `callback(plot, x_pos)` and disarms. Users: `actionSamplePoint` (arms
   `_report_sampled_point` -> info dialog of experimental/calculated
-  values), the Edit Marker `cmd_sample` (fills the marker position, which
-  writes to the bound marker and syncs nm), and the Strip Peak /
-  Peak Properties `cmd_sample_start`/`cmd_sample_end` (fill their
-  start/end fields). Those two dialogs are MODELESS so the plot stays
-  clickable while picking.
+  values) and the Edit Marker `cmd_sample` (fills the marker position,
+  which writes to the bound marker and syncs nm).
+- Range picking (2026-08-16) reuses the crosshair drag-highlight instead of
+  two eye-dropper clicks: `arm_range_pick(callback, hint)` enables
+  `PatternPlot.set_range_select_enabled` on every plot (crosshair cursor,
+  highlight on left-drag independent of the Crosshair toggle) and, on drag
+  release, calls `callback(plot, x0, x1)` (ascending 2θ). Unlike the one-shot
+  position pick it STAYS armed until `disarm_range_pick`. Users: the MODELESS
+  Strip Peak / Peak Properties dialogs (`_RangeSelectMixin`), which arm on
+  show/activation, fill their start/end spinboxes from the drag, and disarm on
+  close. The plot stays clickable throughout (zoom/scroll still work).
 - Marker double-click selection (old ClickCatcher): marker line/label
   artists are pickable when `on_marker_pick` is wired; a double-click
   (tracked manually, 0.5 s window, like the old app) calls

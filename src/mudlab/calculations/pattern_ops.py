@@ -312,6 +312,62 @@ def compute_strip_pattern(x, y, startx: float, endx: float, noise_level=None):
     )
 
 
+def compute_reduce_pattern(x, y, startx: float, endx: float,
+                           keep_fraction: float, noise_level: float = 0.0):
+    """Attenuate a peak toward its endpoint background line (Strip Peak's
+    "Keep peak %").
+
+    The replacement is ``bg_line + keep_fraction * (y - bg_line)`` over the
+    window, where ``bg_line`` is the straight line joining the two endpoints.
+    ``keep_fraction`` = 0 flattens the peak onto that line, 1 leaves the data
+    unchanged, 0.3 keeps 30% of each point's height above the line. Because the
+    endpoints sit on ``bg_line`` the patched section stays continuous with its
+    neighbours - no background notch, unlike scaling the raw y.
+
+    ``noise_level`` adds the same endpoint-scaled scatter as
+    :func:`compute_strip_pattern` (kept so a patched region does not look
+    artificially clean). With ``keep_fraction = 0`` this reproduces the classic
+    straight-line strip exactly; with ``keep_fraction > 0`` set it to 0 for a
+    clean attenuation.
+
+    Returns a StripPattern (so :func:`apply_strip` applies it unchanged), or None
+    when the range is degenerate.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if startx == 0.0 or endx == 0.0 or x.size == 0:
+        return None
+
+    startx, endx = min(startx, endx), max(startx, endx)
+    start_idx = int(np.argmin(np.abs(x - startx)))
+    end_idx = int(np.argmin(np.abs(x - endx)))
+    if start_idx >= end_idx:
+        return None
+
+    snapped_startx = float(x[start_idx])
+    snapped_endx = float(x[end_idx])
+    avg_starty = float(y[start_idx])
+    avg_endy = float(y[end_idx])
+
+    slope = (avg_starty - avg_endy) / (snapped_startx - snapped_endx)
+    condition = (x >= snapped_startx) & (x <= snapped_endx)
+    section_x = np.extract(condition, x)
+    section_orig = np.extract(condition, y)
+    bg_line = slope * (section_x - snapped_startx) + avg_starty
+    keep = max(0.0, float(keep_fraction))
+    section_y = bg_line + keep * (section_orig - bg_line)
+
+    noise_level = max(0.0, float(noise_level))
+    if noise_level:
+        section_y = section_y + avg_endy * 2 * (
+            np.random.rand(*section_x.shape) - 0.5) * noise_level
+
+    return StripPattern(
+        section_x, section_y, snapped_startx, snapped_endx,
+        slope, noise_level, avg_starty, avg_endy,
+    )
+
+
 def apply_strip(x, y, strip: StripPattern):
     """Replace the peak with the stripped line (old strip_peak).
 
