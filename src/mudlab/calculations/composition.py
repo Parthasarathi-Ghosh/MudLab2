@@ -24,11 +24,15 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from collections import OrderedDict
 from itertools import chain
 
 _CONV_CSV = os.path.join(
     os.path.dirname(__file__), os.pardir, "data", "composition_conversion.csv"
+)
+_SCAT_CSV = os.path.join(
+    os.path.dirname(__file__), os.pardir, "data", "atomic_scattering_factors.csv"
 )
 
 
@@ -57,6 +61,104 @@ def reporting_oxides(conversion: dict | None = None) -> list[str]:
         if name not in order:
             order.append(name)
     return order
+
+
+_ELEMENT_INFO: dict | None = None
+
+
+def _element_info() -> dict:
+    """``{element_symbol: (atom_nr, atomic_weight)}`` for the neutral atoms
+    (charge 0) in the scattering CSV; cached."""
+    global _ELEMENT_INFO
+    if _ELEMENT_INFO is None:
+        info: dict[str, tuple[int, float]] = {}
+        with open(_SCAT_CSV, "r", encoding="utf-8") as handle:
+            reader = csv.reader(handle)
+            header = next(reader, None) or []
+            idx = {name.strip(): i for i, name in enumerate(header)}
+            ni, nm, ch, wt = (idx.get("atom_nr", 0), idx.get("name", 1),
+                              idx.get("charge", 2), idx.get("weight", 3))
+            for row in reader:
+                if len(row) <= wt or row[ch].strip() != "0":
+                    continue
+                info[row[nm].strip()] = (int(float(row[ni])), float(row[wt]))
+        _ELEMENT_INFO = info
+    return _ELEMENT_INFO
+
+
+_FORMULA_TOKEN = re.compile(r"[A-Z][a-z]?|\d+\.?\d*|\(|\)|[.·*]")
+
+
+def _formula_counts(formula: str) -> dict:
+    """Element counts from a chemical formula. Handles parentheses with a
+    multiplier and hydrate dots (``.``/``·``/``*`` followed by an optional
+    multiplier). Unknown characters are skipped. Returns ``{element: count}``."""
+    tokens = _FORMULA_TOKEN.findall(formula or "")
+    pos = 0
+
+    def read_number() -> float:
+        nonlocal pos
+        if pos < len(tokens) and tokens[pos][0].isdigit():
+            value = float(tokens[pos])
+            pos += 1
+            return value
+        return 1.0
+
+    def parse_group(stop) -> dict:
+        nonlocal pos
+        counts: dict[str, float] = {}
+        while pos < len(tokens):
+            tok = tokens[pos]
+            if tok == stop:
+                pos += 1
+                return counts
+            if tok == "(":
+                pos += 1
+                inner = parse_group(")")
+                mult = read_number()
+                for el, c in inner.items():
+                    counts[el] = counts.get(el, 0.0) + c * mult
+            elif tok in (".", "·", "*"):
+                pos += 1
+                mult = read_number()          # e.g. hydrate ".2H2O"
+                inner = parse_group(stop)     # the rest of this group, multiplied
+                for el, c in inner.items():
+                    counts[el] = counts.get(el, 0.0) + c * mult
+                return counts
+            elif tok[0].isalpha():
+                pos += 1
+                counts[tok] = counts.get(tok, 0.0) + read_number()
+            else:
+                pos += 1                      # stray number: skip
+        return counts
+
+    return parse_group(None)
+
+
+def parse_formula(formula: str, conversion: dict | None = None) -> dict:
+    """Oxide wt% ``{oxide_name: %}`` from a chemical formula (e.g. ``NaAlSi3O8``,
+    ``CaCO3``, ``CaMg(CO3)2``), normalised to 100%.
+
+    Each element is converted to its reporting oxide via the same conversion
+    table the composition uses (element mass x factor); elements outside that
+    table (H, C, O, and cations without a reporting oxide such as Ti/Mn/S) are
+    dropped, so only the reportable oxides appear. Returns ``{}`` when nothing
+    convertible is found."""
+    conv = conversion if conversion is not None else load_conversion_table()
+    info = _element_info()
+    masses: dict[str, float] = {}
+    for element, count in _formula_counts(formula).items():
+        if element not in info:
+            continue
+        atom_nr, weight = info[element]
+        if atom_nr not in conv:
+            continue  # element has no reporting oxide (dropped, like composition)
+        oxide, factor = conv[atom_nr]
+        masses[oxide] = masses.get(oxide, 0.0) + count * weight * factor
+    total = sum(masses.values())
+    if total <= 0:
+        return {}
+    return {oxide: 100.0 * mass / total for oxide, mass in masses.items()}
 
 
 def _specimen_name(mixture, index: int) -> str:

@@ -122,6 +122,27 @@
       <item>
        <layout class="QVBoxLayout" name="gridColumn">
         <item>
+         <layout class="QHBoxLayout" name="formulaRow">
+          <item>
+           <widget class="QLineEdit" name="edit_formula">
+            <property name="toolTip">
+             <string>Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.</string>
+            </property>
+            <property name="placeholderText">
+             <string>Formula, e.g. NaAlSi3O8</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="button_formula">
+            <property name="text">
+             <string>Fill from formula</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
          <widget class="QTableWidget" name="oxide_grid">
           <property name="alternatingRowColors">
            <bool>true</bool>

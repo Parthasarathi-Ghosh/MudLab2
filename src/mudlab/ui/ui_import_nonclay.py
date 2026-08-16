@@ -95,6 +95,21 @@ class Ui_ImportNonClayDialog(object):
         self.bodyLayout.setObjectName(u"bodyLayout")
         self.gridColumn = QVBoxLayout()
         self.gridColumn.setObjectName(u"gridColumn")
+        self.formulaRow = QHBoxLayout()
+        self.formulaRow.setObjectName(u"formulaRow")
+        self.edit_formula = QLineEdit(self.grpBody)
+        self.edit_formula.setObjectName(u"edit_formula")
+
+        self.formulaRow.addWidget(self.edit_formula)
+
+        self.button_formula = QPushButton(self.grpBody)
+        self.button_formula.setObjectName(u"button_formula")
+
+        self.formulaRow.addWidget(self.button_formula)
+
+
+        self.gridColumn.addLayout(self.formulaRow)
+
         self.oxide_grid = QTableWidget(self.grpBody)
         self.oxide_grid.setObjectName(u"oxide_grid")
         self.oxide_grid.setAlternatingRowColors(True)
@@ -175,6 +190,11 @@ class Ui_ImportNonClayDialog(object):
 #endif // QT_CONFIG(tooltip)
         self.spin_fwhm.setSuffix(QCoreApplication.translate("ImportNonClayDialog", u" \u00b02\u03b8", None))
         self.grpBody.setTitle(QCoreApplication.translate("ImportNonClayDialog", u"Oxide composition (wt %) and pattern preview", None))
+#if QT_CONFIG(tooltip)
+        self.edit_formula.setToolTip(QCoreApplication.translate("ImportNonClayDialog", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.", None))
+#endif // QT_CONFIG(tooltip)
+        self.edit_formula.setPlaceholderText(QCoreApplication.translate("ImportNonClayDialog", u"Formula, e.g. NaAlSi3O8", None))
+        self.button_formula.setText(QCoreApplication.translate("ImportNonClayDialog", u"Fill from formula", None))
         self.lbl_sum.setText(QCoreApplication.translate("ImportNonClayDialog", u"Sum: 0.00 %", None))
 #if QT_CONFIG(tooltip)
         self.button_normalize.setToolTip(QCoreApplication.translate("ImportNonClayDialog", u"Scale the entered oxides so they sum to 100 %.", None))

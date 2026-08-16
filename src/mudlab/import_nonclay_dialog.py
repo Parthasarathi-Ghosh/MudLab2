@@ -51,7 +51,11 @@ class ImportNonClayDialog(QDialog):
         self._reflections: list = []
 
         self.color = ColorButton(self.ui.button_color)
-        self.grid = OxideGrid(self.ui.oxide_grid, on_changed=self._update_sum)
+        self.grid = OxideGrid(
+            self.ui.oxide_grid, on_changed=self._update_sum,
+            formula_edit=self.ui.edit_formula,
+            formula_button=self.ui.button_formula,
+        )
 
         self.figure = Figure(facecolor=SURFACE, layout="constrained")
         self.canvas = FigureCanvasQTAgg(self.figure)

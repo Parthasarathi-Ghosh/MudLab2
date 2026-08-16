@@ -39,6 +39,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 app = QApplication.instance() or QApplication([])
 # Stub modal popups so a head-less run never blocks on a dialog.
 QMessageBox.warning = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
+QMessageBox.information = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
 
 import mudlab.calibrate_fwhm_dialog as cfd
 import mudlab.edit_nonclay_phase_widget as enw
@@ -168,6 +169,14 @@ def check_import_dialog(gonio):
           and dlg.phase.oxides == {"SiO2": 100.0}
           and dlg.phase.display_color.startswith("#"))
 
+    # Formula parser (path-2 (f)): the "Fill from formula" button fills the grid.
+    dlg.ui.edit_formula.setText("NaAlSi3O8")
+    dlg.ui.button_formula.click()
+    check("import: 'Fill from formula' fills the oxide grid (albite)",
+          abs(dlg.grid.values().get("SiO2", 0) - 68.7) < 0.5
+          and abs(dlg.grid.values().get("Al2O3", 0) - 19.4) < 0.5
+          and abs(dlg.grid.values().get("Na2O", 0) - 11.8) < 0.5)
+
     # 2b: CIF with atoms.
     tmp = os.path.join(tempfile.gettempdir(), "mudlab_probe_%d.cif" % os.getpid())
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -289,6 +298,10 @@ def check_editor(computed_phase, measured_phase):
     w.grid._spins["CaO"].setValue(5.0)  # user edits an oxide
     check("editor: oxide edit writes phase.oxides", w._phase.oxides.get("CaO") == 5.0)
     check("editor: oxide edit does NOT recompute (composition deferred)", calls["n"] == 0)
+    w.grid.fill_from_formula("KAlSi3O8")  # orthoclase, via the formula parser
+    check("editor: fill_from_formula writes the phase oxides",
+          abs(w._phase.oxides.get("SiO2", 0) - 64.8) < 0.5
+          and abs(w._phase.oxides.get("K2O", 0) - 16.9) < 0.5)
     check("editor: FWHM row shown for a computed phase", not w.ui.spin_fwhm.isHidden())
     before = w._phase.raw_pattern_y.copy()
     n0 = calls["n"]

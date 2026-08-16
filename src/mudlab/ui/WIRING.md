@@ -421,7 +421,10 @@ programmatically to the objects frame's spare `extraLayout` (the shared
 `import_pattern`) OR a CIF with atoms (via `nonclay.structure.reflections_from_cif`,
 which returns the `(d, I)` reflection list AND the derived oxide%); name,
 `ColorButton`, the `OxideGrid` (`oxide_grid.py` - a `QTableWidget` of oxide->wt%
-with 0-100 spinboxes, shared with the editor), a live pattern preview (its
+with 0-100 spinboxes + a "Fill from formula" input that runs
+`composition.parse_formula` (path-2 (f): elements/parentheses/hydrate-dots ->
+reporting oxides via the conversion table; only Si/Al/Fe/Ca/Mg/Na/K map),
+shared with the editor), a live pattern preview (its
 `spin_fwhm` re-renders the CIF curve), and validation (name + >=2-pt pattern +
 oxide sum > 0). Selecting a NonClayPhase shows `EditNonClayPhaseWidget`
 (`ui/edit_nonclay_phase.ui`) - an editable oxide grid + preview + a **Peak FWHM**

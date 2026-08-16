@@ -165,6 +165,23 @@ def run():
           not dlg_c.ui.chk_bulk.isEnabled())
     dlg_c.deleteLater()
 
+    # 7. Formula parser (path-2 (f)): a chemical formula -> reporting oxides.
+    from mudlab.calculations.composition import parse_formula
+    ab = parse_formula("NaAlSi3O8")  # albite
+    check("7 albite -> Na2O 11.8 / Al2O3 19.4 / SiO2 68.7",
+          abs(ab.get("SiO2", 0) - 68.7) < 0.5 and abs(ab.get("Al2O3", 0) - 19.4) < 0.5
+          and abs(ab.get("Na2O", 0) - 11.8) < 0.5)
+    check("7 calcite CaCO3 -> CaO 100 (C/O dropped)",
+          abs(parse_formula("CaCO3").get("CaO", 0) - 100.0) < 0.5)
+    dol = parse_formula("CaMg(CO3)2")  # dolomite: parentheses
+    check("7 dolomite parentheses -> CaO 58.2 + MgO 41.8",
+          abs(dol.get("CaO", 0) - 58.2) < 1.0 and abs(dol.get("MgO", 0) - 41.8) < 1.0)
+    check("7 gypsum CaSO4.2H2O -> CaO 100 (S/H dropped, hydrate ok)",
+          abs(parse_formula("CaSO4.2H2O").get("CaO", 0) - 100.0) < 0.5)
+    check("7 quartz SiO2 -> SiO2 100", abs(parse_formula("SiO2").get("SiO2", 0) - 100.0) < 0.5)
+    check("7 no reportable oxide -> empty (TiO2)", parse_formula("TiO2") == {})
+    check("7 gibberish -> empty", parse_formula("zz9") == {})
+
     # 1 (cont.) an empty phase cell / raw phase contributes nothing: emptying a
     # cell must not raise and must keep the column normalised or zero.
     if mix.n and mix.m:

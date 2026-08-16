@@ -11,17 +11,27 @@ editor, so both share one implementation and one oxide set
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDoubleSpinBox, QHeaderView, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import (
+    QDoubleSpinBox, QHeaderView, QMessageBox, QTableWidget, QTableWidgetItem,
+)
 
-from mudlab.calculations.composition import reporting_oxides
+from mudlab.calculations.composition import parse_formula, reporting_oxides
 
 
 class OxideGrid:
-    def __init__(self, table: QTableWidget, on_changed=None) -> None:
+    def __init__(self, table: QTableWidget, on_changed=None,
+                 formula_edit=None, formula_button=None) -> None:
         self._table = table
         self._on_changed = on_changed
         self._spins: dict[str, QDoubleSpinBox] = {}
         self._build()
+        # Optional "fill from chemical formula" input (shared by the import
+        # dialog and the editor).
+        self._formula_edit = formula_edit
+        if formula_button is not None:
+            formula_button.clicked.connect(self._on_formula)
+        if formula_edit is not None:
+            formula_edit.returnPressed.connect(self._on_formula)
 
     def _build(self) -> None:
         table = self._table
@@ -81,3 +91,26 @@ class OxideGrid:
     def set_enabled(self, enabled: bool) -> None:
         for spin in self._spins.values():
             spin.setEnabled(enabled)
+
+    # -- fill from a chemical formula --------------------------------------
+    def fill_from_formula(self, formula) -> bool:
+        """Parse a chemical formula (e.g. ``NaAlSi3O8``) into oxide wt% and fill
+        the grid. Returns False (grid unchanged) when nothing convertible was
+        found."""
+        oxides = parse_formula(formula)
+        if not oxides:
+            return False
+        self.set_values(oxides)
+        return True
+
+    def _on_formula(self) -> None:
+        text = self._formula_edit.text().strip() if self._formula_edit else ""
+        if not text:
+            return
+        if not self.fill_from_formula(text):
+            QMessageBox.information(
+                self._table.window(), "Formula",
+                "Couldn't read any reportable oxide from '%s'.\n\nOnly Si, Al, "
+                "Fe, Ca, Mg, Na and K map to the reported oxides; other elements "
+                "(and H, C, O) are ignored." % text,
+            )

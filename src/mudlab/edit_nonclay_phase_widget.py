@@ -43,7 +43,11 @@ class EditNonClayPhaseWidget(QWidget):
         self._wavelength_nm = 0.154056  # for rendering a computed phase's pattern
 
         self.color = ColorButton(self.ui.button_color, on_change=self._on_color_changed)
-        self.grid = OxideGrid(self.ui.oxide_grid, on_changed=self._on_grid_changed)
+        self.grid = OxideGrid(
+            self.ui.oxide_grid, on_changed=self._on_grid_changed,
+            formula_edit=self.ui.edit_formula,
+            formula_button=self.ui.button_formula,
+        )
 
         self.figure = Figure(facecolor=SURFACE, layout="constrained")
         self.canvas = FigureCanvasQTAgg(self.figure)

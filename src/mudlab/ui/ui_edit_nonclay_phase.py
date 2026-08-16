@@ -90,6 +90,21 @@ class Ui_EditNonClayPhaseWidget(object):
         self.grpComposition.setObjectName(u"grpComposition")
         self.compositionLayout = QVBoxLayout(self.grpComposition)
         self.compositionLayout.setObjectName(u"compositionLayout")
+        self.formulaRow = QHBoxLayout()
+        self.formulaRow.setObjectName(u"formulaRow")
+        self.edit_formula = QLineEdit(self.grpComposition)
+        self.edit_formula.setObjectName(u"edit_formula")
+
+        self.formulaRow.addWidget(self.edit_formula)
+
+        self.button_formula = QPushButton(self.grpComposition)
+        self.button_formula.setObjectName(u"button_formula")
+
+        self.formulaRow.addWidget(self.button_formula)
+
+
+        self.compositionLayout.addLayout(self.formulaRow)
+
         self.oxide_grid = QTableWidget(self.grpComposition)
         self.oxide_grid.setObjectName(u"oxide_grid")
         self.oxide_grid.setAlternatingRowColors(True)
@@ -150,6 +165,11 @@ class Ui_EditNonClayPhaseWidget(object):
 #endif // QT_CONFIG(tooltip)
         self.button_calibrate.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Calibrate\u2026", None))
         self.grpComposition.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Oxide composition (wt %)", None))
+#if QT_CONFIG(tooltip)
+        self.edit_formula.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.", None))
+#endif // QT_CONFIG(tooltip)
+        self.edit_formula.setPlaceholderText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Formula, e.g. NaAlSi3O8", None))
+        self.button_formula.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Fill from formula", None))
         self.lbl_sum.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Sum: 0.00 %", None))
         self.button_normalize.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Normalize to 100 %", None))
         self.grpPreview.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Pattern preview", None))
