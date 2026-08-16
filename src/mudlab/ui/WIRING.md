@@ -386,7 +386,7 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
   the raw editor is shown for it, import sets the pattern, name edit
   propagates) + the updated check 2 (raw radio enabled). Harness 75 checks.
 
-#### NonClayPhase (EXPERIMENTAL "path 2", 2026-08-16)
+#### NonClayPhase ("path 2", 2026-08-16, mainstream)
 
 `NonClayPhase` (`models/nonclay_phase.py`) subclasses `RawPatternPhase` and adds
 an `oxides` (`{oxide: wt%}`) dict, so it has a pattern AND a declared chemistry.
