@@ -403,10 +403,16 @@ them). Its behaviour is gated by `type == "NonClayPhase"`:
   includes it.
 - **(b)** never structurally refined - `enumerate_refinables` only takes
   `type == "Phase"`, so it is excluded for free.
-- **(c)** contributes to composition - **DEFERRED**; the oxides are stored +
-  editable now, but `mixture_composition` still skips non-`"Phase"`. Wiring a
-  bulk composition is a follow-up, to stay additive so the clay-only
-  `mixture_composition` and the XRF mass balance are untouched.
+- **(c)** contributes to composition - DONE (additive). `composition.
+  bulk_composition(mixture)` sums each phase's own composition normalised to 100%,
+  weighted by its fraction (clay `Phase`s from atoms via `_clay_oxide_masses`;
+  `NonClayPhase`s from their stored oxides) - a semi-quant fraction-weighted
+  average (the fractions are the same non-rigorous amounts the clay-only view
+  uses; a mass-weighted bulk would need per-phase molecular weights, i.e. the
+  formula parser). It is a SEPARATE function: the clay-only `mixture_composition`
+  and the XRF mass balance that reads it are UNCHANGED. `CompositionDialog` shows
+  it via an "Include non-clay phases (bulk)" checkbox (`chk_bulk`), enabled only
+  when `mixture_has_nonclay`; default stays clay-only. verify_composition.py.
 
 UI: **"Import Non-Clay"** is an extra button `EditPhasesDialog` adds
 programmatically to the objects frame's spare `extraLayout` (the shared

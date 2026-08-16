@@ -25,6 +25,16 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="chk_bulk">
+     <property name="toolTip">
+      <string>Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition. Enabled only when the mixture has a non-clay phase.</string>
+     </property>
+     <property name="text">
+      <string>Include non-clay phases (bulk composition)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QTableWidget" name="tbl_composition">
      <property name="editTriggers">
       <set>QAbstractItemView::NoEditTriggers</set>

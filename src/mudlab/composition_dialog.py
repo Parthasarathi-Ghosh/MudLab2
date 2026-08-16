@@ -19,7 +19,9 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget,
 )
 
-from mudlab.calculations.composition import composition_to_csv, mixture_composition
+from mudlab.calculations.composition import (
+    bulk_composition, composition_to_csv, mixture_composition, mixture_has_nonclay,
+)
 from mudlab.ui.ui_composition import Ui_CompositionDialog
 
 
@@ -35,14 +37,30 @@ class CompositionDialog(QDialog):
         self.ui.setupUi(self)
         self._mixture = mixture
 
-        self._specimen_names, self._oxide_rows = mixture_composition(mixture)
         name = getattr(mixture, "name", "") or "mixture"
         self.setWindowTitle("Composition - %s" % name)
-        self._populate()
+        # The bulk (non-clay-inclusive) view is only meaningful when the mixture
+        # has a non-clay phase; default is the clay-only view (unchanged).
+        self.ui.chk_bulk.setEnabled(mixture_has_nonclay(mixture))
+        self.ui.chk_bulk.toggled.connect(self._refresh)
+        self._refresh()
 
         self.ui.btn_copy.clicked.connect(self._on_copy)
         self.ui.btn_export.clicked.connect(self._on_export)
         self.ui.btn_close.clicked.connect(self.accept)
+
+    def _refresh(self, *_args) -> None:
+        """Recompute for the current view (clay-only, or bulk incl. non-clays)
+        and repopulate the table."""
+        if self.ui.chk_bulk.isChecked():
+            self._specimen_names, self._oxide_rows = bulk_composition(self._mixture)
+            self.ui.lbl_title.setText(
+                "Bulk oxide composition incl. non-clay phases (wt%):")
+        else:
+            self._specimen_names, self._oxide_rows = mixture_composition(self._mixture)
+            self.ui.lbl_title.setText(
+                "Oxide composition of the specimens in this mixture (wt%):")
+        self._populate()
 
     def _populate(self) -> None:
         table = self.ui.tbl_composition

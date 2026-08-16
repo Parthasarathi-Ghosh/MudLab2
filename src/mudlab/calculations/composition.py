@@ -126,6 +126,91 @@ def _component_weights(phase):
     return list(getter()) if callable(getter) else []
 
 
+def _clay_oxide_masses(phase, conv) -> dict:
+    """Oxide masses for one structural unit of a clay ``Phase`` (component-
+    weighted): ``{oxide_name: mass}``. The same per-atom term
+    ``mixture_composition`` uses, gathered for a single phase."""
+    masses: dict[str, float] = {}
+    weights = _component_weights(phase)
+    for k, component in enumerate(phase.components):
+        comp_weight = weights[k] if k < len(weights) else 0.0
+        for atom in chain(component.layer_atoms, component.interlayer_atoms):
+            atom_type = getattr(atom, "atom_type", None)
+            if atom_type is None:
+                continue
+            nr = atom_type.atom_nr
+            if nr in conv:
+                oxide, factor = conv[nr]
+                masses[oxide] = masses.get(oxide, 0.0) + (
+                    atom.pn * atom_type.weight * comp_weight * factor)
+    return masses
+
+
+def mixture_has_nonclay(mixture) -> bool:
+    """True when any cell holds a NonClayPhase (so a bulk composition, which
+    includes it, differs from the clay-only one)."""
+    return any(
+        getattr(phase, "type", None) == "NonClayPhase"
+        for row in mixture.phase_matrix for phase in row
+    )
+
+
+def bulk_composition(mixture, conversion: dict | None = None):
+    """Bulk oxide composition INCLUDING non-clay phases.
+
+    Each phase's own oxide composition, normalised to 100%, is weighted by its
+    mixture fraction and summed - a semi-quantitative fraction-weighted average.
+    The fractions are the same relative amounts the clay-only composition uses;
+    they are NOT rigorous weight fractions (MudLab clays carry no ZMV), so this
+    is semi-quantitative, exactly like the clay-only view. Clay ``Phase``s
+    contribute from their atoms; ``NonClayPhase``s from their stored oxides;
+    other types and empty cells are skipped.
+
+    ADDITIVE: the clay-only ``mixture_composition`` and the XRF mass balance that
+    reads it are unchanged - this is a separate view. Returns
+    ``(specimen_names, oxide_rows)`` in reporting-oxide order, each specimen
+    column normalised to 100 wt%."""
+    conv = conversion if conversion is not None else load_conversion_table()
+    order = reporting_oxides(conv)
+
+    per_specimen: list[dict[str, float]] = []
+    for row in mixture.phase_matrix:
+        totals = {oxide: 0.0 for oxide in order}
+        for j, phase in enumerate(row):
+            if phase is None:
+                continue
+            frac = float(mixture.fractions[j]) if j < len(mixture.fractions) else 0.0
+            if frac <= 0:
+                continue
+            ptype = getattr(phase, "type", None)
+            if ptype == "Phase":
+                vec = _clay_oxide_masses(phase, conv)
+            elif ptype == "NonClayPhase":
+                vec = {str(k): float(v)
+                       for k, v in (getattr(phase, "oxides", {}) or {}).items()}
+            else:
+                continue  # raw-pattern accessory / unknown: no composition
+            total = sum(vec.values())
+            if total <= 0:
+                continue
+            for oxide, mass in vec.items():
+                if oxide in totals:
+                    totals[oxide] += frac * (100.0 * mass / total)  # per-phase norm
+        per_specimen.append(totals)
+
+    factors = [
+        (100.0 / total if total else 0.0)
+        for total in (sum(t.values()) for t in per_specimen)
+    ]
+    specimen_names = [_specimen_name(mixture, i) for i in range(len(per_specimen))]
+    oxide_rows = [
+        (oxide, [per_specimen[i][oxide] * factors[i]
+                 for i in range(len(per_specimen))])
+        for oxide in order
+    ]
+    return specimen_names, oxide_rows
+
+
 def composition_to_csv(specimen_names, oxide_rows) -> str:
     """Render the composition as CSV text (header = specimen names)."""
     import io

@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDialog, QHBoxLayout,
-    QHeaderView, QLabel, QPushButton, QSizePolicy,
-    QSpacerItem, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
+    QHBoxLayout, QHeaderView, QLabel, QPushButton,
+    QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem,
+    QVBoxLayout, QWidget)
 
 class Ui_CompositionDialog(object):
     def setupUi(self, CompositionDialog):
@@ -32,6 +32,11 @@ class Ui_CompositionDialog(object):
         self.lbl_title.setWordWrap(True)
 
         self.rootLayout.addWidget(self.lbl_title)
+
+        self.chk_bulk = QCheckBox(CompositionDialog)
+        self.chk_bulk.setObjectName(u"chk_bulk")
+
+        self.rootLayout.addWidget(self.chk_bulk)
 
         self.tbl_composition = QTableWidget(CompositionDialog)
         self.tbl_composition.setObjectName(u"tbl_composition")
@@ -77,6 +82,10 @@ class Ui_CompositionDialog(object):
     def retranslateUi(self, CompositionDialog):
         CompositionDialog.setWindowTitle(QCoreApplication.translate("CompositionDialog", u"Composition", None))
         self.lbl_title.setText(QCoreApplication.translate("CompositionDialog", u"Oxide composition of the specimens in this mixture (wt%):", None))
+#if QT_CONFIG(tooltip)
+        self.chk_bulk.setToolTip(QCoreApplication.translate("CompositionDialog", u"Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition. Enabled only when the mixture has a non-clay phase.", None))
+#endif // QT_CONFIG(tooltip)
+        self.chk_bulk.setText(QCoreApplication.translate("CompositionDialog", u"Include non-clay phases (bulk composition)", None))
 #if QT_CONFIG(tooltip)
         self.btn_copy.setToolTip(QCoreApplication.translate("CompositionDialog", u"Copy the composition to the clipboard as CSV.", None))
 #endif // QT_CONFIG(tooltip)

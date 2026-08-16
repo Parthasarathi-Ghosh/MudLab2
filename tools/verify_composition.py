@@ -117,6 +117,54 @@ def run():
     check("5 the dialog CSV matches the analytics", dialog._csv_text() == csv_text)
     dialog.deleteLater()
 
+    # 6. Bulk composition (path-2 (c)): non-clay phases contribute, ADDITIVELY
+    #    (the clay-only view + the XRF mass balance are untouched).
+    from mudlab.calculations.composition import bulk_composition, mixture_has_nonclay
+    from mudlab.models.nonclay_phase import NonClayPhase
+    mixb = load_mud(FIXTURE).mixtures[0]
+    check("6 mixture_has_nonclay is False before adding one", not mixture_has_nonclay(mixb))
+    clay_names, clay_rows = mixture_composition(mixb)
+
+    quartz = NonClayPhase(name="Quartz")
+    quartz.set_oxides({"SiO2": 100.0})
+    quartz.set_raw_pattern(np.linspace(5, 70, 50), np.ones(50))  # -> is_valid
+    slot = mixb.add_phase_slot("Qz", fraction=0.5)
+    for i in range(mixb.n):
+        mixb.set_phase_at(i, slot, quartz)
+    check("6 mixture_has_nonclay is True after adding one", mixture_has_nonclay(mixb))
+
+    # ADDITIVE: clay-only composition still excludes the non-clay (unchanged).
+    _cn2, clay_rows2 = mixture_composition(mixb)
+    check("6 clay-only composition excludes the non-clay (additive, unchanged)",
+          all(abs(a - b) < 1e-9
+              for (_o1, p1), (_o2, p2) in zip(clay_rows2, clay_rows)
+              for a, b in zip(p1, p2)))
+
+    bulk_names, bulk_rows = bulk_composition(mixb)
+    bulk_sums = [sum(pcts[j] for _o, pcts in bulk_rows) for j in range(len(bulk_names))]
+    check("6 bulk columns normalise to 100 wt% (or 0)",
+          all(abs(s - 100.0) < 0.5 or abs(s) < 1e-9 for s in bulk_sums))
+
+    def _sio2(rows):
+        return next(p for o, p in rows if o == "SiO2")
+    check("6 bulk SiO2 exceeds clay-only (quartz added to the bulk)",
+          all(b >= c - 1e-6 for b, c in zip(_sio2(bulk_rows), _sio2(clay_rows2)))
+          and any(b > c + 1e-3 for b, c in zip(_sio2(bulk_rows), _sio2(clay_rows2))))
+
+    # Dialog: checkbox enabled with a non-clay, toggling switches the view.
+    dlg_b = CompositionDialog(mixb)
+    check("6 dialog: bulk checkbox enabled when a non-clay is present",
+          dlg_b.ui.chk_bulk.isEnabled())
+    clay_csv = dlg_b._csv_text()
+    dlg_b.ui.chk_bulk.setChecked(True)
+    check("6 dialog: toggling bulk changes the reported composition",
+          dlg_b._csv_text() != clay_csv)
+    dlg_b.deleteLater()
+    dlg_c = CompositionDialog(load_mud(FIXTURE).mixtures[0])
+    check("6 dialog: bulk checkbox disabled without a non-clay",
+          not dlg_c.ui.chk_bulk.isEnabled())
+    dlg_c.deleteLater()
+
     # 1 (cont.) an empty phase cell / raw phase contributes nothing: emptying a
     # cell must not raise and must keep the column normalised or zero.
     if mix.n and mix.m:
