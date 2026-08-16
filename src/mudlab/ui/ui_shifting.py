@@ -86,7 +86,7 @@ class Ui_ShiftPatternDialog(object):
 
         self.lbl_value.setText(QCoreApplication.translate("ShiftPatternDialog", u"Value", None))
 #if QT_CONFIG(tooltip)
-        self.spin_shift_value.setToolTip(QCoreApplication.translate("ShiftPatternDialog", u"The offset between the reference reflection's theoretical position and where it actually peaks. Detected automatically unless Position is Manual.", None))
+        self.spin_shift_value.setToolTip(QCoreApplication.translate("ShiftPatternDialog", u"The offset between the reference reflection's theoretical position and where it actually peaks. Detected automatically for a reference (0 in Manual); you can adjust it by hand at any time.", None))
 #endif // QT_CONFIG(tooltip)
         self.spin_shift_value.setSuffix(QCoreApplication.translate("ShiftPatternDialog", u" \u00b02\u03b8", None))
     # retranslateUi

@@ -16,8 +16,11 @@ References, in order of strength:
      mudlab/calculations/peak_detection.py is pure numpy/scipy, so it is loaded
      BY PATH (with a stub `.math_tools` injected for its one unused relative
      import) and its multi_peakdetect / peakdetect / scipy_peakdetect /
-     find_closest / score_minerals are diffed against ours point-for-point on
-     real fixture patterns. A true differential test against the old source.
+     find_closest are diffed against ours point-for-point on real fixture
+     patterns. A true differential test against the old source. (score_minerals
+     is the one exception: it deliberately diverges from the old, buggy scoring,
+     so it is checked against the FIX - quartz ranks #1 with a real score, and
+     the result must differ from the old value - not against old-app parity.)
   2. **Old peak counter, our histogram.** calculate_npeaks_for and the
      iterative get_best_threshold are re-derived here using the OLD
      multi_peakdetect as the peak counter and compared to our port, so a
@@ -165,7 +168,12 @@ def check_scipy_peakdetect_differential(project, old, results):
 
 
 def check_score_minerals_differential(old, results):
-    """1. find_closest + score_minerals match the old app on a fixed dataset."""
+    """1. find_closest still matches the old app; score_minerals DELIBERATELY
+    diverges from it (the old scoring was buggy - see score_minerals' docstring
+    and verify_match_minerals). So this asserts the fix, not old-app parity:
+    on a fixed dataset the new scoring must identify Quartz at the top with a
+    meaningfully-scaled score, and must NOT reproduce the old broken-scale value.
+    """
     if old is None:
         return
     peak_list = [(4.26, 100.0), (3.34, 950.0), (2.46, 120.0), (2.28, 180.0),
@@ -177,16 +185,25 @@ def check_score_minerals_differential(old, results):
                             (1.91, 17), (1.87, 17)]),
         ("Kaolinite", "Kln", [(7.15, 100), (3.57, 100), (2.55, 30), (2.49, 40)]),
     ]
+    # find_closest is an unchanged port, so it must still match the old app.
     fc_ok = pd.find_closest(3.30, peak_list) == old.find_closest(3.30, peak_list)
     results.append(("1 find_closest == old", fc_ok))
 
+    # The observed peaks ARE quartz's reflections, so quartz must rank #1 with a
+    # real (order-1) score - not the old ~1e-3 scale artifact.
     ours = pd.score_minerals(peak_list, minerals)
+    q_ours = next(((n, s) for (n, _a, _m, _p, s) in ours if n == "Quartz"), None)
+    results.append(("1 score_minerals: Quartz ranks #1 with a real score",
+                    bool(ours) and ours[0][0] == "Quartz"
+                    and q_ours is not None and q_ours[1] > 1.0))
+
+    # And it must DIVERGE from the old buggy scoring (guards against a silent
+    # revert to the old scale-mismatched formula, which scored this ~0.007).
     theirs = old.score_minerals(peak_list, minerals)
-    same = len(ours) == len(theirs)
-    for a, b in zip(ours, theirs):
-        same = same and a[0] == b[0] and a[1] == b[1]
-        same = same and np.isclose(a[4], b[4], rtol=0, atol=1e-12)
-    results.append(("1 score_minerals == old (names/order/scores)", same))
+    q_theirs = next((row[4] for row in theirs if row[0] == "Quartz"), None)
+    results.append(("1 score_minerals diverges from the old buggy scoring",
+                    q_theirs is not None and q_ours is not None
+                    and not np.isclose(q_ours[1], q_theirs, rtol=0, atol=1e-6)))
 
 
 # ----------------------------------------------------------------------
