@@ -181,7 +181,7 @@ class Ui_EditNonClayPhaseWidget(object):
         self.lbl_caglioti.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"\u2014", None))
         self.grpComposition.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Oxide composition (wt %)", None))
 #if QT_CONFIG(tooltip)
-        self.edit_formula.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.", None))
+        self.edit_formula.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3, CaMg(CO3)2) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides. Use \u00b7 or * between segments (CaSO4\u00b72H2O, K2O\u00b7Al2O3\u00b76SiO2); a '.' between digits is read as a decimal point (Fe0.5), and you are asked when that changes the result.", None))
 #endif // QT_CONFIG(tooltip)
         self.edit_formula.setPlaceholderText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Formula, e.g. NaAlSi3O8", None))
         self.button_formula.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Fill from formula", None))

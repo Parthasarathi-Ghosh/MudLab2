@@ -123,6 +123,39 @@ def main():
     check("Caglioti fit: width grows with 2theta (U>0)",
           _fw(cag.caglioti, 95) > _fw(cag.caglioti, 25) + 0.02)
 
+    # 7. AUDIT REGRESSION: the same Caglioti fit on a DISPLACED scan. A cold
+    #    Nelder-Mead start stepped the shift by 0.00025 deg - far less than a
+    #    peak width - so it converged into a neighbouring-peak minimum and
+    #    silently returned a nonsense width (at +0.08 deg the width was wrong by
+    #    0.12 deg; at +0.30 deg it ran to the shift bound). It is now seeded from
+    #    the constant fit, which locates the displacement with a bounded search.
+    for true_shift in (0.08, 0.30, -0.12):
+        ys = 2.5 * std.render_on_grid(xc - true_shift, wl_cu) + 20.0
+        cs = calibrate_fwhm(refl, wl_cu, xc, ys, caglioti=True)
+        check("Caglioti fit on a scan displaced %+.2f deg: shift recovered"
+              % true_shift, abs(cs.shift - true_shift) < 0.01)
+        check("Caglioti fit on a scan displaced %+.2f deg: width still right"
+              % true_shift,
+              all(abs(_fw(cs.caglioti, tt) - _fw(true_cag, tt)) < 0.012
+                  for tt in (25, 45, 65, 95)))
+        # ...and never worse than the constant-FWHM fit it starts from.
+        const = calibrate_fwhm(refl, wl_cu, xc, ys)
+        check("Caglioti fit on a scan displaced %+.2f deg: beats the constant fit"
+              % true_shift, cs.residual <= const.residual + 1e-9)
+
+    # 8. fit_shift / bounds are honoured in Caglioti mode too (both were
+    #    silently ignored: a fit_shift=False call still returned shift -0.5).
+    ys = 2.5 * std.render_on_grid(xc - 0.30, wl_cu) + 20.0
+    fixed = calibrate_fwhm(refl, wl_cu, xc, ys, caglioti=True, fit_shift=False)
+    check("Caglioti fit: fit_shift=False leaves the shift at 0", fixed.shift == 0.0)
+    narrow = 1000.0 * std.render_on_grid(xc, wl_cu, fwhm=0.10) + 50.0
+    bounded = calibrate_fwhm(refl, wl_cu, xc, narrow, caglioti=True,
+                             bounds=(0.5, 0.6))
+    check("Caglioti fit: bounds constrain the width (>= 0.5 asked)",
+          all(_fw(bounded.caglioti, tt) >= 0.5 - 1e-6 for tt in (25, 45, 65, 95)))
+    check("Caglioti fit: the width never collapses to the render floor",
+          all(_fw(cag.caglioti, tt) > 0.01 for tt in (25, 45, 65, 95)))
+
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
     print("\n--- FWHM calibration (phase B, batch 1) ---")

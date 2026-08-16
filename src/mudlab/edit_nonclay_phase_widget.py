@@ -5,10 +5,10 @@ display colour, an EDITABLE oxide grid, and a read-only pattern preview. The
 pattern itself is set at import time (Import Non-Clay); here the user tunes the
 name, colour and oxide composition.
 
-Oxide edits are stored on the phase but do NOT recompute the project - the
-composition is not yet wired into the pattern (deferred), so an oxide change has
-no visual effect. Name / colour changes do notify (the list label and the
-plot-curve colour follow them).
+Oxide edits are stored on the phase but do NOT recompute the project - chemistry
+does not enter the pattern, only the Compositions dialog's bulk view - so an
+oxide change has no effect on the graph. Name / colour changes do notify (the
+list label and the plot-curve colour follow them), and a width change re-renders.
 """
 
 from __future__ import annotations
@@ -86,7 +86,13 @@ class EditNonClayPhaseWidget(QWidget):
             # phase has a fixed curve, so hide the row for it.
             computed = phase is not None and phase.is_computed
             if computed:
-                self.ui.spin_fwhm.setValue(phase.fwhm)
+                # With a Caglioti width there is no single FWHM, so show the same
+                # mid-angle width _apply_caglioti puts there (phase.fwhm is the
+                # constant to revert to, not what the phase currently renders).
+                self.ui.spin_fwhm.setValue(
+                    float(phase.fwhm_at(30.0)) if phase.caglioti is not None
+                    else phase.fwhm
+                )
             # The field cell is a layout (spinbox + Calibrate button), so gate the
             # row via its label widget.
             self.ui.topForm.setRowVisible(self.ui.lbl_fwhm, computed)
@@ -122,8 +128,8 @@ class EditNonClayPhaseWidget(QWidget):
         self._update_sum()
         if self._phase is None or self._updating:
             return
+        # No _notify(): chemistry feeds the bulk composition, not the pattern.
         self._phase.set_oxides(self.grid.values())
-        # No _notify(): composition does not affect the pattern (deferred).
 
     def _on_fwhm_changed(self, value) -> None:
         if self._phase is None or self._updating or not self._phase.is_computed:

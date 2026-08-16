@@ -15,7 +15,9 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox, QHeaderView, QMessageBox, QTableWidget, QTableWidgetItem,
 )
 
-from mudlab.calculations.composition import parse_formula, reporting_oxides
+from mudlab.calculations.composition import (
+    formula_dot_is_ambiguous, parse_formula, reporting_oxides,
+)
 
 
 class OxideGrid:
@@ -93,21 +95,43 @@ class OxideGrid:
             spin.setEnabled(enabled)
 
     # -- fill from a chemical formula --------------------------------------
-    def fill_from_formula(self, formula) -> bool:
+    def fill_from_formula(self, formula, dot_as_separator: bool = False) -> bool:
         """Parse a chemical formula (e.g. ``NaAlSi3O8``) into oxide wt% and fill
         the grid. Returns False (grid unchanged) when nothing convertible was
-        found."""
-        oxides = parse_formula(formula)
+        found. ``dot_as_separator`` reads a ``.`` as a segment separator
+        (``K2O.Al2O3.6SiO2``) instead of a decimal point."""
+        oxides = parse_formula(formula, dot_as_separator=dot_as_separator)
         if not oxides:
             return False
         self.set_values(oxides)
         return True
 
+    def _ask_dot_meaning(self, text: str) -> bool:
+        """A '.' between digits reads either way ("Si2.5" vs "Al2O3.2SiO2") and
+        the text cannot say which - ask, but only when the two readings would
+        actually give different oxides. Returns True for the separator reading."""
+        box = QMessageBox(self._table.window())
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle("Formula")
+        box.setText("How should the '.' in '%s' be read?" % text)
+        box.setInformativeText(
+            "A dot between digits can be a decimal subscript (Fe0.5Mg0.5SiO3) "
+            "or a segment / hydrate separator (K2O.Al2O3.6SiO2), and these give "
+            "different oxides here.\n\nTip: '·' and '*' are always read as "
+            "separators."
+        )
+        decimal = box.addButton("Decimal point", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Separator", QMessageBox.ButtonRole.AcceptRole)
+        box.setDefaultButton(decimal)
+        box.exec()
+        return box.clickedButton() is not decimal
+
     def _on_formula(self) -> None:
         text = self._formula_edit.text().strip() if self._formula_edit else ""
         if not text:
             return
-        if not self.fill_from_formula(text):
+        separator = formula_dot_is_ambiguous(text) and self._ask_dot_meaning(text)
+        if not self.fill_from_formula(text, dot_as_separator=separator):
             QMessageBox.information(
                 self._table.window(), "Formula",
                 "Couldn't read any reportable oxide from '%s'.\n\nOnly Si, Al, "

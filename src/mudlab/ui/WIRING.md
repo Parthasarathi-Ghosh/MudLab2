@@ -444,8 +444,26 @@ Persistence: the `.mud` loader +
 `_MODELED` handle `"NonClayPhase"`, and `to_dict`/`from_dict` round-trip the
 reflections + fwhm (a pre-phase-A phase with no reflections stays a baked curve
 on load - clean migration). `composition.reporting_oxides()` is the shared oxide
-list. Deferred: composition wiring (c), the formula parser, and FWHM calibration
-from a standard (phase B). Guard: `verify_nonclay_phase.py` (36 checks).
+list. Nothing is deferred - (c) bulk composition, (f) the formula parser and
+(w) the Caglioti width all shipped. Guards: `verify_nonclay_phase.py` (67),
+`verify_nonclay_calibration.py` (31), `verify_composition.py` (36).
+
+Audit notes (2026-08-16), worth knowing before touching this code:
+- The **Caglioti fit is warm-started from the constant-FWHM fit** and must stay
+  that way: a cold Nelder-Mead start steps the 2theta shift by 0.00025 deg, less
+  than a peak width, so a displaced standard scan silently converged into a
+  neighbouring-peak minimum. It also falls back to the constant fit's equivalent
+  `(0, 0, FWHM^2)` when it cannot beat it, and `bounds` keeps the width physical
+  across the whole fit window (without that the fit shrinks the peaks to the
+  render's 1e-3 deg floor and "matches" nothing).
+- A `.` in a formula is read as a **decimal point** (`Fe0.5`), not a separator;
+  `·`/`*` are always separators. `formula_dot_is_ambiguous` flags the inputs
+  where the two readings differ (a hydrate does not - its water is dropped) and
+  the oxide grid asks the user which was meant.
+- The bulk and clay-only views **weight differently** (fraction vs fraction x
+  formula mass), so the clay oxides themselves move ~1 wt% between them. It is
+  the price of putting clays and non-clays on one scale; the `chk_bulk` tooltip
+  says so.
 
 ### XRD import parsers (batch 3 DONE)
 

@@ -191,7 +191,7 @@ class Ui_ImportNonClayDialog(object):
         self.spin_fwhm.setSuffix(QCoreApplication.translate("ImportNonClayDialog", u" \u00b02\u03b8", None))
         self.grpBody.setTitle(QCoreApplication.translate("ImportNonClayDialog", u"Oxide composition (wt %) and pattern preview", None))
 #if QT_CONFIG(tooltip)
-        self.edit_formula.setToolTip(QCoreApplication.translate("ImportNonClayDialog", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.", None))
+        self.edit_formula.setToolTip(QCoreApplication.translate("ImportNonClayDialog", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3, CaMg(CO3)2) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides. Use \u00b7 or * between segments (CaSO4\u00b72H2O, K2O\u00b7Al2O3\u00b76SiO2); a '.' between digits is read as a decimal point (Fe0.5), and you are asked when that changes the result.", None))
 #endif // QT_CONFIG(tooltip)
         self.edit_formula.setPlaceholderText(QCoreApplication.translate("ImportNonClayDialog", u"Formula, e.g. NaAlSi3O8", None))
         self.button_formula.setText(QCoreApplication.translate("ImportNonClayDialog", u"Fill from formula", None))

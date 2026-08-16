@@ -165,6 +165,30 @@ def run():
           not dlg_c.ui.chk_bulk.isEnabled())
     dlg_c.deleteLater()
 
+    # 6b. AUDIT: an oxide OUTSIDE the reporting set (only reachable from a
+    #     hand-edited .mud - the grid offers just the seven) must be ignored, not
+    #     counted in the phase's own total: it used to shrink the phase's share
+    #     of its own fraction (a {SiO2 50, TiO2 50} quartz contributed half).
+    def _bulk_with(oxides):
+        m = load_mud(FIXTURE).mixtures[0]
+        nc = NonClayPhase(name="NC")
+        nc.set_oxides(oxides)
+        nc.set_raw_pattern(np.linspace(5, 70, 50), np.ones(50))
+        s = m.add_phase_slot("NC", fraction=0.5)
+        for i in range(m.n):
+            m.set_phase_at(i, s, nc)
+        return bulk_composition(m)[1]
+
+    with_ti, without_ti = _bulk_with({"SiO2": 50.0, "TiO2": 50.0}), _bulk_with({"SiO2": 50.0})
+    check("6b a non-reporting oxide is ignored, not counted against the phase",
+          all(abs(a - b) < 1e-9
+              for (_o1, p1), (_o2, p2) in zip(with_ti, without_ti)
+              for a, b in zip(p1, p2)))
+    check("6b relative oxide levels are what matter (50 == 100)",
+          all(abs(a - b) < 1e-9
+              for (_o1, p1), (_o2, p2) in zip(without_ti, _bulk_with({"SiO2": 100.0}))
+              for a, b in zip(p1, p2)))
+
     # 7. Formula parser (path-2 (f)): a chemical formula -> reporting oxides.
     from mudlab.calculations.composition import parse_formula
     ab = parse_formula("NaAlSi3O8")  # albite
@@ -181,6 +205,40 @@ def run():
     check("7 quartz SiO2 -> SiO2 100", abs(parse_formula("SiO2").get("SiO2", 0) - 100.0) < 0.5)
     check("7 no reportable oxide -> empty (TiO2)", parse_formula("TiO2") == {})
     check("7 gibberish -> empty", parse_formula("zz9") == {})
+
+    # 7b. AUDIT: segment ("oxide") notation. A '.' between digits is read as a
+    #     decimal point, so "K2O.Al2O3.6SiO2" silently lost the 6x on the silica
+    #     (SiO2 23.4 instead of 64.8). '·'/'*' are unambiguous separators, a
+    #     leading coefficient multiplies ONLY its own segment, and
+    #     formula_dot_is_ambiguous flags the ASCII cases where the reading
+    #     actually changes the answer (the oxide grid then asks).
+    from mudlab.calculations.composition import formula_dot_is_ambiguous
+    ort = parse_formula("KAlSi3O8")                       # orthoclase
+    for written in ("K2O·Al2O3·6SiO2", "K2O*Al2O3*6SiO2"):
+        seg = parse_formula(written)
+        check("7b %s == KAlSi3O8" % written,
+              all(abs(seg.get(o, 0) - ort.get(o, 0)) < 0.5
+                  for o in ("SiO2", "Al2O3", "K2O")))
+    seg_dot = parse_formula("K2O.Al2O3.6SiO2", dot_as_separator=True)
+    check("7b dot_as_separator reads the same as '·'",
+          all(abs(seg_dot.get(o, 0) - ort.get(o, 0)) < 0.5
+              for o in ("SiO2", "Al2O3", "K2O")))
+    c3a = parse_formula("3CaO·Al2O3")                # tricalcium aluminate
+    check("7b leading coefficient 3CaO·Al2O3 -> CaO 62.3 / Al2O3 37.7",
+          abs(c3a.get("CaO", 0) - 62.3) < 1.0 and abs(c3a.get("Al2O3", 0) - 37.7) < 1.0)
+    dio = parse_formula("CaO·MgO·2SiO2")        # diopside
+    check("7b a middle segment's multiplier stays local (CaO·MgO·2SiO2)",
+          all(abs(dio.get(o, 0) - parse_formula("CaMgSi2O6").get(o, 0)) < 0.5
+              for o in ("SiO2", "CaO", "MgO")))
+    check("7b ambiguity flagged only when it changes the oxides",
+          formula_dot_is_ambiguous("K2O.Al2O3.6SiO2")
+          and formula_dot_is_ambiguous("Fe0.5Mg0.5SiO3")
+          and not formula_dot_is_ambiguous("CaSO4.2H2O")      # water is dropped
+          and not formula_dot_is_ambiguous("NaAlSi3O8")       # no dot at all
+          and not formula_dot_is_ambiguous("CaSO4·2H2O"))
+    pl = parse_formula("Na0.5Ca0.5Al1.5Si2.5O8")          # decimal subscripts
+    check("7b decimal subscripts still parse (plagioclase An50)",
+          abs(pl.get("SiO2", 0) - 55.6) < 0.5 and abs(pl.get("CaO", 0) - 10.4) < 0.5)
 
     # 1 (cont.) an empty phase cell / raw phase contributes nothing: emptying a
     # cell must not raise and must keep the column normalised or zero.

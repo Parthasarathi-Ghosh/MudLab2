@@ -4,18 +4,18 @@ A ``NonClayPhase`` is a :class:`~mudlab.models.raw_pattern_phase.RawPatternPhase
 that ALSO carries a declared oxide composition. Like a raw phase it has no
 crystal structure - it contributes a fixed measured/computed pattern to the
 mixture (scaled by its fraction), and it is never structurally refined. Unlike a
-raw phase it knows its chemistry, so it can (later) feed a bulk oxide
-composition. See the phase-``type`` gating notes:
+raw phase it knows its chemistry, so it feeds the bulk oxide composition. See
+the phase-``type`` gating notes:
 
   (a) contributes to the pattern + its fraction is optimised  -> reuses the raw
       pattern path (``get_diffracted_intensity`` dispatches "NonClayPhase" to
       ``_get_raw_intensity``);
   (b) never structurally refined                              -> free
       (``enumerate_refinables`` only enumerates ``type == "Phase"``);
-  (c) contributes to composition                              -> DEFERRED (the
-      ``oxides`` dict is stored + editable now; wiring it into a bulk
-      composition is a follow-up so the clay-only ``mixture_composition`` and
-      the XRF mass balance stay untouched).
+  (c) contributes to composition                              -> the ``oxides``
+      dict feeds ``composition.bulk_composition``, a SEPARATE additive view;
+      the clay-only ``mixture_composition`` and the XRF mass balance that reads
+      it are untouched.
 
 ``oxides`` is ``{oxide_name: wt%}`` over the reporting oxides
 (``composition.reporting_oxides``), stored as entered (normalisation happens at
@@ -98,13 +98,21 @@ class NonClayPhase(RawPatternPhase):
         ``wavelength_nm``: each d-spacing -> its 2theta at that wavelength, a
         Gaussian whose width is the constant ``fwhm`` (or ``self.fwhm``), OR the
         angle-dependent Caglioti width when ``caglioti``/``self.caglioti`` is set.
-        Zeros when there are no reflections."""
+        Zeros when there are no reflections.
+
+        An explicitly passed width wins over the stored one, either way round: a
+        given ``caglioti`` overrides everything, and a given constant ``fwhm``
+        overrides a stored ``self.caglioti`` (the caller asked for one width, so
+        silently rendering an angle-dependent one would be a trap)."""
         grid = np.asarray(two_theta_deg, dtype=float)
         y = np.zeros_like(grid)
         if not self.reflections:
             return y
         lam = float(wavelength_nm) * 10.0  # nm -> Angstrom
-        cag = caglioti if caglioti is not None else self.caglioti
+        if caglioti is not None:
+            cag = caglioti
+        else:
+            cag = None if fwhm is not None else self.caglioti
         const_fwhm = self.fwhm if fwhm is None else float(fwhm)
         for d, inten in self.reflections:
             s = lam / (2.0 * d)

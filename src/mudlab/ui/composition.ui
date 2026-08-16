@@ -27,7 +27,7 @@
    <item>
     <widget class="QCheckBox" name="chk_bulk">
      <property name="toolTip">
-      <string>Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition. Enabled only when the mixture has a non-clay phase.</string>
+      <string>Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition, which instead weights each clay by fraction x formula mass - so the clay oxides themselves shift a little (~1 wt%) between the two views. Enabled only when the mixture has a non-clay phase.</string>
      </property>
      <property name="text">
       <string>Include non-clay phases (bulk composition)</string>

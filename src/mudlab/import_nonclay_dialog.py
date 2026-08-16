@@ -8,7 +8,8 @@ Creates a :class:`~mudlab.models.nonclay_phase.NonClayPhase` from either:
 
 A non-clay phase always needs a pattern (it contributes to the fit and its
 fraction is optimised), so OK is refused until a pattern is loaded and at least
-one oxide is > 0. Composition wiring and a formula parser are deferred.
+one oxide is > 0. The oxides can also be filled from a chemical formula, and
+they feed the Compositions dialog's bulk view.
 """
 
 from __future__ import annotations

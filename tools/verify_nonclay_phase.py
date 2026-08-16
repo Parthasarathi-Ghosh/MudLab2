@@ -397,6 +397,18 @@ def check_caglioti(fixture):
     p.set_fwhm(0.13)
     check("caglioti: set_fwhm reverts to a constant width", p.caglioti is None)
 
+    # AUDIT: an explicitly passed width wins over the stored one, either way
+    # round - a caller asking for one constant FWHM used to get the phase's
+    # angle-dependent width instead, silently.
+    p.set_caglioti(0.02, 0.0, 0.005)
+    grid = np.arange(20.0, 60.0, 0.02)
+    check("caglioti: an explicit fwhm= overrides the stored caglioti",
+          not np.allclose(p.render_on_grid(grid, wl, fwhm=1.0),
+                          p.render_on_grid(grid, wl)))
+    check("caglioti: an explicit caglioti= still wins",
+          np.allclose(p.render_on_grid(grid, wl, caglioti=(0.02, 0.0, 0.005)),
+                      p.render_on_grid(grid, wl)))
+
     # Editor: a Caglioti calibration result is applied + displayed; a constant
     # FWHM edit reverts it; apply-to-all emits the tuple.
     comp = NonClayPhase(name="Q")
@@ -432,6 +444,14 @@ def check_caglioti(fixture):
           not w.ui.lbl_caglioti.isHidden() and "U=" in w.ui.lbl_caglioti.text())
     check("editor: Caglioti apply-to-all emits the tuple",
           emitted["v"] is not None and np.allclose(emitted["v"], (0.02, -0.005, 0.006)))
+    # AUDIT: re-selecting a Caglioti phase must show the width it actually
+    # renders at (the mid-angle one), not the stale constant left in phase.fwhm.
+    w.bind_nonclay_phase(None)
+    w.bind_nonclay_phase(comp, wavelength_nm=wl)
+    check("editor: re-binding a Caglioti phase shows the mid-angle width",
+          abs(w.ui.spin_fwhm.value() - float(comp.fwhm_at(30.0))) < 0.01
+          and comp.caglioti is not None)   # ...and the re-bind kept it
+
     w.ui.spin_fwhm.setValue(0.20)   # a constant edit reverts Caglioti
     check("editor: a constant FWHM edit reverts Caglioti (+ hides the row)",
           comp.caglioti is None and w.ui.lbl_caglioti.isHidden())

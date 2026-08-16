@@ -123,7 +123,7 @@
         <item>
          <widget class="QLineEdit" name="edit_formula">
           <property name="toolTip">
-           <string>Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.</string>
+           <string>Type a chemical formula (e.g. NaAlSi3O8, CaCO3, CaMg(CO3)2) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides. Use · or * between segments (CaSO4·2H2O, K2O·Al2O3·6SiO2); a '.' between digits is read as a decimal point (Fe0.5), and you are asked when that changes the result.</string>
           </property>
           <property name="placeholderText">
            <string>Formula, e.g. NaAlSi3O8</string>

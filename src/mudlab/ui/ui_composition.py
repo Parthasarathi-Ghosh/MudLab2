@@ -83,7 +83,7 @@ class Ui_CompositionDialog(object):
         CompositionDialog.setWindowTitle(QCoreApplication.translate("CompositionDialog", u"Composition", None))
         self.lbl_title.setText(QCoreApplication.translate("CompositionDialog", u"Oxide composition of the specimens in this mixture (wt%):", None))
 #if QT_CONFIG(tooltip)
-        self.chk_bulk.setToolTip(QCoreApplication.translate("CompositionDialog", u"Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition. Enabled only when the mixture has a non-clay phase.", None))
+        self.chk_bulk.setToolTip(QCoreApplication.translate("CompositionDialog", u"Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition, which instead weights each clay by fraction x formula mass - so the clay oxides themselves shift a little (~1 wt%) between the two views. Enabled only when the mixture has a non-clay phase.", None))
 #endif // QT_CONFIG(tooltip)
         self.chk_bulk.setText(QCoreApplication.translate("CompositionDialog", u"Include non-clay phases (bulk composition)", None))
 #if QT_CONFIG(tooltip)
