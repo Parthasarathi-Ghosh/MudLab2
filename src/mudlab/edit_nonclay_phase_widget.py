@@ -34,6 +34,7 @@ class EditNonClayPhaseWidget(QWidget):
         self._phase = None
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
+        self._wavelength_nm = 0.154056  # for rendering a computed phase's pattern
 
         self.color = ColorButton(self.ui.button_color, on_change=self._on_color_changed)
         self.grid = OxideGrid(self.ui.oxide_grid, on_changed=self._on_grid_changed)
@@ -46,16 +47,20 @@ class EditNonClayPhaseWidget(QWidget):
 
         self.ui.nonclay_name.editingFinished.connect(self._on_name_edited)
         self.ui.button_normalize.clicked.connect(self.grid.normalize)
+        self.ui.spin_fwhm.valueChanged.connect(self._on_fwhm_changed)
 
         self.setEnabled(False)
         self._refresh()
 
     # ------------------------------------------------------------------
     def bind_nonclay_phase(
-        self, phase, on_changed: Callable[[], None] | None = None
+        self, phase, on_changed: Callable[[], None] | None = None,
+        wavelength_nm: float | None = None,
     ) -> None:
         self._phase = phase
         self._on_changed = on_changed
+        if wavelength_nm:
+            self._wavelength_nm = float(wavelength_nm)
         self.setEnabled(phase is not None)
         self._updating = True
         try:
@@ -64,6 +69,12 @@ class EditNonClayPhaseWidget(QWidget):
                 phase.display_color if phase is not None else "#000000"
             )
             self.grid.set_values(phase.oxides if phase is not None else {})
+            # FWHM applies only to a CIF-derived (computed) phase; a measured
+            # phase has a fixed curve, so hide the row for it.
+            computed = phase is not None and phase.is_computed
+            if computed:
+                self.ui.spin_fwhm.setValue(phase.fwhm)
+            self.ui.topForm.setRowVisible(self.ui.spin_fwhm, computed)
         finally:
             self._updating = False
         self._refresh()
@@ -88,6 +99,17 @@ class EditNonClayPhaseWidget(QWidget):
             return
         self._phase.set_oxides(self.grid.values())
         # No _notify(): composition does not affect the pattern (deferred).
+
+    def _on_fwhm_changed(self, value) -> None:
+        if self._phase is None or self._updating or not self._phase.is_computed:
+            return
+        # Width DOES change the pattern: re-render from the reflection list and
+        # recompute (unlike an oxide edit).
+        self._phase.set_fwhm(value)
+        self._phase.rebuild_stored_pattern(self._wavelength_nm)
+        self._update_info()
+        self._update_figure()
+        self._notify()
 
     def _notify(self) -> None:
         if self._on_changed is not None:

@@ -266,8 +266,10 @@ class EditPhasesDialog(ObjectStoreDialog):
             self.phase_widget.hide()
             self.raw_phase_widget.hide()
             self.nonclay_widget.show()
+            gonio = self._project_goniometer()
             self.nonclay_widget.bind_nonclay_phase(
-                phase, on_changed=lambda p=phase: self._recalculate(p)
+                phase, on_changed=lambda p=phase: self._recalculate(p),
+                wavelength_nm=gonio.wavelength if gonio is not None else None,
             )
         elif phase.type == "RawPatternPhase":
             self.phase_widget.hide()

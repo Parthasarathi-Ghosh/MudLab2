@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QFormLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QPushButton,
-    QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QDoubleSpinBox, QFormLayout, QGroupBox,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_EditNonClayPhaseWidget(object):
     def setupUi(self, EditNonClayPhaseWidget):
@@ -57,6 +57,21 @@ class Ui_EditNonClayPhaseWidget(object):
         self.nonclay_pattern_info.setObjectName(u"nonclay_pattern_info")
 
         self.topForm.setWidget(2, QFormLayout.ItemRole.FieldRole, self.nonclay_pattern_info)
+
+        self.lbl_fwhm = QLabel(EditNonClayPhaseWidget)
+        self.lbl_fwhm.setObjectName(u"lbl_fwhm")
+
+        self.topForm.setWidget(3, QFormLayout.ItemRole.LabelRole, self.lbl_fwhm)
+
+        self.spin_fwhm = QDoubleSpinBox(EditNonClayPhaseWidget)
+        self.spin_fwhm.setObjectName(u"spin_fwhm")
+        self.spin_fwhm.setDecimals(2)
+        self.spin_fwhm.setMinimum(0.010000000000000)
+        self.spin_fwhm.setMaximum(5.000000000000000)
+        self.spin_fwhm.setSingleStep(0.050000000000000)
+        self.spin_fwhm.setValue(0.100000000000000)
+
+        self.topForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.spin_fwhm)
 
 
         self.rootLayout.addLayout(self.topForm)
@@ -115,6 +130,11 @@ class Ui_EditNonClayPhaseWidget(object):
         self.button_color.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"#1f77b4", None))
         self.lbl_info_caption.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Pattern", None))
         self.nonclay_pattern_info.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"No pattern loaded.", None))
+        self.lbl_fwhm.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Peak FWHM", None))
+#if QT_CONFIG(tooltip)
+        self.spin_fwhm.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Peak width for the pattern computed from the structure (only for CIF-derived phases). Change it to match your instrument's real peak width; the pattern re-renders live.", None))
+#endif // QT_CONFIG(tooltip)
+        self.spin_fwhm.setSuffix(QCoreApplication.translate("EditNonClayPhaseWidget", u" \u00b02\u03b8", None))
         self.grpComposition.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Oxide composition (wt %)", None))
         self.lbl_sum.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Sum: 0.00 %", None))
         self.button_normalize.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Normalize to 100 %", None))

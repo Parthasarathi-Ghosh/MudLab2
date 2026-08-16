@@ -73,13 +73,34 @@ def get_diffracted_intensity(range_theta, range_stl, phase):
     if phase.type == "Phase":
         return _get_diffracted_intensity(range_theta, range_stl, phase)
     if phase.type in ("RawPatternPhase", "NonClayPhase"):
-        # A NonClayPhase is a raw phase that also carries a composition; its
-        # diffraction contribution is the stored curve, exactly like a raw phase.
+        # A computed (CIF) NonClayPhase renders its reflection list at the
+        # SPECIMEN wavelength, so positions and width are specimen-consistent -
+        # like a structural Phase, but from a fixed stick list (never refined).
+        if getattr(phase, "reflections", None):
+            two_theta_deg = np.rad2deg(2.0 * range_theta)
+            return phase.render_on_grid(
+                two_theta_deg, _wavelength_from_stl(range_theta, range_stl)
+            )
+        # Otherwise (measured non-clay, or a plain raw phase) the stored curve is
+        # taken as measured.
         return _get_raw_intensity(range_theta, range_stl, phase)
     raise NotImplementedError(
         "Only Phase, RawPatternPhase and NonClayPhase intensity are ported "
         "(got %r)" % phase.type
     )
+
+
+def _wavelength_from_stl(range_theta, range_stl):
+    """Recover the specimen wavelength (nm) from ``range_stl = 2 sin(theta)/lambda``
+    (see calculate_phase_intensities). Uses the largest stl point (a real 2theta
+    grid always has one > 0); falls back to Cu Kalpha1."""
+    stl = np.asarray(range_stl, dtype=float)
+    if stl.size == 0:
+        return 0.154056
+    idx = int(np.argmax(stl))
+    if stl[idx] <= 0:
+        return 0.154056
+    return float(2.0 * np.sin(np.asarray(range_theta, dtype=float)[idx]) / stl[idx])
 
 
 def _get_raw_intensity(range_theta, range_stl, phase):

@@ -49,6 +49,7 @@ from mudlab.file_parsers.mud_project import load_mud, save_mud
 from mudlab.import_nonclay_dialog import ImportNonClayDialog
 from mudlab.models import Goniometer
 from mudlab.models.nonclay_phase import NonClayPhase
+from mudlab.nonclay.structure import reflections_from_cif
 
 results: list[tuple[str, bool]] = []
 
@@ -177,24 +178,85 @@ def check_import_dialog(gonio):
           and "CIF" in dlg2.ui.lbl_source.text())
     dlg2.ui.edit_name.setText("Quartz")
     dlg2._on_accept()
-    check("import 2b: accepted -> NonClayPhase with composition",
-          isinstance(dlg2.phase, NonClayPhase) and dlg2.phase.has_composition)
+    check("import 2b: accepted -> a COMPUTED NonClayPhase (reflections + FWHM)",
+          isinstance(dlg2.phase, NonClayPhase) and dlg2.phase.has_composition
+          and dlg2.phase.is_computed and abs(dlg2.phase.fwhm - 0.10) < 1e-9
+          and len(dlg2.phase.reflections) > 1)
     return dlg.phase, dlg2.phase
 
 
-def check_editor(phase):
+def check_render(gonio):
+    """Model + calc: a computed phase renders at the specimen wavelength (so
+    positions move with lambda), tunes width, and round-trips its reflections."""
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_render_%d.cif" % os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(_QUARTZ_CIF)
+    try:
+        reflections, _ox = reflections_from_cif(tmp, gonio)
+    finally:
+        os.remove(tmp)
+    check("render: reflections normalised to max 100",
+          abs(max(i for _d, i in reflections) - 100.0) < 1e-6)
+
+    p = NonClayPhase(name="Quartz")
+    p.set_reflections(reflections)
+    p.set_fwhm(0.10)
+    grid = np.linspace(10.0, 60.0, 6001)
+    cu = grid[int(np.argmax(p.render_on_grid(grid, 0.154056)))]
+    co = grid[int(np.argmax(p.render_on_grid(grid, 0.178897)))]
+    check("render: peak sits at ~26.6 for Cu Kalpha", abs(cu - 26.65) < 0.3)
+    check("render: peak moves up (~31.1) for Co Kalpha", co > cu + 3 and abs(co - 31.1) < 0.6)
+
+    def half_width(y):
+        above = grid[y >= y.max() / 2]
+        return above.max() - above.min()
+    narrow = p.render_on_grid(grid, 0.154056, fwhm=0.05)
+    wide = p.render_on_grid(grid, 0.154056, fwhm=0.40)
+    check("render: larger FWHM widens the peak", half_width(wide) > half_width(narrow) * 3)
+
+    # get_diffracted_intensity recovers the wavelength from range_stl and renders.
+    tt = np.linspace(15.0, 45.0, 3001)
+    for wl in (0.154056, 0.178897):
+        rth = np.radians(tt * 0.5)
+        inten = get_diffracted_intensity(rth, 2 * np.sin(rth) / wl, p)
+        want = tt[int(np.argmax(p.render_on_grid(tt, wl)))]
+        got = tt[int(np.argmax(inten))]
+        check("calc: dispatch renders at recovered wavelength %.4f" % wl,
+              abs(got - want) < 0.05)
+
+    q = NonClayPhase.from_dict(p.to_dict())
+    check("render: reflections + FWHM round-trip",
+          q.is_computed and len(q.reflections) == len(reflections)
+          and abs(q.fwhm - 0.10) < 1e-9)
+
+
+def check_editor(computed_phase, measured_phase):
+    # Computed phase: oxides editable, FWHM row shown + tunable.
     w = EditNonClayPhaseWidget()
     calls = {"n": 0}
-    w.bind_nonclay_phase(phase, on_changed=lambda: calls.__setitem__("n", calls["n"] + 1))
+    w.bind_nonclay_phase(computed_phase, wavelength_nm=0.154056,
+                         on_changed=lambda: calls.__setitem__("n", calls["n"] + 1))
     check("editor: shows the bound oxides",
           abs(w.grid.values().get("SiO2", 0) - 100.0) < 1e-9)
     w.grid._spins["CaO"].setValue(5.0)  # user edits an oxide
     check("editor: oxide edit writes phase.oxides", w._phase.oxides.get("CaO") == 5.0)
     check("editor: oxide edit does NOT recompute (composition deferred)", calls["n"] == 0)
+    check("editor: FWHM row shown for a computed phase", not w.ui.spin_fwhm.isHidden())
+    before = w._phase.raw_pattern_y.copy()
+    n0 = calls["n"]
+    w.ui.spin_fwhm.setValue(0.40)   # user widens the peaks
+    check("editor: FWHM edit re-renders the pattern + notifies",
+          w._phase.fwhm == 0.40 and not np.array_equal(w._phase.raw_pattern_y, before)
+          and calls["n"] == n0 + 1)
     w.ui.nonclay_name.setText("Quartz nc")
     w._on_name_edited()
     check("editor: name edit writes + notifies",
-          w._phase.name == "Quartz nc" and calls["n"] == 1)
+          w._phase.name == "Quartz nc" and calls["n"] == n0 + 2)
+
+    # Measured phase: no reflection list, so the FWHM row is hidden.
+    w2 = EditNonClayPhaseWidget()
+    w2.bind_nonclay_phase(measured_phase)
+    check("editor: FWHM row hidden for a measured phase", w2.ui.spin_fwhm.isHidden())
 
 
 def check_edit_phases(fixture, nonclay_phase):
@@ -225,8 +287,9 @@ def main():
 
     phase, x = check_model()
     check_persistence(fixture, phase, x)
+    check_render(gonio)
     phase2a, phase2b = check_import_dialog(gonio)
-    check_editor(phase2a)
+    check_editor(phase2b, phase2a)
     check_edit_phases(fixture, phase2b)
 
     passed = sum(1 for _, ok in results if ok)

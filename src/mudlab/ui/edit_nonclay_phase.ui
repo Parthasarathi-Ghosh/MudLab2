@@ -47,6 +47,38 @@
        </property>
       </widget>
      </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lbl_fwhm">
+       <property name="text">
+        <string>Peak FWHM</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QDoubleSpinBox" name="spin_fwhm">
+       <property name="toolTip">
+        <string>Peak width for the pattern computed from the structure (only for CIF-derived phases). Change it to match your instrument's real peak width; the pattern re-renders live.</string>
+       </property>
+       <property name="suffix">
+        <string> °2θ</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.010000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>5.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.050000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>

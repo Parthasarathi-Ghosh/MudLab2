@@ -24,17 +24,82 @@ composition time). It round-trips in the .mud alongside the raw pattern.
 
 from __future__ import annotations
 
+import numpy as np
+
 from mudlab.models.raw_pattern_phase import RawPatternPhase
+
+# Default Gaussian peak width for rendering a CIF reflection list (deg 2theta).
+DEFAULT_FWHM = 0.10
 
 
 class NonClayPhase(RawPatternPhase):
-    """A raw-pattern phase that also declares its oxide composition."""
+    """A raw-pattern phase that also declares its oxide composition.
+
+    Two flavours share this model:
+      - a **measured** non-clay: the ``raw_pattern`` is a fixed measured curve
+        (``reflections`` empty); it resamples like a RawPatternPhase.
+      - a **computed** (CIF) non-clay: it carries a ``reflections`` list of
+        ``(d_angstrom, intensity)`` and renders its pattern from those at the
+        specimen wavelength, broadened to ``fwhm``. Because the positions are
+        d-spacings the pattern is specimen-wavelength-correct, and the width is
+        tunable after import (path-2 phase A).
+    """
 
     def __init__(self, name: str = "") -> None:
         super().__init__(name)
         self.type = "NonClayPhase"
         # {oxide_name: wt%}; empty until imported/entered.
         self.oxides: dict[str, float] = {}
+        # CIF reflections [(d_angstrom, intensity 0..100)]; empty for a measured
+        # non-clay. Present => the pattern is rendered from these (is_computed).
+        self.reflections: list[tuple[float, float]] = []
+        self.fwhm = DEFAULT_FWHM  # deg 2theta, Gaussian FWHM for the render
+
+    @property
+    def is_computed(self) -> bool:
+        """True when the pattern is rendered from a CIF reflection list (so the
+        FWHM is tunable), False for a fixed measured curve."""
+        return len(self.reflections) > 1
+
+    def set_reflections(self, reflections) -> None:
+        self.reflections = [
+            (float(d), float(i)) for d, i in (reflections or []) if float(d) > 0
+        ]
+
+    def set_fwhm(self, fwhm: float) -> None:
+        self.fwhm = max(0.001, float(fwhm))
+
+    # -- rendering (computed phases) --------------------------------------
+    def render_on_grid(self, two_theta_deg, wavelength_nm, fwhm=None):
+        """Render the reflection list onto a 2theta grid (deg) at
+        ``wavelength_nm``: each d-spacing -> its 2theta at that wavelength, a
+        Gaussian of the given/stored FWHM. Zeros when there are no reflections."""
+        grid = np.asarray(two_theta_deg, dtype=float)
+        y = np.zeros_like(grid)
+        if not self.reflections:
+            return y
+        lam = float(wavelength_nm) * 10.0  # nm -> Angstrom
+        sigma = max(1e-6, (self.fwhm if fwhm is None else float(fwhm)) / 2.35482)
+        for d, inten in self.reflections:
+            s = lam / (2.0 * d)
+            if s >= 1.0:
+                continue  # d < lambda/2: no reflection at this wavelength
+            tt = np.degrees(2.0 * np.arcsin(s))
+            y += inten * np.exp(-0.5 * ((grid - tt) / sigma) ** 2)
+        return y
+
+    def preview_pattern(self, wavelength_nm, lo=4.0, hi=80.0, step=0.02):
+        x = np.arange(lo, hi, step)
+        return x, self.render_on_grid(x, wavelength_nm)
+
+    def rebuild_stored_pattern(self, wavelength_nm, lo=4.0, hi=80.0, step=0.02) -> None:
+        """Re-render the cached ``raw_pattern`` from the reflections at the
+        current FWHM (call at import and after a FWHM change). No-op for a
+        measured phase."""
+        if not self.reflections:
+            return
+        x, y = self.preview_pattern(wavelength_nm, lo, hi, step)
+        self.set_raw_pattern(x, y)
 
     def set_oxides(self, oxides) -> None:
         """Store the oxide composition, dropping non-positive entries and
@@ -53,7 +118,10 @@ class NonClayPhase(RawPatternPhase):
     def to_dict(self) -> dict:
         data = super().to_dict()
         data["type"] = "NonClayPhase"
-        data["properties"]["oxides"] = dict(self.oxides)
+        props = data["properties"]
+        props["oxides"] = dict(self.oxides)
+        props["reflections"] = [[d, i] for d, i in self.reflections]
+        props["fwhm"] = float(self.fwhm)
         return data
 
     @classmethod
@@ -61,6 +129,12 @@ class NonClayPhase(RawPatternPhase):
         phase = super().from_dict(data)  # cls == NonClayPhase, so type is set
         props = data.get("properties", {}) if isinstance(data, dict) else {}
         phase.set_oxides(props.get("oxides"))
+        phase.set_reflections(props.get("reflections"))
+        if props.get("fwhm") is not None:
+            try:
+                phase.fwhm = float(props["fwhm"])
+            except (TypeError, ValueError):
+                pass
         return phase
 
 

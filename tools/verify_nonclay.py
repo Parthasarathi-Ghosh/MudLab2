@@ -62,12 +62,18 @@ def _synthetic_quartz(lo=4.0, hi=40.0):
 
 def _isolation_scan():
     """Files under src/mudlab (excluding the nonclay package) that import
-    mudlab.nonclay OUTSIDE the ONE sanctioned, NONCLAY-fenced seam
-    (edit_mixture_widget.py, Slice 3). Any other import breaks isolation; so does
-    an import in the seam file that is not inside a NONCLAY-marked block."""
+    mudlab.nonclay OUTSIDE the sanctioned importers:
+      - the ONE NONCLAY-fenced Slice-3 seam (edit_mixture_widget.py), which is
+        only allowed when the import sits inside a NONCLAY-marked block;
+      - the experimental path-2 Import Non-Clay dialog (import_nonclay_dialog.py),
+        which reuses nonclay.structure's CIF parser to build a NonClayPhase.
+    Any other import breaks isolation."""
     root = os.path.join(_REPO, "src", "mudlab")
     pkg = os.path.join(root, "nonclay")
     seam = os.path.normpath(os.path.join(root, "edit_mixture_widget.py"))
+    # Path-2 (experimental NonClayPhase) legitimately depends on the CIF code;
+    # deleting the nonclay package would also disable the dialog's CIF import.
+    path2 = {os.path.normpath(os.path.join(root, "import_nonclay_dialog.py"))}
     offenders = []
     for dirpath, _dirs, files in os.walk(root):
         if os.path.abspath(dirpath).startswith(os.path.abspath(pkg)):
@@ -79,17 +85,21 @@ def _isolation_scan():
             with open(path, "r", encoding="utf-8") as fh:
                 text = fh.read()
             if "import mudlab.nonclay" in text or "from mudlab.nonclay" in text:
+                norm = os.path.normpath(path)
                 # The seam is allowed iff it is fenced with the NONCLAY marker.
-                if os.path.normpath(path) == seam and "NONCLAY" in text:
+                if norm == seam and "NONCLAY" in text:
+                    continue
+                if norm in path2:
                     continue
                 offenders.append(os.path.relpath(path, _REPO))
     return offenders
 
 
 def run(path):
-    # 1. isolation invariant: only the fenced edit_mixture_widget seam imports it.
+    # 1. isolation invariant: only the fenced edit_mixture_widget seam and the
+    # experimental path-2 import dialog import mudlab.nonclay.
     offenders = _isolation_scan()
-    check("1 only the fenced Slice-3 seam imports mudlab.nonclay: %s"
+    check("1 only sanctioned seams import mudlab.nonclay: %s"
           % (offenders or "clean"), not offenders)
 
     proj = load_mud(path)

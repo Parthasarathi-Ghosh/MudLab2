@@ -25,7 +25,7 @@ from mudlab.csv_import_dialog import import_pattern
 from mudlab.file_parsers.xrd_import import PATTERN_FILTERS
 from mudlab.models import Goniometer
 from mudlab.models.nonclay_phase import NonClayPhase
-from mudlab.nonclay.structure import reference_from_cif
+from mudlab.nonclay.structure import reflections_from_cif
 from mudlab.oxide_grid import OxideGrid
 from mudlab.qt_utils import ColorButton
 from mudlab.ui.ui_import_nonclay import Ui_ImportNonClayDialog
@@ -47,6 +47,8 @@ class ImportNonClayDialog(QDialog):
         self.phase: NonClayPhase | None = None  # set on accept
         self._x = np.empty(0)
         self._y = np.empty(0)
+        # CIF reflection list [(d, I)] for a computed phase; [] for a measured one.
+        self._reflections: list = []
 
         self.color = ColorButton(self.ui.button_color)
         self.grid = OxideGrid(self.ui.oxide_grid, on_changed=self._update_sum)
@@ -59,6 +61,7 @@ class ImportNonClayDialog(QDialog):
 
         self.ui.button_open_file.clicked.connect(self._on_open_file)
         self.ui.button_normalize.clicked.connect(self.grid.normalize)
+        self.ui.spin_fwhm.valueChanged.connect(self._on_fwhm_changed)
         self.ui.buttonBox.accepted.connect(self._on_accept)
         self.ui.buttonBox.rejected.connect(self.reject)
 
@@ -79,29 +82,40 @@ class ImportNonClayDialog(QDialog):
 
     def _load_cif(self, path: str) -> None:
         try:
-            reference, oxides = reference_from_cif(
-                path, self._goniometer, fwhm=self.ui.spin_fwhm.value()
-            )
-        except Exception as exc:  # noqa: BLE001 - reference_from_cif raises ValueError
+            reflections, oxides = reflections_from_cif(path, self._goniometer)
+        except Exception as exc:  # noqa: BLE001 - reflections_from_cif raises ValueError
             QMessageBox.warning(
                 self, "Import non-clay phase",
                 "Could not build a phase from this CIF:\n\n%s" % exc,
             )
             return
-        self._x = np.asarray(reference.raw_pattern_x, dtype=float)
-        self._y = np.asarray(reference.raw_pattern_y, dtype=float)
+        self._reflections = reflections
         self.grid.set_values(oxides)
         self._default_name(path)
+        self._rerender_cif()  # renders the preview at the goniometer wavelength
         self.ui.lbl_source.setText(
-            "Computed from CIF: %s  (%d oxides, %d points)"
-            % (os.path.basename(path), len(oxides), self._x.size)
+            "Computed from CIF: %s  (%d reflections, %d oxides) - width tunable"
+            % (os.path.basename(path), len(reflections), len(oxides))
         )
+
+    def _rerender_cif(self) -> None:
+        """Render the CIF reflections into the preview at the goniometer
+        wavelength and the current FWHM."""
+        preview = NonClayPhase()
+        preview.set_reflections(self._reflections)
+        preview.set_fwhm(self.ui.spin_fwhm.value())
+        self._x, self._y = preview.preview_pattern(self._goniometer.wavelength)
         self._update_preview()
+
+    def _on_fwhm_changed(self, *_args) -> None:
+        if self._reflections:
+            self._rerender_cif()  # live preview of the CIF width
 
     def _load_pattern(self, path: str) -> None:
         result = import_pattern(self, path=path, title="Import measured pattern")
         if result is None:
             return
+        self._reflections = []  # a measured pattern has no reflection list
         self._x = np.asarray(result[0], dtype=float)
         self._y = np.asarray(result[1], dtype=float)
         self._default_name(path)
@@ -151,7 +165,14 @@ class ImportNonClayDialog(QDialog):
             return
         phase = NonClayPhase(name=name)
         phase.display_color = self.color.hex()
-        phase.set_raw_pattern(self._x, self._y)
         phase.set_oxides(self.grid.values())
+        if self._reflections:
+            # Computed: store the reflection list + width; the pattern renders
+            # from these (specimen-wavelength-correct, width tunable later).
+            phase.set_reflections(self._reflections)
+            phase.set_fwhm(self.ui.spin_fwhm.value())
+            phase.rebuild_stored_pattern(self._goniometer.wavelength)
+        else:
+            phase.set_raw_pattern(self._x, self._y)  # measured curve
         self.phase = phase
         self.accept()

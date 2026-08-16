@@ -207,12 +207,10 @@ def _oxide_composition(full_atoms):
     return {ox: 100.0 * v / total for ox, v in totals.items()}
 
 
-def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
-                       tt_lo=4.0, tt_hi=80.0):
-    """Build a non-clay reference from a CIF at the goniometer's wavelength,
-    broadened to ``fwhm`` (deg 2theta). Returns ``(reference, composition)`` where
-    composition is the derived oxide wt% dict (for the XRF mass balance). Raises
-    ValueError with a clear message if the CIF is unusable."""
+def _cif_cell_atoms(path):
+    """Parse + symmetry-expand a CIF into ``(cell, full_atoms, wk)``. Raises
+    ValueError with a clear message if the CIF is unusable. Shared by
+    ``reference_from_cif`` and ``reflections_from_cif``."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
     wk, known = _load_wk()
@@ -226,12 +224,43 @@ def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
             "(Wyckoff-only) is not supported yet.")
     if not atoms:
         raise ValueError("The CIF has no atom sites with recognised elements.")
+    return cell, _expand(atoms, sym), wk
 
-    full = _expand(atoms, sym)
+
+def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
+                       tt_lo=4.0, tt_hi=80.0):
+    """Build a non-clay reference from a CIF at the goniometer's wavelength,
+    broadened to ``fwhm`` (deg 2theta). Returns ``(reference, composition)`` where
+    composition is the derived oxide wt% dict (for the XRF mass balance). Raises
+    ValueError with a clear message if the CIF is unusable."""
+    cell, full, wk = _cif_cell_atoms(path)
     if name is None:
         name = os.path.splitext(os.path.basename(path))[0]
     wavelength = float(goniometer.wavelength) * 10.0  # nm -> Angstrom
     return _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi)
+
+
+def reflections_from_cif(path, goniometer, tt_lo=4.0, tt_hi=80.0):
+    """``(reflections, composition)`` for a CIF, where ``reflections`` is a list
+    of ``(d_angstrom, intensity)`` with intensities normalised so the strongest
+    is 100. Positions are stored as d-spacings (wavelength-independent), so a
+    NonClayPhase can RENDER them at any specimen wavelength - the basis for live
+    FWHM tuning and specimen-consistent positions (path-2 phase A). Same parser
+    and clear ValueErrors as :func:`reference_from_cif`."""
+    cell, full, wk = _cif_cell_atoms(path)
+    wavelength = float(goniometer.wavelength) * 10.0  # nm -> Angstrom
+    sticks = _stick(cell, full, wk, wavelength, tt_lo=tt_lo, tt_hi=tt_hi)
+    if not sticks:
+        raise ValueError("The structure produced no reflections in range.")
+    reflections = []
+    for tt, inten in sticks:
+        sin_theta = np.sin(np.radians(tt * 0.5))
+        if sin_theta <= 0:
+            continue
+        reflections.append((wavelength / (2.0 * sin_theta), float(inten)))
+    imax = max((i for _d, i in reflections), default=0.0) or 1.0
+    reflections = [(float(d), 100.0 * i / imax) for d, i in reflections]
+    return reflections, _oxide_composition(full)
 
 
 def _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi):

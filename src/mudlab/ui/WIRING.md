@@ -389,11 +389,18 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
 #### NonClayPhase (EXPERIMENTAL "path 2", 2026-08-16)
 
 `NonClayPhase` (`models/nonclay_phase.py`) subclasses `RawPatternPhase` and adds
-an `oxides` (`{oxide: wt%}`) dict, so it has a stored pattern AND a declared
-chemistry. Its behaviour is gated by `type == "NonClayPhase"`:
-- **(a)** contributes its stored curve + its fraction is optimised -
-  `phases.get_diffracted_intensity` routes it to `_get_raw_intensity` (same as a
-  raw phase); the fraction Optimize includes it automatically.
+an `oxides` (`{oxide: wt%}`) dict, so it has a pattern AND a declared chemistry.
+A **computed** (CIF) one also carries a `reflections` list of `(d_angstrom,
+intensity)` (intensities normalised to 100) + a tunable `fwhm`; a **measured**
+one has no reflections and keeps its fixed curve (`is_computed` distinguishes
+them). Its behaviour is gated by `type == "NonClayPhase"`:
+- **(a)** contributes its pattern + its fraction is optimised. A COMPUTED phase
+  RENDERS from its reflection list **at the specimen wavelength** (recovered from
+  `range_stl = 2 sin θ/λ` via `_wavelength_from_stl`) broadened to `fwhm`
+  (`render_on_grid`) - so positions and width are specimen-consistent, like a
+  structural `Phase` but from a fixed stick list (path-2 **phase A**). A MEASURED
+  phase falls back to `_get_raw_intensity`. Either way the fraction Optimize
+  includes it.
 - **(b)** never structurally refined - `enumerate_refinables` only takes
   `type == "Phase"`, so it is excluded for free.
 - **(c)** contributes to composition - **DEFERRED**; the oxides are stored +
@@ -405,16 +412,21 @@ UI: **"Import Non-Clay"** is an extra button `EditPhasesDialog` adds
 programmatically to the objects frame's spare `extraLayout` (the shared
 `object_store.ui` is untouched). `ImportNonClayDialog` (`import_nonclay_dialog.py`
 + `ui/import_nonclay.ui`) takes a measured pattern (via the shared
-`import_pattern`) OR a CIF with atoms (via `nonclay.structure.reference_from_cif`,
-which returns the pattern AND the derived oxide%); name, `ColorButton`, the
-`OxideGrid` (`oxide_grid.py` - a `QTableWidget` of oxide->wt% with 0-100
-spinboxes, shared with the editor), a pattern preview and validation (name +
->=2-pt pattern + oxide sum > 0). Selecting a NonClayPhase shows
-`EditNonClayPhaseWidget` (`ui/edit_nonclay_phase.ui`) - an editable oxide grid +
-preview; oxide edits write the phase but do NOT recompute (composition deferred).
-Persistence: the `.mud` loader + `_MODELED` handle `"NonClayPhase"`.
-`composition.reporting_oxides()` is the shared oxide list. Formula parser
-deferred. Guard: `verify_nonclay_phase.py` (26 checks).
+`import_pattern`) OR a CIF with atoms (via `nonclay.structure.reflections_from_cif`,
+which returns the `(d, I)` reflection list AND the derived oxide%); name,
+`ColorButton`, the `OxideGrid` (`oxide_grid.py` - a `QTableWidget` of oxide->wt%
+with 0-100 spinboxes, shared with the editor), a live pattern preview (its
+`spin_fwhm` re-renders the CIF curve), and validation (name + >=2-pt pattern +
+oxide sum > 0). Selecting a NonClayPhase shows `EditNonClayPhaseWidget`
+(`ui/edit_nonclay_phase.ui`) - an editable oxide grid + preview + a **Peak FWHM**
+spinbox shown ONLY for a computed phase (`setRowVisible` on `is_computed`);
+changing it calls `set_fwhm` + `rebuild_stored_pattern` and DOES recompute (the
+pattern changed), unlike an oxide edit. Persistence: the `.mud` loader +
+`_MODELED` handle `"NonClayPhase"`, and `to_dict`/`from_dict` round-trip the
+reflections + fwhm (a pre-phase-A phase with no reflections stays a baked curve
+on load - clean migration). `composition.reporting_oxides()` is the shared oxide
+list. Deferred: composition wiring (c), the formula parser, and FWHM calibration
+from a standard (phase B). Guard: `verify_nonclay_phase.py` (36 checks).
 
 ### XRD import parsers (batch 3 DONE)
 
