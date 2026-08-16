@@ -120,11 +120,21 @@
     </layout>
    </item>
    <item>
+    <widget class="QCheckBox" name="chk_caglioti">
+     <property name="toolTip">
+      <string>Fit an angle-dependent width (Caglioti U,V,W: FWHM² = U·tan²θ + V·tanθ + W) instead of one constant FWHM. Needs a standard scan spanning a wide 2θ range.</string>
+     </property>
+     <property name="text">
+      <string>Fit angle-dependent width (Caglioti U, V, W)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="fitRow">
      <item>
       <widget class="QPushButton" name="button_fit">
        <property name="text">
-        <string>Fit FWHM</string>
+        <string>Fit</string>
        </property>
       </widget>
      </item>

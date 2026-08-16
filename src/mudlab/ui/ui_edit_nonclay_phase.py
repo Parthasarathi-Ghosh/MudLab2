@@ -83,6 +83,16 @@ class Ui_EditNonClayPhaseWidget(object):
 
         self.topForm.setLayout(3, QFormLayout.ItemRole.FieldRole, self.fwhmRow)
 
+        self.lbl_caglioti_caption = QLabel(EditNonClayPhaseWidget)
+        self.lbl_caglioti_caption.setObjectName(u"lbl_caglioti_caption")
+
+        self.topForm.setWidget(4, QFormLayout.ItemRole.LabelRole, self.lbl_caglioti_caption)
+
+        self.lbl_caglioti = QLabel(EditNonClayPhaseWidget)
+        self.lbl_caglioti.setObjectName(u"lbl_caglioti")
+
+        self.topForm.setWidget(4, QFormLayout.ItemRole.FieldRole, self.lbl_caglioti)
+
 
         self.rootLayout.addLayout(self.topForm)
 
@@ -161,9 +171,14 @@ class Ui_EditNonClayPhaseWidget(object):
 #endif // QT_CONFIG(tooltip)
         self.spin_fwhm.setSuffix(QCoreApplication.translate("EditNonClayPhaseWidget", u" \u00b02\u03b8", None))
 #if QT_CONFIG(tooltip)
-        self.button_calibrate.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Fit the FWHM from a measured standard (e.g. Silicon).", None))
+        self.button_calibrate.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Fit the FWHM (or Caglioti width) from a measured standard (e.g. Silicon).", None))
 #endif // QT_CONFIG(tooltip)
         self.button_calibrate.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Calibrate\u2026", None))
+        self.lbl_caglioti_caption.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Caglioti", None))
+#if QT_CONFIG(tooltip)
+        self.lbl_caglioti.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Angle-dependent width: FWHM\u00b2 = U\u00b7tan\u00b2\u03b8 + V\u00b7tan\u03b8 + W. Set by Calibrate; editing the constant FWHM above reverts to a constant width.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_caglioti.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"\u2014", None))
         self.grpComposition.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Oxide composition (wt %)", None))
 #if QT_CONFIG(tooltip)
         self.edit_formula.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Type a chemical formula (e.g. NaAlSi3O8, CaCO3) to fill the oxides. Only Si/Al/Fe/Ca/Mg/Na/K map to the reported oxides.", None))

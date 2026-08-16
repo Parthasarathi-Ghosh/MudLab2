@@ -53,7 +53,10 @@ class NonClayPhase(RawPatternPhase):
         # CIF reflections [(d_angstrom, intensity 0..100)]; empty for a measured
         # non-clay. Present => the pattern is rendered from these (is_computed).
         self.reflections: list[tuple[float, float]] = []
-        self.fwhm = DEFAULT_FWHM  # deg 2theta, Gaussian FWHM for the render
+        self.fwhm = DEFAULT_FWHM  # deg 2theta, constant Gaussian FWHM for the render
+        # Optional Caglioti angle-dependent width (U, V, W): FWHM(theta)^2 =
+        # U*tan^2(theta) + V*tan(theta) + W (deg^2). None => the constant fwhm.
+        self.caglioti: tuple[float, float, float] | None = None
 
     @property
     def is_computed(self) -> bool:
@@ -68,24 +71,48 @@ class NonClayPhase(RawPatternPhase):
         ]
 
     def set_fwhm(self, fwhm: float) -> None:
+        """Set a constant width (and drop any Caglioti angle dependence)."""
         self.fwhm = max(0.001, float(fwhm))
+        self.caglioti = None
+
+    def set_caglioti(self, u: float, v: float, w: float) -> None:
+        self.caglioti = (float(u), float(v), float(w))
+
+    def clear_caglioti(self) -> None:
+        self.caglioti = None
+
+    def fwhm_at(self, two_theta_deg, caglioti=None):
+        """The Gaussian FWHM (deg 2theta) at a 2theta position: constant
+        ``self.fwhm`` unless a Caglioti (U, V, W) is set/given."""
+        cag = caglioti if caglioti is not None else self.caglioti
+        if cag is None:
+            return self.fwhm
+        u, v, w = cag
+        t = np.tan(np.radians(np.asarray(two_theta_deg, dtype=float) * 0.5))
+        val = u * t * t + v * t + w
+        return np.sqrt(np.maximum(val, 1e-6))
 
     # -- rendering (computed phases) --------------------------------------
-    def render_on_grid(self, two_theta_deg, wavelength_nm, fwhm=None):
+    def render_on_grid(self, two_theta_deg, wavelength_nm, fwhm=None, caglioti=None):
         """Render the reflection list onto a 2theta grid (deg) at
         ``wavelength_nm``: each d-spacing -> its 2theta at that wavelength, a
-        Gaussian of the given/stored FWHM. Zeros when there are no reflections."""
+        Gaussian whose width is the constant ``fwhm`` (or ``self.fwhm``), OR the
+        angle-dependent Caglioti width when ``caglioti``/``self.caglioti`` is set.
+        Zeros when there are no reflections."""
         grid = np.asarray(two_theta_deg, dtype=float)
         y = np.zeros_like(grid)
         if not self.reflections:
             return y
         lam = float(wavelength_nm) * 10.0  # nm -> Angstrom
-        sigma = max(1e-6, (self.fwhm if fwhm is None else float(fwhm)) / 2.35482)
+        cag = caglioti if caglioti is not None else self.caglioti
+        const_fwhm = self.fwhm if fwhm is None else float(fwhm)
         for d, inten in self.reflections:
             s = lam / (2.0 * d)
             if s >= 1.0:
                 continue  # d < lambda/2: no reflection at this wavelength
             tt = np.degrees(2.0 * np.arcsin(s))
+            fwhm_r = float(self.fwhm_at(tt, cag)) if cag is not None else const_fwhm
+            sigma = max(1e-6, fwhm_r / 2.35482)
             y += inten * np.exp(-0.5 * ((grid - tt) / sigma) ** 2)
         return y
 
@@ -123,6 +150,7 @@ class NonClayPhase(RawPatternPhase):
         props["oxides"] = dict(self.oxides)
         props["reflections"] = [[d, i] for d, i in self.reflections]
         props["fwhm"] = float(self.fwhm)
+        props["caglioti"] = list(self.caglioti) if self.caglioti is not None else None
         return data
 
     @classmethod
@@ -134,6 +162,12 @@ class NonClayPhase(RawPatternPhase):
         if props.get("fwhm") is not None:
             try:
                 phase.fwhm = float(props["fwhm"])
+            except (TypeError, ValueError):
+                pass
+        cag = props.get("caglioti")
+        if cag and len(cag) == 3:
+            try:
+                phase.caglioti = (float(cag[0]), float(cag[1]), float(cag[2]))
             except (TypeError, ValueError):
                 pass
         return phase

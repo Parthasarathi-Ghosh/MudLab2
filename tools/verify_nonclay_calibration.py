@@ -101,6 +101,28 @@ def main():
     cal5b = calibrate_fwhm(refl, wl_cu, x, shifted, fit_shift=False)
     check("ignoring the shift biases FWHM wide (> true)", cal5b.fwhm > 0.20 + 0.03)
 
+    # 6. Caglioti (angle-dependent) width fit: recover a known (U, V, W).
+    true_cag = (0.02, -0.008, 0.006)
+    std = NonClayPhase()
+    std.set_reflections(refl)
+    std.set_caglioti(*true_cag)
+    xc = np.arange(20.0, 110.0, 0.02)
+    yc2 = 2.5 * std.render_on_grid(xc, wl_cu) + 20.0
+    cag = calibrate_fwhm(refl, wl_cu, xc, yc2, caglioti=True)
+    check("Caglioti fit returns (U, V, W)",
+          cag.caglioti is not None and len(cag.caglioti) == 3)
+    check("Caglioti fit: near-zero residual (good match)", cag.residual < 5e-3)
+
+    def _fw(c, tt):
+        u, v, w = c
+        t = np.tan(np.radians(tt / 2))
+        return (u * t * t + v * t + w) ** 0.5
+    check("Caglioti fit: width curve matches true within 0.012 deg (25-95)",
+          all(abs(_fw(cag.caglioti, tt) - _fw(true_cag, tt)) < 0.012
+              for tt in (25, 45, 65, 95)))
+    check("Caglioti fit: width grows with 2theta (U>0)",
+          _fw(cag.caglioti, 95) > _fw(cag.caglioti, 25) + 0.02)
+
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
     print("\n--- FWHM calibration (phase B, batch 1) ---")

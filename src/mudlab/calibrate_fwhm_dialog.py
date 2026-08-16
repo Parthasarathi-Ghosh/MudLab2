@@ -106,15 +106,29 @@ class CalibrateFwhmDialog(QDialog):
             )
             return
         self._result = calibrate_fwhm(
-            self._reflections, self._wavelength_nm, self._mx, self._my
+            self._reflections, self._wavelength_nm, self._mx, self._my,
+            caglioti=self.ui.chk_caglioti.isChecked(),
         )
         self.fwhm = self._result.fwhm
-        self.ui.lbl_result.setText(
-            "FWHM = %.3f °2θ    (shift %+.3f°, residual %.3f)"
-            % (self._result.fwhm, self._result.shift, self._result.residual)
-        )
+        if self._result.caglioti is not None:
+            u, v, w = self._result.caglioti
+            self.ui.lbl_result.setText(
+                "Caglioti  U=%.4f  V=%.4f  W=%.4f    (mid FWHM %.3f°, "
+                "shift %+.3f°, residual %.3f)"
+                % (u, v, w, self._result.fwhm, self._result.shift, self._result.residual)
+            )
+        else:
+            self.ui.lbl_result.setText(
+                "FWHM = %.3f °2θ    (shift %+.3f°, residual %.3f)"
+                % (self._result.fwhm, self._result.shift, self._result.residual)
+            )
         self._ok_enabled(True)
         self._draw_preview()
+
+    @property
+    def caglioti(self):
+        """The fitted Caglioti (U, V, W), or None for a constant-FWHM fit."""
+        return self._result.caglioti if self._result is not None else None
 
     def _draw_preview(self) -> None:
         self.axes.clear()

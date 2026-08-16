@@ -66,14 +66,15 @@ def silicon_reflections() -> list:
 
 @dataclass
 class FwhmCalibration:
-    fwhm: float               # fitted FWHM, deg 2theta
+    fwhm: float               # fitted FWHM, deg 2theta (for Caglioti: at a mid angle)
     shift: float              # fitted 2theta displacement (deg); 0 if not fitted
     scale: float              # linear scale of the rendered standard
     offset: float             # flat background
     residual: float           # ||scale*render + offset - measured|| / ||measured||
     two_theta: np.ndarray     # measured grid used for the fit (within fit_range)
     measured: np.ndarray      # measured intensities on that grid
-    fitted: np.ndarray        # scale*render(fwhm) + offset (for an overlay)
+    fitted: np.ndarray        # scale*render + offset (for an overlay)
+    caglioti: tuple | None = None  # (U, V, W) when angle-dependent width was fitted
 
 
 def _linear_fit(rendered, measured):
@@ -101,16 +102,19 @@ def _reflection_span(reflections, wavelength_nm, margin=1.0):
 
 def calibrate_fwhm(reflections, wavelength_nm, measured_x, measured_y,
                    bounds=(0.02, 2.0), fit_range=None, fit_shift=True,
-                   shift_bounds=(-0.5, 0.5)) -> FwhmCalibration:
-    """Fit the FWHM whose rendered standard best matches
+                   shift_bounds=(-0.5, 0.5), caglioti=False) -> FwhmCalibration:
+    """Fit the width whose rendered standard best matches
     ``(measured_x, measured_y)``.
 
     ``fit_shift`` also fits a 2theta displacement (a specimen/goniometer zero
     shift), so it does not leak into the width - without it a shifted scan biases
-    the FWHM too wide. The fit is nested 1-D (outer shift, inner FWHM), both
-    bounded, with a per-trial linear scale + flat-background. ``fit_range`` =
-    (lo, hi) deg 2theta limits the fit (default: the reflections' span at this
-    wavelength). Returns a :class:`FwhmCalibration`."""
+    the width too wide. With ``caglioti=False`` (default) a single constant FWHM
+    is fitted (nested 1-D: outer shift, inner FWHM). With ``caglioti=True`` the
+    angle-dependent Caglioti ``(U, V, W)`` is fitted instead (FWHM(theta)^2 =
+    U*tan^2 + V*tan + W); the result's ``.caglioti`` carries it and ``.fwhm`` is
+    the width at a mid angle (for display). Each trial does a linear scale +
+    flat-background fit. ``fit_range`` = (lo, hi) deg 2theta limits the fit
+    (default: the reflections' span at this wavelength)."""
     x = np.asarray(measured_x, dtype=float)
     y = np.asarray(measured_y, dtype=float)
     standard = NonClayPhase()
@@ -124,6 +128,9 @@ def calibrate_fwhm(reflections, wavelength_nm, measured_x, measured_y,
     if int(win.sum()) < 5:                # too narrow a window: fit the whole scan
         win = np.ones_like(x, dtype=bool)
     xw, yw = x[win], y[win]
+
+    if caglioti:
+        return _calibrate_caglioti(standard, wavelength_nm, xw, yw, shift_bounds)
 
     def _best_at_shift(shift):
         # Rendering on (xw - shift) slides the computed pattern by +shift, so a
@@ -144,3 +151,26 @@ def calibrate_fwhm(reflections, wavelength_nm, measured_x, measured_y,
     rendered = standard.render_on_grid(xw - shift, wavelength_nm, fwhm=fwhm)
     scale, offset, fitted, residual = _linear_fit(rendered, yw)
     return FwhmCalibration(fwhm, shift, scale, offset, residual, xw, yw, fitted)
+
+
+def _calibrate_caglioti(standard, wavelength_nm, xw, yw, shift_bounds):
+    """Fit Caglioti (U, V, W) + a 2theta shift for the angle-dependent width."""
+    from scipy.optimize import minimize
+
+    def objective(params):
+        u, v, w, shift = params
+        if w <= 1e-6 or not (shift_bounds[0] <= shift <= shift_bounds[1]):
+            return 1e9
+        rendered = standard.render_on_grid(xw - shift, wavelength_nm, caglioti=(u, v, w))
+        return _linear_fit(rendered, yw)[3]
+
+    opt = minimize(objective, [0.0, 0.0, 0.01, 0.0], method="Nelder-Mead",
+                   options={"xatol": 1e-5, "fatol": 1e-8, "maxiter": 4000})
+    u, v, w, shift = (float(t) for t in opt.x)
+    w = max(1e-6, w)
+    cag = (u, v, w)
+    rendered = standard.render_on_grid(xw - shift, wavelength_nm, caglioti=cag)
+    scale, offset, fitted, residual = _linear_fit(rendered, yw)
+    mid_tan = np.tan(np.radians(float(np.median(xw)) * 0.5))
+    fwhm_mid = float(np.sqrt(max(1e-6, u * mid_tan * mid_tan + v * mid_tan + w)))
+    return FwhmCalibration(fwhm_mid, shift, scale, offset, residual, xw, yw, fitted, cag)

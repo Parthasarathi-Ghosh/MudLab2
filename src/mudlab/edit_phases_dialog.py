@@ -60,6 +60,7 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.set_properties_widget(self.nonclay_widget)
         self.nonclay_widget.hide()
         self.nonclay_widget.apply_fwhm_to_all.connect(self._apply_fwhm_to_all)
+        self.nonclay_widget.apply_caglioti_to_all.connect(self._apply_caglioti_to_all)
 
         self._phases = list(project.phases) if project is not None else []
         for phase in self._phases:
@@ -192,6 +193,22 @@ class EditPhasesDialog(ObjectStoreDialog):
         for phase in self.project.phases:
             if getattr(phase, "type", None) == "NonClayPhase" and phase.is_computed:
                 phase.set_fwhm(fwhm)
+                phase.rebuild_stored_pattern(wavelength)
+                changed = True
+        if changed:
+            self.project.calculate()
+
+    def _apply_caglioti_to_all(self, caglioti) -> None:
+        """Set the calibrated angle-dependent width on every computed non-clay
+        phase, re-render each, and recompute."""
+        if self.project is None:
+            return
+        gonio = self._project_goniometer()
+        wavelength = gonio.wavelength if gonio is not None else 0.154056
+        changed = False
+        for phase in self.project.phases:
+            if getattr(phase, "type", None) == "NonClayPhase" and phase.is_computed:
+                phase.set_caglioti(*caglioti)
                 phase.rebuild_stored_pattern(wavelength)
                 changed = True
         if changed:

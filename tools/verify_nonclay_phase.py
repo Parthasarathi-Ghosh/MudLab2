@@ -327,6 +327,7 @@ def check_editor(computed_phase, measured_phase):
 
         def __init__(self, *a, **k):
             self.fwhm = 0.33
+            self.caglioti = None      # constant-FWHM calibration
             self.apply_to_all = True
 
         def exec(self):
@@ -377,6 +378,100 @@ def check_calibrate_dialog():
         check("calibrate dialog: apply_to_all reflects the checkbox", dlg.apply_to_all)
     finally:
         cfd.import_pattern = saved
+
+
+def check_caglioti(fixture):
+    """Path-2 (w): angle-dependent Caglioti width - model, editor, dialog, apply-all."""
+    refl = silicon_reflections()
+    wl = 0.154056
+
+    # Model: angle dependence + round-trip + set_fwhm reverts it.
+    p = NonClayPhase()
+    p.set_reflections(refl)
+    p.set_caglioti(0.02, 0.0, 0.005)
+    check("caglioti: width grows with 2theta",
+          float(p.fwhm_at(60.0)) > float(p.fwhm_at(20.0)) + 0.02)
+    rt = NonClayPhase.from_dict(p.to_dict())
+    check("caglioti: round-trips in the .mud dict",
+          rt.caglioti is not None and np.allclose(rt.caglioti, (0.02, 0.0, 0.005)))
+    p.set_fwhm(0.13)
+    check("caglioti: set_fwhm reverts to a constant width", p.caglioti is None)
+
+    # Editor: a Caglioti calibration result is applied + displayed; a constant
+    # FWHM edit reverts it; apply-to-all emits the tuple.
+    comp = NonClayPhase(name="Q")
+    comp.set_reflections(refl)
+    comp.set_fwhm(0.10)
+    w = EditNonClayPhaseWidget()
+    emitted = {"v": None}
+    w.apply_caglioti_to_all.connect(lambda t: emitted.__setitem__("v", t))
+    w.bind_nonclay_phase(comp, wavelength_nm=wl)
+    check("editor: Caglioti row hidden for a constant-FWHM phase",
+          w.ui.lbl_caglioti.isHidden())
+
+    class _FakeCaglioti:
+        DialogCode = CalibrateFwhmDialog.DialogCode
+
+        def __init__(self, *a, **k):
+            self.fwhm = 0.11
+            self.caglioti = (0.02, -0.005, 0.006)
+            self.apply_to_all = True
+
+        def exec(self):
+            return self.DialogCode.Accepted
+
+    saved = enw.CalibrateFwhmDialog
+    enw.CalibrateFwhmDialog = _FakeCaglioti
+    try:
+        w._on_calibrate()
+    finally:
+        enw.CalibrateFwhmDialog = saved
+    check("editor: calibrate sets Caglioti on the phase",
+          comp.caglioti is not None and np.allclose(comp.caglioti, (0.02, -0.005, 0.006)))
+    check("editor: Caglioti row shown after applying",
+          not w.ui.lbl_caglioti.isHidden() and "U=" in w.ui.lbl_caglioti.text())
+    check("editor: Caglioti apply-to-all emits the tuple",
+          emitted["v"] is not None and np.allclose(emitted["v"], (0.02, -0.005, 0.006)))
+    w.ui.spin_fwhm.setValue(0.20)   # a constant edit reverts Caglioti
+    check("editor: a constant FWHM edit reverts Caglioti (+ hides the row)",
+          comp.caglioti is None and w.ui.lbl_caglioti.isHidden())
+
+    # Calibrate dialog: the Caglioti checkbox drives a (U,V,W) fit.
+    std = NonClayPhase()
+    std.set_reflections(refl)
+    std.set_caglioti(0.02, -0.008, 0.006)
+    x = np.arange(20.0, 110.0, 0.02)
+    measured = 2.0 * std.render_on_grid(x, wl) + 20.0
+    saved_ip = cfd.import_pattern
+    cfd.import_pattern = lambda *a, **k: (x, measured)
+    try:
+        dlg = CalibrateFwhmDialog(None, wavelength_nm=wl)
+        dlg._on_load_measured()
+        dlg.ui.chk_caglioti.setChecked(True)
+        dlg._on_fit()
+        check("calibrate dialog: Caglioti checkbox -> dialog.caglioti set",
+              dlg.caglioti is not None and len(dlg.caglioti) == 3)
+        check("calibrate dialog: result label reports Caglioti",
+              "Caglioti" in dlg.ui.lbl_result.text())
+    finally:
+        cfd.import_pattern = saved_ip
+
+    # Apply-to-all Caglioti across the project.
+    project = load_mud(fixture)
+    for name in ("Si-1", "Si-2"):
+        ph = NonClayPhase(name=name)
+        ph.set_reflections(refl)
+        ph.set_fwhm(0.10)
+        ph.rebuild_stored_pattern(wl)
+        project.add_phase(ph)
+    ep = EditPhasesDialog(None, project=project)
+    ep._apply_caglioti_to_all((0.03, -0.01, 0.007))
+    computed = [ph for ph in project.phases
+                if getattr(ph, "type", None) == "NonClayPhase" and ph.is_computed]
+    check("apply-to-all Caglioti sets it on every computed phase",
+          len(computed) >= 2 and all(
+              ph.caglioti is not None and np.allclose(ph.caglioti, (0.03, -0.01, 0.007))
+              for ph in computed))
 
 
 def check_apply_to_all(fixture, gonio):
@@ -433,6 +528,7 @@ def main():
     check_editor(phase2b, phase2a)
     check_calibrate_dialog()
     check_apply_to_all(fixture, gonio)
+    check_caglioti(fixture)
     check_edit_phases(fixture, phase2b)
 
     passed = sum(1 for _, ok in results if ok)

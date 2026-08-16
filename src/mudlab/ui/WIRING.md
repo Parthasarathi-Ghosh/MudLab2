@@ -398,9 +398,10 @@ them). Its behaviour is gated by `type == "NonClayPhase"`:
   RENDERS from its reflection list **at the specimen wavelength** (recovered from
   `range_stl = 2 sin θ/λ` via `_wavelength_from_stl`) broadened to `fwhm`
   (`render_on_grid`) - so positions and width are specimen-consistent, like a
-  structural `Phase` but from a fixed stick list (path-2 **phase A**). A MEASURED
-  phase falls back to `_get_raw_intensity`. Either way the fraction Optimize
-  includes it.
+  structural `Phase` but from a fixed stick list (path-2 **phase A**). The width
+  is a constant `fwhm` OR, when `caglioti` (U,V,W) is set, angle-dependent
+  (`fwhm_at`: FWHM² = U·tan²θ+V·tanθ+W, path-2 **(w)**). A MEASURED phase falls
+  back to `_get_raw_intensity`. Either way the fraction Optimize includes it.
 - **(b)** never structurally refined - `enumerate_refinables` only takes
   `type == "Phase"`, so it is excluded for free.
 - **(c)** contributes to composition - DONE (additive). `composition.
@@ -433,9 +434,12 @@ changing it calls `set_fwhm` + `rebuild_stored_pattern` and DOES recompute (the
 pattern changed), unlike an oxide edit. A **Calibrate…** button next to it
 (phase B) opens `CalibrateFwhmDialog` (`nonclay_calibration.calibrate_fwhm` fits
 the width AND a 2theta zero-shift, so displacement does not inflate it, against a
-built-in Silicon standard or a CIF + a measured scan); OK sets the box, and an
-"apply to all" checkbox routes `apply_fwhm_to_all` -> `EditPhasesDialog.
-_apply_fwhm_to_all` across every computed phase (instrumental width is shared).
+built-in Silicon standard or a CIF + a measured scan); a "Fit angle-dependent
+width (Caglioti)" checkbox instead fits (U,V,W) (path-2 (w)), shown in a read-only
+`lbl_caglioti`. OK sets the box/Caglioti, and an "apply to all" checkbox routes
+`apply_fwhm_to_all` / `apply_caglioti_to_all` -> `EditPhasesDialog.
+_apply_fwhm_to_all` / `_apply_caglioti_to_all` across every computed phase
+(instrumental width is shared).
 Persistence: the `.mud` loader +
 `_MODELED` handle `"NonClayPhase"`, and `to_dict`/`from_dict` round-trip the
 reflections + fwhm (a pre-phase-A phase with no reflections stays a baked curve

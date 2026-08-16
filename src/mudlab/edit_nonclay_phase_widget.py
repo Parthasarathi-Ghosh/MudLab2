@@ -28,9 +28,11 @@ from mudlab.ui.ui_edit_nonclay_phase import Ui_EditNonClayPhaseWidget
 
 
 class EditNonClayPhaseWidget(QWidget):
-    # Emitted (with the fitted FWHM) when a calibration asks to apply it to every
-    # computed non-clay phase; EditPhasesDialog does the project-wide update.
+    # Emitted when a calibration asks to apply its width to every computed
+    # non-clay phase; EditPhasesDialog does the project-wide update. One carries
+    # a constant FWHM, the other a Caglioti (U, V, W) tuple.
     apply_fwhm_to_all = Signal(float)
+    apply_caglioti_to_all = Signal(tuple)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -88,9 +90,19 @@ class EditNonClayPhaseWidget(QWidget):
             # The field cell is a layout (spinbox + Calibrate button), so gate the
             # row via its label widget.
             self.ui.topForm.setRowVisible(self.ui.lbl_fwhm, computed)
+            self._sync_caglioti_display(computed)
         finally:
             self._updating = False
         self._refresh()
+
+    def _sync_caglioti_display(self, computed: bool) -> None:
+        """Show the Caglioti row only when the phase carries an angle-dependent
+        width; hide it for a constant FWHM or a measured phase."""
+        cag = getattr(self._phase, "caglioti", None) if computed else None
+        if cag is not None:
+            self.ui.lbl_caglioti.setText(
+                "U=%.4f  V=%.4f  W=%.4f  (angle-dependent)" % cag)
+        self.ui.topForm.setRowVisible(self.ui.lbl_caglioti_caption, cag is not None)
 
     # ------------------------------------------------------------------
     def _on_name_edited(self) -> None:
@@ -116,24 +128,46 @@ class EditNonClayPhaseWidget(QWidget):
     def _on_fwhm_changed(self, value) -> None:
         if self._phase is None or self._updating or not self._phase.is_computed:
             return
-        # Width DOES change the pattern: re-render from the reflection list and
-        # recompute (unlike an oxide edit).
+        # A constant-width edit reverts any Caglioti angle dependence (set_fwhm
+        # clears it). Width DOES change the pattern: re-render + recompute.
         self._phase.set_fwhm(value)
         self._phase.rebuild_stored_pattern(self._wavelength_nm)
+        self._sync_caglioti_display(True)  # caglioti now cleared -> hide the row
         self._update_info()
         self._update_figure()
         self._notify()
 
     def _on_calibrate(self) -> None:
-        """Fit the FWHM from a measured standard and apply it to the spinbox
-        (which re-renders + recomputes via _on_fwhm_changed)."""
+        """Fit the width from a measured standard and apply it: a constant FWHM
+        (via the spinbox) or an angle-dependent Caglioti (U, V, W)."""
         if self._phase is None or not self._phase.is_computed:
             return
         dialog = CalibrateFwhmDialog(self, wavelength_nm=self._wavelength_nm)
-        if dialog.exec() == CalibrateFwhmDialog.DialogCode.Accepted and dialog.fwhm:
-            self.ui.spin_fwhm.setValue(dialog.fwhm)  # this phase (re-renders)
+        if dialog.exec() != CalibrateFwhmDialog.DialogCode.Accepted or not dialog.fwhm:
+            return
+        if dialog.caglioti is not None:
+            self._apply_caglioti(dialog.caglioti)
+            if dialog.apply_to_all:
+                self.apply_caglioti_to_all.emit(tuple(dialog.caglioti))
+        else:
+            self.ui.spin_fwhm.setValue(dialog.fwhm)  # constant (re-renders)
             if dialog.apply_to_all:
                 self.apply_fwhm_to_all.emit(dialog.fwhm)
+
+    def _apply_caglioti(self, caglioti) -> None:
+        """Set an angle-dependent width on the bound phase, re-render + recompute,
+        and reflect it in the editor (the spinbox shows a mid-angle width)."""
+        self._phase.set_caglioti(*caglioti)
+        self._phase.rebuild_stored_pattern(self._wavelength_nm)
+        self._updating = True  # a display-only spinbox change must not clear caglioti
+        try:
+            self.ui.spin_fwhm.setValue(float(self._phase.fwhm_at(30.0)))
+        finally:
+            self._updating = False
+        self._sync_caglioti_display(True)
+        self._update_info()
+        self._update_figure()
+        self._notify()
 
     def _notify(self) -> None:
         if self._on_changed is not None:

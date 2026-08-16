@@ -96,6 +96,11 @@ class Ui_CalibrateFwhmDialog(object):
 
         self.dialogLayout.addLayout(self.form)
 
+        self.chk_caglioti = QCheckBox(CalibrateFwhmDialog)
+        self.chk_caglioti.setObjectName(u"chk_caglioti")
+
+        self.dialogLayout.addWidget(self.chk_caglioti)
+
         self.fitRow = QHBoxLayout()
         self.fitRow.setObjectName(u"fitRow")
         self.button_fit = QPushButton(CalibrateFwhmDialog)
@@ -149,7 +154,11 @@ class Ui_CalibrateFwhmDialog(object):
         self.button_measured.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Open\u2026", None))
         self.lbl_wavelength_caption.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Wavelength", None))
         self.lbl_wavelength.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"\u2014", None))
-        self.button_fit.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Fit FWHM", None))
+#if QT_CONFIG(tooltip)
+        self.chk_caglioti.setToolTip(QCoreApplication.translate("CalibrateFwhmDialog", u"Fit an angle-dependent width (Caglioti U,V,W: FWHM\u00b2 = U\u00b7tan\u00b2\u03b8 + V\u00b7tan\u03b8 + W) instead of one constant FWHM. Needs a standard scan spanning a wide 2\u03b8 range.", None))
+#endif // QT_CONFIG(tooltip)
+        self.chk_caglioti.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Fit angle-dependent width (Caglioti U, V, W)", None))
+        self.button_fit.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Fit", None))
         self.lbl_result.setText(QCoreApplication.translate("CalibrateFwhmDialog", u"Open a measured pattern, then Fit.", None))
         self.grpPreview.setTitle(QCoreApplication.translate("CalibrateFwhmDialog", u"Fit preview (measured vs fitted standard)", None))
 #if QT_CONFIG(tooltip)

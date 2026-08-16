@@ -84,7 +84,7 @@
        <item>
         <widget class="QPushButton" name="button_calibrate">
          <property name="toolTip">
-          <string>Fit the FWHM from a measured standard (e.g. Silicon).</string>
+          <string>Fit the FWHM (or Caglioti width) from a measured standard (e.g. Silicon).</string>
          </property>
          <property name="text">
           <string>Calibrate…</string>
@@ -92,6 +92,23 @@
         </widget>
        </item>
       </layout>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lbl_caglioti_caption">
+       <property name="text">
+        <string>Caglioti</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLabel" name="lbl_caglioti">
+       <property name="toolTip">
+        <string>Angle-dependent width: FWHM² = U·tan²θ + V·tanθ + W. Set by Calibrate; editing the constant FWHM above reverts to a constant width.</string>
+       </property>
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
