@@ -1528,8 +1528,11 @@ nothing. Guards: `verify_pattern_preview` + `verify_data_op_preview`.
   handles it unchanged). **Keep 0 % = the classic strip** (flatten onto the
   line), 100 % = unchanged; the separate "straight line" mode was dropped as
   redundant. `noise_level` is retained and auto-estimated on a range change (old
-  `compute_strip_pattern` estimate; user-overridable, 0 for a clean result), so
-  Keep 0 % + noise reproduces the old strip exactly. verify_strip_reduce.py.
+  `compute_strip_pattern` estimate) - but once the user edits it by hand the value
+  STICKS (`_noise_user_set`, set by `_on_noise_changed`; auto-estimates route
+  through `_set_noise` guarded by `_setting_noise`), so nudging the range never
+  clobbers a chosen value. Keep 0 % + noise reproduces the old strip exactly.
+  verify_strip_reduce.py.
 - **Peak Properties** (`peak_properties.ui`): start/end; area/FWHM recompute
   **live** on every position change. Read-only - it never touches the pattern,
   hence no OK button.

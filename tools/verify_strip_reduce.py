@@ -138,6 +138,15 @@ def check_dialog():
     check("range change auto-estimates the noise floor (strip parity)",
           abs(dlg.ui.noise_level.value() - want) < 1e-2)
 
+    # A hand-set noise value is sticky: later range changes must not clobber it.
+    dlg.ui.noise_level.setValue(0.77)
+    dlg.ui.strip_endx.setValue(float(x[max(0, peak_i + 6)]))   # nudge the range
+    check("hand-set noise survives a range change (auto-estimate defers)",
+          abs(dlg.ui.noise_level.value() - 0.77) < 1e-9)
+    dlg.ui.strip_startx.setValue(float(x[max(0, peak_i - 10)]))
+    check("hand-set noise still survives another range change",
+          abs(dlg.ui.noise_level.value() - 0.77) < 1e-9)
+
     # Keep 0 + noise 0 -> flatten onto the endpoint line (the classic strip).
     spec_a = _fixture_specimen()
     xa, ya = (np.asarray(a, float) for a in spec_a.experimental_pattern)

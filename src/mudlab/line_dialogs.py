@@ -456,15 +456,34 @@ class StripPeakDialog(_RangeSelectMixin, _SpecimenDialog):
 
     def __init__(self, parent: QWidget | None = None, specimen=None) -> None:
         super().__init__(Ui_StripPeakDialog, parent, specimen)
-        # Old update_strip_pattern re-estimated the noise level whenever an
-        # endpoint moved; the user can still override it afterwards.
+        # The noise floor is auto-estimated from the endpoint scatter whenever
+        # the range moves (old update_strip_pattern) - UNLESS the user has set it
+        # by hand, in which case their value sticks (see _on_noise_changed).
+        self._noise_user_set = False
+        self._setting_noise = False
         self.ui.strip_startx.valueChanged.connect(self._on_range_changed)
         self.ui.strip_endx.valueChanged.connect(self._on_range_changed)
-        self.ui.noise_level.valueChanged.connect(self._update_preview)
+        self.ui.noise_level.valueChanged.connect(self._on_noise_changed)
         self.ui.keep_percent.valueChanged.connect(self._update_preview)
 
     def _range_spinboxes(self):
         return self.ui.strip_startx, self.ui.strip_endx
+
+    def _on_noise_changed(self, *_args) -> None:
+        # A hand edit makes the noise value sticky; a programmatic auto-estimate
+        # (routed through _set_noise) does not.
+        if not self._setting_noise:
+            self._noise_user_set = True
+        self._update_preview()
+
+    def _set_noise(self, value: float) -> None:
+        """Set the noise spinbox from an auto-estimate without marking it as
+        user-set."""
+        self._setting_noise = True
+        try:
+            self.ui.noise_level.setValue(value)
+        finally:
+            self._setting_noise = False
 
     def _current_pattern(self):
         """The StripPattern that would be applied (None if the range is
@@ -482,12 +501,14 @@ class StripPeakDialog(_RangeSelectMixin, _SpecimenDialog):
         if self._specimen is None:
             return
         # Auto-estimate the noise floor from the endpoint scatter (old strip
-        # behaviour) so a plain strip looks natural; the user can override it.
-        strip = self._specimen.compute_strip_pattern(
-            self.ui.strip_startx.value(), self.ui.strip_endx.value()
-        )
-        if strip is not None:
-            self.ui.noise_level.setValue(strip.noise_level)
+        # behaviour) so a plain strip looks natural - but never clobber a value
+        # the user has set by hand.
+        if not self._noise_user_set:
+            strip = self._specimen.compute_strip_pattern(
+                self.ui.strip_startx.value(), self.ui.strip_endx.value()
+            )
+            if strip is not None:
+                self._set_noise(strip.noise_level)
         self._update_preview()
 
     def _compute_preview(self):
