@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CalibrateFwhmDialog</class>
+ <widget class="QDialog" name="CalibrateFwhmDialog">
+  <property name="windowTitle">
+   <string>Calibrate peak FWHM</string>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>560</width>
+    <height>420</height>
+   </size>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <widget class="QLabel" name="lbl_intro">
+     <property name="text">
+      <string>Fit the instrumental peak width by matching a standard's computed pattern to a measured scan of that standard. A 2θ zero-shift is fitted too, so displacement does not inflate the width.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="form">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_standard_caption">
+       <property name="text">
+        <string>Standard</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="standardRow">
+       <item>
+        <widget class="QLabel" name="lbl_standard">
+         <property name="text">
+          <string>Silicon (built-in)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="stdSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="button_standard">
+         <property name="toolTip">
+          <string>Use a different standard's CIF instead of the built-in Silicon.</string>
+         </property>
+         <property name="text">
+          <string>Use CIF…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_measured_caption">
+       <property name="text">
+        <string>Measured pattern</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="measuredRow">
+       <item>
+        <widget class="QLabel" name="lbl_measured">
+         <property name="text">
+          <string>none loaded</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="measSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="button_measured">
+         <property name="text">
+          <string>Open…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_wavelength_caption">
+       <property name="text">
+        <string>Wavelength</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="lbl_wavelength">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="fitRow">
+     <item>
+      <widget class="QPushButton" name="button_fit">
+       <property name="text">
+        <string>Fit FWHM</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_result">
+       <property name="text">
+        <string>Open a measured pattern, then Fit.</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpPreview">
+     <property name="title">
+      <string>Fit preview (measured vs fitted standard)</string>
+     </property>
+     <layout class="QVBoxLayout" name="previewLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="chk_apply_all">
+     <property name="toolTip">
+      <string>Also set this fitted width on every other CIF-derived non-clay phase in the project (instrumental width is shared across them).</string>
+     </property>
+     <property name="text">
+      <string>Apply to all computed non-clay phases</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

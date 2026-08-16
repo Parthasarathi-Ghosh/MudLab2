@@ -59,6 +59,7 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.nonclay_widget = EditNonClayPhaseWidget(self)
         self.set_properties_widget(self.nonclay_widget)
         self.nonclay_widget.hide()
+        self.nonclay_widget.apply_fwhm_to_all.connect(self._apply_fwhm_to_all)
 
         self._phases = list(project.phases) if project is not None else []
         for phase in self._phases:
@@ -179,6 +180,22 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.ui.edit_objects_treeview.setCurrentIndex(
             self.objects_model.index(first_row, 0)
         )
+
+    def _apply_fwhm_to_all(self, fwhm: float) -> None:
+        """Set the calibrated FWHM on every computed non-clay phase in the
+        project (instrumental width is shared), re-render each, and recompute."""
+        if self.project is None:
+            return
+        gonio = self._project_goniometer()
+        wavelength = gonio.wavelength if gonio is not None else 0.154056
+        changed = False
+        for phase in self.project.phases:
+            if getattr(phase, "type", None) == "NonClayPhase" and phase.is_computed:
+                phase.set_fwhm(fwhm)
+                phase.rebuild_stored_pattern(wavelength)
+                changed = True
+        if changed:
+            self.project.calculate()
 
     def _project_goniometer(self):
         """A goniometer to compute a CIF pattern at the project's wavelength

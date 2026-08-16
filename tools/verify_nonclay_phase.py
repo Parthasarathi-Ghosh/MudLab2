@@ -40,9 +40,12 @@ app = QApplication.instance() or QApplication([])
 # Stub modal popups so a head-less run never blocks on a dialog.
 QMessageBox.warning = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
 
+import mudlab.calibrate_fwhm_dialog as cfd
+import mudlab.edit_nonclay_phase_widget as enw
 import mudlab.import_nonclay_dialog as ind
 from mudlab.calculations.phases import get_diffracted_intensity
 from mudlab.calculations.refinement import enumerate_refinables
+from mudlab.calibrate_fwhm_dialog import CalibrateFwhmDialog
 from mudlab.edit_nonclay_phase_widget import EditNonClayPhaseWidget
 from mudlab.edit_phases_dialog import EditPhasesDialog
 from mudlab.file_parsers.mud_project import load_mud, save_mud
@@ -50,6 +53,8 @@ from mudlab.import_nonclay_dialog import ImportNonClayDialog
 from mudlab.models import Goniometer
 from mudlab.models.nonclay_phase import NonClayPhase
 from mudlab.nonclay.structure import reflections_from_cif
+from mudlab.nonclay_calibration import silicon_reflections
+from PySide6.QtWidgets import QDialogButtonBox
 
 results: list[tuple[str, bool]] = []
 
@@ -185,6 +190,42 @@ def check_import_dialog(gonio):
     return dlg.phase, dlg2.phase
 
 
+def check_computed_persistence(fixture, gonio):
+    """A COMPUTED (CIF) phase round-trips its reflections + FWHM + oxides through
+    a full .mud save/reload (the plain check_persistence uses a measured phase)."""
+    tmp = os.path.join(tempfile.gettempdir(), "mudlab_cp_%d.cif" % os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(_QUARTZ_CIF)
+    try:
+        reflections, oxides = reflections_from_cif(tmp, gonio)
+    finally:
+        os.remove(tmp)
+    p = NonClayPhase(name="Quartz-CIF")
+    p.set_reflections(reflections)
+    p.set_fwhm(0.23)
+    p.set_oxides(oxides)
+    p.rebuild_stored_pattern(gonio.wavelength)
+
+    project = load_mud(fixture)
+    project.add_phase(p)
+    out = os.path.join(tempfile.gettempdir(), "mudlab_cp_%d.mud" % os.getpid())
+    save_mud(project, out)
+    try:
+        reloaded = load_mud(out)
+    finally:
+        if os.path.isfile(out):
+            os.remove(out)
+    computed = [ph for ph in reloaded.phases
+                if getattr(ph, "type", None) == "NonClayPhase" and ph.is_computed]
+    check("computed persistence: one computed NonClayPhase reloads", len(computed) == 1)
+    if computed:
+        q = computed[0]
+        check("computed persistence: FWHM + oxides + reflections survive",
+              abs(q.fwhm - 0.23) < 1e-9 and q.oxides == {"SiO2": 100.0}
+              and len(q.reflections) == len(reflections)
+              and np.allclose(sorted(q.reflections), sorted(reflections)))
+
+
 def check_render(gonio):
     """Model + calc: a computed phase renders at the specimen wavelength (so
     positions move with lambda), tunes width, and round-trips its reflections."""
@@ -253,10 +294,89 @@ def check_editor(computed_phase, measured_phase):
     check("editor: name edit writes + notifies",
           w._phase.name == "Quartz nc" and calls["n"] == n0 + 2)
 
-    # Measured phase: no reflection list, so the FWHM row is hidden.
+    check("editor: Calibrate button shown for a computed phase",
+          not w.ui.button_calibrate.isHidden())
+
+    # The Calibrate button applies the dialog's fitted FWHM (fake the dialog so
+    # the modal exec does not block head-less); apply-to-all emits the signal.
+    emitted = {"v": None}
+    w.apply_fwhm_to_all.connect(lambda v: emitted.__setitem__("v", v))
+
+    class _FakeCalibrate:
+        DialogCode = CalibrateFwhmDialog.DialogCode
+
+        def __init__(self, *a, **k):
+            self.fwhm = 0.33
+            self.apply_to_all = True
+
+        def exec(self):
+            return self.DialogCode.Accepted
+
+    saved = enw.CalibrateFwhmDialog
+    enw.CalibrateFwhmDialog = _FakeCalibrate
+    try:
+        w._on_calibrate()
+    finally:
+        enw.CalibrateFwhmDialog = saved
+    check("editor: Calibrate applies the fitted FWHM to the phase",
+          abs(w._phase.fwhm - 0.33) < 1e-9)
+    check("editor: apply-to-all emits the signal with the FWHM",
+          emitted["v"] is not None and abs(emitted["v"] - 0.33) < 1e-9)
+
+    # Measured phase: no reflection list, so the FWHM row (incl. Calibrate) hides.
     w2 = EditNonClayPhaseWidget()
     w2.bind_nonclay_phase(measured_phase)
     check("editor: FWHM row hidden for a measured phase", w2.ui.spin_fwhm.isHidden())
+    check("editor: Calibrate button hidden for a measured phase",
+          w2.ui.button_calibrate.isHidden())
+
+
+def check_calibrate_dialog():
+    wl = 0.154056
+    x = np.arange(20.0, 90.0, 0.02)
+    standard = NonClayPhase()
+    standard.set_reflections(silicon_reflections())
+    measured = 3.0 * standard.render_on_grid(x, wl, fwhm=0.21) + 30.0  # scale+bg
+
+    saved = cfd.import_pattern
+    cfd.import_pattern = lambda *a, **k: (x, measured)
+    try:
+        dlg = CalibrateFwhmDialog(None, wavelength_nm=wl)
+        ok = dlg.ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        check("calibrate dialog: standard defaults to built-in Silicon",
+              "Silicon" in dlg.ui.lbl_standard.text())
+        check("calibrate dialog: OK disabled before a fit", not ok.isEnabled())
+        dlg._on_load_measured()
+        dlg._on_fit()
+        check("calibrate dialog: fit recovers the FWHM (~0.21)",
+              dlg.fwhm is not None and abs(dlg.fwhm - 0.21) < 0.02)
+        check("calibrate dialog: OK enabled after a fit", ok.isEnabled())
+        check("calibrate dialog: result label reports the FWHM",
+              "FWHM" in dlg.ui.lbl_result.text())
+        dlg.ui.chk_apply_all.setChecked(True)
+        check("calibrate dialog: apply_to_all reflects the checkbox", dlg.apply_to_all)
+    finally:
+        cfd.import_pattern = saved
+
+
+def check_apply_to_all(fixture, gonio):
+    """EditPhasesDialog._apply_fwhm_to_all sets the calibrated width on every
+    computed non-clay phase in the project."""
+    project = load_mud(fixture)
+    phases = []
+    for name in ("Si-A", "Si-B"):
+        p = NonClayPhase(name=name)
+        p.set_reflections(silicon_reflections())
+        p.set_fwhm(0.10)
+        p.rebuild_stored_pattern(gonio.wavelength)
+        project.add_phase(p)
+        phases.append(p)
+    ep = EditPhasesDialog(None, project=project)
+    ep._apply_fwhm_to_all(0.44)
+    check("apply-to-all sets FWHM on every computed non-clay phase",
+          all(abs(p.fwhm - 0.44) < 1e-9 for p in phases))
+    check("apply-to-all re-renders each pattern (raw_pattern reflects new width)",
+          all(p.raw_pattern_x.size > 2 for p in phases))
 
 
 def check_edit_phases(fixture, nonclay_phase):
@@ -287,9 +407,12 @@ def main():
 
     phase, x = check_model()
     check_persistence(fixture, phase, x)
+    check_computed_persistence(fixture, gonio)
     check_render(gonio)
     phase2a, phase2b = check_import_dialog(gonio)
     check_editor(phase2b, phase2a)
+    check_calibrate_dialog()
+    check_apply_to_all(fixture, gonio)
     check_edit_phases(fixture, phase2b)
 
     passed = sum(1 for _, ok in results if ok)

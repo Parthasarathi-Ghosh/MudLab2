@@ -207,12 +207,9 @@ def _oxide_composition(full_atoms):
     return {ox: 100.0 * v / total for ox, v in totals.items()}
 
 
-def _cif_cell_atoms(path):
-    """Parse + symmetry-expand a CIF into ``(cell, full_atoms, wk)``. Raises
-    ValueError with a clear message if the CIF is unusable. Shared by
-    ``reference_from_cif`` and ``reflections_from_cif``."""
-    with open(path, encoding="utf-8", errors="replace") as handle:
-        text = handle.read()
+def _cif_cell_atoms_text(text):
+    """Parse + symmetry-expand CIF ``text`` into ``(cell, full_atoms, wk)``.
+    Raises ValueError with a clear message if the CIF is unusable."""
     wk, known = _load_wk()
     cell, sym, atoms = _parse_cif(text, known)
     if cell[0] is None:
@@ -225,6 +222,32 @@ def _cif_cell_atoms(path):
     if not atoms:
         raise ValueError("The CIF has no atom sites with recognised elements.")
     return cell, _expand(atoms, sym), wk
+
+
+def _cif_cell_atoms(path):
+    """Read a CIF file and parse it (see :func:`_cif_cell_atoms_text`)."""
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        return _cif_cell_atoms_text(handle.read())
+
+
+def _reflections_and_oxides(cell, full, wk, wavelength, tt_lo, tt_hi):
+    """Shared body: sticks -> ``([(d_angstrom, intensity)], oxide%)`` with the
+    strongest reflection normalised to 100. Systematically absent reflections
+    (``|F|^2 ~ 0`` - e.g. diamond 200) and negligible ones are dropped: they add
+    nothing to the render and would only bloat the stored list."""
+    sticks = _stick(cell, full, wk, wavelength, tt_lo=tt_lo, tt_hi=tt_hi)
+    imax = max((i for _tt, i in sticks), default=0.0)
+    if imax <= 0:
+        raise ValueError("The structure produced no reflections in range.")
+    reflections = []
+    for tt, inten in sticks:
+        if inten <= imax * 1e-6:       # forbidden / negligible
+            continue
+        sin_theta = np.sin(np.radians(tt * 0.5))
+        if sin_theta <= 0:
+            continue
+        reflections.append((wavelength / (2.0 * sin_theta), 100.0 * inten / imax))
+    return reflections, _oxide_composition(full)
 
 
 def reference_from_cif(path, goniometer, name=None, fwhm=0.10,
@@ -249,18 +272,15 @@ def reflections_from_cif(path, goniometer, tt_lo=4.0, tt_hi=80.0):
     and clear ValueErrors as :func:`reference_from_cif`."""
     cell, full, wk = _cif_cell_atoms(path)
     wavelength = float(goniometer.wavelength) * 10.0  # nm -> Angstrom
-    sticks = _stick(cell, full, wk, wavelength, tt_lo=tt_lo, tt_hi=tt_hi)
-    if not sticks:
-        raise ValueError("The structure produced no reflections in range.")
-    reflections = []
-    for tt, inten in sticks:
-        sin_theta = np.sin(np.radians(tt * 0.5))
-        if sin_theta <= 0:
-            continue
-        reflections.append((wavelength / (2.0 * sin_theta), float(inten)))
-    imax = max((i for _d, i in reflections), default=0.0) or 1.0
-    reflections = [(float(d), 100.0 * i / imax) for d, i in reflections]
-    return reflections, _oxide_composition(full)
+    return _reflections_and_oxides(cell, full, wk, wavelength, tt_lo, tt_hi)
+
+
+def reflections_from_cif_text(text, goniometer, tt_lo=4.0, tt_hi=80.0):
+    """Like :func:`reflections_from_cif` but from CIF ``text`` (for a built-in
+    standard embedded as a string, e.g. the FWHM-calibration Silicon)."""
+    cell, full, wk = _cif_cell_atoms_text(text)
+    wavelength = float(goniometer.wavelength) * 10.0  # nm -> Angstrom
+    return _reflections_and_oxides(cell, full, wk, wavelength, tt_lo, tt_hi)
 
 
 def _reference_from_atoms(full, cell, wk, wavelength, name, fwhm, tt_lo, tt_hi):

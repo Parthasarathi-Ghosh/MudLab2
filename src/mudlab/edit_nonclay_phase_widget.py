@@ -17,8 +17,10 @@ from typing import Callable
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
+from mudlab.calibrate_fwhm_dialog import CalibrateFwhmDialog
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
 from mudlab.oxide_grid import OxideGrid
 from mudlab.qt_utils import ColorButton
@@ -26,6 +28,10 @@ from mudlab.ui.ui_edit_nonclay_phase import Ui_EditNonClayPhaseWidget
 
 
 class EditNonClayPhaseWidget(QWidget):
+    # Emitted (with the fitted FWHM) when a calibration asks to apply it to every
+    # computed non-clay phase; EditPhasesDialog does the project-wide update.
+    apply_fwhm_to_all = Signal(float)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.ui = Ui_EditNonClayPhaseWidget()
@@ -48,6 +54,7 @@ class EditNonClayPhaseWidget(QWidget):
         self.ui.nonclay_name.editingFinished.connect(self._on_name_edited)
         self.ui.button_normalize.clicked.connect(self.grid.normalize)
         self.ui.spin_fwhm.valueChanged.connect(self._on_fwhm_changed)
+        self.ui.button_calibrate.clicked.connect(self._on_calibrate)
 
         self.setEnabled(False)
         self._refresh()
@@ -74,7 +81,9 @@ class EditNonClayPhaseWidget(QWidget):
             computed = phase is not None and phase.is_computed
             if computed:
                 self.ui.spin_fwhm.setValue(phase.fwhm)
-            self.ui.topForm.setRowVisible(self.ui.spin_fwhm, computed)
+            # The field cell is a layout (spinbox + Calibrate button), so gate the
+            # row via its label widget.
+            self.ui.topForm.setRowVisible(self.ui.lbl_fwhm, computed)
         finally:
             self._updating = False
         self._refresh()
@@ -110,6 +119,17 @@ class EditNonClayPhaseWidget(QWidget):
         self._update_info()
         self._update_figure()
         self._notify()
+
+    def _on_calibrate(self) -> None:
+        """Fit the FWHM from a measured standard and apply it to the spinbox
+        (which re-renders + recomputes via _on_fwhm_changed)."""
+        if self._phase is None or not self._phase.is_computed:
+            return
+        dialog = CalibrateFwhmDialog(self, wavelength_nm=self._wavelength_nm)
+        if dialog.exec() == CalibrateFwhmDialog.DialogCode.Accepted and dialog.fwhm:
+            self.ui.spin_fwhm.setValue(dialog.fwhm)  # this phase (re-renders)
+            if dialog.apply_to_all:
+                self.apply_fwhm_to_all.emit(dialog.fwhm)
 
     def _notify(self) -> None:
         if self._on_changed is not None:

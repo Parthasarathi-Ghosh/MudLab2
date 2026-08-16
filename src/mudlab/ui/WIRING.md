@@ -421,7 +421,13 @@ oxide sum > 0). Selecting a NonClayPhase shows `EditNonClayPhaseWidget`
 (`ui/edit_nonclay_phase.ui`) - an editable oxide grid + preview + a **Peak FWHM**
 spinbox shown ONLY for a computed phase (`setRowVisible` on `is_computed`);
 changing it calls `set_fwhm` + `rebuild_stored_pattern` and DOES recompute (the
-pattern changed), unlike an oxide edit. Persistence: the `.mud` loader +
+pattern changed), unlike an oxide edit. A **Calibrate…** button next to it
+(phase B) opens `CalibrateFwhmDialog` (`nonclay_calibration.calibrate_fwhm` fits
+the width AND a 2theta zero-shift, so displacement does not inflate it, against a
+built-in Silicon standard or a CIF + a measured scan); OK sets the box, and an
+"apply to all" checkbox routes `apply_fwhm_to_all` -> `EditPhasesDialog.
+_apply_fwhm_to_all` across every computed phase (instrumental width is shared).
+Persistence: the `.mud` loader +
 `_MODELED` handle `"NonClayPhase"`, and `to_dict`/`from_dict` round-trip the
 reflections + fwhm (a pre-phase-A phase with no reflections stays a baked curve
 on load - clean migration). `composition.reporting_oxides()` is the shared oxide

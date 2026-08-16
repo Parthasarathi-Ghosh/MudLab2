@@ -65,15 +65,23 @@ def _isolation_scan():
     mudlab.nonclay OUTSIDE the sanctioned importers:
       - the ONE NONCLAY-fenced Slice-3 seam (edit_mixture_widget.py), which is
         only allowed when the import sits inside a NONCLAY-marked block;
-      - the experimental path-2 Import Non-Clay dialog (import_nonclay_dialog.py),
-        which reuses nonclay.structure's CIF parser to build a NonClayPhase.
+      - the experimental path-2 files that reuse nonclay.structure's CIF code:
+        import_nonclay_dialog.py (builds a NonClayPhase), nonclay_calibration.py
+        (the FWHM-calibration Silicon standard) and calibrate_fwhm_dialog.py (a
+        CIF standard override).
     Any other import breaks isolation."""
     root = os.path.join(_REPO, "src", "mudlab")
     pkg = os.path.join(root, "nonclay")
     seam = os.path.normpath(os.path.join(root, "edit_mixture_widget.py"))
     # Path-2 (experimental NonClayPhase) legitimately depends on the CIF code;
-    # deleting the nonclay package would also disable the dialog's CIF import.
-    path2 = {os.path.normpath(os.path.join(root, "import_nonclay_dialog.py"))}
+    # deleting the nonclay package would also disable these.
+    path2 = {
+        os.path.normpath(os.path.join(root, name)) for name in (
+            "import_nonclay_dialog.py",
+            "nonclay_calibration.py",
+            "calibrate_fwhm_dialog.py",
+        )
+    }
     offenders = []
     for dirpath, _dirs, files in os.walk(root):
         if os.path.abspath(dirpath).startswith(os.path.abspath(pkg)):

@@ -63,6 +63,8 @@ class Ui_EditNonClayPhaseWidget(object):
 
         self.topForm.setWidget(3, QFormLayout.ItemRole.LabelRole, self.lbl_fwhm)
 
+        self.fwhmRow = QHBoxLayout()
+        self.fwhmRow.setObjectName(u"fwhmRow")
         self.spin_fwhm = QDoubleSpinBox(EditNonClayPhaseWidget)
         self.spin_fwhm.setObjectName(u"spin_fwhm")
         self.spin_fwhm.setDecimals(2)
@@ -71,7 +73,15 @@ class Ui_EditNonClayPhaseWidget(object):
         self.spin_fwhm.setSingleStep(0.050000000000000)
         self.spin_fwhm.setValue(0.100000000000000)
 
-        self.topForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.spin_fwhm)
+        self.fwhmRow.addWidget(self.spin_fwhm)
+
+        self.button_calibrate = QPushButton(EditNonClayPhaseWidget)
+        self.button_calibrate.setObjectName(u"button_calibrate")
+
+        self.fwhmRow.addWidget(self.button_calibrate)
+
+
+        self.topForm.setLayout(3, QFormLayout.ItemRole.FieldRole, self.fwhmRow)
 
 
         self.rootLayout.addLayout(self.topForm)
@@ -135,6 +145,10 @@ class Ui_EditNonClayPhaseWidget(object):
         self.spin_fwhm.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Peak width for the pattern computed from the structure (only for CIF-derived phases). Change it to match your instrument's real peak width; the pattern re-renders live.", None))
 #endif // QT_CONFIG(tooltip)
         self.spin_fwhm.setSuffix(QCoreApplication.translate("EditNonClayPhaseWidget", u" \u00b02\u03b8", None))
+#if QT_CONFIG(tooltip)
+        self.button_calibrate.setToolTip(QCoreApplication.translate("EditNonClayPhaseWidget", u"Fit the FWHM from a measured standard (e.g. Silicon).", None))
+#endif // QT_CONFIG(tooltip)
+        self.button_calibrate.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Calibrate\u2026", None))
         self.grpComposition.setTitle(QCoreApplication.translate("EditNonClayPhaseWidget", u"Oxide composition (wt %)", None))
         self.lbl_sum.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Sum: 0.00 %", None))
         self.button_normalize.setText(QCoreApplication.translate("EditNonClayPhaseWidget", u"Normalize to 100 %", None))
