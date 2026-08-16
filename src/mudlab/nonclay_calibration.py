@@ -53,10 +53,13 @@ _SI_CACHE: list | None = None
 
 def silicon_reflections() -> list:
     """The built-in Silicon standard as ``[(d_angstrom, intensity)]`` (cached).
-    d-spacings are wavelength-independent, so the same list serves any scan."""
+    d-spacings are wavelength-independent, so the same list serves any scan.
+    Computed over a wide 2theta range so it covers low-d lines a longer-wavelength
+    or high-angle scan may reach (the fit window clips to the measured range)."""
     global _SI_CACHE
     if _SI_CACHE is None:
-        refl, _ox = reflections_from_cif_text(_SILICON_CIF, Goniometer())
+        refl, _ox = reflections_from_cif_text(
+            _SILICON_CIF, Goniometer(), tt_lo=4.0, tt_hi=155.0)
         _SI_CACHE = refl
     return list(_SI_CACHE)
 

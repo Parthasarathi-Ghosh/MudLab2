@@ -58,8 +58,9 @@ class NonClayPhase(RawPatternPhase):
     @property
     def is_computed(self) -> bool:
         """True when the pattern is rendered from a CIF reflection list (so the
-        FWHM is tunable), False for a fixed measured curve."""
-        return len(self.reflections) > 1
+        FWHM is tunable), False for a fixed measured curve. Matches the render
+        dispatch, which gates on the list being non-empty."""
+        return bool(self.reflections)
 
     def set_reflections(self, reflections) -> None:
         self.reflections = [

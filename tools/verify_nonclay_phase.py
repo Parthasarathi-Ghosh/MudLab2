@@ -270,6 +270,13 @@ def check_render(gonio):
           q.is_computed and len(q.reflections) == len(reflections)
           and abs(q.fwhm - 0.10) < 1e-9)
 
+    # is_computed must match the render dispatch (non-empty), incl. a lone line.
+    one = NonClayPhase()
+    one.set_reflections([(3.14, 100.0)])
+    grid = np.linspace(20.0, 40.0, 2001)
+    check("is_computed True for a single reflection (matches render dispatch)",
+          one.is_computed and one.render_on_grid(grid, 0.154056).max() > 0)
+
 
 def check_editor(computed_phase, measured_phase):
     # Computed phase: oxides editable, FWHM row shown + tunable.
