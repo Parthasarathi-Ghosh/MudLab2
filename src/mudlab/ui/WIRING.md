@@ -386,6 +386,36 @@ probabilities/components/CSDS tabs (those are a computed `Phase`).
   the raw editor is shown for it, import sets the pattern, name edit
   propagates) + the updated check 2 (raw radio enabled). Harness 75 checks.
 
+#### NonClayPhase (EXPERIMENTAL "path 2", 2026-08-16)
+
+`NonClayPhase` (`models/nonclay_phase.py`) subclasses `RawPatternPhase` and adds
+an `oxides` (`{oxide: wt%}`) dict, so it has a stored pattern AND a declared
+chemistry. Its behaviour is gated by `type == "NonClayPhase"`:
+- **(a)** contributes its stored curve + its fraction is optimised -
+  `phases.get_diffracted_intensity` routes it to `_get_raw_intensity` (same as a
+  raw phase); the fraction Optimize includes it automatically.
+- **(b)** never structurally refined - `enumerate_refinables` only takes
+  `type == "Phase"`, so it is excluded for free.
+- **(c)** contributes to composition - **DEFERRED**; the oxides are stored +
+  editable now, but `mixture_composition` still skips non-`"Phase"`. Wiring a
+  bulk composition is a follow-up, to stay additive so the clay-only
+  `mixture_composition` and the XRF mass balance are untouched.
+
+UI: **"Import Non-Clay"** is an extra button `EditPhasesDialog` adds
+programmatically to the objects frame's spare `extraLayout` (the shared
+`object_store.ui` is untouched). `ImportNonClayDialog` (`import_nonclay_dialog.py`
++ `ui/import_nonclay.ui`) takes a measured pattern (via the shared
+`import_pattern`) OR a CIF with atoms (via `nonclay.structure.reference_from_cif`,
+which returns the pattern AND the derived oxide%); name, `ColorButton`, the
+`OxideGrid` (`oxide_grid.py` - a `QTableWidget` of oxide->wt% with 0-100
+spinboxes, shared with the editor), a pattern preview and validation (name +
+>=2-pt pattern + oxide sum > 0). Selecting a NonClayPhase shows
+`EditNonClayPhaseWidget` (`ui/edit_nonclay_phase.ui`) - an editable oxide grid +
+preview; oxide edits write the phase but do NOT recompute (composition deferred).
+Persistence: the `.mud` loader + `_MODELED` handle `"NonClayPhase"`.
+`composition.reporting_oxides()` is the shared oxide list. Formula parser
+deferred. Guard: `verify_nonclay_phase.py` (26 checks).
+
 ### XRD import parsers (batch 3 DONE)
 
 `file_parsers/xrd_import.parse_pattern(path)` dispatches on extension to the

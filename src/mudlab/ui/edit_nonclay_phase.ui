@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditNonClayPhaseWidget</class>
+ <widget class="QWidget" name="EditNonClayPhaseWidget">
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <layout class="QFormLayout" name="topForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_name">
+       <property name="text">
+        <string>Name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="nonclay_name">
+       <property name="toolTip">
+        <string>The name of this non-clay phase.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_color">
+       <property name="text">
+        <string>Display colour</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QPushButton" name="button_color">
+       <property name="text">
+        <string>#1f77b4</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_info_caption">
+       <property name="text">
+        <string>Pattern</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLabel" name="nonclay_pattern_info">
+       <property name="text">
+        <string>No pattern loaded.</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpComposition">
+     <property name="title">
+      <string>Oxide composition (wt %)</string>
+     </property>
+     <layout class="QVBoxLayout" name="compositionLayout">
+      <item>
+       <widget class="QTableWidget" name="oxide_grid">
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="sumRow">
+        <item>
+         <widget class="QLabel" name="lbl_sum">
+          <property name="text">
+           <string>Sum: 0.00 %</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="sumSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="button_normalize">
+          <property name="text">
+           <string>Normalize to 100 %</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpPreview">
+     <property name="title">
+      <string>Pattern preview</string>
+     </property>
+     <layout class="QVBoxLayout" name="previewLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

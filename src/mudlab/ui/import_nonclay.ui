@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ImportNonClayDialog</class>
+ <widget class="QDialog" name="ImportNonClayDialog">
+  <property name="windowTitle">
+   <string>Import non-clay phase</string>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>620</width>
+    <height>460</height>
+   </size>
+  </property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QFormLayout" name="topForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_name">
+       <property name="text">
+        <string>Phase name</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="edit_name">
+       <property name="placeholderText">
+        <string>e.g. Quartz</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_color">
+       <property name="text">
+        <string>Display colour</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QPushButton" name="button_color">
+       <property name="toolTip">
+        <string>Colour used for this phase's curve on the plot.</string>
+       </property>
+       <property name="text">
+        <string>#1f77b4</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_file">
+       <property name="text">
+        <string>Pattern / structure</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QPushButton" name="button_open_file">
+       <property name="toolTip">
+        <string>A measured pattern (.xy/.txt/.csv/.xrdml/.uxd/.raw/.rasx) - enter oxides by hand; or a CIF with atoms - the pattern and oxides are computed for you.</string>
+       </property>
+       <property name="text">
+        <string>Open file…</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lbl_source_caption">
+       <property name="text">
+        <string>Source</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLabel" name="lbl_source">
+       <property name="text">
+        <string>No file loaded.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lbl_fwhm">
+       <property name="text">
+        <string>CIF peak FWHM</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QDoubleSpinBox" name="spin_fwhm">
+       <property name="toolTip">
+        <string>Peak width used when a pattern is computed from a CIF (ignored for a measured pattern).</string>
+       </property>
+       <property name="suffix">
+        <string> °2θ</string>
+       </property>
+       <property name="decimals">
+        <number>2</number>
+       </property>
+       <property name="minimum">
+        <double>0.010000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>5.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.050000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpBody">
+     <property name="title">
+      <string>Oxide composition (wt %) and pattern preview</string>
+     </property>
+     <layout class="QHBoxLayout" name="bodyLayout">
+      <item>
+       <layout class="QVBoxLayout" name="gridColumn">
+        <item>
+         <widget class="QTableWidget" name="oxide_grid">
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="sumRow">
+          <item>
+           <widget class="QLabel" name="lbl_sum">
+            <property name="text">
+             <string>Sum: 0.00 %</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="sumSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="button_normalize">
+            <property name="toolTip">
+             <string>Scale the entered oxides so they sum to 100 %.</string>
+            </property>
+            <property name="text">
+             <string>Normalize to 100 %</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="previewColumn">
+        <item>
+         <widget class="QLabel" name="lbl_preview">
+          <property name="text">
+           <string>Pattern preview</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="previewLayout"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

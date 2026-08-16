@@ -48,6 +48,17 @@ def load_conversion_table(path: str | None = None) -> "OrderedDict[int, tuple[st
     return table
 
 
+def reporting_oxides(conversion: dict | None = None) -> list[str]:
+    """The distinct reporting oxides in table order (SiO2, Al2O3, Fe2O3, ...) -
+    the oxide set the composition table and the non-clay oxide grid share."""
+    conv = conversion if conversion is not None else load_conversion_table()
+    order: list[str] = []
+    for name, _factor in conv.values():
+        if name not in order:
+            order.append(name)
+    return order
+
+
 def _specimen_name(mixture, index: int) -> str:
     specimen = mixture.specimens[index] if index < len(mixture.specimens) else None
     if specimen is not None and getattr(specimen, "name", ""):

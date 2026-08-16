@@ -72,11 +72,13 @@ def get_diffracted_intensity(range_theta, range_stl, phase):
     Lorentz-polarisation factor."""
     if phase.type == "Phase":
         return _get_diffracted_intensity(range_theta, range_stl, phase)
-    if phase.type == "RawPatternPhase":
+    if phase.type in ("RawPatternPhase", "NonClayPhase"):
+        # A NonClayPhase is a raw phase that also carries a composition; its
+        # diffraction contribution is the stored curve, exactly like a raw phase.
         return _get_raw_intensity(range_theta, range_stl, phase)
     raise NotImplementedError(
-        "Only Phase and RawPatternPhase intensity are ported (got %r)"
-        % phase.type
+        "Only Phase, RawPatternPhase and NonClayPhase intensity are ported "
+        "(got %r)" % phase.type
     )
 
 

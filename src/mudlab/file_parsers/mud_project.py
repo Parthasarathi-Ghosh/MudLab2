@@ -24,8 +24,8 @@ import zipfile
 import numpy as np
 
 from mudlab.models import (
-    AtomType, Goniometer, Marker, Mixture, Phase, Project, RawPatternPhase,
-    Specimen,
+    AtomType, Goniometer, Marker, Mixture, NonClayPhase, Phase, Project,
+    RawPatternPhase, Specimen,
 )
 
 # Version tag written for new files (old-app format version we are
@@ -167,6 +167,8 @@ def load_mud(path: str) -> Project:
             project.add_phase(Phase.from_dict(phase_dict, atom_type_map))
         elif phase_dict.get("type") == "RawPatternPhase":
             project.add_phase(RawPatternPhase.from_dict(phase_dict))
+        elif phase_dict.get("type") == "NonClayPhase":
+            project.add_phase(NonClayPhase.from_dict(phase_dict))
 
     # Resolve every phase cross-reference now that all phases exist (based_on,
     # component links, UCP sources, atom relations). Factored out so .phs phase
@@ -244,7 +246,7 @@ def save_mud(project: Project, path: str) -> None:
     #   - a live phase with no raw entry was ADDED -> append it.
     # Without both halves, Project.add_phase / remove_phase would appear to
     # work in-session and silently revert on reload.
-    _MODELED = ("Phase", "RawPatternPhase")
+    _MODELED = ("Phase", "RawPatternPhase", "NonClayPhase")
     model_by_uuid = {p.uuid: p for p in project.phases}
     seen_uuids = set()
     rebuilt = []

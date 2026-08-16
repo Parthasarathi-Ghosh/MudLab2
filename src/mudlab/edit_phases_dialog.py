@@ -8,13 +8,15 @@ PhasesController; opened by the edit_phases action.
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QPushButton, QWidget
 
 from mudlab.add_phase_dialog import AddPhaseDialog
+from mudlab.edit_nonclay_phase_widget import EditNonClayPhaseWidget
 from mudlab.edit_phase_widget import EditPhaseWidget
 from mudlab.edit_raw_pattern_phase_widget import EditRawPatternPhaseWidget
 from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
 from mudlab.file_parsers.phs_phases import PHS_FILTERS, load_phs, save_phs
+from mudlab.import_nonclay_dialog import ImportNonClayDialog
 from mudlab.models import Project
 from mudlab.models.phase import Phase
 from mudlab.models.raw_pattern_phase import RawPatternPhase
@@ -53,6 +55,10 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.raw_phase_widget = EditRawPatternPhaseWidget(self)
         self.set_properties_widget(self.raw_phase_widget)
         self.raw_phase_widget.hide()
+        # A third editor for the experimental NonClayPhase (oxide grid + preview).
+        self.nonclay_widget = EditNonClayPhaseWidget(self)
+        self.set_properties_widget(self.nonclay_widget)
+        self.nonclay_widget.hide()
 
         self._phases = list(project.phases) if project is not None else []
         for phase in self._phases:
@@ -69,6 +75,15 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.ui.button_save_object.setToolTip(
             "Export the selected phase(s) to a .phs file."
         )
+        # Experimental: an extra button below the standard ones (in the Objects
+        # frame's spare layout) that imports a NonClayPhase.
+        self.button_import_nonclay = QPushButton("Import Non-Clay", self)
+        self.button_import_nonclay.setToolTip(
+            "Import a non-clay phase from a measured pattern or a CIF, with its "
+            "oxide composition."
+        )
+        self.ui.extraLayout.addWidget(self.button_import_nonclay)
+        self.button_import_nonclay.clicked.connect(self._on_import_nonclay)
 
         if self._phases:
             self.ui.edit_objects_treeview.setCurrentIndex(
@@ -147,6 +162,35 @@ class EditPhasesDialog(ObjectStoreDialog):
             self.phase_widget.bind_phase(None)
 
     # ------------------------------------------------------------------
+    # Import Non-Clay (experimental "path 2")
+    # ------------------------------------------------------------------
+    def _on_import_nonclay(self) -> None:
+        if self.project is None:
+            return
+        dialog = ImportNonClayDialog(self, goniometer=self._project_goniometer())
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.phase is None:
+            return
+        phase = dialog.phase
+        self.project.add_phase(phase)
+        first_row = len(self._phases)
+        self._phases.append(phase)
+        self.add_object_row(*self._phase_row_values(phase))
+        # A brand-new phase is not in any mixture yet, so no recompute is needed.
+        self.ui.edit_objects_treeview.setCurrentIndex(
+            self.objects_model.index(first_row, 0)
+        )
+
+    def _project_goniometer(self):
+        """A goniometer to compute a CIF pattern at the project's wavelength
+        (the first specimen's), or None so the dialog falls back to CuKα."""
+        if self.project is None:
+            return None
+        for specimen in self.project.specimens:
+            if specimen is not None and getattr(specimen, "goniometer", None):
+                return specimen.goniometer
+        return None
+
+    # ------------------------------------------------------------------
     # Import / Export (.phs)  (old PhasesController load/save object)
     # ------------------------------------------------------------------
     def _on_import_phases(self) -> None:
@@ -206,25 +250,35 @@ class EditPhasesDialog(ObjectStoreDialog):
             )
 
     def _phase_row_values(self, phase) -> tuple:
-        """(name, R, G) row for the phase list. A raw-pattern phase has no
-        stacking model, so R / G are shown as '—'."""
-        if phase.type == "RawPatternPhase":
-            return (phase.name or "Raw pattern", "—", "—")
+        """(name, R, G) row for the phase list. A raw-pattern or non-clay phase
+        has no stacking model, so R / G are shown as '—'."""
+        if phase.type in ("RawPatternPhase", "NonClayPhase"):
+            default = "Non-clay" if phase.type == "NonClayPhase" else "Raw pattern"
+            return (phase.name or default, "—", "—")
         return (phase.name, str(getattr(phase.probabilities, "R", 0)), str(phase.G))
 
     def _on_phase_selected(self, index: QModelIndex) -> None:
         if not (0 <= index.row() < len(self._phases)):
             return
         phase = self._phases[index.row()]
-        # Show the editor that matches the phase type, hide the other.
-        if phase.type == "RawPatternPhase":
+        # Show the editor that matches the phase type, hide the others.
+        if phase.type == "NonClayPhase":
             self.phase_widget.hide()
+            self.raw_phase_widget.hide()
+            self.nonclay_widget.show()
+            self.nonclay_widget.bind_nonclay_phase(
+                phase, on_changed=lambda p=phase: self._recalculate(p)
+            )
+        elif phase.type == "RawPatternPhase":
+            self.phase_widget.hide()
+            self.nonclay_widget.hide()
             self.raw_phase_widget.show()
             self.raw_phase_widget.bind_raw_phase(
                 phase, on_changed=lambda p=phase: self._recalculate(p)
             )
         else:
             self.raw_phase_widget.hide()
+            self.nonclay_widget.hide()
             self.phase_widget.show()
             atom_types = self.project.atom_types if self.project is not None else []
             self.phase_widget.bind_phase(
