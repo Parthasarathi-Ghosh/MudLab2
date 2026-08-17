@@ -25,17 +25,20 @@ from __future__ import annotations
 
 import random
 import threading
+import time
 from typing import Callable
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
-    QDialog, QDoubleSpinBox, QFormLayout, QHeaderView, QMessageBox,
+    QDialog, QDoubleSpinBox, QGridLayout, QHeaderView, QLabel, QMessageBox,
     QSpinBox, QTableWidgetItem, QWidget,
 )
 
 from mudlab.calculations.refinement import REFINE_METHODS, refine_mixture
+from mudlab.calculations.validation import validation_report_lines
 from mudlab.ui.ui_refinement import Ui_RefinementDialog
 
 
@@ -75,16 +78,26 @@ _HEADERS = ["Parameter", "Value", "Min", "Max", "Refine"]
 # Per-method OUTER-search options (name, label, default, min, max, kind). The
 # inner fraction/scale/bg optimiser keeps its own fixed limits. Old sources:
 # scipy_runs.py (L-BFGS-B / Basin Hopping); indices match REFINE_METHODS.
+# Labels are kept SHORT so two (label, spinbox) pairs fit side by side in the
+# middle frame; _OPTION_TOOLTIPS carries the full meaning.
 _METHOD_OPTIONS = {
     0: [
-        ("maxfun", "Max # function calls", 500, 1, 1_000_000, int),
-        ("maxiter", "Max # iterations", 150, 1, 1_000_000, int),
+        ("maxfun", "Function calls", 500, 1, 1_000_000, int),
+        ("maxiter", "Iterations", 150, 1, 1_000_000, int),
     ],
     1: [
-        ("niter", "Number of iterations", 100, 1, 100_000, int),
+        ("niter", "Iterations", 100, 1, 100_000, int),
         ("T", "Temperature", 1.0, 0.0, 10_000.0, float),
         ("stepsize", "Step size", 0.5, 0.0, 1_000.0, float),
     ],
+}
+
+_OPTION_TOOLTIPS = {
+    "maxfun": "Maximum number of objective-function evaluations.",
+    "maxiter": "Maximum number of solver iterations.",
+    "niter": "Number of basin-hopping iterations (random restarts).",
+    "T": "Basin-hopping temperature: how readily a worse solution is accepted.",
+    "stepsize": "Size of the random displacement between basin-hopping steps.",
 }
 
 
@@ -97,10 +110,11 @@ class RefinementDialog(QDialog):
         # every Refine click otherwise left one hidden dialog (with its
         # refinables table and progress plot) alive for the editor's lifetime.
         # Safe here because (a) the caller does not touch the dialog after
-        # exec() returns, and (b) a running refinement cannot be dismissed into
-        # deletion - _set_running disables buttonBox, and closeEvent cancels and
-        # WAITS for the worker thread, so the QThread is always torn down first.
-        # Note the attribute fires on reject()/done() too, not just the window-X.
+        # exec() returns, and (b) `done()` cancels and WAITS for the worker
+        # thread, so the QThread parented to this dialog is always torn down
+        # before the deletion. That teardown MUST stay in done() - disabling
+        # buttonBox does not stop Esc, and deleting the dialog with a live
+        # QThread aborts the process.
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.ui = Ui_RefinementDialog()
         self.ui.setupUi(self)
@@ -111,14 +125,27 @@ class RefinementDialog(QDialog):
         self._refiner = None
         self._updating = False
         self._option_spins: dict = {}
-        self._options_form = QFormLayout()
+        # The per-method options sit in a GRID of (label, spinbox) pairs, two
+        # pairs per row: the common case (max function calls + max iterations)
+        # then reads as one side-by-side row in the narrow middle frame, and a
+        # method with more options (Basin Hopping has three) wraps instead of
+        # squeezing everything into one line.
+        self._options_form = QGridLayout()
+        self._options_form.setContentsMargins(0, 0, 0, 0)
         self.ui.optionsLayout.addLayout(self._options_form)
         # Background-refinement state (Phase C).
         self._thread: QThread | None = None
         self._worker: _RefineWorker | None = None
         self._stop_event: threading.Event | None = None
         self._cancelled = False
+        self._refine_started: float | None = None
+        self._elapsed: float | None = None
+        self._applied: str | None = None      # "initial" / "best" / "last"
+        self._applied_by_user = False         # False = left there by the run
         self._setup_progress_plot()
+        # The report is fixed-pitch: it is a column-aligned text table.
+        self.ui.txt_report.setFont(
+            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
 
         table = self.ui.tbl_refinables
         table.setColumnCount(len(_HEADERS))
@@ -232,19 +259,37 @@ class RefinementDialog(QDialog):
         stored refine_options[method] or the method defaults."""
         self._updating = True
         try:
-            while self._options_form.rowCount():
-                self._options_form.removeRow(0)
+            # QGridLayout has no removeRow: drop every item and its widget.
+            while self._options_form.count():
+                item = self._options_form.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                    widget.deleteLater()
             self._option_spins = {}
             stored = self._stored_options(method_index)
-            for name, label, default, lo, hi, kind in _METHOD_OPTIONS.get(method_index, []):
+            pairs_per_row = 2
+            for position, (name, label, default, lo, hi, kind) in enumerate(
+                _METHOD_OPTIONS.get(method_index, [])
+            ):
                 spin = QSpinBox() if kind is int else QDoubleSpinBox()
                 if kind is float:
                     spin.setDecimals(3)
                 spin.setRange(lo, hi)
                 spin.setValue(kind(stored.get(name, default)))
                 spin.valueChanged.connect(self._save_options)
-                self._options_form.addRow(label, spin)
+                tip = _OPTION_TOOLTIPS.get(name, "")
+                spin.setToolTip(tip)
+                caption = QLabel(label)
+                caption.setToolTip(tip)
+                row, pair = divmod(position, pairs_per_row)
+                self._options_form.addWidget(caption, row, pair * 2)
+                self._options_form.addWidget(spin, row, pair * 2 + 1)
                 self._option_spins[name] = (spin, kind)
+            # Let the spin columns take the slack, not the labels.
+            for pair in range(pairs_per_row):
+                self._options_form.setColumnStretch(pair * 2, 0)
+                self._options_form.setColumnStretch(pair * 2 + 1, 1)
         finally:
             self._updating = False
 
@@ -292,7 +337,11 @@ class RefinementDialog(QDialog):
         by a timer so a run of thousands of evaluations never floods the GUI - the
         per-eval progress signal only appends a point; the timer redraws at most a
         few times a second, with a final redraw when the run ends."""
-        self._prog_fig = Figure(figsize=(4.0, 1.8))
+        # Keep figsize modest: a FigureCanvas reports figsize x dpi as its
+        # sizeHint, and at 4.0in that was ~560 px, which let the middle frame
+        # hog the three-frame row and squeezed the parameter table into a
+        # horizontal scrollbar. The canvas expands to fill whatever it gets.
+        self._prog_fig = Figure(figsize=(2.2, 1.7))
         self._prog_fig.set_layout_engine("tight")
         self._prog_canvas = FigureCanvasQTAgg(self._prog_fig)
         self._prog_canvas.setMinimumHeight(140)
@@ -355,6 +404,11 @@ class RefinementDialog(QDialog):
 
         self._set_running(True)
         self.ui.lbl_status.setText("Refining...")
+        self._applied = None
+        self._applied_by_user = False
+        self._elapsed = None
+        self._refine_started = time.monotonic()
+        self.ui.txt_report.clear()   # the previous run's report is now stale
         self._start_progress()
         self._thread.start()
 
@@ -377,10 +431,18 @@ class RefinementDialog(QDialog):
     def _on_finished(self, refiner) -> None:
         self._teardown_thread()
         self._finish_progress()
+        if self._refine_started is not None:
+            self._elapsed = time.monotonic() - self._refine_started
         # Back on the GUI thread: recompute (this emits data_changed -> the plot
         # redraws) and show the outcome.
         self._mixture.calculate()
         self._refiner = refiner
+        # `refine_mixture` leaves the model AT THE BEST solution (normally and
+        # on cancel), so the report must say "best" - not "nothing applied" -
+        # and the validation section applies to that state, which is also when
+        # the old app ran it (it called apply_best_solution() on finish).
+        self._applied = "best"
+        self._applied_by_user = False
         self._show_results(refiner)
         self._refresh_values()
         self._set_apply_enabled(True)
@@ -389,6 +451,7 @@ class RefinementDialog(QDialog):
             "Cancelled - kept best (Rp = %.3f %%)." % refiner.best_residual
             if self._cancelled else "Done - best Rp = %.3f %%." % refiner.best_residual
         )
+        self._write_report()
         if self._on_applied is not None:
             self._on_applied()
 
@@ -460,6 +523,12 @@ class RefinementDialog(QDialog):
         getattr(self._refiner, "apply_" + which)()
         self._mixture.calculate()
         self._refresh_values()
+        # Rewrite the report for the solution now in the model: its GoF is
+        # recomputed from the freshly calculated patterns, so the report always
+        # describes what is actually applied.
+        self._applied = which
+        self._applied_by_user = True
+        self._write_report()
         if self._on_applied is not None:
             self._on_applied()
 
@@ -497,6 +566,111 @@ class RefinementDialog(QDialog):
                 values.append(float(GoF(exp, calc)))
         return sum(values) / len(values) if values else None
 
+    # ------------------------------------------------------------------
+    # Detailed report (old RefinerController.populate_log -> txt_refine_log)
+    # ------------------------------------------------------------------
+    _REPORT_WIDTH = 64
+    _MAX_PROGRESS_ROWS = 20
+
+    def _write_report(self) -> None:
+        """Fill the report box for the finished run.
+
+        Written when the run ends and again whenever a solution is kept, so it
+        always describes the solution currently in the model. Ported from the
+        old app's `populate_log`, with two deliberate differences: the old
+        per-ITERATION log becomes the per-EVALUATION progress series (MudLab2
+        keeps `record_history` off so a long run cannot grow unbounded, and the
+        series is thinned to `_MAX_PROGRESS_ROWS` rows), and an "Applied" line
+        distinguishes the best solution the engine LEAVES in the model from one
+        the user then keeps."""
+        refiner = self._refiner
+        if refiner is None:
+            self.ui.txt_report.clear()
+            return
+        self.ui.txt_report.setPlainText("\n".join(self._report_lines(refiner)))
+
+    def _report_lines(self, refiner) -> list:
+        sep = "=" * self._REPORT_WIDTH
+        lines = [sep, "  Refinement Summary", sep, ""]
+
+        applied = {
+            "initial": "Initial solution", "best": "Best solution",
+            "last": "Last solution",
+        }.get(self._applied, "-")
+        if self._applied is not None:
+            applied += ("  (kept)" if self._applied_by_user
+                        else "  (left by the refinement)")
+        lines.append("  Method:       %s" % self.ui.cmb_method.currentText())
+        lines.append("  Parameters:   %d" % len(refiner.refinables))
+        if self._elapsed is not None:
+            mins, secs = divmod(int(self._elapsed), 60)
+            lines.append("  Time elapsed: %d:%02d" % (mins, secs))
+        if self._cancelled:
+            lines.append("  Note:         cancelled by the user; best-so-far kept")
+        lines.append("  Applied:      %s" % applied)
+        lines.append("")
+
+        lines.append("  Parameters:")
+        lines.append("  %-28s %10s %10s %10s"
+                     % ("Name", "Initial", "Best", "Last"))
+        lines.append("  " + "-" * (self._REPORT_WIDTH - 2))
+        initial, best, last = (refiner.initial_solution, refiner.best_solution,
+                               refiner.last_solution)
+        for i, ref in enumerate(refiner.refinables):
+            name = ref.label
+            if len(name) > 28:
+                name = name[:27] + "…"
+            lines.append("  %-28s %10.4f %10.4f %10.4f"
+                         % (name, initial[i], best[i], last[i]))
+        lines.append("")
+
+        def rp(value):
+            return "-" if value is None else "%.6f" % value
+
+        gof = self._compute_gof()
+        lines.append("  Residuals (Rp %):")
+        lines.append("    Initial : %s" % rp(refiner.initial_residual))
+        lines.append("    Best    : %s" % rp(refiner.best_residual))
+        lines.append("    Last    : %s" % rp(refiner.last_residual))
+        lines.append("    GoF     : %s  (as applied, P=%d)"
+                     % ("-" if gof is None else "%.4f" % gof,
+                        len(refiner.refinables)))
+        lines.append("")
+
+        rows = self._thinned_progress()
+        if rows:
+            lines.append("  Progress log (%d evaluations):" % self._prog_evals[-1])
+            lines.append("  %12s  %14s" % ("Evaluations", "Best Rp"))
+            lines.append("  " + "-" * 28)
+            for n_evals, best_rp in rows:
+                lines.append("  %12d  %14.6f" % (n_evals, best_rp))
+            if len(self._prog_evals) > len(rows):
+                lines.append("  (thinned from %d points)" % len(self._prog_evals))
+            lines.append("")
+
+        lines.append(sep)
+
+        # Post-refinement validation of the state the applied solution left
+        # behind - read-only, and only meaningful once a solution IS applied.
+        if self._applied is not None and self._mixture is not None:
+            lines.append("")
+            lines.extend(validation_report_lines(self._mixture,
+                                                 self._REPORT_WIDTH))
+        return lines
+
+    def _thinned_progress(self) -> list:
+        """The progress series reduced to at most `_MAX_PROGRESS_ROWS` evenly
+        spaced points (always keeping the first and last): a refinement can run
+        to thousands of evaluations and the report is meant to be read."""
+        points = list(zip(self._prog_evals, self._prog_best))
+        if len(points) <= self._MAX_PROGRESS_ROWS:
+            return points
+        step = (len(points) - 1) / (self._MAX_PROGRESS_ROWS - 1)
+        picked = [points[int(round(i * step))]
+                  for i in range(self._MAX_PROGRESS_ROWS)]
+        picked[-1] = points[-1]
+        return picked
+
     def _set_apply_enabled(self, enabled: bool) -> None:
         for button in (self.ui.btn_apply_initial, self.ui.btn_apply_best,
                        self.ui.btn_apply_last):
@@ -511,6 +685,10 @@ class RefinementDialog(QDialog):
         if editable:
             flags |= Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
         item.setFlags(flags)
+        if col == _COL_NAME:
+            # "Phase | Component | Parameter" runs to ~560 px, so the column
+            # elides it at most widths; the tooltip gives the full name.
+            item.setToolTip(text)
         self.ui.tbl_refinables.setItem(row, col, item)
 
     def _set_check(self, row: int, col: int, checked: bool) -> None:

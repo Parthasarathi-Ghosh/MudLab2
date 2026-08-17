@@ -1210,19 +1210,81 @@ modeless by `actionEditMixtures`.
 
 `mudlab/refinement_dialog.py` (`RefinementDialog`, design `refinement.ui`,
 old `refinement/views/glade/refinement.glade` + `refine_results.glade`).
-Opened modal from the Edit Mixtures `btn_refine` for the current mixture;
-structural-parameter refinement, distinct from `btn_optimize`
-(fractions/scales/bg). Engine: `calculations/refinement.py` (see the
-"Robustness & long runs" note there).
+Opened modal from the Edit Mixtures `btn_refine` for the current mixture
+(`exec()` is application-modal, and the `.ui` also carries `modal: true` so the
+intent is visible in Designer); structural-parameter refinement, distinct from
+`btn_optimize` (fractions/scales/bg). Engine: `calculations/refinement.py` (see
+the "Robustness & long runs" note there).
+
+**Three-frame layout (2026-08-16).** The window was one tall vertical stack; it
+is now a WIDE row of three group boxes (`framesRow`), left to right, with a
+dialog-wide bottom bar:
+`grpParameters` "1. Parameters to refine" (`tbl_refinables` + `btn_auto_restrict`
+/ `btn_randomize`), `grpRefine` "2. Refinement" (method + Refine/Cancel row,
+then the options grid, then `grpProgress` with the plot), `grpResult`
+"3. Result", and `bottomRow` = `lbl_status` (left) + `buttonBox` Close (right).
+Proportions come from each frame's sizePolicy `horstretch` (5 / 4 / 2) - NOT the
+layout's `stretch` property, which `pyside6-uic` mis-generates as a translated
+string. Sizing facts worth knowing before you touch it:
+- The default 1360x680 and the declared minimum 1310x580 are deliberate: 1310 is
+  just above the layout's own minimum (1304), so it BINDS and the dialog can
+  never be squeezed to a size where a frame clips its contents. Declaring a
+  smaller minimum let the group box clip the oversized table with no scrollbar.
+- The progress `Figure` is `figsize=(2.2, 1.7)`: a FigureCanvas reports
+  figsize x dpi as its sizeHint, and at 4.0in that was ~560 px, which let the
+  middle frame hog the row and pushed the parameter table into a horizontal
+  scrollbar. Raise it and frame 1 starves.
+- Parameter labels ("Phase | Component | Parameter") run to ~560 px, so the name
+  column elides (`wordWrap` off + `ElideRight`) and `_set_text` gives it a
+  tooltip with the full name. Word wrap doubled every row height, halving how
+  many of ~42 parameters were visible.
+Guarded by the `layout:` checks in `tools/verify_refine_progress_plot.py`.
+
+**Detailed report (2026-08-18)** - `txt_report`, a read-only fixed-pitch
+`QPlainTextEdit` under the three Keep buttons, ports the old app's
+`txt_refine_log` / `RefinerController.populate_log`. `_write_report` fills it
+when a run FINISHES and again on every `_on_apply`, so it always describes the
+solution currently in the model (its GoF is recomputed from the freshly
+calculated patterns). Contents: method, parameter count, elapsed time, which
+solution is applied, a per-parameter Initial/Best/Last table, the residuals +
+GoF, and a progress log. **`refine_mixture` LEAVES THE MODEL AT THE BEST
+SOLUTION** (normally and on cancel), so the on-finish report says "Best solution
+(left by the refinement)" and the validation section applies from that moment -
+which is also when the old app ran it. Keeping a solution flips the line to
+"(kept)". One deliberate difference from the old app: its per-ITERATION log
+becomes the per-EVALUATION progress series (MudLab2 keeps
+`Refiner.record_history` off so a long run cannot grow unbounded), thinned to
+`_MAX_PROGRESS_ROWS` evenly spaced rows. The summary is column-aligned to
+`_REPORT_WIDTH` (64); the validation prose below it may be wider (the box
+scrolls).
+The three buttons are labelled Initial / Best / Last (the old app's "Keep ..."
+wording is carried by the `lblKeepWhich` prompt above them).
+
+**Post-refinement validation** - `calculations/validation.py` (pure analytics,
+guarded by `tools/verify_validation.py`) is appended to the report once a
+solution is applied. Ported from the old `_build_validation_report`: AtomRatio
+values must lie in [0, 1], Al-for-Si substitution must satisfy Loewenstein
+(<= 0.5), and no `pn` may be negative - all three are things a refinement CAN
+cause, since nothing in a parameter's Min/Max box constrains chemistry. It is
+strictly read-only. **Charge balance is REPORTED, not judged** - a deliberate
+divergence from the old app: `atom_type.charge` is the SCATTERING ion of the
+type, not a formal charge (stock Kaolinite is built from Al1.5+ / Si2+ / O1- /
+OH1-, which sums to net -4 by construction), so treating |net| > 0.05 as a
+failure flagged every standard clay on every project and buried the checks that
+do mean something. `component_charge_balance_finding` documents how to restore
+the old strict behaviour in one line. `Component.compute_charge_balance` is the
+verbatim port of the old model method.
 
 - `tbl_refinables`: a row per `mixture.refinables()` - Parameter (label) /
   Value (read-only) / Min / Max (editable) / Refine (checkable). Edits go
   through `Refinable.set_ref_info`, which writes the `<name>_ref_info` triple
   (round-trips via the phase/component to_dict).
 - `cmb_method`: 0 = L-BFGS-B, 1 = Basin Hopping (persisted to
-  `refine_method_index`). `optionsLayout` holds a per-method options form
-  (maxfun/maxiter, or niter/T/stepsize) seeded from / saved to
-  `refine_options[index]`. `btn_auto_restrict` sets Min/Max to v*0.8..v*1.2
+  `refine_method_index`). `optionsLayout` holds a per-method options GRID of
+  (label, spinbox) pairs, two pairs per row (maxfun/maxiter side by side, or
+  niter/T + stepsize wrapping), seeded from / saved to `refine_options[index]`.
+  Labels are short ("Function calls", "Iterations") so two pairs fit the middle
+  frame; `_OPTION_TOOLTIPS` carries the full meaning. `btn_auto_restrict` sets Min/Max to v*0.8..v*1.2
   for flagged params; `btn_randomize` sets flagged params to uniform(min,max)
   and recomputes.
 - `btn_refine` runs `refine_mixture` on a background QThread

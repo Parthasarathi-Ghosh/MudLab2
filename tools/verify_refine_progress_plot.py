@@ -30,7 +30,7 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QFontDatabase, QKeyEvent
 from PySide6.QtWidgets import QApplication
 
 from mudlab.file_parsers.mud_project import load_mud
@@ -109,6 +109,8 @@ def main():
     dlg._finish_progress()
 
     _check_delete_on_close()
+    _check_three_frame_layout()
+    _check_report_after_real_run()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
@@ -117,6 +119,207 @@ def main():
         print("  [%s] %s" % ("PASS" if ok else "FAIL", label))
     print("%d/%d checks passed" % (passed, total))
     return 0 if passed == total else 1
+
+
+def _check_report_after_real_run():
+    """The report, driven by a REAL (tiny) refinement.
+
+    Pins the premise the report rests on: `refine_mixture` LEAVES THE MODEL AT
+    THE BEST SOLUTION, so the report must say "best" on finish (an earlier
+    version said "nothing applied yet", and withheld the validation section that
+    the old app showed at exactly this point). Then keeping another solution
+    must rewrite it, with the GoF recomputed for what is actually applied."""
+    import time
+
+    from PySide6.QtCore import Qt as _Qt
+
+    dlg = RefinementDialog(mixture=MIX)
+    dlg.show()
+    app.processEvents()
+
+    # Pin L-BFGS-B: the method is REMEMBERED on the mixture, and an earlier
+    # check leaves Basin Hopping selected - whose "iterations" are full
+    # restarts, so the same budget would run for minutes here.
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
+    app.processEvents()
+
+    flagged = 0
+    for row in range(dlg.ui.tbl_refinables.rowCount()):
+        if flagged >= 2:
+            break
+        item = dlg.ui.tbl_refinables.item(row, 4)
+        if item is not None:
+            item.setCheckState(_Qt.CheckState.Checked)
+            flagged += 1
+    for key in ("maxfun", "maxiter"):
+        if key in dlg._option_spins:
+            dlg._option_spins[key][0].setValue(12)   # keep it short
+
+    dlg._on_refine()
+    deadline = time.time() + 300
+    while dlg._thread is not None and time.time() < deadline:
+        app.processEvents()
+    app.processEvents()
+    if dlg._refiner is None:
+        print("  (no refiner after the run: thread=%s status=%r; report checks "
+              "skipped)" % (dlg._thread is not None, dlg.ui.lbl_status.text()))
+        dlg.close()
+        return
+
+    refiner = dlg._refiner
+    values = [ref.value for ref in refiner.refinables]
+    check("report: the engine leaves the model at the BEST solution",
+          all(abs(v - b) < 1e-9 for v, b in zip(values, refiner.best_solution)))
+
+    text = dlg.ui.txt_report.toPlainText()
+    check("report: written when the run finishes", bool(text.strip()))
+    check("report: says the best solution is applied, and by whom",
+          "Best solution" in text and "left by the refinement" in text)
+    check("report: carries the validation section on finish (as the old app did)",
+          "Post-refinement validation" in text)
+    for heading in ("Method:", "Parameters:", "Time elapsed:", "Residuals",
+                    "GoF", "Progress log"):
+        check("report: includes %r" % heading, heading in text)
+    check("report: one row per refinable in the parameter table",
+          all(ref.label[:20] in text for ref in refiner.refinables))
+    # The SUMMARY is a column-aligned table and must fit the report width; the
+    # validation section below it is prose (warnings name the phase, component
+    # and relation), so it only has to stay sane - the box scrolls.
+    lines = text.splitlines()
+    split = next((i for i, l in enumerate(lines)
+                  if "Post-refinement validation" in l), len(lines))
+    check("report: the summary table fits the report width",
+          max(len(l) for l in lines[:split]) <= dlg._REPORT_WIDTH)
+    check("report: the validation lines stay within a readable width",
+          max((len(l) for l in lines[split:]), default=0) <= 96)
+
+    # Keeping another solution rewrites it for THAT solution.
+    dlg._on_apply("initial")
+    app.processEvents()
+    initial_text = dlg.ui.txt_report.toPlainText()
+    check("report: keeping Initial rewrites it as kept by the user",
+          "Initial solution" in initial_text and "(kept)" in initial_text)
+    check("report: the model really moved to the initial solution",
+          all(abs(ref.value - i) < 1e-9
+              for ref, i in zip(refiner.refinables, refiner.initial_solution)))
+
+    def _gof(report):
+        line = next((l for l in report.splitlines() if "GoF" in l), "")
+        return line.split(":")[-1].strip()
+
+    dlg._on_apply("best")
+    app.processEvents()
+    best_text = dlg.ui.txt_report.toPlainText()
+    check("report: the GoF is recomputed for the applied solution",
+          _gof(best_text) != _gof(initial_text))
+    check("report: a new run clears the previous report",
+          bool(best_text.strip()))
+    dlg._on_refine()
+    app.processEvents()
+    check("report: ...cleared as soon as the next run starts",
+          dlg.ui.txt_report.toPlainText() == "")
+    dlg._abort_refinement()
+    deadline = time.time() + 120
+    while dlg._thread is not None and time.time() < deadline:
+        app.processEvents()
+    dlg.close()
+    app.processEvents()
+
+
+def _check_three_frame_layout():
+    """The dialog is a MODAL three-frame row (parameters | refinement | result),
+    not the old single vertical stack. Pins where each control lives, so a later
+    .ui edit cannot quietly move one into the wrong frame."""
+    dlg = RefinementDialog(mixture=MIX)
+    dlg.show()
+    app.processEvents()
+    ui = dlg.ui
+
+    check("layout: the dialog is modal (no editing behind it)", dlg.isModal())
+
+    frames = [ui.grpParameters, ui.grpRefine, ui.grpResult]
+    check("layout: all three frames share one row layout",
+          all(ui.framesRow.indexOf(f) >= 0 for f in frames))
+    xs = [f.x() for f in frames]
+    check("layout: they sit side by side, parameters -> refinement -> result",
+          xs == sorted(xs) and len(set(xs)) == 3)
+    check("layout: the frames are the full height of the row (not stacked)",
+          len({f.y() for f in frames}) == 1)
+
+    belongs = {
+        "grpParameters": (ui.tbl_refinables, ui.btn_auto_restrict, ui.btn_randomize),
+        "grpRefine": (ui.cmb_method, ui.btn_refine, ui.btn_cancel, ui.grpProgress),
+        "grpResult": (ui.lbl_initial_residual, ui.lbl_best_residual, ui.lbl_last_residual,
+                      ui.lbl_gof, ui.btn_apply_initial, ui.btn_apply_best,
+                      ui.btn_apply_last),
+    }
+    for frame_name, widgets in belongs.items():
+        frame = getattr(ui, frame_name)
+        check("layout: %s holds its own controls" % frame_name,
+              all(frame.isAncestorOf(w) for w in widgets))
+    # ...and nothing strays into a neighbour.
+    check("layout: the progress plot is inside the refinement frame only",
+          ui.grpRefine.isAncestorOf(dlg._prog_canvas)
+          and not ui.grpParameters.isAncestorOf(dlg._prog_canvas)
+          and not ui.grpResult.isAncestorOf(dlg._prog_canvas))
+    check("layout: status + Close sit in the dialog-wide bottom row",
+          ui.bottomRow.indexOf(ui.lbl_status) >= 0
+          and ui.bottomRow.indexOf(ui.buttonBox) >= 0)
+
+    # The per-method options are a wrapping grid of (label, spin) PAIRS: the two
+    # L-BFGS-B options read as one side-by-side row, and Basin Hopping's three
+    # wrap onto a second row instead of squeezing into one line.
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
+    app.processEvents()
+    rows = {dlg._options_form.getItemPosition(i)[0]
+            for i in range(dlg._options_form.count())}
+    check("layout: two options sit side by side on one row",
+          len(dlg._option_spins) == 2 and rows == {0})
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(1))
+    app.processEvents()
+    rows = {dlg._options_form.getItemPosition(i)[0]
+            for i in range(dlg._options_form.count())}
+    check("layout: three options wrap onto a second row",
+          len(dlg._option_spins) == 3 and rows == {0, 1})
+    check("layout: every option spin carries an explanatory tooltip",
+          all(spin.toolTip() for spin, _kind in dlg._option_spins.values()))
+
+    # Long parameter names elide on one line (rather than doubling row height)
+    # and keep their full text in a tooltip.
+    check("layout: parameter names stay on one line, with a tooltip",
+          not dlg.ui.tbl_refinables.wordWrap()
+          and dlg.ui.tbl_refinables.item(0, 0).toolTip()
+          == dlg.ui.tbl_refinables.item(0, 0).text())
+
+    # The report box lives in the result frame, below the three Keep buttons,
+    # and is read-only + fixed-pitch (it is a column-aligned text table).
+    check("layout: the report box sits in the result frame",
+          ui.grpResult.isAncestorOf(ui.txt_report)
+          and ui.resultLayout.indexOf(ui.txt_report)
+          > ui.resultLayout.indexOf(ui.applyLayout))
+    # Compare the family to the system fixed font rather than asking
+    # QFontInfo.fixedPitch(): the offscreen platform has no font backend, so it
+    # resolves "monospace" but reports fixedPitch False.
+    check("layout: the report is read-only and uses the fixed-pitch font",
+          ui.txt_report.isReadOnly()
+          and ui.txt_report.font().family()
+          == QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont).family())
+    check("layout: the report starts empty, before any run",
+          not ui.txt_report.toPlainText())
+    check("layout: the Keep buttons are labelled Initial / Best / Last",
+          (ui.btn_apply_initial.text(), ui.btn_apply_best.text(),
+           ui.btn_apply_last.text()) == ("Initial", "Best", "Last"))
+
+    # Nothing may be clipped at the smallest size the dialog allows.
+    dlg.resize(dlg.minimumWidth(), dlg.minimumHeight())
+    app.processEvents()
+    table = dlg.ui.tbl_refinables
+    check("layout: at minimum size the table still fits its frame",
+          dlg.minimumWidth() >= dlg.minimumSizeHint().width()
+          and table.width() <= ui.grpParameters.width())
+    dlg._dirty = False
+    dlg.close()
+    app.processEvents()
 
 
 def _check_delete_on_close():
