@@ -422,6 +422,27 @@ class Component:
     def cell_b(self, value) -> None:
         self._ucp_b.value = float(value)
 
+    def compute_charge_balance(self) -> tuple:
+        """``(layer_charge, interlayer_charge, net)`` per unit cell.
+
+        Each value is the sum of ``atom.pn * atom.atom_type.charge`` over the
+        respective atom list; atoms with no atom type are skipped. Sign
+        convention is crystallographic (cations positive, anions negative), so
+        the layer atoms usually sum negative and the interlayer cations cancel
+        it: a charge-neutral model has ``net`` ~ 0. Ported verbatim from the old
+        app's Component.compute_charge_balance, which the post-refinement
+        validation reports on."""
+        def _sum_charge(atoms):
+            return sum(
+                atom.pn * atom.atom_type.charge
+                for atom in atoms
+                if atom.atom_type is not None
+            )
+
+        layer = _sum_charge(self.layer_atoms)
+        interlayer = _sum_charge(self.interlayer_atoms)
+        return layer, interlayer, layer + interlayer
+
     @property
     def layer_atoms(self) -> list:
         return self._resolved_own("layer_atoms")
