@@ -301,6 +301,105 @@ _sd.deleteLater()
 os.remove(_uxd)
 os.rmdir(_edir)
 
+# ----------------------------------------------------------------------
+# Modeless opening (2026-08-16). Remove Background / Smooth / Add Noise used to
+# open with exec(), which froze the plot: their live preview could not be zoomed
+# into to judge it. They now open MODELESS from the main window, like Strip Peak
+# / Shift / Peak Properties, one tracked instance per class.
+# ----------------------------------------------------------------------
+from mudlab.main_window import MainWindow  # noqa: E402
+
+_mw_project = load_mud(FIXTURE)
+_row = next(i for i, s in enumerate(_mw_project.specimens)
+            if s is not None and s.has_experimental_data)
+_win = MainWindow()
+_win._set_project(_mw_project)
+_win.select_specimen_row(_row)
+_mw_spec = _mw_project.specimens[_row]
+_win.show_specimen_plots([_mw_spec])
+
+for _cls, _name in ((RemoveBackgroundDialog, "background"),
+                    (SmoothDataDialog, "smooth"),
+                    (AddNoiseDialog, "noise")):
+    _win._show_data_op(_cls)
+    app.processEvents()
+    _dlg = _win._data_op_dialogs.get(_cls)
+    check("modeless: %s opens and is tracked" % _name, _dlg is not None)
+    check("modeless: %s is NOT modal (the plot stays interactive)" % _name,
+          _dlg is not None and not _dlg.isModal())
+    check("modeless: %s is visible without exec()" % _name,
+          _dlg is not None and _dlg.isVisible())
+    check("modeless: %s bound the selected specimen" % _name,
+          _dlg is not None and _dlg._specimen is _mw_spec)
+    # Re-opening must REPLACE the instance, so it cannot keep operating on a
+    # specimen that is no longer selected.
+    _win._show_data_op(_cls)
+    app.processEvents()
+    check("modeless: re-opening %s replaces the instance" % _name,
+          _win._data_op_dialogs.get(_cls) is not _dlg)
+    _win._data_op_dialogs[_cls].reject()
+    app.processEvents()
+
+# The preview reaches the REAL plot (the parent is the main window, not a stub).
+_plot = _win.pattern_plots[0]
+_win._show_data_op(AddNoiseDialog)
+app.processEvents()
+check("modeless: the live preview reaches the real plot",
+      _plot._preview is not None and _plot._preview["specimen"] is _mw_spec)
+_win._data_op_dialogs[AddNoiseDialog].reject()
+app.processEvents()
+check("modeless: closing clears the plot preview", _plot._preview is None)
+
+# AUDIT: a modeless dialog outlives the selection that opened it, so removing
+# its specimen (or loading another project) used to leave it open holding a
+# detached Specimen - OK then applied a destructive edit to an object nothing
+# displays, which looks exactly like the operation doing nothing.
+_win._show_data_op(RemoveBackgroundDialog)
+_win._show_strip_peak()
+app.processEvents()
+_open = [_win._data_op_dialogs[RemoveBackgroundDialog], _win._strip_peak_dialog]
+check("stale-binding: both dialogs open on the selected specimen",
+      all(d.isVisible() and d.specimen is _mw_spec for d in _open))
+_win._close_specimen_dialogs([_mw_spec])
+app.processEvents()
+check("stale-binding: removing the specimen closes every dialog bound to it",
+      not any(d.isVisible() for d in _open))
+check("stale-binding: closing them disarmed the range pick",
+      _win._range_pick_callback is None)
+
+# A dialog on a DIFFERENT specimen must survive the removal of another one.
+_other = next((s for s in _mw_project.specimens
+               if s is not None and s is not _mw_spec and s.has_experimental_data),
+              None)
+if _other is not None:
+    _win._show_data_op(SmoothDataDialog)
+    app.processEvents()
+    _keep = _win._data_op_dialogs[SmoothDataDialog]
+    _win._close_specimen_dialogs([_other])
+    app.processEvents()
+    check("stale-binding: a dialog on another specimen is left alone",
+          _keep.isVisible())
+    _keep.close()
+else:
+    check("stale-binding: a dialog on another specimen is left alone", True)
+
+# A project swap closes them all (they target the outgoing project's specimens).
+_win._show_data_op(AddNoiseDialog)
+app.processEvents()
+_doomed = _win._data_op_dialogs[AddNoiseDialog]
+_win._set_project(load_mud(FIXTURE))
+app.processEvents()
+check("stale-binding: loading another project closes the line dialogs",
+      not _doomed.isVisible())
+
+# Nothing selected -> no dialog (the actions are greyed, but guard the path).
+_win.ui.specimensTree.selectionModel().clearSelection()
+_before = dict(_win._data_op_dialogs)
+_win._show_data_op(SmoothDataDialog)
+check("modeless: no selection opens nothing",
+      _win._data_op_dialogs == _before)
+_win.close()
+
 print("=" * 72)
 print("Data-operation dialogs:", os.path.basename(FIXTURE))
 print("=" * 72)

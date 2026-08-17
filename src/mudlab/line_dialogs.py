@@ -15,9 +15,12 @@ Old-app parity notes:
   targeted the specimen being edited. Here they open from the main window's
   menu and target the **selected** specimen; the actions are disabled when the
   selection is not a single specimen with data (see main_window).
-- The old app previews shift / strip live on the plot while the dialog is
-  open. That needs the plot-controller port, so these apply on OK only; the
-  compute_* previews are already in place for when it lands.
+- Every dialog here previews its result live on the main plot while it is open
+  (``_compute_preview`` -> ``main_window.set_pattern_preview``) and clears the
+  overlay on OK / Cancel / close. All of them open MODELESS from the main
+  window, so the plot stays zoom- and scroll-able while the preview is judged.
+  One overlay is shared by the whole plot, so with two of these open at once the
+  last parameter change wins.
 """
 
 from __future__ import annotations
@@ -64,6 +67,13 @@ class _SpecimenDialog(QDialog):
         self.ui.buttonBox.rejected.connect(self.reject)
         if specimen is not None:
             self.bind_specimen(specimen)
+
+    @property
+    def specimen(self):
+        """The bound specimen (read-only). These dialogs are modeless, so the
+        main window needs to know what each one targets in order to close the
+        ones whose specimen is going away."""
+        return self._specimen
 
     def bind_specimen(self, specimen) -> None:
         self._specimen = specimen

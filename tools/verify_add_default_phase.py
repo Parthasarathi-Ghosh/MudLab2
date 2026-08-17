@@ -43,6 +43,7 @@ from mudlab.add_phase_dialog import AddPhaseDialog  # noqa: E402
 from mudlab.file_parsers.default_catalog import (  # noqa: E402
     add_catalog_entry_to_project, default_catalog_entries,
 )
+from mudlab.edit_atom_types_dialog import EditAtomTypesDialog  # noqa: E402
 from mudlab.file_parsers.mud_project import load_mud, save_mud  # noqa: E402
 from mudlab.models.project import Project  # noqa: E402
 
@@ -88,6 +89,46 @@ def run():
           and "Illite-Smectite R1 Ca" in names
           and len(names) == len(default_catalog_entries()))
     dialog.deleteLater()
+
+    # 1b. AUDIT: adopting atom types must ANNOUNCE the list change, so an Edit
+    #     Atom Types window that is already open rebuilds instead of showing the
+    #     snapshot it took when it opened (add_atom_type emitted nothing).
+    live = Project()
+    add_catalog_entry_to_project(live, "Kaolinite")
+    atoms_dialog = EditAtomTypesDialog(project=live)
+    shown_before = atoms_dialog.objects_model.rowCount()
+    selected = atoms_dialog.atom_widget._atom_type
+    emitted = []
+    live.atom_types_changed.connect(lambda: emitted.append(1))
+    add_catalog_entry_to_project(live, "Chlorite")   # adopts Mg/Fe/... types
+    check("1b adopting atom types emits atom_types_changed", bool(emitted))
+    check("1b an open Edit Atom Types list grew with the project",
+          atoms_dialog.objects_model.rowCount() == len(live.atom_types)
+          and atoms_dialog.objects_model.rowCount() > shown_before)
+    check("1b the rebuilt list names the newly adopted types",
+          {atoms_dialog.objects_model.item(r, 0).text()
+           for r in range(atoms_dialog.objects_model.rowCount())}
+          == {a.name for a in live.atom_types})
+    check("1b the rebuild keeps the selected atom type selected",
+          atoms_dialog.atom_widget._atom_type is selected)
+    atoms_dialog.deleteLater()
+
+    # 1c. AUDIT: the dialog now holds a connection to the project's
+    #     atom_types_changed, so it must not be left open editing a project that
+    #     is being detached - the main window closes it on a swap.
+    if os.path.isfile(_FIXTURE):
+        from mudlab.main_window import MainWindow
+        win = MainWindow()
+        win._set_project(load_mud(_FIXTURE))
+        win._show_edit_atom_types()
+        opened = win._edit_atom_types_dialog
+        check("1c Edit Atom Types opens on the project", opened is not None
+              and opened.objects_model.rowCount() > 0)
+        win._set_project(load_mud(_FIXTURE))
+        check("1c swapping the project closes Edit Atom Types",
+              not opened.isVisible() and win._edit_atom_types_dialog is None)
+        win._dirty = False
+        win.close()
 
     # 2. Add to an EMPTY project.
     empty = Project()

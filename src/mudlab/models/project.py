@@ -23,6 +23,11 @@ class Project(QObject):
     #: its list and its based_on / linked_with candidate combos, which name
     #: every phase in the project.
     phases_changed = Signal()
+    #: The atom-type LIST changed. Adding a default phase or importing a `.phs`
+    #: adopts atom types into the project, so an Edit Atom Types window that is
+    #: already open has to rebuild its list rather than keep the snapshot it
+    #: took when it opened.
+    atom_types_changed = Signal()
 
     name = Prop("New Project", "visuals_changed")
     author = Prop("", "data_changed")
@@ -89,6 +94,10 @@ class Project(QObject):
     def add_atom_type(self, atom_type) -> "object":
         atom_type.setParent(self)
         self._atom_types.append(atom_type)
+        # Announce the LIST change: adding a default phase / importing a `.phs`
+        # adopts atom types, and an open Edit Atom Types window would otherwise
+        # keep showing the list as it was when it opened.
+        self.atom_types_changed.emit()
         return atom_type
 
     def get_atom_type(self, name: str):

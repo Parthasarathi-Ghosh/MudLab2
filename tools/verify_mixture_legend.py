@@ -132,13 +132,13 @@ def main():
             rows_ok &= "{}: {:>5.1f}".format(label, frac * 100.0) in texts
     check("every phase slot shows its label + fraction%", rows_ok)
 
-    # one visible swatch per non-empty phase cell across the owning mixtures
-    want_swatches = sum(
-        1 for m in PROJECT.mixtures if m.name in want_names
-        for row in m.phase_matrix for cell in row if cell is not None
-    )
-    check("one colour swatch per non-empty phase cell (%d)" % want_swatches,
-          len(swatches) == want_swatches)
+    # One visible swatch per non-empty phase cell of a DISPLAYED specimen's row.
+    # Counted per shown row on purpose: with every specimen of the mixture shown
+    # (this fixture) an all-rows count is the same number, so it would not catch
+    # a regression back to drawing hidden specimens' columns.
+    want_swatches = _want_swatches(SHOWN)
+    check("one colour swatch per non-empty phase cell of a SHOWN specimen (%d)"
+          % want_swatches, len(swatches) == want_swatches)
 
     # renders without error
     try:
@@ -172,6 +172,27 @@ def _texts_of(plot):
     return texts
 
 
+def _swatches_of(plot):
+    legend = _legend_of(plot)
+    if legend is None:
+        return []
+    _t, swatches = [], []
+    _collect(legend, _t, swatches)
+    return swatches
+
+
+def _want_swatches(shown):
+    """The contract: one swatch per non-empty phase cell in the row of each
+    DISPLAYED specimen, across every mixture that owns one."""
+    shown_ids = {id(s) for s in shown}
+    return sum(
+        1 for m in PROJECT.mixtures
+        for i, spec in enumerate(m.specimens) if id(spec) in shown_ids
+        for cell in (m.phase_matrix[i] if i < len(m.phase_matrix) else [])
+        if cell is not None
+    )
+
+
 def _check_multi_select():
     """The main window builds ONE PatternPlot for the whole selection
     (show_specimen_plots), so a SHIFT/CTRL multi-select is just a longer
@@ -185,8 +206,28 @@ def _check_multi_select():
         print("  (mixture has <2 shown specimens; skipped the single-block check)")
 
     # A subset (one specimen of the mixture) still shows the mixture.
-    one = _texts_of(PatternPlot([SHOWN[0]], PROJECT))
+    one_plot = PatternPlot([SHOWN[0]], PROJECT)
+    one = _texts_of(one_plot)
     check("a subset (one specimen) still shows its mixture", MIX.name in one)
+
+    # ...with SWATCHES for that specimen's row only. The old app drew a column
+    # for every specimen of the mixture, shown or not, so a multi-specimen
+    # mixture put up swatches for curves the user could not see.
+    want_one = _want_swatches([SHOWN[0]])
+    got_one = len(_swatches_of(one_plot))
+    check("a subset shows swatches for the SHOWN specimen's row only (%d)"
+          % want_one, got_one == want_one)
+    if len(SHOWN) >= 2:
+        all_rows = _want_swatches(SHOWN)
+        # Proves the restriction bites on this fixture rather than being a
+        # no-op: the full selection must draw strictly more swatches.
+        check("...and that is strictly fewer than the full selection (%d < %d)"
+              % (got_one, all_rows), got_one < all_rows)
+    # The mixture's own facts stay complete regardless of the selection.
+    check("a subset still lists every slot label + fraction",
+          all("{}: {:>5.1f}".format(label,
+              (float(MIX.fractions[i]) if i < len(MIX.fractions) else 0.0) * 100.0)
+              in one for i, label in enumerate(MIX.phase_labels)))
 
     # Two specimens from DIFFERENT mixtures -> both blocks. Synthesize a second
     # mixture over a data specimen that MIX does not own (308 r1 has spares).

@@ -92,6 +92,16 @@ class RefinementDialog(QDialog):
     def __init__(self, parent: QWidget | None = None, mixture=None,
                  on_applied: Callable[[], None] | None = None) -> None:
         super().__init__(parent)
+        # Free the dialog when it closes instead of leaving it parented to the
+        # mixture editor: it is opened with exec() from a local variable, so
+        # every Refine click otherwise left one hidden dialog (with its
+        # refinables table and progress plot) alive for the editor's lifetime.
+        # Safe here because (a) the caller does not touch the dialog after
+        # exec() returns, and (b) a running refinement cannot be dismissed into
+        # deletion - _set_running disables buttonBox, and closeEvent cancels and
+        # WAITS for the worker thread, so the QThread is always torn down first.
+        # Note the attribute fires on reject()/done() too, not just the window-X.
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.ui = Ui_RefinementDialog()
         self.ui.setupUi(self)
 
@@ -417,9 +427,9 @@ class RefinementDialog(QDialog):
         if not running:
             self._set_apply_enabled(self._refiner is not None)
 
-    def closeEvent(self, event) -> None:
-        # If a refinement is running, cancel and wait for it before closing so
-        # the worker never outlives the dialog / keeps mutating the model.
+    def _abort_refinement(self) -> None:
+        """Cancel a running refinement and WAIT for the worker, so it never
+        outlives the dialog / keeps mutating the model. Idempotent."""
         if self._thread is not None:
             if self._stop_event is not None:
                 self._stop_event.set()
@@ -427,6 +437,21 @@ class RefinementDialog(QDialog):
             self._thread.wait()
             self._teardown_thread()
         self._prog_timer.stop()
+
+    def done(self, result: int) -> None:
+        # done() is the single funnel for OK / Cancel / Esc / close(), and with
+        # WA_DeleteOnClose it takes the dialog - and the QThread parented to it -
+        # with it. **Esc is NOT stopped by disabling buttonBox**, so a run really
+        # can be dismissed mid-flight; without this teardown the QThread is
+        # destroyed while still running and the process ABORTS. Tearing down here
+        # (not only in closeEvent) covers every dismissal path.
+        self._abort_refinement()
+        super().done(result)
+
+    def closeEvent(self, event) -> None:
+        # The window-X path. QDialog::closeEvent routes through reject() -> done()
+        # above, so this is belt-and-braces; _abort_refinement is idempotent.
+        self._abort_refinement()
         super().closeEvent(event)
 
     def _on_apply(self, which: str) -> None:

@@ -53,6 +53,10 @@ class EditMarkersDialog(ObjectStoreDialog):
         """Close any open Match Minerals child (which clears its reference-peak
         overlay via reject) and drop it, so reopening / closing never leaves an
         orphaned window or a lingering preview on the plot."""
+        # NOTE deliberately NOT WA_DeleteOnClose on the match dialog: this owner
+        # keeps a reference and closes it later, so letting Qt delete it on the
+        # window-X would make the next close() hit an already-deleted C++ object
+        # (RuntimeError). The explicit deleteLater below is the accumulation fix.
         if self._match_dialog is not None:
             self._match_dialog.close()  # -> reject clears the mineral preview
             self._match_dialog.deleteLater()

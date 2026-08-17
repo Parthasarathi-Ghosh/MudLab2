@@ -29,6 +29,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, "src"))
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 
 from mudlab.file_parsers.mud_project import load_mud
@@ -106,6 +108,8 @@ def main():
           dlg._prog_evals == [] and len(_data_lines(dlg)) == 0)
     dlg._finish_progress()
 
+    _check_delete_on_close()
+
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
     print("\n--- refinement progress plot verification ---")
@@ -113,6 +117,75 @@ def main():
         print("  [%s] %s" % ("PASS" if ok else "FAIL", label))
     print("%d/%d checks passed" % (passed, total))
     return 0 if passed == total else 1
+
+
+def _check_delete_on_close():
+    """AUDIT: the dialog is opened with exec() from a local variable, so without
+    WA_DeleteOnClose every Refine click left one hidden dialog - refinables
+    table, progress plot and all - alive for the mixture editor's lifetime.
+    The attribute must fire on the exec()-return path (reject/done), not only on
+    the window-X, and must not leave a running worker behind."""
+    from PySide6.QtWidgets import QWidget
+
+    parent = QWidget()
+    dlg = RefinementDialog(parent, mixture=MIX)
+    check("cleanup: the dialog is marked WA_DeleteOnClose",
+          dlg.testAttribute(Qt.WidgetAttribute.WA_DeleteOnClose))
+    dlg.show()
+    dlg.reject()                      # what pressing Close does after exec()
+    app.processEvents()
+    try:
+        dlg.objectName()
+        gone = False
+    except RuntimeError:
+        gone = True
+    check("cleanup: closing actually frees it (no hidden dialog left behind)",
+          gone)
+    check("cleanup: it is no longer a child of the editor",
+          not any(isinstance(c, RefinementDialog) for c in parent.children()))
+
+    # A dismissal must never leave a worker thread running behind it: the Close
+    # button is locked while a refinement runs, and closeEvent waits for it.
+    dlg2 = RefinementDialog(parent, mixture=MIX)
+    dlg2._set_running(True)
+    check("cleanup: Close is locked out while a refinement runs",
+          not dlg2.ui.buttonBox.isEnabled())
+    dlg2._set_running(False)
+    dlg2.close()
+    app.processEvents()
+
+    # AUDIT REGRESSION: **Esc is not stopped by disabling buttonBox.** It goes
+    # straight to QDialog::reject() -> done(), which with WA_DeleteOnClose
+    # deletes the dialog AND the QThread parented to it. Pressing Esc during a
+    # refinement therefore destroyed a running QThread and ABORTED the process
+    # (exit 9, no traceback). done() now tears the worker down first.
+    dlg3 = RefinementDialog(parent, mixture=MIX)
+    dlg3.show()
+    app.processEvents()
+    dlg3._on_refine()                      # a genuine background refinement
+    app.processEvents()
+    if dlg3._thread is None:
+        check("cleanup: Esc during a refinement tears the worker down first", True)
+        print("  (the refinement finished too fast to test Esc mid-run)")
+    else:
+        thread, stop_event = dlg3._thread, dlg3._stop_event
+        esc = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Escape,
+                        Qt.KeyboardModifier.NoModifier)
+        dlg3.keyPressEvent(esc)            # user presses Esc mid-run
+        # Checked BEFORE processEvents, while the thread wrapper is still alive:
+        # the run must have been cancelled and JOINED, not left running.
+        check("cleanup: Esc during a refinement cancels the run",
+              stop_event.is_set())
+        check("cleanup: Esc during a refinement joins the worker before deleting",
+              not thread.isRunning())
+        app.processEvents()
+        try:
+            dlg3.objectName()
+            freed = False
+        except RuntimeError:
+            freed = True
+        check("cleanup: Esc still frees the dialog", freed)
+    parent.deleteLater()
 
 
 if __name__ == "__main__":

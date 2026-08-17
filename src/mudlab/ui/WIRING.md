@@ -1513,7 +1513,8 @@ Guard: `tools/verify_csv_import.py`.
 
 ## Specimen-operation dialogs (lines + trim/statistics/save-size)
 
-Nine small modal dialogs. Logic: `mudlab/line_dialogs.py`
+Nine small dialogs — the six line operations open MODELESS (see below), the
+trim/statistics/save-size three are modal. Logic: `mudlab/line_dialogs.py`
 (RemoveBackground, SmoothData, ShiftPattern, AddNoise, StripPeak,
 PeakProperties) and `mudlab/specimen_dialogs.py` (TrimData, Statistics,
 SaveGraphSize). Old sources: `generic/views/glade/lines/*.glade` and
@@ -1538,6 +1539,20 @@ action cannot silently no-op). The old app opened these from the Edit
 Specimen controller, so a specimen was always present; here they live on
 the main-window menu, so `_update_data_op_actions` greys them out unless
 exactly one specimen with data is selected.
+
+**All six open MODELESS (2026-08-16).** Remove Background / Smooth / Add Noise
+went through `MainWindow._run_data_op` -> `exec()`, which froze the plot: their
+live preview could not be zoomed into to judge it. They now use
+`_show_data_op`, which mirrors `_show_strip_peak` / `_show_shift_pattern` /
+`_show_peak_properties` — one tracked instance per dialog class in
+`_data_op_dialogs`, closed and REBUILT per open so it binds the current
+selection (a leftover dialog would otherwise keep operating on a specimen that
+is no longer selected). Do NOT give these `WA_DeleteOnClose`: the tracked
+reference is `close()`d on re-open, and deleting the C++ object under it would
+turn that into a crash. Note the plot holds ONE preview overlay, so with two of
+these open at once the last parameter change owns it (pre-existing limit; see
+the live-preview note below). Harness: the `modeless:` checks in
+`tools/verify_data_op_dialogs.py`.
 
 **Live preview overlay.** `_SpecimenDialog` draws a live preview of the
 pending operation on the main plot while open: `showEvent` and every
@@ -1962,9 +1977,16 @@ transient curves appear without a manual F5.
 specimen (`any(s in mixture.specimens ...)`). Each block is the mixture name,
 then one row per phase slot — `"<label>: <fraction*100:>5.1f>"` — with a colour
 swatch (`FancyBboxPatch` in an `AuxTransformBox`, `mutation_scale=14`) per
-non-empty phase cell across the specimens, filled with that phase's
+non-empty phase cell, filled with that phase's
 `display_color` (the same colour its per-phase curve uses; a `getattr` +
-`display_calc_color` fallback keeps a colourless phase-like from erroring). It is
+`display_calc_color` fallback keeps a colourless phase-like from erroring).
+**SHOWN-ONLY swatches (2026-08-16):** the swatch columns come from the mixture's
+DISPLAYED specimens only (`shown_rows`, matched by `id()` — `Specimen` defines no
+`__eq__` and two specimens must never collapse into one column), so they match
+the curves on screen; the old app drew a column for every specimen of the
+mixture, which on a multi-specimen mixture put up swatches for patterns the user
+could not see. The mixture name, slot labels and fractions are still listed in
+full — they belong to the mixture, not to the selection. It is
 **always drawn** (as in the old app, independent of `display_phases`) and simply
 shows nothing when no shown specimen is in a mixture. `draw_pattern`'s
 `axes.clear()` drops the previous legend, so no remove-old bookkeeping is needed.

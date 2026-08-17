@@ -12,10 +12,11 @@ import os
 
 import numpy as np
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QHeaderView,
     QLabel,
@@ -139,11 +140,15 @@ class MainWindow(QMainWindow):
         self.ui.actionAddSpecimen.triggered.connect(self._add_specimen)
         self.ui.actionImportSpecimens.triggered.connect(self._import_specimens)
 
-        # Specimen-operation dialogs (modal). Each binds the selected specimen
-        # and applies its operation on OK. The old app opened these from the
-        # Edit Specimen controller, so they always had a specimen; here they
-        # live on the menu, so they are disabled unless exactly one specimen
-        # with data is selected (_update_data_op_actions).
+        # Specimen-operation dialogs. Each binds the selected specimen and
+        # applies its operation on OK. The old app opened these from the Edit
+        # Specimen controller, so they always had a specimen; here they live on
+        # the menu, so they are disabled unless exactly one specimen with data
+        # is selected (_update_data_op_actions). All three are MODELESS (like
+        # Strip Peak / Shift / Peak Properties below) so the plot stays
+        # zoom/scroll-able while their live preview is judged; one open dialog
+        # per class is tracked here so re-opening replaces it.
+        self._data_op_dialogs: dict[type, QDialog] = {}
         self._data_op_actions = []
         for action, dialog_cls in (
             (self.ui.actionRemoveBackground, RemoveBackgroundDialog),
@@ -151,7 +156,7 @@ class MainWindow(QMainWindow):
             (self.ui.actionAddNoise, AddNoiseDialog),
         ):
             action.triggered.connect(
-                lambda _=False, cls=dialog_cls: self._run_data_op(cls)
+                lambda _=False, cls=dialog_cls: self._show_data_op(cls)
             )
             self._data_op_actions.append(action)
         # Trim takes the whole specimen list too (it can trim all of them).
@@ -183,6 +188,15 @@ class MainWindow(QMainWindow):
         self._data_op_actions.append(self.ui.actionConvertToADS)
         self._update_data_op_actions()
 
+        # Goniometer edits recompute the calculated pattern, coalesced so a
+        # spinbox drag does not walk every mixture per keystroke (see
+        # _on_goniometer_changed). Must exist before the signals are wired.
+        self._gonio_wired: list = []
+        self._gonio_timer = QTimer(self)
+        self._gonio_timer.setSingleShot(True)
+        self._gonio_timer.setInterval(150)
+        self._gonio_timer.timeout.connect(self._recompute_after_goniometer)
+
         # Model -> view plumbing.
         self._connect_project_signals(self.project)
         self._update_title()
@@ -196,6 +210,75 @@ class MainWindow(QMainWindow):
         project.visuals_changed.connect(self._mark_dirty)
         project.data_changed.connect(self._mark_dirty)
         project.specimens_changed.connect(self._mark_dirty)
+        # An added / imported specimen brings its own goniometer to listen to.
+        project.specimens_changed.connect(self._wire_goniometer_signals)
+        self._wire_goniometer_signals()
+
+    # ------------------------------------------------------------------
+    # Goniometer edits -> recompute (geometry is calc input, not decoration)
+    # ------------------------------------------------------------------
+    def _wire_goniometer_signals(self) -> None:
+        """Listen to every specimen's goniometer.
+
+        `Goniometer.data_changed` had NO listeners at all, so editing the radius,
+        divergence, soller slits, sample length, the emission spectrum or loading
+        a stored `.gon` setup wrote the model but left the calculated curve drawn
+        with the geometry it was last computed with - and did not even mark the
+        project dirty, so the edit could be lost on close without a prompt. Every
+        goniometer parameter is an input to the calculation, so a change now
+        recomputes. Re-wired on `specimens_changed` (and by `_set_project`, which
+        re-runs `_connect_project_signals`); a specimen's goniometer object is
+        only ever replaced at load time, before either of those."""
+        for gonio in self._gonio_wired:
+            try:
+                gonio.data_changed.disconnect(self._on_goniometer_changed)
+            except (RuntimeError, TypeError):
+                pass  # went away with its project
+        self._gonio_wired = []
+        for specimen in self.project.specimens:
+            gonio = getattr(specimen, "goniometer", None)
+            if gonio is None:
+                continue
+            gonio.data_changed.connect(self._on_goniometer_changed)
+            self._gonio_wired.append(gonio)
+
+    def _on_goniometer_changed(self) -> None:
+        # Dirty at once - the edit IS a change to save, even when there is no
+        # mixture to recompute - but coalesce the recompute itself: a spinbox
+        # drag fires per step, and each recompute walks every mixture.
+        self._mark_dirty()
+        self._gonio_timer.start()
+
+    def _recompute_after_goniometer(self) -> None:
+        """The coalesced recompute. `project.calculate()`, deliberately NOT
+        `refresh()`: a geometry edit must not silently start the optimiser.
+
+        The project's signals are held while it runs and the plots refreshed
+        ONCE afterwards (the same trick `_set_project` uses): `calculate()`
+        re-emits `data_changed` per specimen, and each of those rebuilds every
+        plot, so a single edit was costing one refresh per specimen plus this
+        one. `_mark_dirty` already ran in `_on_goniometer_changed`, and blocking
+        the project does not silence the specimens themselves, so an open Edit
+        Specimen still updates."""
+        failure = None
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.project.blockSignals(True)
+        try:
+            self.project.calculate()
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash the app
+            failure = exc
+        finally:
+            self.project.blockSignals(False)
+            QApplication.restoreOverrideCursor()
+        if failure is not None:
+            # Warn with the cursor already restored, not under a busy pointer.
+            QMessageBox.warning(
+                self, "Recalculation failed",
+                "The goniometer change could not be applied to the calculated "
+                "pattern:\n\n%s" % failure,
+            )
+            return
+        self._refresh_plots()
 
     def _update_title(self) -> None:
         """Old AppView had title_format 'MudLab - %s' (project name)."""
@@ -216,6 +299,10 @@ class MainWindow(QMainWindow):
         """Swap in a different project and rewire all views to it."""
         old_project = self.project
         old_model = self.specimens_model
+        # Drop a goniometer recompute still pending from the OUTGOING project:
+        # it would otherwise fire against the incoming one, recomputing it and
+        # marking a freshly loaded project dirty.
+        self._gonio_timer.stop()
 
         project.setParent(self)
         self.project = project
@@ -241,6 +328,15 @@ class MainWindow(QMainWindow):
         if self._edit_specimen_dialog is not None:
             self._edit_specimen_dialog.unbind()
             self._edit_specimen_dialog.close()
+        # Edit Atom Types lists the OLD project's types and is connected to its
+        # atom_types_changed; close it rather than leave it editing a project
+        # that is being detached.
+        if self._edit_atom_types_dialog is not None:
+            self._edit_atom_types_dialog.close()
+            self._edit_atom_types_dialog = None
+        # The modeless line dialogs target a specimen of the OLD project, which
+        # is about to be detached: close them rather than let an OK edit it.
+        self._close_specimen_dialogs()
 
         self._shown_specimens = []
         self._update_title()
@@ -786,6 +882,9 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         ) != QMessageBox.StandardButton.Yes:
             return
+        # A modeless line dialog open on one of these would be left holding a
+        # removed specimen, and its OK would edit it invisibly.
+        self._close_specimen_dialogs(specimens)
         # Row to land on afterwards: the first removed specimen's position,
         # clamped to what remains (rebuilding the dock model clears the
         # tree selection, so restore a sensible one - old app kept one).
@@ -927,11 +1026,46 @@ class MainWindow(QMainWindow):
                 else "Select a single specimen with experimental data first."
             )
 
-    def _run_data_op(self, dialog_cls) -> None:
+    def _close_specimen_dialogs(self, specimens=None) -> None:
+        """Close the modeless specimen dialogs (the six line operations) that are
+        bound to a specimen which is going away - all of them when `specimens` is
+        None, as on a project swap.
+
+        They are modeless, so they outlive the selection that opened them.
+        Without this, removing a specimen (or loading another project) left one
+        open still holding the detached Specimen, and its OK then applied a
+        destructive, undoable edit to an object nothing displays - which looks
+        exactly like the operation having done nothing. Each dialog's own
+        close/reject drops its plot preview and disarms any range pick."""
+        going = None if specimens is None else {id(s) for s in specimens}
+        for dialog in (
+            *self._data_op_dialogs.values(),
+            self._strip_peak_dialog, self._peak_props_dialog,
+            self._shift_pattern_dialog,
+        ):
+            if dialog is None or not dialog.isVisible():
+                continue
+            if going is None or id(dialog.specimen) in going:
+                dialog.close()
+
+    def _show_data_op(self, dialog_cls) -> None:
+        """Open one of the parameterised data-op dialogs (Remove Background /
+        Smooth / Add Noise) MODELESS, so the plot stays interactive (zoom,
+        scroll) while its live preview is judged - the same treatment Strip Peak,
+        Shift and Peak Properties get. Rebuilt per open so it binds the CURRENT
+        selection: a dialog left open from a previous selection would otherwise
+        keep operating on a stale specimen."""
         specimen = self._data_op_specimen()
         if specimen is None:
             return
-        dialog_cls(self, specimen=specimen).exec()
+        previous = self._data_op_dialogs.get(dialog_cls)
+        if previous is not None:
+            previous.close()
+        dialog = dialog_cls(self, specimen=specimen)
+        self._data_op_dialogs[dialog_cls] = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def _convert_slit(self, to_ads: bool) -> None:
         """Rescale the selected specimen's experimental data between fixed and

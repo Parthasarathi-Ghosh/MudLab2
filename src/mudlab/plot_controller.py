@@ -460,11 +460,22 @@ class PatternPlot:
         colour its per-phase curve uses). Always drawn (as in the old app); it
         simply shows nothing when no displayed specimen belongs to a mixture.
         `axes.clear()` at the top of draw_pattern drops the previous one, so no
-        remove-old bookkeeping is needed."""
+        remove-old bookkeeping is needed.
+
+        SHOWN-ONLY swatches: a slot's swatches come from the mixture's DISPLAYED
+        specimens only, so the swatch columns match the curves on screen. (The
+        old app drew a column for every specimen of the mixture, displayed or
+        not, which on a multi-specimen mixture put up swatches for patterns the
+        user could not see.) The mixture, its slot labels and its fractions are
+        still listed in full - they are properties of the mixture, not of the
+        selection."""
         project = self.project
+        # Identity, not equality: Specimen defines no __eq__, and two distinct
+        # specimens must never collapse into one column.
+        shown = {id(s) for s in self.specimens if s is not None}
         mixtures = [
             m for m in getattr(project, "mixtures", [])
-            if any(s in m.specimens for s in self.specimens)
+            if any(id(s) in shown for s in m.specimens)
         ]
         if not mixtures:
             return
@@ -491,15 +502,21 @@ class PatternPlot:
         for mixture in mixtures:
             labels = mixture.phase_labels
             fractions = mixture.fractions
-            # Title, padded with an invisible swatch per specimen so the name
-            # sits above the label column, not the swatches (old title_box).
+            # The grid rows of this mixture that are actually on the plot; the
+            # rows of phase_matrix line up with `specimens` by index.
+            shown_rows = [
+                i for i, spec in enumerate(mixture.specimens) if id(spec) in shown
+            ]
+            # Title, padded with an invisible swatch per shown specimen so the
+            # name sits above the label column, not the swatches (old title_box).
             title_row = [text(mixture.name, weight="bold")]
-            title_row += [swatch(ec=None) for _ in mixture.specimens]
+            title_row += [swatch(ec=None) for _ in shown_rows]
             rows = [HPacker(children=title_row, align="center", pad=0, sep=3)]
             for i, label in enumerate(labels):
                 frac = float(fractions[i]) if i < len(fractions) else 0.0
                 children = [text("{}: {:>5.1f}".format(label, frac * 100.0))]
-                for row in mixture.phase_matrix:
+                for r in shown_rows:
+                    row = mixture.phase_matrix[r] if r < len(mixture.phase_matrix) else []
                     phase = row[i] if i < len(row) else None
                     if phase is not None:
                         children.append(swatch(
