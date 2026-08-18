@@ -191,6 +191,33 @@ def get_current_residual(mixture) -> float:
     return problem.residual(problem.get_solution())
 
 
+def per_specimen_residuals(mixture) -> list:
+    """``[(specimen name, Rp), ...]`` for the mixture's CURRENT solution.
+
+    The reported residual is the MEAN of these, so this is what a single number
+    hides: one specimen fitting badly while the others carry the average. It
+    reuses the same machinery as `_Problem.residual` - the same exclusion
+    selection and the same skip of zero-observation specimens - so the mean of
+    the values returned here IS `get_current_residual`, not an approximation of
+    it."""
+    problem = _Problem(mixture)
+    fractions, scales, bgshifts = problem.parse_solution(problem.get_solution())
+    out = []
+    for ctx in problem.contexts:
+        total, _, _ = calculate_scaled_intensities(
+            ctx.phase_intensities, ctx.correction,
+            float(scales[ctx.index]), fractions, float(bgshifts[ctx.index]),
+        )
+        observed = ctx.observed[ctx.selected]
+        if float(np.sum(np.abs(observed))) <= 0.0:
+            continue  # zero-observation specimen: undefined Rp, as in residual()
+        value = float(Rp(observed, total[ctx.selected]))
+        specimen = mixture.specimens[ctx.index]
+        name = getattr(specimen, "name", "") or "Specimen %d" % (ctx.index + 1)
+        out.append((name, value))
+    return out
+
+
 def _ls_scale_bg(problem, fractions):
     """A per-free-specimen least-squares warm start for the scales / bg-shifts.
 

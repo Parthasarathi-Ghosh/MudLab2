@@ -77,6 +77,98 @@ def check_project(path):
     for kind in ("sigma*", "CSDS mean", "d001", "delta_c"):
         _check(results, "covers %s" % kind, any(kind in l for l in labels))
 
+    # 1a. INHERITANCE / LINKING is honoured when the list is BUILT, not during
+    # the run: a parameter that follows a based_on parent (or a linked
+    # component's template) is not offered at all, because refining it would be
+    # a no-op - the read-through overwrites the write. Refining the PARENT moves
+    # every child that inherits it.
+    mix_inh = load_mud(path).mixtures[0]
+    phases, seen = [], set()
+    for row in mix_inh.phase_matrix:
+        for ph in row:
+            if ph is not None and hasattr(ph, "components") and id(ph) not in seen:
+                seen.add(id(ph))
+                phases.append(ph)
+    offered = {}
+    for ref in enumerate_refinables(mix_inh):
+        offered.setdefault(ref.group[0], set()).add(ref.title)
+    inherited_phases = [p for p in phases if p.is_inherited("sigma_star")]
+    if inherited_phases:
+        _check(results, "a phase inheriting sigma* is not offered it",
+               all("sigma*" not in offered.get(p.name, set())
+                   for p in inherited_phases))
+        # ...and the parent that owns it IS offered it.
+        parents = {getattr(p, "based_on", None) for p in inherited_phases}
+        _check(results, "the parent that owns sigma* still offers it",
+               all("sigma*" in offered.get(b.name, set())
+                   for b in parents if b is not None))
+        # Read-through: moving the parent moves the child.
+        child = inherited_phases[0]
+        parent = getattr(child, "based_on", None)
+        if parent is not None:
+            was = child.sigma_star
+            parent.sigma_star = parent.sigma_star + 1.0
+            _check(results, "refining the parent moves the inheriting child",
+                   abs(child.sigma_star - (was + 1.0)) < 1e-9)
+            parent.sigma_star = parent.sigma_star - 1.0
+    inherited_comps = [(p, c) for p in phases for c in p.components
+                       if c.is_inherited("d001")]
+    if inherited_comps:
+        _check(results, "a linked component inheriting d001 is not offered it",
+               len([r for r in enumerate_refinables(mix_inh)
+                    if r.title == "d001" and len(r.group) > 1
+                    and any(r.group[0] == p.name and r.group[1] == c.name
+                            for p, c in inherited_comps)]) == 0)
+
+    # 1c. The reported Rp is the MEAN over the mixture's specimens, and
+    # per_specimen_residuals must reproduce exactly the values that mean is
+    # taken over (same exclusion selection, same skip of empty specimens).
+    from mudlab.calculations.mixture import (
+        get_current_residual, per_specimen_residuals,
+    )
+    mix_rp = load_mud(path).mixtures[0]
+    per = per_specimen_residuals(mix_rp)
+    if per:
+        mean = sum(v for _n, v in per) / len(per)
+        _check(results, "per-specimen Rp averages to the reported residual",
+               abs(mean - get_current_residual(mix_rp)) < 1e-9)
+        _check(results, "every per-specimen Rp is named and finite",
+               all(n and np.isfinite(v) for n, v in per))
+
+    # 1d. Basin Hopping caps each LOCAL minimisation. Uncapped, scipy allows
+    # 15000 evaluations per run, so niter=100 could mean ~1.5M - each a full
+    # recompute plus an inner fit. Checked by intercepting the scipy call rather
+    # than running it (a real Basin Hopping run takes minutes).
+    import mudlab.calculations.refinement as _refmod
+    captured = {}
+
+    def _fake_basinhopping(func, x0, **kwargs):
+        captured.update(kwargs)
+
+        class _R:
+            x = x0
+        return _R()
+
+    _real = _refmod.basinhopping
+    _refmod.basinhopping = _fake_basinhopping
+    try:
+        class _FakeRefiner:
+            get_residual = staticmethod(lambda x: 0.0)
+            initial_solution = np.array([1.0])
+            ranges = [(0.0, 2.0)]
+
+        _refmod._run_basinhopping(_FakeRefiner(), {})
+        opts = (captured.get("minimizer_kwargs") or {}).get("options") or {}
+        _check(results, "Basin Hopping caps each local run by default",
+               opts.get("maxfun") == _refmod.BASINHOPPING_LOCAL_MAXFUN)
+        captured.clear()
+        _refmod._run_basinhopping(_FakeRefiner(), {"local_maxfun": 42})
+        opts = (captured.get("minimizer_kwargs") or {}).get("options") or {}
+        _check(results, "...and the user can raise or lower that cap",
+               opts.get("maxfun") == 42)
+    finally:
+        _refmod.basinhopping = _real
+
     # 1b. A raw-pattern accessory in the mixture must NOT break enumeration (it
     # has no structure, so _phase_refinables would raise on it) - it is skipped,
     # adding no refinables, while its fraction is still fit by the fraction fit.

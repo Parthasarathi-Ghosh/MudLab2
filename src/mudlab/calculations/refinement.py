@@ -72,11 +72,24 @@ class Refinable:
     model, and its [min, max, refine] triple read/written into the owning
     raw-properties dict (so flags/bounds round-trip through to_dict)."""
 
-    __slots__ = ("label", "_get", "_set", "_owner", "_key", "_default_bounds")
+    __slots__ = ("label", "group", "title", "_get", "_set", "_owner", "_key",
+                 "_default_bounds")
 
     def __init__(self, label, getter, setter, ref_info_owner, ref_info_key,
                  default_bounds=(0.0, 1.0)):
-        self.label = label
+        # `label` is the PATH to the parameter: a tuple of names ending in the
+        # parameter's own title, e.g. ("Illite", "Illite", "d001"). The
+        # Refinement window groups the tree by `group` and shows only `title`
+        # per row (the old app's text_title), which is what keeps that column
+        # narrow; `label` stays the joined string for the report and logs. A
+        # plain string is still accepted and split on " | ".
+        if isinstance(label, (tuple, list)):
+            parts = tuple(str(p) for p in label)
+        else:
+            parts = tuple(str(label).split(" | "))
+        self.group = parts[:-1]
+        self.title = parts[-1] if parts else ""
+        self.label = " | ".join(parts)
         self._get = getter
         self._set = setter
         self._owner = ref_info_owner
@@ -145,14 +158,14 @@ def _phase_refinables(phase) -> list[Refinable]:
     out = []
     if not phase.is_inherited("sigma_star"):
         out.append(Refinable(
-            "%s | sigma*" % phase.name,
+            (phase.name, "sigma*"),
             lambda p=phase: p.sigma_star,
             lambda v, p=phase: setattr(p, "sigma_star", v),
             raw, "sigma_star_ref_info", default_bounds=(0.0, 90.0),
         ))
     if not phase.is_inherited("CSDS"):
         out.append(Refinable(
-            "%s | CSDS mean" % phase.name,
+            (phase.name, "CSDS mean"),
             lambda p=phase: p.CSDS.average,
             lambda v, p=phase: setattr(p.CSDS, "average", v),
             _nested(raw, "CSDS_distribution", "properties"),
@@ -169,7 +182,7 @@ def _phase_refinables(phase) -> list[Refinable]:
             if inherited:
                 continue
             out.append(Refinable(
-                "%s | %s" % (phase.name, label),
+                (phase.name, label),
                 getter, setter, prob_props, ref_key, default_bounds=bounds,
             ))
     for comp in phase.components:
@@ -179,14 +192,14 @@ def _phase_refinables(phase) -> list[Refinable]:
         # is not an independent refinable here (old is_refinable = not inherited).
         if not comp.is_inherited("d001"):
             out.append(Refinable(
-                "%s | %s | d001" % (phase.name, comp.name),
+                (phase.name, comp.name, "d001"),
                 lambda c=comp: c.d001,
                 lambda v, c=comp: setattr(c, "d001", v),
                 craw, "d001_ref_info", default_bounds=(0.0, 5.0),
             ))
         if not comp.is_inherited("delta_c"):
             out.append(Refinable(
-                "%s | %s | delta_c" % (phase.name, comp.name),
+                (phase.name, comp.name, "delta_c"),
                 lambda c=comp: c.delta_c,
                 lambda v, c=comp: setattr(c, "delta_c", v),
                 craw, "delta_c_ref_info", default_bounds=(0.0, 0.05),
@@ -209,8 +222,8 @@ def _phase_refinables(phase) -> list[Refinable]:
                 bounds = (0.0, 1.0) if getattr(rel, "type", "") == "AtomRatio" \
                     else (0.0, 10.0)
                 out.append(Refinable(
-                    "%s | %s | %s" % (
-                        phase.name, comp.name, getattr(rel, "name", "") or "relation"),
+                    (phase.name, comp.name,
+                     getattr(rel, "name", "") or "relation"),
                     lambda r=rel: r.value,
                     lambda v, r=rel, c=comp: _set_relation_value(r, c, v),
                     rel.raw_properties, "value_ref_info", default_bounds=bounds,
@@ -370,13 +383,26 @@ def _run_lbfgsb(refiner, options):
     )
 
 
+#: Evaluations allowed per Basin Hopping LOCAL minimisation. Without this scipy
+#: applies its own default (15000 per run), so `niter=100` could mean ~1.5M
+#: evaluations - each one a full per-phase recompute plus an inner fit. That is
+#: why a Basin Hopping run could take hours with no predictable end. Exposed as
+#: the "Calls per run" option so it can still be raised when a local minimum
+#: genuinely needs more.
+BASINHOPPING_LOCAL_MAXFUN = 200
+
+
 def _run_basinhopping(refiner, options):
+    local_maxfun = int(options.get("local_maxfun", BASINHOPPING_LOCAL_MAXFUN))
     basinhopping(
         refiner.get_residual, refiner.initial_solution,
         niter=int(options.get("niter", 100)),
         T=float(options.get("T", 1.0)),
         stepsize=float(options.get("stepsize", 0.5)),
-        minimizer_kwargs={"method": "L-BFGS-B", "bounds": refiner.ranges},
+        minimizer_kwargs={
+            "method": "L-BFGS-B", "bounds": refiner.ranges,
+            "options": {"maxfun": local_maxfun, "maxiter": local_maxfun},
+        },
     )
 
 
