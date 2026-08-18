@@ -19,14 +19,14 @@ from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
     QDialog, QDialogButtonBox, QFormLayout, QFrame,
     QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QPlainTextEdit, QPushButton, QSizePolicy, QSpacerItem,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_RefinementDialog(object):
     def setupUi(self, RefinementDialog):
         if not RefinementDialog.objectName():
             RefinementDialog.setObjectName(u"RefinementDialog")
-        RefinementDialog.resize(1440, 720)
-        RefinementDialog.setMinimumSize(QSize(1350, 580))
+        RefinementDialog.resize(1430, 720)
+        RefinementDialog.setMinimumSize(QSize(1385, 580))
         RefinementDialog.setModal(True)
         self.refinementLayout = QVBoxLayout(RefinementDialog)
         self.refinementLayout.setObjectName(u"refinementLayout")
@@ -36,57 +36,51 @@ class Ui_RefinementDialog(object):
         self.grpParameters = QGroupBox(RefinementDialog)
         self.grpParameters.setObjectName(u"grpParameters")
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy.setHorizontalStretch(5)
+        sizePolicy.setHorizontalStretch(4)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.grpParameters.sizePolicy().hasHeightForWidth())
         self.grpParameters.setSizePolicy(sizePolicy)
         self.parametersLayout = QVBoxLayout(self.grpParameters)
         self.parametersLayout.setObjectName(u"parametersLayout")
+        self.refinablesHeaderRow = QHBoxLayout()
+        self.refinablesHeaderRow.setObjectName(u"refinablesHeaderRow")
         self.lblRefinables = QLabel(self.grpParameters)
         self.lblRefinables.setObjectName(u"lblRefinables")
         self.lblRefinables.setWordWrap(True)
 
-        self.parametersLayout.addWidget(self.lblRefinables)
+        self.refinablesHeaderRow.addWidget(self.lblRefinables)
 
-        self.tbl_refinables = QTableWidget(self.grpParameters)
-        self.tbl_refinables.setObjectName(u"tbl_refinables")
-        self.tbl_refinables.setMinimumSize(QSize(390, 0))
-        self.tbl_refinables.setAlternatingRowColors(True)
-        self.tbl_refinables.setSelectionMode(QAbstractItemView.NoSelection)
-        self.tbl_refinables.setTextElideMode(Qt.ElideRight)
-        self.tbl_refinables.setWordWrap(False)
+        self.lbl_selected = QLabel(self.grpParameters)
+        self.lbl_selected.setObjectName(u"lbl_selected")
+        self.lbl_selected.setAlignment(Qt.AlignRight|Qt.AlignTop|Qt.AlignTrailing)
 
-        self.parametersLayout.addWidget(self.tbl_refinables)
-
-        self.paramButtonRow = QHBoxLayout()
-        self.paramButtonRow.setObjectName(u"paramButtonRow")
-        self.btn_auto_restrict = QPushButton(self.grpParameters)
-        self.btn_auto_restrict.setObjectName(u"btn_auto_restrict")
-
-        self.paramButtonRow.addWidget(self.btn_auto_restrict)
-
-        self.btn_randomize = QPushButton(self.grpParameters)
-        self.btn_randomize.setObjectName(u"btn_randomize")
-
-        self.paramButtonRow.addWidget(self.btn_randomize)
-
-        self.paramButtonSpacer = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.paramButtonRow.addItem(self.paramButtonSpacer)
+        self.refinablesHeaderRow.addWidget(self.lbl_selected)
 
 
-        self.parametersLayout.addLayout(self.paramButtonRow)
+        self.parametersLayout.addLayout(self.refinablesHeaderRow)
+
+        self.tree_refinables = QTreeWidget(self.grpParameters)
+        __qtreewidgetitem = QTreeWidgetItem()
+        __qtreewidgetitem.setText(0, u"1")
+        self.tree_refinables.setHeaderItem(__qtreewidgetitem)
+        self.tree_refinables.setObjectName(u"tree_refinables")
+        self.tree_refinables.setMinimumSize(QSize(425, 0))
+        self.tree_refinables.setAlternatingRowColors(True)
+        self.tree_refinables.setSelectionMode(QAbstractItemView.NoSelection)
+        self.tree_refinables.setTextElideMode(Qt.ElideRight)
+        self.tree_refinables.setWordWrap(False)
+        self.tree_refinables.setUniformRowHeights(True)
+        self.tree_refinables.setAnimated(True)
+
+        self.parametersLayout.addWidget(self.tree_refinables)
 
 
         self.framesRow.addWidget(self.grpParameters)
 
         self.grpRefine = QGroupBox(RefinementDialog)
         self.grpRefine.setObjectName(u"grpRefine")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy1.setHorizontalStretch(4)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.grpRefine.sizePolicy().hasHeightForWidth())
-        self.grpRefine.setSizePolicy(sizePolicy1)
+        sizePolicy.setHeightForWidth(self.grpRefine.sizePolicy().hasHeightForWidth())
+        self.grpRefine.setSizePolicy(sizePolicy)
         self.refineFrameLayout = QVBoxLayout(self.grpRefine)
         self.refineFrameLayout.setObjectName(u"refineFrameLayout")
         self.methodRow = QHBoxLayout()
@@ -98,11 +92,11 @@ class Ui_RefinementDialog(object):
 
         self.cmb_method = QComboBox(self.grpRefine)
         self.cmb_method.setObjectName(u"cmb_method")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy2.setHorizontalStretch(1)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.cmb_method.sizePolicy().hasHeightForWidth())
-        self.cmb_method.setSizePolicy(sizePolicy2)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy1.setHorizontalStretch(1)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.cmb_method.sizePolicy().hasHeightForWidth())
+        self.cmb_method.setSizePolicy(sizePolicy1)
 
         self.methodRow.addWidget(self.cmb_method)
 
@@ -125,13 +119,19 @@ class Ui_RefinementDialog(object):
 
         self.refineFrameLayout.addLayout(self.optionsLayout)
 
+        self.lbl_budget = QLabel(self.grpRefine)
+        self.lbl_budget.setObjectName(u"lbl_budget")
+        self.lbl_budget.setWordWrap(True)
+
+        self.refineFrameLayout.addWidget(self.lbl_budget)
+
         self.grpProgress = QGroupBox(self.grpRefine)
         self.grpProgress.setObjectName(u"grpProgress")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        sizePolicy3.setHorizontalStretch(0)
-        sizePolicy3.setVerticalStretch(1)
-        sizePolicy3.setHeightForWidth(self.grpProgress.sizePolicy().hasHeightForWidth())
-        self.grpProgress.setSizePolicy(sizePolicy3)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(1)
+        sizePolicy2.setHeightForWidth(self.grpProgress.sizePolicy().hasHeightForWidth())
+        self.grpProgress.setSizePolicy(sizePolicy2)
         self.grpProgress.setMinimumSize(QSize(300, 200))
         self.progressLayout = QVBoxLayout(self.grpProgress)
         self.progressLayout.setObjectName(u"progressLayout")
@@ -143,11 +143,11 @@ class Ui_RefinementDialog(object):
 
         self.grpResult = QGroupBox(RefinementDialog)
         self.grpResult.setObjectName(u"grpResult")
-        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy4.setHorizontalStretch(3)
-        sizePolicy4.setVerticalStretch(0)
-        sizePolicy4.setHeightForWidth(self.grpResult.sizePolicy().hasHeightForWidth())
-        self.grpResult.setSizePolicy(sizePolicy4)
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy3.setHorizontalStretch(3)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.grpResult.sizePolicy().hasHeightForWidth())
+        self.grpResult.setSizePolicy(sizePolicy3)
         self.grpResult.setMinimumSize(QSize(300, 0))
         self.resultLayout = QVBoxLayout(self.grpResult)
         self.resultLayout.setObjectName(u"resultLayout")
@@ -209,7 +209,7 @@ class Ui_RefinementDialog(object):
 
         self.resultLayout.addWidget(self.lblKeepWhich)
 
-        self.applyLayout = QVBoxLayout()
+        self.applyLayout = QHBoxLayout()
         self.applyLayout.setObjectName(u"applyLayout")
         self.btn_apply_initial = QPushButton(self.grpResult)
         self.btn_apply_initial.setObjectName(u"btn_apply_initial")
@@ -231,11 +231,11 @@ class Ui_RefinementDialog(object):
 
         self.txt_report = QPlainTextEdit(self.grpResult)
         self.txt_report.setObjectName(u"txt_report")
-        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy5.setHorizontalStretch(0)
-        sizePolicy5.setVerticalStretch(1)
-        sizePolicy5.setHeightForWidth(self.txt_report.sizePolicy().hasHeightForWidth())
-        self.txt_report.setSizePolicy(sizePolicy5)
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy4.setHorizontalStretch(0)
+        sizePolicy4.setVerticalStretch(1)
+        sizePolicy4.setHeightForWidth(self.txt_report.sizePolicy().hasHeightForWidth())
+        self.txt_report.setSizePolicy(sizePolicy4)
         self.txt_report.setMinimumSize(QSize(0, 120))
         self.txt_report.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.txt_report.setReadOnly(True)
@@ -282,13 +282,9 @@ class Ui_RefinementDialog(object):
         self.grpParameters.setTitle(QCoreApplication.translate("RefinementDialog", u"1. Parameters to refine", None))
         self.lblRefinables.setText(QCoreApplication.translate("RefinementDialog", u"Tick \"Refine\" and set Min/Max for the parameters to refine:", None))
 #if QT_CONFIG(tooltip)
-        self.btn_auto_restrict.setToolTip(QCoreApplication.translate("RefinementDialog", u"Set Min/Max to +/-20% of each flagged parameter's current value.", None))
+        self.lbl_selected.setToolTip(QCoreApplication.translate("RefinementDialog", u"How many parameters are flagged for refinement. Every flagged parameter adds a dimension to the search, so this is what decides how long a run takes.", None))
 #endif // QT_CONFIG(tooltip)
-        self.btn_auto_restrict.setText(QCoreApplication.translate("RefinementDialog", u"Auto-restrict", None))
-#if QT_CONFIG(tooltip)
-        self.btn_randomize.setToolTip(QCoreApplication.translate("RefinementDialog", u"Randomize each flagged parameter within its Min/Max.", None))
-#endif // QT_CONFIG(tooltip)
-        self.btn_randomize.setText(QCoreApplication.translate("RefinementDialog", u"Randomize", None))
+        self.lbl_selected.setText(QCoreApplication.translate("RefinementDialog", u"0 of 0 selected", None))
         self.grpRefine.setTitle(QCoreApplication.translate("RefinementDialog", u"2. Refinement", None))
         self.lblMethod.setText(QCoreApplication.translate("RefinementDialog", u"Method", None))
 #if QT_CONFIG(tooltip)
@@ -299,6 +295,10 @@ class Ui_RefinementDialog(object):
         self.btn_cancel.setToolTip(QCoreApplication.translate("RefinementDialog", u"Stop the running refinement and keep the best solution found so far.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_cancel.setText(QCoreApplication.translate("RefinementDialog", u"Cancel", None))
+#if QT_CONFIG(tooltip)
+        self.lbl_budget.setToolTip(QCoreApplication.translate("RefinementDialog", u"How much work this run may do, for the current method, options and selection. L-BFGS-B has a hard cap; Basin Hopping runs that many LOCAL minimisations and does not cap each one.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_budget.setText("")
         self.grpProgress.setTitle(QCoreApplication.translate("RefinementDialog", u"Progress", None))
         self.grpResult.setTitle(QCoreApplication.translate("RefinementDialog", u"3. Result", None))
         self.lblInitial.setText(QCoreApplication.translate("RefinementDialog", u"Initial residual (Rp)", None))

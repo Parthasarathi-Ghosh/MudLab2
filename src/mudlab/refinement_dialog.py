@@ -33,11 +33,17 @@ from matplotlib.figure import Figure
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
-    QDialog, QDoubleSpinBox, QGridLayout, QHeaderView, QLabel, QMessageBox,
-    QSpinBox, QTableWidgetItem, QWidget,
+    QAbstractItemView, QDialog, QDoubleSpinBox, QGridLayout, QHeaderView,
+    QLabel, QMenu, QMessageBox, QSpinBox, QStyledItemDelegate,
+    QTreeWidgetItem,
+    QTreeWidgetItemIterator,
+    QWidget,
 )
 
-from mudlab.calculations.refinement import REFINE_METHODS, refine_mixture
+from mudlab.calculations.refinement import (
+    BASINHOPPING_LOCAL_MAXFUN, REFINE_METHODS, refine_mixture,
+)
+from mudlab.calculations.mixture import per_specimen_residuals
 from mudlab.calculations.validation import validation_report_lines
 from mudlab.ui.ui_refinement import Ui_RefinementDialog
 
@@ -73,7 +79,11 @@ class _RefineWorker(QObject):
             self.finished.emit(refiner)
 
 _COL_NAME, _COL_VALUE, _COL_MIN, _COL_MAX, _COL_REFINE = range(5)
+# The four numeric columns, not the names, set the floor on how narrow the
+# parameters frame can be. "Refine" spelled out costs ~50 px over "Ref.", and
+# that is a deliberate trade: the column heading has to be readable.
 _HEADERS = ["Parameter", "Value", "Min", "Max", "Refine"]
+_NUM_COL_WIDTH = 72   # Value / Min / Max: enough for "%.4f" of a 3-digit value
 
 # Per-method OUTER-search options (name, label, default, min, max, kind). The
 # inner fraction/scale/bg optimiser keeps its own fixed limits. Old sources:
@@ -87,6 +97,8 @@ _METHOD_OPTIONS = {
     ],
     1: [
         ("niter", "Iterations", 100, 1, 100_000, int),
+        ("local_maxfun", "Calls per run", BASINHOPPING_LOCAL_MAXFUN,
+         1, 1_000_000, int),
         ("T", "Temperature", 1.0, 0.0, 10_000.0, float),
         ("stepsize", "Step size", 0.5, 0.0, 1_000.0, float),
     ],
@@ -96,9 +108,29 @@ _OPTION_TOOLTIPS = {
     "maxfun": "Maximum number of objective-function evaluations.",
     "maxiter": "Maximum number of solver iterations.",
     "niter": "Number of basin-hopping iterations (random restarts).",
+    "local_maxfun": ("Evaluations allowed per local minimisation. Uncapped, "
+                     "scipy allows 15000 per run - so 100 iterations could mean "
+                     "over a million evaluations. Raise it if a local minimum "
+                     "genuinely needs more work."),
     "T": "Basin-hopping temperature: how readily a worse solution is accepted.",
     "stepsize": "Size of the random displacement between basin-hopping steps.",
 }
+
+
+class _MinMaxOnlyDelegate(QStyledItemDelegate):
+    """Only the Min and Max cells may be edited.
+
+    A QTreeWidgetItem's ItemIsEditable flag applies to EVERY column, so without
+    this the Parameter and Value cells opened editors too - and since
+    `_on_item_changed` only handles Min / Max / Refine, a typed Value stayed on
+    screen while the model kept its own number. A cell that lies about the model
+    is worse than one that is read-only. (The flat table this replaced set
+    editability per CELL, which is why it never had the problem.)"""
+
+    def createEditor(self, parent, option, index):
+        if index.column() not in (_COL_MIN, _COL_MAX):
+            return None
+        return super().createEditor(parent, option, index)
 
 
 class RefinementDialog(QDialog):
@@ -147,14 +179,37 @@ class RefinementDialog(QDialog):
         self.ui.txt_report.setFont(
             QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
 
-        table = self.ui.tbl_refinables
-        table.setColumnCount(len(_HEADERS))
-        table.setHorizontalHeaderLabels(_HEADERS)
-        table.verticalHeader().setVisible(False)
-        header = table.horizontalHeader()
+        # {id(QTreeWidgetItem): Refinable} for the parameter LEAVES; a group row
+        # is absent from it, which is how edits on a group are ignored.
+        self._items: dict = {}
+        tree = self.ui.tree_refinables
+        tree.setColumnCount(len(_HEADERS))
+        tree.setHeaderLabels(_HEADERS)
+        tree.setRootIsDecorated(True)          # the fold arrows
+        # Tighter than Qt's ~20 px default: the tree is three levels deep
+        # (phase / component / parameter), so the default indent ate width the
+        # name column needs.
+        tree.setIndentation(12)
+        tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tree.customContextMenuRequested.connect(self._on_tree_menu)
+        tree.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.EditKeyPressed
+        )
+        tree.setItemDelegate(_MinMaxOnlyDelegate(tree))
+        header = tree.header()
+        # The name column is the stretching one; without this Qt ALSO stretches
+        # the last section, and the two together push the header past the
+        # viewport - which shows up as a permanent horizontal scrollbar.
+        header.setStretchLastSection(False)
         header.setSectionResizeMode(_COL_NAME, QHeaderView.ResizeMode.Stretch)
-        for col in (_COL_VALUE, _COL_MIN, _COL_MAX, _COL_REFINE):
-            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        # Fixed-but-draggable numeric columns rather than ResizeToContents: the
+        # latter sized them to their widest value (a 200.0000 CSDS mean pushed
+        # Max to ~102 px) and left the name column whatever was over.
+        for col in (_COL_VALUE, _COL_MIN, _COL_MAX):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+            header.resizeSection(col, _NUM_COL_WIDTH)
+        header.setSectionResizeMode(_COL_REFINE, QHeaderView.ResizeMode.ResizeToContents)
 
         # Method combo: only the two convergent SciPy methods.
         for index, (name, _fn) in sorted(REFINE_METHODS.items()):
@@ -162,12 +217,10 @@ class RefinementDialog(QDialog):
         self._select_stored_method()
         self._build_options_form(int(self.ui.cmb_method.currentData()))
 
-        table.itemChanged.connect(self._on_item_changed)
+        tree.itemChanged.connect(self._on_item_changed)
         self.ui.cmb_method.currentIndexChanged.connect(self._on_method_changed)
         self.ui.btn_refine.clicked.connect(self._on_refine)
         self.ui.btn_cancel.clicked.connect(self._on_cancel)
-        self.ui.btn_auto_restrict.clicked.connect(self._on_auto_restrict)
-        self.ui.btn_randomize.clicked.connect(self._on_randomize)
         self.ui.btn_apply_initial.clicked.connect(lambda: self._on_apply("initial"))
         self.ui.btn_apply_best.clicked.connect(lambda: self._on_apply("best"))
         self.ui.btn_apply_last.clicked.connect(lambda: self._on_apply("last"))
@@ -186,55 +239,197 @@ class RefinementDialog(QDialog):
         self.ui.cmb_method.setCurrentIndex(self.ui.cmb_method.findData(stored))
 
     def _populate(self) -> None:
-        table = self.ui.tbl_refinables
+        """Build the refinables TREE: a foldable group per phase (and per
+        component below it), with one leaf per parameter showing only its own
+        title. Ported from the old app's refinables GtkTreeView, which did the
+        same - it is what keeps the name column narrow, since the full path
+        ("Illite | Illite | d001") is carried by the group rows instead of being
+        repeated on every row. Group rows carry no value/min/max/refine cells,
+        exactly as the old view hid them on non-refinable nodes."""
+        tree = self.ui.tree_refinables
         self._updating = True
         try:
+            tree.clear()
+            self._items = {}
             self._refinables = (
                 self._mixture.refinables() if self._mixture is not None else []
             )
-            table.setRowCount(len(self._refinables))
-            for row, ref in enumerate(self._refinables):
-                self._set_text(row, _COL_NAME, ref.label, editable=False)
-                self._set_text(row, _COL_VALUE, "%.4f" % ref.value, editable=False)
-                self._set_text(row, _COL_MIN, "%.4f" % ref.minimum, editable=True)
-                self._set_text(row, _COL_MAX, "%.4f" % ref.maximum, editable=True)
-                self._set_check(row, _COL_REFINE, ref.refine)
+            groups: dict = {}
+            for ref in self._refinables:
+                parent = None
+                path: tuple = ()
+                for name in ref.group:
+                    path += (name,)
+                    node = groups.get(path)
+                    if node is None:
+                        node = (QTreeWidgetItem(tree, [name]) if parent is None
+                                else QTreeWidgetItem(parent, [name]))
+                        node.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                        node.setFirstColumnSpanned(False)
+                        groups[path] = node
+                    parent = node
+                item = (QTreeWidgetItem(parent, [ref.title]) if parent is not None
+                        else QTreeWidgetItem(tree, [ref.title]))
+                item.setToolTip(_COL_NAME, ref.label)
+                # ItemIsUserCheckable is what actually DRAWS (and enables) the
+                # Refine box; editable covers the Min/Max cells.
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled
+                              | Qt.ItemFlag.ItemIsEditable
+                              | Qt.ItemFlag.ItemIsUserCheckable)
+                self._items[id(item)] = ref
+                self._fill_item(item, ref)
+            # Opens FOLDED: a real project has dozens of parameters across
+            # several phases, and the phase names alone are the useful overview.
+            # Expand all / Fold all live on the tree's right-click menu.
+            tree.collapseAll()
         finally:
             self._updating = False
+        self._update_selected_count()
 
-    def _refresh_values(self) -> None:
-        """After a refine/apply the model values changed; refresh Value column
-        (and Min/Max/refine, which auto-restrict/randomize may have touched)."""
-        table = self.ui.tbl_refinables
+    def _effective_parameters(self) -> int:
+        """How many parameters the refiner will ACTUALLY vary: flagged, with a
+        non-degenerate range. `Refiner.__init__` applies exactly this filter, so
+        a ticked parameter whose Min >= Max is counted out here too - which is
+        what makes that otherwise-silent skip visible."""
+        return sum(1 for ref in self._refinables
+                   if ref.refine and ref.minimum < ref.maximum)
+
+    def _update_budget(self) -> None:
+        """Show the evaluation budget for the current method + options.
+
+        L-BFGS-B has a hard cap: scipy stops at `maxfun` function evaluations,
+        and with the numerical gradient each iteration costs (n + 1) of them, so
+        `maxiter` can bind first. Basin Hopping does NOT have one - it runs
+        niter + 1 LOCAL minimisations and MudLab2 passes no per-run budget, so
+        each one may use scipy's own default (15000 evaluations). That is the
+        honest number to show: it is why a Basin Hopping run takes minutes to
+        hours where L-BFGS-B takes seconds."""
+        method = int(self.ui.cmb_method.currentData() or 0)
+        options = self._options()
+        n = self._effective_parameters()
+        if n == 0:
+            self.ui.lbl_budget.setText(
+                "No parameters selected - Refine only re-fits "
+                "fractions / scales / background.")
+            return
+        if method == 0:
+            maxfun = int(options.get("maxfun", 500))
+            maxiter = int(options.get("maxiter", 150))
+            capped = min(maxfun, maxiter * (n + 1))
+            self.ui.lbl_budget.setText(
+                "Up to %d evaluations  (%d parameter%s, %d per gradient step)"
+                % (capped, n, "" if n == 1 else "s", n + 1))
+        else:
+            runs = int(options.get("niter", 100)) + 1
+            per_run = int(options.get("local_maxfun", BASINHOPPING_LOCAL_MAXFUN))
+            self.ui.lbl_budget.setText(
+                "Up to %s evaluations  (%d local runs x %d, %d parameter%s)"
+                % ("{:,}".format(runs * per_run), runs, per_run, n,
+                   "" if n == 1 else "s"))
+
+    def _update_selected_count(self) -> None:
+        """"N of M selected" beside the instruction above the tree. With the
+        tree folded by default, the flagged count is otherwise invisible - and
+        it is exactly what decides how long a refinement will take."""
+        total = len(self._refinables)
+        selected = sum(1 for ref in self._refinables if ref.refine)
+        self.ui.lbl_selected.setText("%d of %d selected" % (selected, total))
+        self._update_budget()
+
+    def _on_tree_menu(self, pos) -> None:
+        tree = self.ui.tree_refinables
+        self._tree_menu().exec(tree.viewport().mapToGlobal(pos))
+
+    def _tree_menu(self) -> QMenu:
+        """Build the parameters tree's right-click menu. Kept separate from
+        showing it so it can be inspected without entering a modal loop.
+
+        Folding is always available; the four model-touching entries are greyed
+        while a refinement runs, the way the Auto-restrict / Randomize buttons
+        they replaced used to be."""
+        tree = self.ui.tree_refinables
+        idle = self._thread is None
+        menu = QMenu(self)
+        menu.addAction("Expand all", tree.expandAll)
+        menu.addAction("Fold all", tree.collapseAll)
+        menu.addSeparator()
+        select = menu.addAction("Select all", lambda: self._set_all_refine(True))
+        unselect = menu.addAction("Unselect all", lambda: self._set_all_refine(False))
+        menu.addSeparator()
+        restrict = menu.addAction("Auto restrict", self._on_auto_restrict)
+        restrict.setToolTip(
+            "Set Min/Max to +/-20% of each flagged parameter's current value.")
+        randomise = menu.addAction("Randomise", self._on_randomize)
+        randomise.setToolTip("Randomize each flagged parameter within its Min/Max.")
+        for action in (select, unselect, restrict, randomise):
+            action.setEnabled(idle)
+        return menu
+
+    def _set_all_refine(self, refine: bool) -> None:
+        """Tick / untick the Refine box on every parameter, and UNFOLD so the
+        result is visible - selecting everything behind collapsed branches would
+        otherwise look like nothing happened."""
         self._updating = True
         try:
-            for row, ref in enumerate(self._refinables):
-                table.item(row, _COL_VALUE).setText("%.4f" % ref.value)
-                table.item(row, _COL_MIN).setText("%.4f" % ref.minimum)
-                table.item(row, _COL_MAX).setText("%.4f" % ref.maximum)
-                self._set_check(row, _COL_REFINE, ref.refine)
+            for item, ref in self._leaf_items():
+                ref.set_ref_info(refine=refine)
+                item.setCheckState(
+                    _COL_REFINE,
+                    Qt.CheckState.Checked if refine else Qt.CheckState.Unchecked)
         finally:
             self._updating = False
+        self.ui.tree_refinables.expandAll()
+        self._update_selected_count()
+
+    def _fill_item(self, item, ref) -> None:
+        item.setText(_COL_VALUE, "%.4f" % ref.value)
+        item.setText(_COL_MIN, "%.4f" % ref.minimum)
+        item.setText(_COL_MAX, "%.4f" % ref.maximum)
+        item.setCheckState(_COL_REFINE,
+                           Qt.CheckState.Checked if ref.refine
+                           else Qt.CheckState.Unchecked)
+
+    def _leaf_items(self):
+        """(item, refinable) for every parameter leaf, groups excluded."""
+        walker = QTreeWidgetItemIterator(self.ui.tree_refinables)
+        while walker.value():
+            item = walker.value()
+            ref = self._items.get(id(item))
+            if ref is not None:
+                yield item, ref
+            walker += 1
+
+    def _refresh_values(self) -> None:
+        """After a refine/apply the model values changed; refresh Value (and
+        Min/Max/refine, which auto-restrict/randomize may have touched)."""
+        self._updating = True
+        try:
+            for item, ref in self._leaf_items():
+                self._fill_item(item, ref)
+        finally:
+            self._updating = False
+        self._update_selected_count()
 
     # ------------------------------------------------------------------
     # Editing the tree
     # ------------------------------------------------------------------
-    def _on_item_changed(self, item: QTableWidgetItem) -> None:
+    def _on_item_changed(self, item, col: int) -> None:
         if self._updating:
             return
-        row, col = item.row(), item.column()
-        if not (0 <= row < len(self._refinables)):
-            return
-        ref = self._refinables[row]
+        ref = self._items.get(id(item))
+        if ref is None:
+            return  # a group row: nothing to edit
         if col == _COL_REFINE:
-            ref.set_ref_info(refine=item.checkState() == Qt.CheckState.Checked)
+            ref.set_ref_info(refine=item.checkState(_COL_REFINE) == Qt.CheckState.Checked)
+            self._update_selected_count()
         elif col in (_COL_MIN, _COL_MAX):
             try:
-                value = float(item.text())
+                value = float(item.text(col))
             except ValueError:
                 self._updating = True
                 try:
-                    item.setText("%.4f" % (ref.minimum if col == _COL_MIN else ref.maximum))
+                    item.setText(col, "%.4f" % (ref.minimum if col == _COL_MIN
+                                                else ref.maximum))
                 finally:
                     self._updating = False
                 return
@@ -292,6 +487,7 @@ class RefinementDialog(QDialog):
                 self._options_form.setColumnStretch(pair * 2 + 1, 1)
         finally:
             self._updating = False
+        self._update_budget()
 
     def _stored_options(self, method_index: int) -> dict:
         if self._mixture is None:
@@ -307,6 +503,7 @@ class RefinementDialog(QDialog):
         opts = dict(self._mixture.raw_properties.get("refine_options") or {})
         opts[str(method_index)] = self._options()
         self._mixture.raw_properties["refine_options"] = opts
+        self._update_budget()
 
     def _on_auto_restrict(self) -> None:
         """Set Min/Max to +/-20% of each flagged parameter's current value
@@ -477,10 +674,12 @@ class RefinementDialog(QDialog):
 
     def _set_running(self, running: bool) -> None:
         """Lock the editing controls while a refinement runs; only Cancel stays
-        active. Cancel is disabled otherwise."""
+        active. Cancel is disabled otherwise. (Auto-restrict / Randomise moved to
+        the tree's right-click menu, which greys them itself while running - and
+        disabling the tree blocks the menu anyway.)"""
         for control in (
-            self.ui.tbl_refinables, self.ui.cmb_method, self.ui.btn_refine,
-            self.ui.btn_auto_restrict, self.ui.btn_randomize, self.ui.buttonBox,
+            self.ui.tree_refinables, self.ui.cmb_method, self.ui.btn_refine,
+            self.ui.buttonBox,
             self.ui.btn_apply_initial, self.ui.btn_apply_best, self.ui.btn_apply_last,
         ):
             control.setEnabled(not running)
@@ -548,6 +747,15 @@ class RefinementDialog(QDialog):
         # matching SpecimenStatistics), like the mean-Rp residual.
         gof = self._compute_gof()
         self.ui.lbl_gof.setText("-" if gof is None else "%.4f" % gof)
+
+    def _per_specimen_residuals(self) -> list:
+        """The per-specimen Rp behind the reported mean, or [] if unavailable."""
+        if self._mixture is None:
+            return []
+        try:
+            return per_specimen_residuals(self._mixture)
+        except Exception:  # noqa: BLE001 - a report must never fail to render
+            return []
 
     def _compute_gof(self) -> float | None:
         from mudlab.calculations import GoF
@@ -637,6 +845,19 @@ class RefinementDialog(QDialog):
                         len(refiner.refinables)))
         lines.append("")
 
+        # Every Rp above is the MEAN over the mixture's specimens, so a single
+        # number hides one specimen fitting badly while the others carry the
+        # average. These are the same values that mean was taken over.
+        per_specimen = self._per_specimen_residuals()
+        if per_specimen:
+            lines.append("  Rp per specimen (as applied - the values above are")
+            lines.append("  their mean):")
+            width = min(34, max(len(name) for name, _rp in per_specimen))
+            for name, value in per_specimen:
+                shown = name if len(name) <= width else name[:width - 1] + "…"
+                lines.append("    %-*s %8.3f" % (width, shown, value))
+            lines.append("")
+
         rows = self._thinned_progress()
         if rows:
             lines.append("  Progress log (%d evaluations):" % self._prog_evals[-1])
@@ -676,28 +897,3 @@ class RefinementDialog(QDialog):
                        self.ui.btn_apply_last):
             button.setEnabled(enabled)
 
-    # ------------------------------------------------------------------
-    # Cell helpers
-    # ------------------------------------------------------------------
-    def _set_text(self, row: int, col: int, text: str, editable: bool) -> None:
-        item = QTableWidgetItem(text)
-        flags = Qt.ItemFlag.ItemIsEnabled
-        if editable:
-            flags |= Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
-        item.setFlags(flags)
-        if col == _COL_NAME:
-            # "Phase | Component | Parameter" runs to ~560 px, so the column
-            # elides it at most widths; the tooltip gives the full name.
-            item.setToolTip(text)
-        self.ui.tbl_refinables.setItem(row, col, item)
-
-    def _set_check(self, row: int, col: int, checked: bool) -> None:
-        item = self.ui.tbl_refinables.item(row, col)
-        if item is None:
-            item = QTableWidgetItem()
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tbl_refinables.setItem(row, col, item)
-        item.setCheckState(
-            Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
-        )

@@ -1275,10 +1275,37 @@ do mean something. `component_charge_balance_finding` documents how to restore
 the old strict behaviour in one line. `Component.compute_charge_balance` is the
 verbatim port of the old model method.
 
-- `tbl_refinables`: a row per `mixture.refinables()` - Parameter (label) /
-  Value (read-only) / Min / Max (editable) / Refine (checkable). Edits go
-  through `Refinable.set_ref_info`, which writes the `<name>_ref_info` triple
+- `tree_refinables`: a foldable TREE of `mixture.refinables()` - a group row per
+  phase, a nested group per component, and one leaf per parameter with columns
+  Parameter / Value / Min / Max / Ref. This is the OLD APP's design (its
+  `refinables` GtkTreeView had expanders and showed each node's own
+  `text_title`), and it is why the name column can be narrow: the path lives on
+  the group rows instead of being repeated on every row. `Refinable.group` /
+  `.title` carry that structure (`.label` stays the joined string for the
+  report), so the tree never has to split a name on " | ". Group rows are inert
+  (no editable/checkable flags, absent from `_items`, which is how edits on them
+  are ignored); leaves need `ItemIsUserCheckable` or the Refine box does not
+  draw. `header.setStretchLastSection(False)` is required - Qt stretches the
+  last section by default and, with the name column also stretching, that leaves
+  a permanent horizontal scrollbar. The tree opens FOLDED. Edits go through
+  `Refinable.set_ref_info`, which writes the `<name>_ref_info` triple
   (round-trips via the phase/component to_dict).
+- **Right-click menu on the tree** (`_tree_menu` builds it, `_on_tree_menu`
+  shows it - split so the menu can be inspected head-lessly instead of entering
+  a modal `exec()`): Expand all / Fold all / Select all / Unselect all / Auto
+  restrict / Randomise. The last four are greyed while a refinement runs. This
+  REPLACED the Auto-restrict and Randomize buttons, which are gone. Select all
+  / Unselect all also `expandAll()`, otherwise the result hides behind folded
+  branches. `lbl_selected` ("N of M selected", beside the instruction above
+  the tree) is refreshed by every path that can change a flag - populate, a
+  tick in the tree, select/unselect all, and `_refresh_values` after
+  auto-restrict / randomise.
+- The Value/Min/Max cells are a LIVE view of the model: `_refresh_values` runs
+  after a refinement finishes AND after each keep, so the column can never show
+  pre-refinement numbers beside a refined plot. NOTE leaf titles are only
+  unique within their branch (every phase has a "sigma*"), so any code or test
+  keying on a leaf must use `Refinable.label` (the full path), not `title` - a
+  title-keyed comparison silently compares the wrong rows.
 - `cmb_method`: 0 = L-BFGS-B, 1 = Basin Hopping (persisted to
   `refine_method_index`). `optionsLayout` holds a per-method options GRID of
   (label, spinbox) pairs, two pairs per row (maxfun/maxiter side by side, or

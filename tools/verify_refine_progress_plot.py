@@ -121,6 +121,215 @@ def main():
     return 0 if passed == total else 1
 
 
+def _check_refinables_tree(dlg):
+    """The refinables view is a foldable TREE (the old app's design), not a flat
+    table: a group row per phase, a nested group per component, and one leaf per
+    parameter showing ONLY its own title. That is what lets the name column be
+    narrow - the path lives on the group rows instead of being repeated on every
+    row - and group rows must stay inert."""
+    tree = dlg.ui.tree_refinables
+    check("tree: the refinables view is a tree with fold arrows",
+          tree.topLevelItemCount() > 0 and tree.rootIsDecorated())
+    groups = [tree.topLevelItem(i) for i in range(tree.topLevelItemCount())]
+    check("tree: top-level rows are phases, each with children",
+          all(g.childCount() > 0 for g in groups))
+    check("tree: opens FOLDED (phase names are the overview)",
+          not any(g.isExpanded() for g in groups))
+    tree.expandAll()
+    app.processEvents()
+    check("tree: Expand all unfolds every branch",
+          all(g.isExpanded() for g in groups))
+    tree.collapseAll()
+    app.processEvents()
+    check("tree: Fold all folds them again",
+          not any(g.isExpanded() for g in groups))
+    check("tree: the branch indent is tighter than Qt's default",
+          0 < tree.indentation() < 20)
+
+    # A leaf shows only its own title, never the full path.
+    leaves = list(dlg._leaf_items())
+    check("tree: every refinable has a leaf", len(leaves) == len(dlg._refinables))
+    check("tree: a leaf shows only its own title, with the path in a tooltip",
+          all(item.text(0) == ref.title and item.toolTip(0) == ref.label
+              for item, ref in leaves))
+    check("tree: leaves are checkable (the Refine box) and editable",
+          all(item.flags() & Qt.ItemFlag.ItemIsUserCheckable
+              and item.flags() & Qt.ItemFlag.ItemIsEditable
+              for item, _ref in leaves))
+    check("tree: group rows are inert - not editable, not checkable",
+          all(not (g.flags() & Qt.ItemFlag.ItemIsEditable)
+              and not (g.flags() & Qt.ItemFlag.ItemIsUserCheckable)
+              for g in groups))
+    check("tree: group rows map to no refinable",
+          all(id(g) not in dlg._items for g in groups))
+
+    # Editing a leaf writes through to the model; a bad number reverts.
+    item, ref = leaves[0]
+    before = ref.refine
+    item.setCheckState(4, Qt.CheckState.Checked if not before
+                       else Qt.CheckState.Unchecked)
+    app.processEvents()
+    check("tree: ticking Refine writes the model", ref.refine != before)
+    item.setCheckState(4, Qt.CheckState.Checked if before
+                       else Qt.CheckState.Unchecked)
+    keep_min = ref.minimum
+    item.setText(2, "%.4f" % (keep_min + 1.5))
+    app.processEvents()
+    check("tree: editing Min writes the model",
+          abs(ref.minimum - (keep_min + 1.5)) < 1e-9)
+    item.setText(2, "rubbish")
+    app.processEvents()
+    check("tree: a non-numeric edit reverts to the model value",
+          abs(ref.minimum - (keep_min + 1.5)) < 1e-9
+          and item.text(2) == "%.4f" % ref.minimum)
+    ref.set_ref_info(minimum=keep_min)
+
+    # The right-click menu replaced the Auto-restrict / Randomize buttons.
+    check("menu: the tree has a custom context menu",
+          tree.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu)
+    check("menu: the Auto-restrict / Randomize BUTTONS are gone",
+          not hasattr(dlg.ui, "btn_auto_restrict")
+          and not hasattr(dlg.ui, "btn_randomize"))
+
+    # _tree_menu() BUILDS the menu; _on_tree_menu() shows it. Testing the
+    # builder keeps this out of a modal exec() loop.
+    def entries(menu):
+        return {a.text(): a.isEnabled() for a in menu.actions() if a.text()}
+
+    idle = entries(dlg._tree_menu())
+    check("menu: offers all six entries",
+          list(idle) == ["Expand all", "Fold all", "Select all",
+                         "Unselect all", "Auto restrict", "Randomise"])
+    check("menu: everything is enabled while idle", all(idle.values()))
+
+    # While a refinement runs the model-touching entries grey out.
+    dlg._thread = object()          # a stand-in for a live QThread
+    try:
+        busy = entries(dlg._tree_menu())
+    finally:
+        dlg._thread = None          # ...never leave it set: close() would use it
+    check("menu: folding stays available during a run",
+          busy["Expand all"] and busy["Fold all"])
+    check("menu: select / restrict / randomise grey out during a run",
+          not busy["Select all"] and not busy["Unselect all"]
+          and not busy["Auto restrict"] and not busy["Randomise"])
+
+    # Select all / Unselect all drive every parameter's Refine flag, and UNFOLD
+    # so the result is visible rather than hidden behind collapsed branches.
+    tree.collapseAll()
+    app.processEvents()
+    dlg._set_all_refine(True)
+    app.processEvents()
+    check("menu: Select all ticks every parameter",
+          all(ref.refine for _item, ref in dlg._leaf_items())
+          and all(item.checkState(4) == Qt.CheckState.Checked
+                  for item, _ref in dlg._leaf_items()))
+    check("menu: Select all also expands the tree",
+          all(g.isExpanded() for g in groups))
+    check("count: the label reports every parameter selected",
+          dlg.ui.lbl_selected.text() == "%d of %d selected"
+          % (len(dlg._refinables), len(dlg._refinables)))
+    tree.collapseAll()
+    app.processEvents()
+    dlg._set_all_refine(False)
+    app.processEvents()
+    check("menu: Unselect all clears them",
+          not any(ref.refine for _item, ref in dlg._leaf_items()))
+    check("menu: Unselect all also expands the tree",
+          all(g.isExpanded() for g in groups))
+    check("count: ...and the label drops back to none selected",
+          dlg.ui.lbl_selected.text() == "0 of %d selected" % len(dlg._refinables))
+
+    # The counter follows a single tick from the tree itself, too.
+    one_item, _one_ref = leaves[0]
+    one_item.setCheckState(4, Qt.CheckState.Checked)
+    app.processEvents()
+    check("count: one tick in the tree updates the label",
+          dlg.ui.lbl_selected.text() == "1 of %d selected" % len(dlg._refinables))
+    one_item.setCheckState(4, Qt.CheckState.Unchecked)
+    app.processEvents()
+
+    check("layout: the Refine column is spelled out, not abbreviated",
+          tree.headerItem().text(4) == "Refine")
+
+    # ONLY Min and Max may be edited. The item's ItemIsEditable flag applies to
+    # every column, so without the delegate the Parameter and Value cells opened
+    # editors too - and a typed Value stayed on screen while the model kept its
+    # own number, because only Min/Max/Refine are handled.
+    from PySide6.QtWidgets import QStyleOptionViewItem
+
+    delegate = tree.itemDelegate()
+    option = QStyleOptionViewItem()
+    model = tree.model()
+    editable = {}
+    for col in range(5):
+        index = model.index(0, col, model.index(0, 0).parent())
+        editor = delegate.createEditor(tree.viewport(), option, index)
+        editable[col] = editor is not None
+        if editor is not None:
+            editor.deleteLater()
+    check("edit: the Parameter and Value cells refuse an editor",
+          not editable[0] and not editable[1])
+    check("edit: Min and Max still open one", editable[2] and editable[3])
+
+    # The evaluation budget readout, for the current method + options +
+    # selection. It is also the only place the silent "ticked but Min >= Max, so
+    # not actually refined" case becomes visible.
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
+    dlg._set_all_refine(False)
+    app.processEvents()
+    check("budget: says so when nothing is selected",
+          "No parameters selected" in dlg.ui.lbl_budget.text())
+    picked = []
+    for leaf, ref in dlg._leaf_items():
+        if len(picked) >= 3:
+            break
+        if ref.minimum < ref.maximum:
+            leaf.setCheckState(4, Qt.CheckState.Checked)
+            picked.append((leaf, ref))
+    app.processEvents()
+    n = len(picked)
+    dlg._option_spins["maxiter"][0].setValue(5)
+    dlg._option_spins["maxfun"][0].setValue(500)
+    app.processEvents()
+    check("budget: L-BFGS-B reports the binding cap (maxiter x (n+1))",
+          "Up to %d evaluations" % (5 * (n + 1)) in dlg.ui.lbl_budget.text())
+    dlg._option_spins["maxfun"][0].setValue(6)
+    app.processEvents()
+    check("budget: ...and maxfun when THAT binds first",
+          "Up to 6 evaluations" in dlg.ui.lbl_budget.text())
+    check("budget: a degenerate range drops out of the effective count",
+          dlg._effective_parameters() == n)
+    keep = (picked[0][1].minimum, picked[0][1].maximum)
+    picked[0][1].set_ref_info(minimum=9.0, maximum=1.0)
+    dlg._update_budget()
+    check("budget: ...so a ticked Min >= Max parameter is counted out",
+          dlg._effective_parameters() == n - 1)
+    picked[0][1].set_ref_info(minimum=keep[0], maximum=keep[1])
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(1))
+    app.processEvents()
+    # Basin Hopping is now capped per local run, so it too quotes a real total.
+    niter = int(dlg._option_spins["niter"][0].value())
+    per_run = int(dlg._option_spins["local_maxfun"][0].value())
+    check("budget: Basin Hopping quotes a finite total (runs x per-run cap)",
+          "{:,}".format((niter + 1) * per_run) in dlg.ui.lbl_budget.text()
+          and "local runs" in dlg.ui.lbl_budget.text())
+    dlg._option_spins["local_maxfun"][0].setValue(50)
+    app.processEvents()
+    check("budget: ...and follows the user's per-run cap",
+          "{:,}".format((niter + 1) * 50) in dlg.ui.lbl_budget.text())
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
+    dlg._set_all_refine(False)
+    app.processEvents()
+
+    # The three keep buttons sit side by side (they used to be stacked).
+    ui = dlg.ui
+    buttons = (ui.btn_apply_initial, ui.btn_apply_best, ui.btn_apply_last)
+    check("layout: the three keep buttons are side by side",
+          len({b.y() for b in buttons}) == 1
+          and [b.x() for b in buttons] == sorted(b.x() for b in buttons))
+
+
 def _check_report_after_real_run():
     """The report, driven by a REAL (tiny) refinement.
 
@@ -144,13 +353,11 @@ def _check_report_after_real_run():
     app.processEvents()
 
     flagged = 0
-    for row in range(dlg.ui.tbl_refinables.rowCount()):
+    for item, _ref in dlg._leaf_items():
         if flagged >= 2:
             break
-        item = dlg.ui.tbl_refinables.item(row, 4)
-        if item is not None:
-            item.setCheckState(_Qt.CheckState.Checked)
-            flagged += 1
+        item.setCheckState(4, _Qt.CheckState.Checked)
+        flagged += 1
     for key in ("maxfun", "maxiter"):
         if key in dlg._option_spins:
             dlg._option_spins[key][0].setValue(12)   # keep it short
@@ -177,6 +384,12 @@ def _check_report_after_real_run():
           "Best solution" in text and "left by the refinement" in text)
     check("report: carries the validation section on finish (as the old app did)",
           "Post-refinement validation" in text)
+    # Every Rp in the report is a mean over the specimens; the breakdown says so.
+    from mudlab.calculations.mixture import per_specimen_residuals
+    per = per_specimen_residuals(MIX)
+    check("report: breaks the mean Rp down per specimen",
+          "Rp per specimen" in text
+          and all(name[:20] in text for name, _v in per))
     for heading in ("Method:", "Parameters:", "Time elapsed:", "Residuals",
                     "GoF", "Progress log"):
         check("report: includes %r" % heading, heading in text)
@@ -202,6 +415,32 @@ def _check_report_after_real_run():
     check("report: the model really moved to the initial solution",
           all(abs(ref.value - i) < 1e-9
               for ref, i in zip(refiner.refinables, refiner.initial_solution)))
+    # The tree's Value column is a LIVE view of the model: it must follow the
+    # refinement and each keep, or it would show pre-refinement numbers next to
+    # a refined plot.
+    check("tree: the Value column follows the applied solution",
+          all(item.text(1) == "%.4f" % ref.value
+              for item, ref in dlg._leaf_items()))
+    # Keyed by POSITION, never by leaf title: titles repeat across phases (every
+    # phase has a "sigma*"), so a title-keyed dict silently compares the wrong
+    # rows. Only the full path is unique.
+    shown_initial = [item.text(1) for item, _r in dlg._leaf_items()]
+    dlg._on_apply("best")
+    app.processEvents()
+    shown_best = [item.text(1) for item, _r in dlg._leaf_items()]
+    # The contract is "the column mirrors the model", not "the optimiser
+    # improved" - a 12-evaluation run may legitimately end where it started, and
+    # asserting otherwise would be testing scipy, not the UI.
+    moved = any(abs(b - i) > 5e-5 for b, i
+                in zip(refiner.best_solution, refiner.initial_solution))
+    check("tree: ...and re-renders for the newly kept solution",
+          all(item.text(1) == "%.4f" % ref.value
+              for item, ref in dlg._leaf_items())
+          and (shown_best != shown_initial if moved else True))
+    if not moved:
+        print("  (the short run ended at its start; only the mirroring was checked)")
+    dlg._on_apply("initial")
+    app.processEvents()
 
     def _gof(report):
         line = next((l for l in report.splitlines() if "GoF" in l), "")
@@ -247,7 +486,7 @@ def _check_three_frame_layout():
           len({f.y() for f in frames}) == 1)
 
     belongs = {
-        "grpParameters": (ui.tbl_refinables, ui.btn_auto_restrict, ui.btn_randomize),
+        "grpParameters": (ui.tree_refinables,),
         "grpRefine": (ui.cmb_method, ui.btn_refine, ui.btn_cancel, ui.grpProgress),
         "grpResult": (ui.lbl_initial_residual, ui.lbl_best_residual, ui.lbl_last_residual,
                       ui.lbl_gof, ui.btn_apply_initial, ui.btn_apply_best,
@@ -279,17 +518,21 @@ def _check_three_frame_layout():
     app.processEvents()
     rows = {dlg._options_form.getItemPosition(i)[0]
             for i in range(dlg._options_form.count())}
-    check("layout: three options wrap onto a second row",
-          len(dlg._option_spins) == 3 and rows == {0, 1})
+    check("layout: Basin Hopping's options wrap onto a second row",
+          len(dlg._option_spins) == 4 and rows == {0, 1})
+    # Basin Hopping was selected to INSPECT its layout, never to run: its
+    # "iterations" are full restarts. The choice persists on the mixture, so put
+    # L-BFGS-B back before anything downstream actually refines.
+    dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
+    app.processEvents()
+    check("layout: the run method is left at L-BFGS-B, never Basin Hopping",
+          int(dlg.ui.cmb_method.currentData()) == 0)
     check("layout: every option spin carries an explanatory tooltip",
           all(spin.toolTip() for spin, _kind in dlg._option_spins.values()))
 
     # Long parameter names elide on one line (rather than doubling row height)
     # and keep their full text in a tooltip.
-    check("layout: parameter names stay on one line, with a tooltip",
-          not dlg.ui.tbl_refinables.wordWrap()
-          and dlg.ui.tbl_refinables.item(0, 0).toolTip()
-          == dlg.ui.tbl_refinables.item(0, 0).text())
+    _check_refinables_tree(dlg)
 
     # The report box lives in the result frame, below the three Keep buttons,
     # and is read-only + fixed-pitch (it is a column-aligned text table).
@@ -313,10 +556,12 @@ def _check_three_frame_layout():
     # Nothing may be clipped at the smallest size the dialog allows.
     dlg.resize(dlg.minimumWidth(), dlg.minimumHeight())
     app.processEvents()
-    table = dlg.ui.tbl_refinables
-    check("layout: at minimum size the table still fits its frame",
+    tree = dlg.ui.tree_refinables
+    check("layout: at minimum size the tree still fits its frame",
           dlg.minimumWidth() >= dlg.minimumSizeHint().width()
-          and table.width() <= ui.grpParameters.width())
+          and tree.width() <= ui.grpParameters.width())
+    check("layout: the tree does not need a horizontal scrollbar",
+          tree.horizontalScrollBar().maximum() == 0)
     dlg._dirty = False
     dlg.close()
     app.processEvents()
@@ -364,6 +609,12 @@ def _check_delete_on_close():
     # (exit 9, no traceback). done() now tears the worker down first.
     dlg3 = RefinementDialog(parent, mixture=MIX)
     dlg3.show()
+    app.processEvents()
+    # L-BFGS-B with a tiny budget: never drive a test with Basin Hopping.
+    dlg3.ui.cmb_method.setCurrentIndex(dlg3.ui.cmb_method.findData(0))
+    for key in ("maxfun", "maxiter"):
+        if key in dlg3._option_spins:
+            dlg3._option_spins[key][0].setValue(8)
     app.processEvents()
     dlg3._on_refine()                      # a genuine background refinement
     app.processEvents()
