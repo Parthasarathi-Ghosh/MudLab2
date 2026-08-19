@@ -191,6 +191,34 @@ def get_current_residual(mixture) -> float:
     return problem.residual(problem.get_solution())
 
 
+def per_specimen_residuals_from_patterns(mixture) -> list:
+    """`per_specimen_residuals` read off the specimens' CURRENT calculated
+    patterns instead of recomputing them.
+
+    Identical to the full version to 1e-9 when the patterns are up to date, and
+    ~1300x faster (it skips rebuilding every phase's intensities). ONLY call it
+    right after a recompute - it reports whatever the specimens currently hold,
+    so on a stale pattern it would report a stale Rp where the authoritative
+    version would recompute."""
+    out = []
+    for specimen in mixture.specimens:
+        if specimen is None or not (
+            specimen.has_experimental_data and specimen.has_calculated_data
+        ):
+            continue
+        exp_x, exp_y = specimen.experimental_pattern
+        _calc_x, calc_y = specimen.calculated_pattern
+        if exp_x.size == 0 or exp_y.size != calc_y.size:
+            continue
+        selected = specimen.exclusion_selector(exp_x)
+        observed = exp_y[selected]
+        if float(np.sum(np.abs(observed))) <= 0.0:
+            continue
+        name = getattr(specimen, "name", "") or "Specimen"
+        out.append((name, float(Rp(observed, calc_y[selected]))))
+    return out
+
+
 def per_specimen_residuals(mixture) -> list:
     """``[(specimen name, Rp), ...]`` for the mixture's CURRENT solution.
 

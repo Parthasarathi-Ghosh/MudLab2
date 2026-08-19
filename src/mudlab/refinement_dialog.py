@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 from mudlab.calculations.refinement import (
     BASINHOPPING_LOCAL_MAXFUN, REFINE_METHODS, refine_mixture,
 )
-from mudlab.calculations.mixture import per_specimen_residuals
+from mudlab.calculations.mixture import per_specimen_residuals_from_patterns
 from mudlab.calculations.validation import validation_report_lines
 from mudlab.ui.ui_refinement import Ui_RefinementDialog
 
@@ -254,12 +254,17 @@ class RefinementDialog(QDialog):
             self._refinables = (
                 self._mixture.refinables() if self._mixture is not None else []
             )
+            # Keyed by `group_key` (stable ids), NOT by the displayed names:
+            # two phases - or two components of one phase - may share a name,
+            # and keying by name merged their parameters into a single branch
+            # with no way to tell which owned which.
             groups: dict = {}
             for ref in self._refinables:
                 parent = None
                 path: tuple = ()
-                for name in ref.group:
-                    path += (name,)
+                for level, name in enumerate(ref.group):
+                    path += (ref.group_key[level]
+                             if level < len(ref.group_key) else name,)
                     node = groups.get(path)
                     if node is None:
                         node = (QTreeWidgetItem(tree, [name]) if parent is None
@@ -295,15 +300,17 @@ class RefinementDialog(QDialog):
                    if ref.refine and ref.minimum < ref.maximum)
 
     def _update_budget(self) -> None:
-        """Show the evaluation budget for the current method + options.
+        """Describe the work this run may do - WITHOUT inventing a total.
 
-        L-BFGS-B has a hard cap: scipy stops at `maxfun` function evaluations,
-        and with the numerical gradient each iteration costs (n + 1) of them, so
-        `maxiter` can bind first. Basin Hopping does NOT have one - it runs
-        niter + 1 LOCAL minimisations and MudLab2 passes no per-run budget, so
-        each one may use scipy's own default (15000 evaluations). That is the
-        honest number to show: it is why a Basin Hopping run takes minutes to
-        hours where L-BFGS-B takes seconds."""
+        An earlier version showed "Up to N evaluations" from
+        min(maxfun, maxiter x (n+1)). Measuring proved that wrong: scipy's
+        maxfun / maxiter count its OWN solver steps, not model evaluations, and
+        a step costs a gradient (about n+1 evaluations) plus an unbounded line
+        search - maxiter=3 produced 28 model evaluations against a predicted 9.
+        Basin Hopping is looser still: its per-run cap barely binds (cap 200
+        gave 89 evaluations where UNCAPPED gave 71), because a local run usually
+        converges long before the cap. So this states only what is true - the
+        parameter count, which is exact, and each method's own limits verbatim."""
         method = int(self.ui.cmb_method.currentData() or 0)
         options = self._options()
         n = self._effective_parameters()
@@ -312,20 +319,19 @@ class RefinementDialog(QDialog):
                 "No parameters selected - Refine only re-fits "
                 "fractions / scales / background.")
             return
+        params = "%d parameter%s" % (n, "" if n == 1 else "s")
         if method == 0:
-            maxfun = int(options.get("maxfun", 500))
-            maxiter = int(options.get("maxiter", 150))
-            capped = min(maxfun, maxiter * (n + 1))
             self.ui.lbl_budget.setText(
-                "Up to %d evaluations  (%d parameter%s, %d per gradient step)"
-                % (capped, n, "" if n == 1 else "s", n + 1))
+                "%s; stops at %d solver steps / %d iterations, each costing "
+                "about %d model evaluations."
+                % (params, int(options.get("maxfun", 500)),
+                   int(options.get("maxiter", 150)), n + 1))
         else:
-            runs = int(options.get("niter", 100)) + 1
-            per_run = int(options.get("local_maxfun", BASINHOPPING_LOCAL_MAXFUN))
             self.ui.lbl_budget.setText(
-                "Up to %s evaluations  (%d local runs x %d, %d parameter%s)"
-                % ("{:,}".format(runs * per_run), runs, per_run, n,
-                   "" if n == 1 else "s"))
+                "%s; %d local runs, each stopping at %d solver steps. Much "
+                "slower than L-BFGS-B."
+                % (params, int(options.get("niter", 100)) + 1,
+                   int(options.get("local_maxfun", BASINHOPPING_LOCAL_MAXFUN))))
 
     def _update_selected_count(self) -> None:
         """"N of M selected" beside the instruction above the tree. With the
@@ -753,7 +759,11 @@ class RefinementDialog(QDialog):
         if self._mixture is None:
             return []
         try:
-            return per_specimen_residuals(self._mixture)
+            # The report is written straight after a recompute, so read the
+            # patterns the specimens already hold rather than rebuilding every
+            # phase's intensities - identical numbers, ~1300x cheaper (the full
+            # version cost ~0.15 s on every report write).
+            return per_specimen_residuals_from_patterns(self._mixture)
         except Exception:  # noqa: BLE001 - a report must never fail to render
             return []
 

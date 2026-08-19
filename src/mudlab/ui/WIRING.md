@@ -1277,10 +1277,14 @@ verbatim port of the old model method.
 
 - `tree_refinables`: a foldable TREE of `mixture.refinables()` - a group row per
   phase, a nested group per component, and one leaf per parameter with columns
-  Parameter / Value / Min / Max / Ref. This is the OLD APP's design (its
+  Parameter / Value / Min / Max / Refine. This is the OLD APP's design (its
   `refinables` GtkTreeView had expanders and showed each node's own
   `text_title`), and it is why the name column can be narrow: the path lives on
-  the group rows instead of being repeated on every row. `Refinable.group` /
+  the group rows instead of being repeated on every row. It groups by
+  **`Refinable.group_key` (stable ids), NEVER by the displayed names** - two
+  phases, or two components of one phase, may share a name, and keying by name
+  merged their parameters into a single branch with no way to tell which owned
+  which. `Refinable.group` /
   `.title` carry that structure (`.label` stays the joined string for the
   report), so the tree never has to split a name on " | ". Group rows are inert
   (no editable/checkable flags, absent from `_items`, which is how edits on them

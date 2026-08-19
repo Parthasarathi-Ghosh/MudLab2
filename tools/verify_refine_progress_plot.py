@@ -163,6 +163,37 @@ def _check_refinables_tree(dlg):
     check("tree: group rows map to no refinable",
           all(id(g) not in dlg._items for g in groups))
 
+    # AUDIT REGRESSION: names are NOT unique - nothing stops two phases (or two
+    # components of one phase) sharing one. Grouping by NAME merged their
+    # parameters into a single branch, with no way to tell which phase a row
+    # belonged to; the tree groups by Refinable.group_key (stable ids) instead.
+    phases, seen = [], set()
+    for row in MIX.phase_matrix:
+        for ph in row:
+            if ph is not None and hasattr(ph, "components") and id(ph) not in seen:
+                seen.add(id(ph))
+                phases.append(ph)
+    if len(phases) >= 2:
+        original = phases[1].name
+        phases[1].name = phases[0].name          # deliberate duplicate
+        try:
+            dup_dlg = RefinementDialog(mixture=MIX)
+            dup_dlg.show()
+            app.processEvents()
+            dup_tree = dup_dlg.ui.tree_refinables
+            tops = [dup_tree.topLevelItem(i)
+                    for i in range(dup_tree.topLevelItemCount())]
+            same_named = [t for t in tops if t.text(0) == phases[0].name]
+            check("tree: two phases sharing a name get SEPARATE branches",
+                  len(same_named) == 2)
+            check("tree: ...and every refinable still has exactly one leaf",
+                  len(list(dup_dlg._leaf_items())) == len(dup_dlg._refinables))
+            dup_dlg._dirty = False
+            dup_dlg.close()
+            app.processEvents()
+        finally:
+            phases[1].name = original
+
     # Editing a leaf writes through to the model; a bad number reverts.
     item, ref = leaves[0]
     before = ref.refine
@@ -292,12 +323,14 @@ def _check_refinables_tree(dlg):
     dlg._option_spins["maxiter"][0].setValue(5)
     dlg._option_spins["maxfun"][0].setValue(500)
     app.processEvents()
-    check("budget: L-BFGS-B reports the binding cap (maxiter x (n+1))",
-          "Up to %d evaluations" % (5 * (n + 1)) in dlg.ui.lbl_budget.text())
-    dlg._option_spins["maxfun"][0].setValue(6)
-    app.processEvents()
-    check("budget: ...and maxfun when THAT binds first",
-          "Up to 6 evaluations" in dlg.ui.lbl_budget.text())
+    # It must NOT claim a total: measuring proved maxfun/maxiter count scipy's
+    # own solver steps, not model evaluations (maxiter=3 produced 28 against a
+    # predicted 9), so it states the parameter count and each method's limits.
+    text = dlg.ui.lbl_budget.text()
+    check("budget: states the parameter count and the method's own limits",
+          "%d parameters" % n in text and "5 " in text and "solver steps" in text)
+    check("budget: does NOT claim a total number of evaluations",
+          "Up to" not in text)
     check("budget: a degenerate range drops out of the effective count",
           dlg._effective_parameters() == n)
     keep = (picked[0][1].minimum, picked[0][1].maximum)
@@ -308,16 +341,14 @@ def _check_refinables_tree(dlg):
     picked[0][1].set_ref_info(minimum=keep[0], maximum=keep[1])
     dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(1))
     app.processEvents()
-    # Basin Hopping is now capped per local run, so it too quotes a real total.
     niter = int(dlg._option_spins["niter"][0].value())
-    per_run = int(dlg._option_spins["local_maxfun"][0].value())
-    check("budget: Basin Hopping quotes a finite total (runs x per-run cap)",
-          "{:,}".format((niter + 1) * per_run) in dlg.ui.lbl_budget.text()
-          and "local runs" in dlg.ui.lbl_budget.text())
     dlg._option_spins["local_maxfun"][0].setValue(50)
     app.processEvents()
-    check("budget: ...and follows the user's per-run cap",
-          "{:,}".format((niter + 1) * 50) in dlg.ui.lbl_budget.text())
+    bh = dlg.ui.lbl_budget.text()
+    check("budget: Basin Hopping reports its local runs and per-run limit",
+          "%d local runs" % (niter + 1) in bh and "50 solver steps" in bh)
+    check("budget: ...and warns it is the slow method", "slower" in bh)
+    check("budget: Basin Hopping claims no total either", "Up to" not in bh)
     dlg.ui.cmb_method.setCurrentIndex(dlg.ui.cmb_method.findData(0))
     dlg._set_all_refine(False)
     app.processEvents()

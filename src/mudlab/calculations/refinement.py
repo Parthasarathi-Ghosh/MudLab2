@@ -72,11 +72,11 @@ class Refinable:
     model, and its [min, max, refine] triple read/written into the owning
     raw-properties dict (so flags/bounds round-trip through to_dict)."""
 
-    __slots__ = ("label", "group", "title", "_get", "_set", "_owner", "_key",
-                 "_default_bounds")
+    __slots__ = ("label", "group", "group_key", "title", "_get", "_set",
+                 "_owner", "_key", "_default_bounds")
 
     def __init__(self, label, getter, setter, ref_info_owner, ref_info_key,
-                 default_bounds=(0.0, 1.0)):
+                 default_bounds=(0.0, 1.0), group_key=None):
         # `label` is the PATH to the parameter: a tuple of names ending in the
         # parameter's own title, e.g. ("Illite", "Illite", "d001"). The
         # Refinement window groups the tree by `group` and shows only `title`
@@ -90,6 +90,12 @@ class Refinable:
         self.group = parts[:-1]
         self.title = parts[-1] if parts else ""
         self.label = " | ".join(parts)
+        # A STABLE identity for each group level, because NAMES ARE NOT UNIQUE:
+        # nothing stops two phases (or two components of one phase) sharing a
+        # name, and a view that grouped by name merged their parameters into one
+        # branch, with no way to tell which phase a row belonged to. Defaults to
+        # the names, which is right for the legacy string form.
+        self.group_key = tuple(group_key) if group_key is not None else self.group
         self._get = getter
         self._set = setter
         self._owner = ref_info_owner
@@ -162,6 +168,7 @@ def _phase_refinables(phase) -> list[Refinable]:
             lambda p=phase: p.sigma_star,
             lambda v, p=phase: setattr(p, "sigma_star", v),
             raw, "sigma_star_ref_info", default_bounds=(0.0, 90.0),
+            group_key=(id(phase),),
         ))
     if not phase.is_inherited("CSDS"):
         out.append(Refinable(
@@ -170,6 +177,7 @@ def _phase_refinables(phase) -> list[Refinable]:
             lambda v, p=phase: setattr(p.CSDS, "average", v),
             _nested(raw, "CSDS_distribution", "properties"),
             "average_ref_info", default_bounds=(1.0, 200.0),
+            group_key=(id(phase),),
         ))
     # Stacking probabilities: the model lists its own independent parameters
     # (R0 -> F1..Fn, R1G2 -> W1 / P11_or_P22), so the refiner does not need to
@@ -184,6 +192,7 @@ def _phase_refinables(phase) -> list[Refinable]:
             out.append(Refinable(
                 (phase.name, label),
                 getter, setter, prob_props, ref_key, default_bounds=bounds,
+                group_key=(id(phase),),
             ))
     for comp in phase.components:
         craw = comp.raw_properties
@@ -196,6 +205,7 @@ def _phase_refinables(phase) -> list[Refinable]:
                 lambda c=comp: c.d001,
                 lambda v, c=comp: setattr(c, "d001", v),
                 craw, "d001_ref_info", default_bounds=(0.0, 5.0),
+                group_key=(id(phase), id(comp)),
             ))
         if not comp.is_inherited("delta_c"):
             out.append(Refinable(
@@ -203,6 +213,7 @@ def _phase_refinables(phase) -> list[Refinable]:
                 lambda c=comp: c.delta_c,
                 lambda v, c=comp: setattr(c, "delta_c", v),
                 craw, "delta_c_ref_info", default_bounds=(0.0, 0.05),
+                group_key=(id(phase), id(comp)),
             ))
         # Atom-relation values (old AtomRelation.is_refinable = enabled and not
         # driven_by_other and not inside_linked_component). An inherited
@@ -227,6 +238,7 @@ def _phase_refinables(phase) -> list[Refinable]:
                     lambda r=rel: r.value,
                     lambda v, r=rel, c=comp: _set_relation_value(r, c, v),
                     rel.raw_properties, "value_ref_info", default_bounds=bounds,
+                    group_key=(id(phase), id(comp)),
                 ))
     return out
 

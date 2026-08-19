@@ -135,6 +135,27 @@ def check_project(path):
         _check(results, "every per-specimen Rp is named and finite",
                all(n and np.isfinite(v) for n, v in per))
 
+    # 1c(ii). The fast per-specimen path (what the report uses, read off the
+    # specimens' current calculated patterns) must equal the authoritative one
+    # that recomputes - it is ~1300x cheaper, and the full version cost ~0.15 s
+    # on EVERY report write.
+    from mudlab.calculations.mixture import per_specimen_residuals_from_patterns
+    mix_rp.calculate()
+    slow = per_specimen_residuals(mix_rp)
+    fast = per_specimen_residuals_from_patterns(mix_rp)
+    _check(results, "the fast per-specimen path matches the authoritative one",
+           len(slow) == len(fast)
+           and all(a[0] == b[0] and abs(a[1] - b[1]) < 1e-9
+                   for a, b in zip(slow, fast)))
+
+    # 1c(iii). Refinables carry a STABLE group key, because names are not unique.
+    refs_keys = enumerate_refinables(load_mud(path).mixtures[0])
+    _check(results, "every refinable carries a group_key as deep as its group",
+           all(len(r.group_key) == len(r.group) for r in refs_keys))
+    _check(results, "refinables of DIFFERENT phases never share a group key",
+           len({r.group_key[0] for r in refs_keys})
+           == len({r.group[0] for r in refs_keys}))
+
     # 1d. Basin Hopping caps each LOCAL minimisation. Uncapped, scipy allows
     # 15000 evaluations per run, so niter=100 could mean ~1.5M - each a full
     # recompute plus an inner fit. Checked by intercepting the scipy call rather
