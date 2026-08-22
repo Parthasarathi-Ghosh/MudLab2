@@ -165,8 +165,22 @@ class _Problem:
     def residual(self, x):
         """Mean Rp across specimens for the solution ``x`` (a large finite
         penalty replaces any non-finite value)."""
+        values = [value for _name, value in self.residual_parts(x)]
+        if not values:
+            return 0.0
+        mean = float(np.mean(values))
+        return mean if np.isfinite(mean) else _PENALTY
+
+    def residual_parts(self, x):
+        """``[(specimen name, Rp), ...]`` for the solution ``x`` - the values
+        `residual` takes the mean of.
+
+        `residual` is defined in terms of this so the two can never drift: a
+        caller that shows the breakdown is showing exactly the numbers behind
+        the single reported figure, including the same skip of zero-observation
+        specimens and the same finite penalty."""
         fractions, scales, bgshifts = self.parse_solution(x)
-        values = []
+        parts = []
         for ctx in self.contexts:
             total, _, _ = calculate_scaled_intensities(
                 ctx.phase_intensities, ctx.correction,
@@ -178,11 +192,10 @@ class _Problem:
             if denom <= 0.0:
                 continue  # zero-observation specimen: undefined Rp, skip
             r = Rp(observed, calculated)
-            values.append(r if np.isfinite(r) else _PENALTY)
-        if not values:
-            return 0.0
-        mean = float(np.mean(values))
-        return mean if np.isfinite(mean) else _PENALTY
+            specimen = self.mixture.specimens[ctx.index]
+            name = getattr(specimen, "name", "") or "Specimen %d" % (ctx.index + 1)
+            parts.append((name, float(r if np.isfinite(r) else _PENALTY)))
+        return parts
 
 
 def get_current_residual(mixture) -> float:
@@ -224,26 +237,12 @@ def per_specimen_residuals(mixture) -> list:
 
     The reported residual is the MEAN of these, so this is what a single number
     hides: one specimen fitting badly while the others carry the average. It
-    reuses the same machinery as `_Problem.residual` - the same exclusion
-    selection and the same skip of zero-observation specimens - so the mean of
-    the values returned here IS `get_current_residual`, not an approximation of
-    it."""
+    is literally `_Problem.residual`'s own breakdown - the same exclusion
+    selection, the same skip of zero-observation specimens and the same finite
+    penalty - so the mean of the values returned here IS `get_current_residual`,
+    not an approximation of it."""
     problem = _Problem(mixture)
-    fractions, scales, bgshifts = problem.parse_solution(problem.get_solution())
-    out = []
-    for ctx in problem.contexts:
-        total, _, _ = calculate_scaled_intensities(
-            ctx.phase_intensities, ctx.correction,
-            float(scales[ctx.index]), fractions, float(bgshifts[ctx.index]),
-        )
-        observed = ctx.observed[ctx.selected]
-        if float(np.sum(np.abs(observed))) <= 0.0:
-            continue  # zero-observation specimen: undefined Rp, as in residual()
-        value = float(Rp(observed, total[ctx.selected]))
-        specimen = mixture.specimens[ctx.index]
-        name = getattr(specimen, "name", "") or "Specimen %d" % (ctx.index + 1)
-        out.append((name, value))
-    return out
+    return problem.residual_parts(problem.get_solution())
 
 
 def _ls_scale_bg(problem, fractions):
@@ -275,9 +274,16 @@ def _ls_scale_bg(problem, fractions):
     return scales, bgshifts
 
 
-def optimize_mixture(mixture, n_starts: int = 1) -> float:
+def optimize_mixture(mixture, n_starts: int = 1, with_breakdown: bool = False):
     """Optimise the mixture's fractions / scales / background shifts in place
     (L-BFGS-B on the free variables) and return the achieved mean residual.
+
+    With ``with_breakdown`` it returns ``(residual, [(specimen name, Rp), ...])``
+    for the solution it applied - the per-specimen values that residual is the
+    mean of. It costs ONE extra objective evaluation (the `_Problem` is already
+    built and the solve itself runs dozens), which is what makes a live
+    per-specimen readout affordable during a refinement; recomputing it
+    afterwards means rebuilding every phase's intensities.
 
     ``n_starts == 1`` is a single L-BFGS-B solve from the mixture's current
     solution - the fast path used by the structural-refinement inner loop
@@ -291,12 +297,18 @@ def optimize_mixture(mixture, n_starts: int = 1) -> float:
     falls back to that start's own residual. Any OTHER exception is deliberately
     NOT swallowed here - it is a bug to fix, and the GUI wraps this call.
     """
+    def result(residual, x):
+        if not with_breakdown:
+            return float(residual)
+        return float(residual), problem.residual_parts(x)
+
     problem = _Problem(mixture)
     if not problem.contexts:
-        return 0.0
+        return (0.0, []) if with_breakdown else 0.0
     if (problem.nf + problem.ns + problem.nb) == 0:
         # Nothing free to refine: leave as-is.
-        return problem.residual(problem.get_solution())
+        current = problem.get_solution()
+        return result(problem.residual(current), current)
 
     orig_fractions = problem.fractions.copy()
     orig_scales = problem.scales.copy()
@@ -358,4 +370,6 @@ def optimize_mixture(mixture, n_starts: int = 1) -> float:
     mixture.fractions = fractions
     mixture.scales = scales
     mixture.bgshifts = bgshifts
-    return float(best_r)
+    # `problem.fractions` is best_fr here, which is what parse_solution reads,
+    # so the breakdown describes the solution just written to the mixture.
+    return result(best_r, best_x)

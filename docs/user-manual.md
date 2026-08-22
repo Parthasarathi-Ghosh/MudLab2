@@ -10,6 +10,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Component linking and inheritance](#component-linking-and-inheritance)
 - [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
+- [Refining a mixture](#refining-a-mixture)
 - [Importing measured patterns (CSV options)](#importing-measured-patterns-csv-options)
 - [Preparing experimental data](#preparing-experimental-data)
 - [Markers, peak detection, and mineral matching](#markers-peak-detection-and-mineral-matching)
@@ -438,6 +439,103 @@ model you have built; raw-pattern phases, which have no atoms, do not contribute
 
 The panel is read-only. Use **Copy** to put the table on the clipboard as CSV,
 or **Export CSV…** to save it to a file.
+
+---
+
+## Refining a mixture
+
+**Refine** (in the mixture editor) opens the refinement window, which fits the
+*structural* parameters of the mixture's phases — sigma\*, the CSDS mean, the
+stacking parameters, each component's d001 and δc, and any refinable atom
+relation. It is not the same as **Optimize**, which only fits fractions, scale
+and background; every refinement trial runs an Optimize of its own inside.
+
+The window is **modal** — nothing else can be edited while it is open — and has
+three panels: the parameters to refine, the run itself, and the results.
+
+### Choosing parameters
+
+The parameter list is a **tree**: one branch per phase, a nested branch per
+component, and one row per parameter. It opens folded, because the phase names
+are the useful overview. **Right-click** anywhere in it for:
+
+- **Expand all** / **Fold all**
+- **Select all** / **Unselect all** — these also expand, so you can see what
+  changed
+- **Auto restrict** — set every ticked parameter's Min/Max to ±20 % of its
+  current value
+- **Randomise** — move every ticked parameter to a random point inside its
+  Min/Max, and recompute
+
+Tick **Refine** on the parameters you want fitted. The count beside the heading
+("*7 of 42 selected*") is the thing that decides how long a run takes: every
+ticked parameter adds a dimension to the search.
+
+**Value, Min and Max are all editable** — double-click a cell. Min and Max are
+the search bounds. Typing a **Value** sets that parameter in the model straight
+away and recalculates the pattern, which is how you try a value by hand or set a
+starting point before refining. Two things to know about it: phases are shared
+between mixtures, so it can move another mixture's pattern too, and there is
+**no undo** — refine, or keep a solution, to overwrite it.
+
+Only parameters that can genuinely be refined are listed. An **inherited**
+parameter is not offered at all: it follows its parent, so refining it on the
+child would do nothing — refine it on the phase or component it is based on, and
+every phase that inherits it moves with it.
+
+### The warning line
+
+Below the tree, a line appears when something about the set-up will not do what
+it looks like. It disappears by itself once you fix it, and the cells it refers
+to are tinted in the tree:
+
+- **Min not below Max** — the refiner *silently drops* such a parameter. It stays
+  ticked, but it never moves. This is the only place you would notice.
+- **Outside Min/Max** — the value sits outside its own bounds, so the run starts
+  from the nearest bound, not from the number shown.
+- **Set by hand** — a reminder that you typed a Value straight into the model.
+
+### Running
+
+Pick a **method** — *L-BFGS-B* (local, fast, refines from where you are) or
+*Basin Hopping* (global, many random restarts, much slower). The spinners below
+are that method's own limits, and the line under them says what the run may do.
+It deliberately does **not** promise a total number of evaluations: the limits
+count the solver's own steps, not model evaluations, and one step costs roughly
+one evaluation per refined parameter plus a line search.
+
+> **Basin Hopping's "Calls per run"** caps each local minimisation. Without a
+> cap, 100 iterations can mean over a million evaluations and hours of runtime.
+> Raise it if a minimum genuinely needs more work.
+
+The window stays responsive while it runs. **Cancel** stops at the next trial and
+keeps the best result so far — it is not a pause: pressing Refine again starts a
+*new* run from there.
+
+### The progress plot
+
+The plot tracks the best Rp against the number of evaluations. The bold blue
+line is the **mean** — the number quoted everywhere else — and the thin coloured
+lines are the **individual specimens** behind it.
+
+Watch the spread. A run can improve the mean by fitting one specimen better
+while fitting another *worse*, and a single curve cannot show that.
+
+### Results
+
+When the run ends the model is left at the **best** solution, and the report
+below describes it: the method and elapsed time, every refined parameter's
+initial/best/last values, the residuals and GoF, the **Rp for each specimen**,
+a progress log, and a post-refinement validation of the model it left behind.
+
+The three buttons — **Initial**, **Best**, **Last** — put that solution into the
+model and rewrite the report for it. A few points worth knowing:
+
+- The model is written when the run ends and at **each button press** — never on
+  closing. Closing the window (X or **Close**) neither commits nor rolls back.
+- **Initial is not a full undo.** It restores the structural values and
+  fractions, but scale and background are re-fitted, so they do not come back
+  exactly. If you may want the original state, save before refining.
 
 ---
 

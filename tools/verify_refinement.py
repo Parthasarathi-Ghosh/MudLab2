@@ -317,10 +317,23 @@ def check_project(path):
     ref.set_ref_info(minimum=1.0, maximum=20.0, refine=True)
     ref.value = 8.0
     seen = []
-    _refine(mix, 0, {"maxfun": 15}, on_progress=lambda n, best: seen.append((n, best)))
+    _refine(mix, 0, {"maxfun": 15},
+            on_progress=lambda n, best, parts: seen.append((n, best, parts)))
     _check(results, "on_progress fires with rising n + finite best",
            len(seen) > 0 and seen[0][0] >= 1 and seen[-1][0] >= seen[0][0]
-           and all(np.isfinite(b) for _, b in seen))
+           and all(np.isfinite(b) for _n, b, _p in seen))
+    # The third argument is the per-specimen breakdown OF THE BEST solution, so
+    # its mean IS the best residual it is reported with - that identity is what
+    # lets the progress plot draw both from one signal without them disagreeing.
+    _check(results, "on_progress carries a per-specimen breakdown of the best",
+           all(parts for _n, _b, parts in seen)
+           and all(abs(sum(v for _nm, v in parts) / len(parts) - best) < 1e-9
+                   for _n, best, parts in seen))
+    # ...and it is NOT computed when nobody is listening (it costs an extra
+    # objective evaluation per trial).
+    quiet = _refine(mix, 0, {"maxfun": 15})
+    _check(results, "no progress consumer: the breakdown is not tracked",
+           quiet.best_parts == [])
 
     # 5. ref_info round-trip.
     p = load_mud(path)

@@ -303,7 +303,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | Edit Atom Types | edit_atom_type.ui, edit_atom_type_widget.py, edit_atom_types_dialog.py | atoms/glade/atoms.glade + shell | done (real AtomType models from the .mud; live real ASF plot; "Fill from element" picker fills weight + scattering-factor coefficients from the built-in library, 2026-07-22) |
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live; the Composition button opens the per-specimen oxide summary. Fully wired) |
-| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (refinable tree with flags/bounds, method combo + per-method options, auto-restrict/randomize, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons, + a live convergence PROGRESS plot best-Rp-vs-evals throttled at 150 ms; verify_refine_progress_plot). Parameter-space/landscape plot intentionally dropped (brute-force removed). |
+| Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (foldable refinable tree with editable value/min/max + flags, right-click menu incl. auto-restrict/randomize, selected-count + budget + warning readouts, method combo + per-method options, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons + detailed report, + a live convergence PROGRESS plot best-Rp-vs-evals with per-specimen curves, throttled at 150 ms; verify_refine_progress_plot). Parameter-space/landscape plot intentionally dropped (brute-force removed). |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; raw-pattern option wired; **default-catalog picker wired** (2026-07-22, 19 built-in reference clays via file_parsers/default_catalog.py); wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; Edit emission spectrum wired to the wavelength-distribution editor) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
@@ -575,6 +575,33 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   Show-plot button / plot dialog are intentionally omitted. With Brute force
   gone the parameter-space plot has little value (the other two methods only
   sample a convergence trajectory, not the residual surface).
+- [x] Refiner-UI round three (2026-08-22) - the three suggestions the round-two
+  audit left open, all three done. (1) EDITABLE VALUE COLUMN restored (the old
+  GTK app always allowed it; MudLab2 had made it read-only because nothing
+  wrote a typed number back). _EditableCellDelegate now admits Value as well as
+  Min/Max, and _on_value_edited writes the model, recomputes, refreshes the
+  results/report and flags the row as hand-set. Deliberately NOT clamped to
+  Min/Max - those are search bounds, not validity limits. (2) WARNING LINE
+  (lbl_param_warning, below the tree) - it is the fix for the silent skips:
+  a ticked parameter whose Min >= Max is dropped by Refiner.__init__ without a
+  word, and a value outside its bounds is CLIPPED so the run does not start
+  where the cell says. Both are now named, their cells tinted, and a third
+  message reports hand-set values; every message resets itself the moment the
+  condition clears (the label hides entirely, so a clean dialog has no empty
+  strip). Messages are kept terse ON PURPOSE - spelled out, three of them
+  wrapped to ten lines and took 152 px off a 415 px tree; the reasoning lives
+  in the label + per-cell tooltips. (3) PER-SPECIMEN Rp CURVES in the progress
+  plot - the reported Rp is a MEAN, so one curve cannot show a run that
+  improves one specimen by degrading another (measured on 308 r1: mean 35.34 ->
+  34.98 while "308 400" got WORSE, 41.87 -> 42.26). _Problem.residual is now
+  defined in terms of a new residual_parts(), optimize_mixture(with_breakdown=
+  True) returns it for the applied solution, and Refiner tracks the breakdown
+  OF THE BEST so the thin curves always average to the bold one (asserted to
+  1e-9). Costs one extra objective evaluation per trial, only when a progress
+  consumer exists - measured inside run-to-run noise (3.76 s vs 3.86 s). NOTE
+  on_progress is now a THREE-argument callback. verify_refine_progress_plot
+  122/122 (was 101), verify_refinement 140; full suite 68. Manual: new
+  "Refining a mixture" chapter in docs/user-manual.md.
 - [ ] Phase-intensity cache (deferred perf, user-deferred): the old
   calculations/phases._phase_intensity_cache + its "use intensity cache"
   checkbox were never ported. Re-adding it (keyed by phase params, always-on,

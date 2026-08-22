@@ -74,6 +74,12 @@ class Ui_RefinementDialog(object):
 
         self.parametersLayout.addWidget(self.tree_refinables)
 
+        self.lbl_param_warning = QLabel(self.grpParameters)
+        self.lbl_param_warning.setObjectName(u"lbl_param_warning")
+        self.lbl_param_warning.setWordWrap(True)
+
+        self.parametersLayout.addWidget(self.lbl_param_warning)
+
 
         self.framesRow.addWidget(self.grpParameters)
 
@@ -285,6 +291,10 @@ class Ui_RefinementDialog(object):
         self.lbl_selected.setToolTip(QCoreApplication.translate("RefinementDialog", u"How many parameters are flagged for refinement. Every flagged parameter adds a dimension to the search, so this is what decides how long a run takes.", None))
 #endif // QT_CONFIG(tooltip)
         self.lbl_selected.setText(QCoreApplication.translate("RefinementDialog", u"0 of 0 selected", None))
+#if QT_CONFIG(tooltip)
+        self.lbl_param_warning.setToolTip(QCoreApplication.translate("RefinementDialog", u"Problems with the current selection: parameters that will not be refined, values outside their own Min/Max, and values you have typed in by hand. It disappears when there is nothing to report.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_param_warning.setText("")
         self.grpRefine.setTitle(QCoreApplication.translate("RefinementDialog", u"2. Refinement", None))
         self.lblMethod.setText(QCoreApplication.translate("RefinementDialog", u"Method", None))
 #if QT_CONFIG(tooltip)

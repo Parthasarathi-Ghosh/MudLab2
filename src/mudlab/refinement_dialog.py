@@ -2,8 +2,8 @@
 
 Ported from the GTK RefinementView/RefinerView (refinement/views/glade/
 refinement.glade + refine_results.glade). Opened from the Edit Mixtures
-Refine button for the current mixture: a table of the mixture's refinable
-structural parameters (value + editable min/max + a Refine toggle), a
+Refine button for the current mixture: a foldable tree of the mixture's
+refinable structural parameters (editable value/min/max + a Refine toggle), a
 method combo (0 = L-BFGS-B, 1 = Basin Hopping), a Refine button, and the
 Initial / Best / Last residuals + a GoF (best solution) readout with buttons
 to keep one of those solutions.
@@ -31,7 +31,7 @@ from typing import Callable
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QBrush, QColor, QFontDatabase
 from PySide6.QtWidgets import (
     QAbstractItemView, QDialog, QDoubleSpinBox, QGridLayout, QHeaderView,
     QLabel, QMenu, QMessageBox, QSpinBox, QStyledItemDelegate,
@@ -55,7 +55,8 @@ class _RefineWorker(QObject):
     `refine_mixture` restores the model on error before re-raising, so `failed`
     leaves the mixture clean."""
 
-    progress = Signal(int, float)   # (n_evaluations, best_residual)
+    # (n_evaluations, best_residual, per-specimen [(name, Rp), ...] of the best)
+    progress = Signal(int, float, object)
     finished = Signal(object)       # the Refiner
     failed = Signal(str)
 
@@ -71,7 +72,8 @@ class _RefineWorker(QObject):
             refiner = refine_mixture(
                 self._mixture, self._method_index, self._options,
                 stop=self._stop_event.is_set,
-                on_progress=lambda n, best: self.progress.emit(n, best),
+                on_progress=lambda n, best, parts: self.progress.emit(
+                    n, best, list(parts or [])),
             )
         except Exception as exc:  # noqa: BLE001 - reported via `failed`
             self.failed.emit(str(exc))
@@ -104,6 +106,59 @@ _METHOD_OPTIONS = {
     ],
 }
 
+# Cell tints for the warning line's culprits. A soft wash rather than a strong
+# colour: the tree already uses alternating row colours, and these have to read
+# as "look here", not as an error state.
+_WARN_BRUSH = QBrush(QColor("#FFE8CC"))   # cannot be refined as set up
+_HAND_BRUSH = QBrush(QColor("#E7F5FF"))   # value typed in by hand
+_NO_BRUSH = QBrush()                      # default: clears the tint
+_WARNING_STYLE = "color: #C2410C;"
+_MAX_NAMED = 2   # names listed in a warning before "and N more"
+
+# Per-specimen progress curves: a qualitative palette that stays distinguishable
+# against the mean's blue, and the point past which a legend costs more plot
+# than it explains (the report names every specimen regardless).
+_SPECIMEN_COLORS = ["#E8590C", "#2F9E44", "#9C36B5", "#0B7285",
+                    "#C2255C", "#5C940D"]
+_MAX_LEGEND_SERIES = 5
+_MAX_LEGEND_NAME = 14
+
+
+def _short_name(name: str) -> str:
+    return name if len(name) <= _MAX_LEGEND_NAME else name[:_MAX_LEGEND_NAME - 1] + "…"
+
+
+_WARNING_TOOLTIP = (
+    "Problems with the current set-up, and nothing when there are none.\n\n"
+    "• Min not below Max: the refiner silently drops such a parameter, so "
+    "it stays ticked but never moves.\n"
+    "• Outside Min/Max: the search clips the start value into the range, "
+    "so the run does not begin at the value shown.\n"
+    "• Set by hand: a typed Value is written straight into the model. "
+    "Phases are shared between mixtures, so it can move another mixture too, "
+    "and there is no undo - refine, or keep a solution, to overwrite it.\n\n"
+    "The affected cells are tinted in the tree; hover one for its own detail."
+)
+
+
+def _plural(count: int, noun: str, singular: str = "", plural: str = "") -> str:
+    """"1 value was" / "3 values were" - the warning line reads as a sentence."""
+    word = noun if count == 1 else noun + "s"
+    verb = (singular if count == 1 else plural) if singular else ""
+    return "%d %s%s" % (count, word, " " + verb if verb else "")
+
+
+def _value_tooltip(ref, outside: bool, hand: bool) -> str:
+    parts = []
+    if outside:
+        parts.append("Outside Min/Max (%.4f to %.4f): a refinement starts from "
+                     "the nearest bound, not this value."
+                     % (ref.minimum, ref.maximum))
+    if hand:
+        parts.append("Set by hand - written straight into the model.")
+    return "\n".join(parts)
+
+
 _OPTION_TOOLTIPS = {
     "maxfun": "Maximum number of objective-function evaluations.",
     "maxiter": "Maximum number of solver iterations.",
@@ -117,18 +172,21 @@ _OPTION_TOOLTIPS = {
 }
 
 
-class _MinMaxOnlyDelegate(QStyledItemDelegate):
-    """Only the Min and Max cells may be edited.
+class _EditableCellDelegate(QStyledItemDelegate):
+    """Only the Value, Min and Max cells may be edited - never Parameter.
 
     A QTreeWidgetItem's ItemIsEditable flag applies to EVERY column, so without
-    this the Parameter and Value cells opened editors too - and since
-    `_on_item_changed` only handles Min / Max / Refine, a typed Value stayed on
-    screen while the model kept its own number. A cell that lies about the model
-    is worse than one that is read-only. (The flat table this replaced set
-    editability per CELL, which is why it never had the problem.)"""
+    this the Parameter cell opens an editor too, and a typed name would stay on
+    screen while the model kept its own. A cell that lies about the model is
+    worse than one that is read-only. (The flat table this replaced set
+    editability per CELL, which is why it never had the problem.)
+
+    Value was read-only for the same reason until `_on_item_changed` learned to
+    write it back; the old GTK app always allowed editing it, and setting a
+    parameter by hand before refining is a real workflow."""
 
     def createEditor(self, parent, option, index):
-        if index.column() not in (_COL_MIN, _COL_MAX):
+        if index.column() not in (_COL_VALUE, _COL_MIN, _COL_MAX):
             return None
         return super().createEditor(parent, option, index)
 
@@ -174,10 +232,18 @@ class RefinementDialog(QDialog):
         self._elapsed: float | None = None
         self._applied: str | None = None      # "initial" / "best" / "last"
         self._applied_by_user = False         # False = left there by the run
+        # ids of the Refinables whose Value the user typed in by hand since the
+        # model last came from a refinement. Cleared whenever the model's values
+        # are written wholesale again (a new run, or keeping a solution), since
+        # the hand-set numbers are gone at that point.
+        self._hand_edited: set = set()
         self._setup_progress_plot()
         # The report is fixed-pitch: it is a column-aligned text table.
         self.ui.txt_report.setFont(
             QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.ui.lbl_param_warning.setStyleSheet(_WARNING_STYLE)
+        self.ui.lbl_param_warning.setToolTip(_WARNING_TOOLTIP)
+        self.ui.lbl_param_warning.setVisible(False)
 
         # {id(QTreeWidgetItem): Refinable} for the parameter LEAVES; a group row
         # is absent from it, which is how edits on a group are ignored.
@@ -196,7 +262,7 @@ class RefinementDialog(QDialog):
             QAbstractItemView.EditTrigger.DoubleClicked
             | QAbstractItemView.EditTrigger.EditKeyPressed
         )
-        tree.setItemDelegate(_MinMaxOnlyDelegate(tree))
+        tree.setItemDelegate(_EditableCellDelegate(tree))
         header = tree.header()
         # The name column is the stretching one; without this Qt ALSO stretches
         # the last section, and the two together push the header past the
@@ -251,6 +317,7 @@ class RefinementDialog(QDialog):
         try:
             tree.clear()
             self._items = {}
+            self._hand_edited = set()
             self._refinables = (
                 self._mixture.refinables() if self._mixture is not None else []
             )
@@ -341,6 +408,86 @@ class RefinementDialog(QDialog):
         selected = sum(1 for ref in self._refinables if ref.refine)
         self.ui.lbl_selected.setText("%d of %d selected" % (selected, total))
         self._update_budget()
+        self._update_warning()
+
+    # ------------------------------------------------------------------
+    # Warning line (below the tree)
+    # ------------------------------------------------------------------
+    def _warning_state(self) -> tuple:
+        """(degenerate, outside): ids of FLAGGED refinables the refiner will
+        silently drop because Min is not below Max, and of those whose current
+        value sits outside its own bounds (the search clips the start value into
+        the range, so the typed number is not where the run begins).
+
+        `Refiner.__init__` is the authority for both - it skips a degenerate
+        range and clips the start value - and this mirrors it exactly."""
+        degenerate, outside = set(), set()
+        for ref in self._refinables:
+            if not ref.refine:
+                continue
+            low, high = ref.minimum, ref.maximum
+            if not (low < high):
+                degenerate.add(id(ref))
+            elif not (low <= ref.value <= high):
+                outside.add(id(ref))
+        return degenerate, outside
+
+    def _name_list(self, ids: set) -> str:
+        """Up to `_MAX_NAMED` parameter names, then "and N more"; a bare count
+        would leave the user hunting through folded branches for the culprit."""
+        titles = [ref.label for ref in self._refinables if id(ref) in ids]
+        shown = titles[:_MAX_NAMED]
+        if len(titles) > _MAX_NAMED:
+            shown.append("and %d more" % (len(titles) - _MAX_NAMED))
+        return ", ".join(shown)
+
+    def _update_warning(self) -> None:
+        """Show what is wrong with the current selection, and nothing when
+        nothing is - the label hides itself, so an untroubled dialog does not
+        carry a permanent empty warning strip."""
+        degenerate, outside = self._warning_state()
+        self._mark_problem_rows(degenerate, outside)
+        # Kept SHORT deliberately. Spelled out ("...the run will start from the
+        # nearest bound, not the shown value"), three messages wrapped to ten
+        # lines and took 152 px off a 415 px tree. The reasoning lives in the
+        # label's tooltip and in each tinted cell's own tooltip; the line itself
+        # only has to say what is wrong and which parameter it is.
+        messages = []
+        if degenerate:
+            messages.append("Min not below Max, so not refined: %s."
+                            % self._name_list(degenerate))
+        if outside:
+            messages.append("Outside Min/Max, so refining starts at the "
+                            "bound: %s." % self._name_list(outside))
+        if self._hand_edited:
+            messages.append("%s set by hand (direct model edit, no undo)."
+                            % _plural(len(self._hand_edited), "value"))
+        label = self.ui.lbl_param_warning
+        # One message per line: they are independent problems, and running them
+        # together made a wrapped paragraph nobody would read.
+        label.setText("\n".join(messages))
+        label.setVisible(bool(messages))
+
+    def _mark_problem_rows(self, degenerate: set, outside: set) -> None:
+        """Tint the offending cells so the warning's names can be found in the
+        tree. Cleared on every pass, so a fixed row loses its tint - the marks
+        describe the CURRENT state, never a stale one."""
+        self._updating = True
+        try:
+            for item, ref in self._leaf_items():
+                bad_bounds = id(ref) in degenerate
+                bad_value = id(ref) in outside
+                hand = id(ref) in self._hand_edited
+                for col, flagged in ((_COL_MIN, bad_bounds),
+                                     (_COL_MAX, bad_bounds),
+                                     (_COL_VALUE, bad_value)):
+                    item.setBackground(col, _WARN_BRUSH if flagged else _NO_BRUSH)
+                if not bad_value:
+                    item.setBackground(_COL_VALUE,
+                                       _HAND_BRUSH if hand else _NO_BRUSH)
+                item.setToolTip(_COL_VALUE, _value_tooltip(ref, bad_value, hand))
+        finally:
+            self._updating = False
 
     def _on_tree_menu(self, pos) -> None:
         tree = self.ui.tree_refinables
@@ -428,21 +575,67 @@ class RefinementDialog(QDialog):
         if col == _COL_REFINE:
             ref.set_ref_info(refine=item.checkState(_COL_REFINE) == Qt.CheckState.Checked)
             self._update_selected_count()
+        elif col == _COL_VALUE:
+            self._on_value_edited(item, ref)
         elif col in (_COL_MIN, _COL_MAX):
             try:
                 value = float(item.text(col))
             except ValueError:
-                self._updating = True
-                try:
-                    item.setText(col, "%.4f" % (ref.minimum if col == _COL_MIN
-                                                else ref.maximum))
-                finally:
-                    self._updating = False
+                self._revert_cell(item, col, ref)
                 return
             if col == _COL_MIN:
                 ref.set_ref_info(minimum=value)
             else:
                 ref.set_ref_info(maximum=value)
+            # A bound decides whether the parameter can be refined at all, so
+            # the count, the budget and the Min >= Max warning all move with it.
+            self._update_selected_count()
+
+    def _revert_cell(self, item, col: int, ref) -> None:
+        """Put the model's own number back in a cell after unparseable input."""
+        current = {_COL_VALUE: ref.value, _COL_MIN: ref.minimum,
+                   _COL_MAX: ref.maximum}[col]
+        self._updating = True
+        try:
+            item.setText(col, "%.4f" % current)
+        finally:
+            self._updating = False
+
+    def _on_value_edited(self, item, ref) -> None:
+        """Write a hand-typed Value straight into the live model.
+
+        The old GTK app allowed this and MudLab2 did not; setting a parameter by
+        hand (then refining from there, or just seeing its effect on the pattern)
+        is a real workflow. It is a DIRECT model write with no undo, and phases
+        are shared objects, so it can move another mixture too - hence the
+        warning line, which names the count and survives until the values are
+        written wholesale again. The value is deliberately NOT clamped to
+        Min/Max: those are search bounds, not validity limits, and refusing the
+        number would be worse than reporting that a run will start from the
+        clipped bound (which `_warnings` does)."""
+        try:
+            value = float(item.text(_COL_VALUE))
+        except ValueError:
+            self._revert_cell(item, _COL_VALUE, ref)
+            return
+        if value == ref.value:
+            self._revert_cell(item, _COL_VALUE, ref)   # reformat only
+            return
+        ref.value = value
+        self._hand_edited.add(id(ref))
+        if self._mixture is not None:
+            self._mixture.calculate()
+        # The setter may not store the number verbatim (an atom relation
+        # re-applies itself), so redisplay what the model actually holds.
+        self._refresh_values()
+        if self._refiner is not None:
+            # The results now describe a model the user has changed by hand:
+            # refresh the GoF from the new patterns and rewrite the report,
+            # rather than leaving either describing the pre-edit state.
+            self._show_results(self._refiner)
+            self._write_report()
+        if self._on_applied is not None:
+            self._on_applied()
 
     def _on_method_changed(self, _index: int) -> None:
         if self._updating:
@@ -526,6 +719,7 @@ class RefinementDialog(QDialog):
         for ref in self._refinables:
             if ref.refine and ref.minimum < ref.maximum:
                 ref.value = random.uniform(ref.minimum, ref.maximum)
+                self._hand_edited.discard(id(ref))   # overwritten
         if self._mixture is not None:
             self._mixture.calculate()
         self._refresh_values()
@@ -552,6 +746,11 @@ class RefinementDialog(QDialog):
         self._prog_ax = self._prog_fig.add_subplot(111)
         self._prog_evals: list[int] = []
         self._prog_best: list[float] = []
+        # {specimen name: (evaluations, Rp)} - the per-specimen curves behind
+        # the mean. Appended to per progress point (never rebuilt from a stored
+        # history), so the throttled redraw stays O(points) rather than
+        # regrouping thousands of breakdowns on every tick.
+        self._prog_series: dict = {}
         self._prog_dirty = False
         self._prog_timer = QTimer(self)
         self._prog_timer.setInterval(150)  # ms - the redraw throttle
@@ -565,9 +764,33 @@ class RefinementDialog(QDialog):
         ax.set_ylabel("best Rp (%)", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.grid(True, alpha=0.3)
+        # The per-specimen curves go UNDER the mean, thin and lighter: the mean
+        # is the number every other readout quotes, so it has to stay the one
+        # the eye follows. The point of the thin lines is the SPREAD - a run
+        # that improves the mean by pulling one specimen down while pushing
+        # another up is invisible in a single curve.
+        for position, (name, (evals, values)) in enumerate(
+            sorted(self._prog_series.items())
+        ):
+            if not evals:
+                continue
+            ax.plot(evals, values, linewidth=0.8, alpha=0.75,
+                    color=_SPECIMEN_COLORS[position % len(_SPECIMEN_COLORS)],
+                    label=_short_name(name))
         if self._prog_evals:
             ax.plot(self._prog_evals, self._prog_best,
-                    color="#1971C2", linewidth=1.3)
+                    color="#1971C2", linewidth=1.6, label="mean", zorder=3)
+        # A legend only where it fits: past a handful of specimens it would
+        # cover the curves it is meant to explain, and the report's per-specimen
+        # table names them all anyway. It sits ABOVE the axes - inside, it landed
+        # on the worst-fitting specimen's curve (the curves fill the plot by
+        # construction, since the axes autoscale to them), and "best" placement
+        # would re-solve an overlap search on every throttled redraw.
+        if 0 < len(self._prog_series) <= _MAX_LEGEND_SERIES:
+            ax.legend(fontsize=6, frameon=False, labelspacing=0.2,
+                      loc="lower center", bbox_to_anchor=(0.5, 1.0),
+                      borderaxespad=0.0, ncol=len(self._prog_series) + 1,
+                      handlelength=1.2, columnspacing=1.0, handletextpad=0.4)
         self._prog_canvas.draw_idle()
 
     def _redraw_progress(self, force: bool = False) -> None:
@@ -578,6 +801,7 @@ class RefinementDialog(QDialog):
     def _start_progress(self) -> None:
         self._prog_evals.clear()
         self._prog_best.clear()
+        self._prog_series.clear()
         self._prog_dirty = False
         self._draw_progress()
         self._prog_timer.start()
@@ -609,6 +833,9 @@ class RefinementDialog(QDialog):
         self.ui.lbl_status.setText("Refining...")
         self._applied = None
         self._applied_by_user = False
+        # The run starts FROM any hand-set values and then writes its own, so
+        # they stop being hand-set the moment it begins.
+        self._hand_edited = set()
         self._elapsed = None
         self._refine_started = time.monotonic()
         self.ui.txt_report.clear()   # the previous run's report is now stale
@@ -622,13 +849,18 @@ class RefinementDialog(QDialog):
             self.ui.btn_cancel.setEnabled(False)
             self.ui.lbl_status.setText("Cancelling - keeping the best so far...")
 
-    def _on_progress(self, n_evals: int, best_residual: float) -> None:
+    def _on_progress(self, n_evals: int, best_residual: float,
+                     parts=None) -> None:
         self.ui.lbl_status.setText(
             "Refining... %d evaluations, best Rp = %.3f %%" % (n_evals, best_residual)
         )
         # Append only - the throttle timer does the (expensive) redraw.
         self._prog_evals.append(n_evals)
         self._prog_best.append(best_residual)
+        for name, value in parts or []:
+            evals, values = self._prog_series.setdefault(name, ([], []))
+            evals.append(n_evals)
+            values.append(value)
         self._prog_dirty = True
 
     def _on_finished(self, refiner) -> None:
@@ -726,6 +958,7 @@ class RefinementDialog(QDialog):
         if self._refiner is None or self._mixture is None or self._thread is not None:
             return
         getattr(self._refiner, "apply_" + which)()
+        self._hand_edited = set()   # the solution overwrote every hand-set value
         self._mixture.calculate()
         self._refresh_values()
         # Rewrite the report for the solution now in the model: its GoF is
@@ -818,6 +1051,13 @@ class RefinementDialog(QDialog):
         if self._applied is not None:
             applied += ("  (kept)" if self._applied_by_user
                         else "  (left by the refinement)")
+        # ...but a hand-edited Value moved the model away from that solution
+        # afterwards, so saying only "Best solution" would describe a model that
+        # is no longer there. The parameter table below still lists the
+        # solution's own numbers; the tree shows what the model actually holds.
+        if self._hand_edited:
+            applied += "  + %s changed by hand since" % _plural(
+                len(self._hand_edited), "value")
         lines.append("  Method:       %s" % self.ui.cmb_method.currentText())
         lines.append("  Parameters:   %d" % len(refiner.refinables))
         if self._elapsed is not None:

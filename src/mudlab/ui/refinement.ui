@@ -100,6 +100,19 @@
           </column>
          </widget>
         </item>
+        <item>
+         <widget class="QLabel" name="lbl_param_warning">
+          <property name="toolTip">
+           <string>Problems with the current selection: parameters that will not be refined, values outside their own Min/Max, and values you have typed in by hand. It disappears when there is nothing to report.</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>

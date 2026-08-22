@@ -108,6 +108,8 @@ def main():
           dlg._prog_evals == [] and len(_data_lines(dlg)) == 0)
     dlg._finish_progress()
 
+    _check_per_specimen_curves(dlg)
+
     _check_delete_on_close()
     _check_three_frame_layout()
     _check_report_after_real_run()
@@ -283,10 +285,10 @@ def _check_refinables_tree(dlg):
     check("layout: the Refine column is spelled out, not abbreviated",
           tree.headerItem().text(4) == "Refine")
 
-    # ONLY Min and Max may be edited. The item's ItemIsEditable flag applies to
-    # every column, so without the delegate the Parameter and Value cells opened
-    # editors too - and a typed Value stayed on screen while the model kept its
-    # own number, because only Min/Max/Refine are handled.
+    # Value, Min and Max may be edited; Parameter may NOT. The item's
+    # ItemIsEditable flag applies to every column, so without the delegate the
+    # Parameter cell opens an editor too - and a typed name would stay on screen
+    # while the model kept its own.
     from PySide6.QtWidgets import QStyleOptionViewItem
 
     delegate = tree.itemDelegate()
@@ -299,9 +301,11 @@ def _check_refinables_tree(dlg):
         editable[col] = editor is not None
         if editor is not None:
             editor.deleteLater()
-    check("edit: the Parameter and Value cells refuse an editor",
-          not editable[0] and not editable[1])
-    check("edit: Min and Max still open one", editable[2] and editable[3])
+    check("edit: the Parameter cell refuses an editor", not editable[0])
+    check("edit: Value, Min and Max open one",
+          editable[1] and editable[2] and editable[3])
+
+    _check_value_editing(dlg)
 
     # The evaluation budget readout, for the current method + options +
     # selection. It is also the only place the silent "ticked but Min >= Max, so
@@ -359,6 +363,136 @@ def _check_refinables_tree(dlg):
     check("layout: the three keep buttons are side by side",
           len({b.y() for b in buttons}) == 1
           and [b.x() for b in buttons] == sorted(b.x() for b in buttons))
+
+
+def _check_value_editing(dlg):
+    """Hand-editing the Value column, and the warning line it drives.
+
+    The Value column was read-only (the delegate refused an editor) because
+    nothing wrote a typed number back. It is editable again - as the old GTK app
+    always had it - so this pins BOTH halves: the model really moves, and the
+    user is told that a direct model write just happened."""
+    tree = dlg.ui.tree_refinables
+    warning = dlg.ui.lbl_param_warning
+    leaves = list(dlg._leaf_items())
+    item, ref = leaves[0]
+
+    dlg._set_all_refine(False)
+    dlg._hand_edited = set()
+    dlg._update_warning()
+    app.processEvents()
+    check("warn: hidden when there is nothing to report",
+          not warning.isVisible() and warning.text() == "")
+
+    # 1. A typed Value writes through to the model.
+    before = ref.value
+    item.setText(1, "%.4f" % (before + 0.5))
+    app.processEvents()
+    check("value: a typed Value writes through to the model",
+          abs(ref.value - (before + 0.5)) < 1e-9)
+    check("value: ...and the row is marked as hand-set",
+          id(ref) in dlg._hand_edited)
+    check("warn: the hand-edit warning appears",
+          warning.isVisible() and "set by hand" in warning.text())
+
+    # 2. Garbage reverts to the model's own number, as Min/Max always did.
+    item.setText(1, "rubbish")
+    app.processEvents()
+    check("value: a non-numeric edit reverts and leaves the model alone",
+          abs(ref.value - (before + 0.5)) < 1e-9
+          and item.text(1) == "%.4f" % ref.value)
+
+    # 3. Min >= Max on a TICKED parameter is the refiner's silent skip: the
+    #    warning is the only place it is visible before a run starts.
+    keep = (ref.minimum, ref.maximum)
+    ref.set_ref_info(refine=True, minimum=5.0, maximum=5.0)
+    dlg._refresh_values()
+    app.processEvents()
+    check("warn: a ticked Min >= Max parameter is named",
+          "Min not below Max" in warning.text() and ref.label in warning.text())
+    check("warn: ...and the refiner would indeed skip it",
+          dlg._effective_parameters() == 0)
+    marked = item.background(2).style() != Qt.BrushStyle.NoBrush
+    check("warn: ...and its Min/Max cells are tinted", marked)
+
+    # 4. Fixing the bounds RESETS the warning and the tint - the marks describe
+    #    the current state, never a stale one.
+    ref.set_ref_info(minimum=keep[0], maximum=keep[1])
+    dlg._refresh_values()
+    app.processEvents()
+    check("warn: fixing the bounds clears that message",
+          "Min not below Max" not in warning.text())
+    check("warn: ...and clears the cell tint",
+          item.background(2).style() == Qt.BrushStyle.NoBrush)
+
+    # 5. A value outside its own bounds: the search clips the start value, so
+    #    the run does not begin where the cell says it does.
+    ref.set_ref_info(refine=True, minimum=ref.value + 10.0,
+                     maximum=ref.value + 20.0)
+    dlg._refresh_values()
+    app.processEvents()
+    check("warn: a value outside its Min/Max is called out",
+          "Outside Min/Max" in warning.text())
+    check("warn: ...with the reason in the cell's own tooltip",
+          "nearest bound" in item.toolTip(1))
+
+    # 6. Everything resets together when the state is clean again.
+    ref.set_ref_info(refine=False, minimum=keep[0], maximum=keep[1])
+    ref.value = before
+    dlg._hand_edited = set()
+    dlg._refresh_values()
+    app.processEvents()
+    check("warn: hides again once nothing is wrong",
+          not warning.isVisible() and warning.text() == "")
+    check("value: the tree mirrors the restored model value",
+          item.text(1) == "%.4f" % before)
+    tree.collapseAll()
+
+
+def _check_per_specimen_curves(dlg):
+    """The progress plot draws each specimen's Rp under the mean.
+
+    The reported Rp is the MEAN over the mixture's specimens, so one curve
+    cannot show a run that improves one specimen by degrading another. Fed from
+    the same progress signal, so the thin curves always average to the bold
+    one."""
+    dlg._start_progress()
+    points = [
+        (1, 10.0, [("A", 8.0), ("B", 12.0)]),
+        (4, 9.0, [("A", 7.0), ("B", 11.0)]),
+        (9, 8.5, [("A", 5.0), ("B", 12.0)]),   # mean improves, B gets worse
+    ]
+    for n, best, parts in points:
+        dlg._on_progress(n, best, parts)
+    check("per-specimen: a series is kept per specimen",
+          sorted(dlg._prog_series) == ["A", "B"])
+    check("per-specimen: each series follows the mean's evaluation axis",
+          all(evals == [1, 4, 9] for evals, _v in dlg._prog_series.values()))
+    check("per-specimen: the mean of the curves IS the plotted best",
+          all(abs((dlg._prog_series["A"][1][i] + dlg._prog_series["B"][1][i]) / 2
+                  - dlg._prog_best[i]) < 1e-9 for i in range(3)))
+
+    dlg._redraw_progress(force=True)
+    lines = dlg._prog_ax.get_lines()
+    labels = [l.get_label() for l in lines]
+    check("per-specimen: one line per specimen plus the mean",
+          len(lines) == 3 and "mean" in labels
+          and "A" in labels and "B" in labels)
+    mean_line = lines[labels.index("mean")]
+    thin = [l for l in lines if l.get_label() != "mean"]
+    check("per-specimen: the mean stays the boldest line",
+          all(mean_line.get_linewidth() > l.get_linewidth() for l in thin))
+    check("per-specimen: the legend names them", dlg._prog_ax.get_legend() is not None)
+
+    # A run with no breakdown (an older signal, or a mixture with no usable
+    # specimen) must still draw the mean and nothing else.
+    dlg._start_progress()
+    dlg._on_progress(1, 5.0)
+    dlg._on_progress(2, 4.0)
+    dlg._redraw_progress(force=True)
+    check("per-specimen: absent breakdown still draws just the mean",
+          len(dlg._prog_ax.get_lines()) == 1 and dlg._prog_series == {})
+    dlg._finish_progress()
 
 
 def _check_report_after_real_run():
@@ -482,6 +616,23 @@ def _check_report_after_real_run():
     best_text = dlg.ui.txt_report.toPlainText()
     check("report: the GoF is recomputed for the applied solution",
           _gof(best_text) != _gof(initial_text))
+
+    # A hand-edited Value moves the model AWAY from the solution the report
+    # names. Saying only "Best solution" would then describe a state that is no
+    # longer there - the same lie an earlier version told with "nothing applied".
+    hand_item, hand_ref = list(dlg._leaf_items())[0]
+    hand_item.setText(1, "%.4f" % (hand_ref.value + 0.25))
+    app.processEvents()
+    hand_text = dlg.ui.txt_report.toPlainText()
+    check("report: a hand edit is disclosed on the Applied line",
+          "changed by hand since" in hand_text)
+    check("report: ...and the GoF is recomputed for the edited model",
+          _gof(hand_text) != _gof(best_text))
+    dlg._on_apply("best")
+    app.processEvents()
+    check("report: keeping a solution clears that disclosure",
+          "changed by hand since" not in dlg.ui.txt_report.toPlainText()
+          and not dlg._hand_edited)
     check("report: a new run clears the previous report",
           bool(best_text.strip()))
     dlg._on_refine()

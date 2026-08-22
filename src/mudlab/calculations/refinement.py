@@ -293,10 +293,13 @@ class Refiner:
         # checked before each (expensive) trial so a long refinement can be
         # cancelled (the GUI will pass a threading.Event.is_set here).
         self._stop = stop
-        # `on_progress(n_evaluations, best_residual)`, if given, is called after
-        # each outer trial for a live status readout. It runs on whatever thread
-        # drives the refinement; the GUI passes a callback that only emits a
-        # queued Qt signal (no GUI access here).
+        # `on_progress(n_evaluations, best_residual, best_parts)`, if given, is
+        # called after each outer trial for a live status readout. It runs on
+        # whatever thread drives the refinement; the GUI passes a callback that
+        # only emits a queued Qt signal (no GUI access here). `best_parts` is
+        # the per-specimen [(name, Rp), ...] breakdown OF THE BEST solution, so
+        # it always agrees with `best_residual` (whose mean it is) rather than
+        # describing whatever trial happened to be current.
         self._on_progress = on_progress
         self._n_evals = 0
         self.refinables = []
@@ -322,6 +325,9 @@ class Refiner:
         self.initial_residual = None
         self.best_residual = None
         self.last_residual = None
+        # Per-specimen [(name, Rp), ...] behind `best_residual`, tracked only
+        # while someone is watching (see get_residual).
+        self.best_parts: list = []
 
         # DEFERRED FEATURE - refinement progress plot (old RefineHistory +
         # refine_results.glade / get_plot_samples). update() is the recording
@@ -344,13 +350,19 @@ class Refiner:
             raise _RefinementStopped()
         self._n_evals += 1
         self.apply_solution(x)
-        residual = optimize_mixture(self.mixture)
+        # The per-specimen breakdown is only asked for when a progress consumer
+        # exists: it costs one extra objective evaluation per trial, which is
+        # cheap next to the inner solve but pure waste for a headless run.
+        if self._on_progress is not None:
+            residual, parts = optimize_mixture(self.mixture, with_breakdown=True)
+        else:
+            residual, parts = optimize_mixture(self.mixture), None
         if not np.isfinite(residual):
             residual = _PENALTY
-        self.update(x, residual)
+        self.update(x, residual, parts)
         return residual
 
-    def update(self, x, residual) -> None:
+    def update(self, x, residual, parts=None) -> None:
         x = np.atleast_1d(np.asarray(x, dtype=float)).copy()
         if self.record_history:  # deferred progress-plot hook (disabled)
             self.history.append((float(residual), x.copy()))
@@ -359,8 +371,10 @@ class Refiner:
         if self.best_residual is None or residual < self.best_residual:
             self.best_residual = float(residual)
             self.best_solution = x.copy()
+            if parts is not None:
+                self.best_parts = list(parts)
         if self._on_progress is not None:
-            self._on_progress(self._n_evals, self.best_residual)
+            self._on_progress(self._n_evals, self.best_residual, self.best_parts)
 
     # The Refinement window's Initial / Best / Last buttons apply one of the
     # three tracked solutions; each sets the structural params then inner-fits
