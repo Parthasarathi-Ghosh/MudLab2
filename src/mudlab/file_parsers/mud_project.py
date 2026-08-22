@@ -24,8 +24,8 @@ import zipfile
 import numpy as np
 
 from mudlab.models import (
-    AtomType, Goniometer, Marker, Mixture, NonClayPhase, Phase, Project,
-    RawPatternPhase, Specimen,
+    AtomType, Composition, Goniometer, Marker, Mixture, NonClayPhase, Phase,
+    Project, RawPatternPhase, Specimen,
 )
 
 # Version tag written for new files (old-app format version we are
@@ -207,6 +207,20 @@ def load_mud(path: str) -> Project:
             if isinstance(marker_dict, dict):
                 specimen.add_marker(Marker.from_dict(marker_dict))
 
+    # The optional measured (XRF) composition. Absent from every project written
+    # before this feature, and from any project the user never imported one
+    # into - so its absence is the normal case, not an error.
+    comp_dict = properties.get("composition")
+    if isinstance(comp_dict, dict):
+        project.set_composition(Composition.from_dict(comp_dict))
+
+    # Which default phase each phase started as - user-stated, so it can only
+    # be read back, never recomputed. Set AFTER the phases exist, since unknown
+    # uuids are pruned against them.
+    mapping = properties.get("default_phase_map")
+    if isinstance(mapping, dict):
+        project.set_default_phase_map(mapping)
+
     # Mixtures resolve their phase-slot grid and specimen rows by uuid, so
     # load them last (calc models; still saved verbatim via raw passthrough).
     phase_map = project.phase_uuid_map()
@@ -264,6 +278,23 @@ def save_mud(project: Project, path: str) -> None:
         if phase.uuid not in seen_uuids:
             rebuilt.append(phase.to_dict())  # newly added
     properties["phases"] = rebuilt
+    # The measured composition, when there is one. When there is NOT, the key is
+    # REMOVED rather than written as null: a project that never had one must
+    # round-trip exactly as it did before this feature, and clearing one must
+    # not leave a tombstone behind.
+    composition = getattr(project, "composition", None)
+    if composition is not None:
+        properties["composition"] = composition.to_dict()
+    else:
+        properties.pop("composition", None)
+    # Same rule for the default-phase map: written only when the user has stated
+    # one, removed when they have not, so a project that never uses the feature
+    # is byte-identical to how it was before it existed.
+    mapping = getattr(project, "default_phase_map", None) or {}
+    if mapping:
+        properties["default_phase_map"] = dict(mapping)
+    else:
+        properties.pop("default_phase_map", None)
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
 

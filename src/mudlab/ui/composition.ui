@@ -35,6 +35,53 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="chk_measured">
+     <property name="toolTip">
+      <string>Add a column with the measured (XRF) analysis imported through Data -&gt; Import composition, normalised to 100% so it is directly comparable. Disabled when the project has no measured composition.</string>
+     </property>
+     <property name="text">
+      <string>Show measured (XRF) composition</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="defaultRow">
+     <item>
+      <widget class="QCheckBox" name="chk_default">
+       <property name="toolTip">
+        <string>Add, for each specimen, the composition the mixture would have if every phase were still in its shipped default state - weighted by the fractions the fit found. Shows what refinement did to the chemistry. Needs the default phases to be stated first.</string>
+       </property>
+       <property name="text">
+        <string>Show default-phase state</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_default_phases">
+       <property name="text">
+        <string>Default phases...</string>
+       </property>
+       <property name="toolTip">
+        <string>State which built-in default phase each phase started as. Required for the default-state comparison, and remembered with the project.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="defaultSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QTableWidget" name="tbl_composition">
      <property name="editTriggers">
       <set>QAbstractItemView::NoEditTriggers</set>

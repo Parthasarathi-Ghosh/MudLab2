@@ -93,7 +93,8 @@ class EditMixturesDialog(ObjectStoreDialog):
             specimens = self.project.specimens if self.project is not None else []
             self.mixture_widget.bind_mixture(
                 mixture, phases=phases, specimens=specimens,
-                on_changed=lambda m=mixture: self._recalculate(m)
+                on_changed=lambda m=mixture: self._recalculate(m),
+                project=self.project,
             )
 
     def _recalculate(self, mixture) -> None:

@@ -215,14 +215,24 @@ def _specimen_name(mixture, index: int) -> str:
     return "Specimen %d" % (index + 1)
 
 
-def mixture_composition(mixture, conversion: dict | None = None):
+def mixture_composition(mixture, conversion: dict | None = None,
+                        substitutes: dict | None = None):
     """The mixture's oxide composition.
 
     Returns ``(specimen_names, oxide_rows)`` where ``oxide_rows`` is a list of
     ``(oxide_name, [wt%_for_each_specimen])`` in the conversion table's order.
     Each specimen column is normalised to 100 wt% (0 when it has no convertible
     atoms). Mirrors the old ``get_composition_matrix`` computation without its
-    byte-string packing."""
+    byte-string packing.
+
+    ``substitutes`` optionally maps ``{phase uuid: replacement phase}``, so a
+    caller can ask what the composition WOULD be with different phases in the
+    same slots - the mixture's own fractions are still used. That is how the
+    "default state" column is produced: the phases as the catalog ships them,
+    weighted by the fractions the fit actually found. Computing it here, through
+    the same loop, is what guarantees the two columns are comparable; a separate
+    implementation could drift from this one silently.
+    """
     conv = conversion if conversion is not None else load_conversion_table()
 
     # Accumulate an element-weight total per specimen row.
@@ -237,6 +247,8 @@ def mixture_composition(mixture, conversion: dict | None = None):
             # composition including accessories is ever wanted).
             if phase is None or getattr(phase, "type", None) != "Phase":
                 continue
+            if substitutes:
+                phase = substitutes.get(phase.uuid, phase)
             components = phase.components
             if not components:
                 continue  # a Phase with no atoms yet contributes nothing

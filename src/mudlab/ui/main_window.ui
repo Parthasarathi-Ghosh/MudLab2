@@ -125,6 +125,8 @@
     <addaction name="actionEditAtomTypes"/>
     <addaction name="separator"/>
     <addaction name="actionEditMixtures"/>
+    <addaction name="separator"/>
+    <addaction name="actionImportComposition"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -426,6 +428,20 @@
    </property>
    <property name="toolTip">
     <string>Phases</string>
+   </property>
+  </action>
+  <action name="actionImportComposition">
+   <property name="text">
+    <string>Import &amp;composition...</string>
+   </property>
+   <property name="iconText">
+    <string>Composition</string>
+   </property>
+   <property name="toolTip">
+    <string>Enter the measured (XRF) oxide analysis for this sample</string>
+   </property>
+   <property name="statusTip">
+    <string>Enter or edit the measured (XRF) oxide composition of the sample this project describes</string>
    </property>
   </action>
   <action name="actionEditAtomTypes">

@@ -319,3 +319,50 @@ def add_catalog_entry_to_project(project, display_name: str) -> list:
                     atom.atom_type = existing  # dedup onto the project's own
         project.add_phase(phase)
     return phases
+
+
+# ----------------------------------------------------------------------
+# Default phases BY PHASE NAME (for the default-state composition comparison)
+# ----------------------------------------------------------------------
+#: {default phase name: catalog entry name}, built lazily and cached.
+#: Building the whole catalog costs ~1.3 s, and the composition comparison needs
+#: to look phases up repeatedly, so it is done once per session. The catalog is
+#: read-only reference data shipped with the app, so the map cannot go stale.
+_DEFAULT_PHASE_INDEX: dict | None = None
+
+
+def default_phase_index() -> dict:
+    """``{default phase name: catalog entry name}`` for every phase the catalog
+    can build.
+
+    A catalog ENTRY may build several phases - an expandable clay ships as a
+    treatment triple (``...-AD`` / ``-EG`` / ``-350``) - so the phase name, not
+    the entry name, is the identity a project phase is matched against. The
+    names are unique across the whole catalog (224 of them at the time of
+    writing), which is what makes a flat map safe."""
+    global _DEFAULT_PHASE_INDEX
+    if _DEFAULT_PHASE_INDEX is None:
+        index: dict = {}
+        for entry_name, _descr in _CATALOG:
+            for phase in build_catalog_entry_by_name(entry_name):
+                index[phase.name] = entry_name
+        _DEFAULT_PHASE_INDEX = index
+    return dict(_DEFAULT_PHASE_INDEX)
+
+
+def default_phase_names() -> list:
+    """Every default phase name, sorted - what the mapping dialog offers."""
+    return sorted(default_phase_index())
+
+
+def build_default_phase(phase_name: str, atom_type_map: dict | None = None):
+    """Build ONE default phase by its name, or None if the catalog has no such
+    phase. Returns a fresh object each call (the catalog is a recipe, not a
+    cache), so the caller may treat it as its own."""
+    entry_name = default_phase_index().get(phase_name)
+    if entry_name is None:
+        return None
+    for phase in build_catalog_entry_by_name(entry_name, atom_type_map):
+        if phase.name == phase_name:
+            return phase
+    return None

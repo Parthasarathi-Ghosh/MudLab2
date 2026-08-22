@@ -10,6 +10,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Component linking and inheritance](#component-linking-and-inheritance)
 - [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
+- [Measured (XRF) composition](#measured-xrf-composition)
 - [Refining a mixture](#refining-a-mixture)
 - [Importing measured patterns (CSV options)](#importing-measured-patterns-csv-options)
 - [Preparing experimental data](#preparing-experimental-data)
@@ -441,6 +442,84 @@ The panel is read-only. Use **Copy** to put the table on the clipboard as CSV,
 or **Export CSV…** to save it to a file.
 
 ---
+
+## Measured (XRF) composition
+
+**Data → Import composition…** records the sample's measured oxide analysis —
+typically from XRF — so it can be compared against the composition MudLab
+computes from your model.
+
+A MudLab project describes **one physical sample**; its specimens are treatment
+variants of that same material (air-dried, glycolated, heated). So a project
+holds **at most one** analysis. Choosing the menu item again re-opens the dialog
+on the values you already entered, so correcting one figure does not mean
+retyping the whole analysis.
+
+### Entering the analysis
+
+Values are **weight percent**. The grid offers a fixed set of oxides — the same
+seven the modelled composition reports — and that restriction is the point: an
+oxide the model can never produce could not take part in the comparison. Leave
+anything you did not measure at zero; only non-zero values are stored.
+
+- **Total** is shown as you type. If it sits far from 100 % you get a note, not
+  an error — a majors-only analysis is perfectly reasonable.
+- **Recompute to 100 %** scales every value so they sum to 100. Worth doing
+  before comparing: the modelled composition is *always* normalised to 100, so
+  an analysis totalling 97 would otherwise read as a difference that is not
+  really there. (Values are held to two decimals, so the total may land on
+  100.01 — that is rounding, not an error.)
+- **Name** and **Source** are free text. Source is a note to yourself about the
+  laboratory, method or date; MudLab never interprets it.
+
+The analysis is stored in the project and survives save and reload. It has no
+effect on any calculation — it is reference data for comparison.
+
+### Comparing it with the model
+
+Open a mixture's **Composition** view (Edit Mixtures → **Composition**). Two
+optional columns sit beside the modelled ones:
+
+- **Show measured (XRF) composition** — adds your analysis as one extra column,
+  normalised to 100 % so it is directly comparable.
+- **Show default-phase state** — adds, for each specimen, the composition the
+  mixture *would* have if every phase were still in its shipped default state,
+  weighted by the fractions the fit found. The difference between that and the
+  modelled column is **what refinement did to the chemistry**.
+
+Both are off by default, and each is greyed until the data behind it exists.
+
+### Which phase started as which default?
+
+The default-state column needs to know which built-in default phase each of your
+phases began as — and MudLab **cannot** work that out. Adding a default phase
+gives it a brand-new identity, nothing records where it came from, and phases
+are usually renamed afterwards (the catalog's *Illite-Smectite R0 Ca-AD* becomes
+your *IS R0 Ca-AD*).
+
+So you state it once, with **Default phases…** in the Composition view:
+
+- one row per phase, with a drop-down of every built-in default phase;
+- **Match by name** fills in the phases whose names still match exactly — only
+  exact matches, because a wrong guess would corrupt the comparison invisibly;
+- set the renamed ones yourself.
+
+The mapping is remembered with the project. A phase you leave unstated is simply
+shown at its current state, and the view says which ones those are — a partial
+mapping gives a partial answer rather than a wrong one.
+
+> **What actually changes the chemistry?** Refinement, not Optimize. Optimize
+> only fits fractions, scale and background, which live on the mixture — your
+> phases are untouched. Refinement changes them two ways: **atom relations**
+> rewrite the atoms' occupancies (a substitution like Fe-for-Al can move an
+> oxide by many percent), and **stacking probabilities** change the proportions
+> of the layer types in a mixed-layer phase. σ\*, CSDS, d001 and δc have no
+> effect on composition at all.
+
+> **Does this change my file?** Only if you import one. A project without a
+> composition is written exactly as before. A project **with** one cannot be
+> opened by the old GTK MudLab, which rejects any file property it does not
+> recognise — the same limitation that applies to non-clay phases.
 
 ## Refining a mixture
 

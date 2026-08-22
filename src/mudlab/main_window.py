@@ -137,6 +137,8 @@ class MainWindow(QMainWindow):
         self.ui.actionEditPhases.triggered.connect(self._show_edit_phases)
         self.ui.actionEditAtomTypes.triggered.connect(self._show_edit_atom_types)
         self.ui.actionEditMixtures.triggered.connect(self._show_edit_mixtures)
+        self.ui.actionImportComposition.triggered.connect(
+            self._import_composition)
         self.ui.actionAddSpecimen.triggered.connect(self._add_specimen)
         self.ui.actionImportSpecimens.triggered.connect(self._import_specimens)
 
@@ -991,6 +993,29 @@ class MainWindow(QMainWindow):
             self._edit_atom_types_dialog.close()
         self._edit_atom_types_dialog = EditAtomTypesDialog(self, project=self.project)
         self._edit_atom_types_dialog.show()
+
+    def _import_composition(self) -> None:
+        """Data -> Import composition: the sample's measured (XRF) analysis.
+
+        A project describes ONE physical sample, so it holds at most one
+        analysis: importing again EDITS the existing one (the dialog opens on
+        its values) rather than adding a second. Cancelling changes nothing.
+        """
+        from mudlab.import_composition_dialog import ImportCompositionDialog
+
+        existing = self.project.composition
+        dialog = ImportCompositionDialog(self, composition=existing)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        if dialog.composition is None:
+            return
+        self.project.set_composition(dialog.composition)
+        self._mark_dirty()
+        self.ui.statusBar.showMessage(
+            "Composition %r imported (%d oxides, total %.2f %%)"
+            % (dialog.composition.name, len(dialog.composition.oxides),
+               dialog.composition.total()), 6000
+        )
 
     def _show_edit_mixtures(self) -> None:
         # Modeless; rebuilt per open so it reflects the current project's

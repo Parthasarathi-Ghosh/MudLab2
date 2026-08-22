@@ -84,15 +84,20 @@ class EditMixtureWidget(QWidget):
 
     # ------------------------------------------------------------------
     def bind_mixture(self, mixture, phases=None, specimens=None,
-                     on_changed: Callable[[], None] | None = None) -> None:
+                     on_changed: Callable[[], None] | None = None,
+                     project=None) -> None:
         """Show and edit a real Mixture model. `phases` are the project's phases
         offered in each cell's phase combo (invalid ones greyed); `specimens`
         are the project's specimens offered when assigning a specimen column
         (right-click its header). `on_changed` is called after every accepted
-        edit (used to recompute + redraw)."""
+        edit (used to recompute + redraw). `project`, when given, lets the
+        Composition view offer its project-level comparisons (the measured XRF
+        analysis and the default-phase state); without it that view simply opens
+        as it always did."""
         self._mixture = mixture
         self._phases = list(phases or [])
         self._specimens = list(specimens or [])
+        self._project = project
         self._on_changed = on_changed
         self._populate()
         self._update_residual_label()
@@ -223,7 +228,8 @@ class EditMixtureWidget(QWidget):
             return
         from mudlab.composition_dialog import CompositionDialog
 
-        CompositionDialog(self._mixture, self).exec()
+        CompositionDialog(self._mixture, self,
+                          project=getattr(self, "_project", None)).exec()
 
     # >>> NONCLAY (experimental, optional) — retract with the wiring block above.
     def _on_nonclay(self) -> None:

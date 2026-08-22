@@ -1,6 +1,7 @@
 """Qt-signal data models (the old mvc framework is not ported)."""
 
 from mudlab.models.atom_type import AtomType
+from mudlab.models.composition import Composition
 from mudlab.models.goniometer import Goniometer
 from mudlab.models.marker import Marker
 from mudlab.models.mixture import Mixture
@@ -11,6 +12,7 @@ from mudlab.models.raw_pattern_phase import RawPatternPhase
 from mudlab.models.specimen import Specimen
 
 __all__ = [
+    "Composition",
     "AtomType", "Goniometer", "Marker", "Mixture", "NonClayPhase", "Phase",
     "Project", "RawPatternPhase", "Specimen",
 ]

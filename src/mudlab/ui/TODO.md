@@ -304,6 +304,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 | About box | QMessageBox.about placeholder | about_window in application.glade | partial (branding: logo, icons, version) |
 | Edit Mixtures | edit_mixture.ui, edit_mixture_widget.py, edit_mixtures_dialog.py | mixture/views/glade/edit_mixture.glade + shell | done (bound to the Mixture model; fractions/scales/background editable with live recalc; per-cell phase reassignment via a validity-gated combo (set_phase_at; invalid phases greyed); structural add/remove wired (Add phase/specimen/both buttons + header context menus to rename/remove a slot and assign/remove a specimen); Optimize runs the L-BFGS-B refinement with a live residual label; Refine opens the Refinement window; auto_run/scales/bg live; the Composition button opens the per-specimen oxide summary. Fully wired) |
 | Refinement window | refinement.ui, refinement_dialog.py | refinement/views/glade/refinement.glade + refine_results.glade | done (foldable refinable tree with editable value/min/max + flags, right-click menu incl. auto-restrict/randomize, selected-count + budget + warning readouts, method combo + per-method options, threaded Refine + Cancel + live status, Initial/Best/Last + GoF results with keep-buttons + detailed report, + a live convergence PROGRESS plot best-Rp-vs-evals with per-specimen curves, throttled at 150 ms; verify_refine_progress_plot). Parameter-space/landscape plot intentionally dropped (brute-force removed). |
+| Import composition | import_composition.ui, import_composition_dialog.py | (new - no old-app equivalent) | done 2026-08-22 (measured XRF oxide analysis, one per project; reuses OxideGrid so the oxide set matches the modelled composition; Data menu; verify_composition_object 46/46) |
 | Add Phase dialog | add_phase.ui, add_phase_dialog.py | phases/glade/addphase.glade | done (empty phase; R0 with G 1-6, or R1 which locks G=2 = only R1G2 modeled; R2+ unported; raw-pattern option wired; **default-catalog picker wired** (2026-07-22, 19 built-in reference clays via file_parsers/default_catalog.py); wired to Edit Phases Add) |
 | Goniometer component | goniometer.ui, goniometer_widget.py | goniometer/glade/goniometer.glade | done (plugged into Edit Specimen; Edit emission spectrum wired to the wavelength-distribution editor) |
 | Remove Background | background.ui, line_dialogs.py | generic/views/glade/lines/background.glade | done (applies: linear + pattern bg, pattern interpolated onto the specimen grid) |
@@ -610,6 +611,65 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   outer trial). Not essential; no checkbox needed.
 
 ### Other
+- [x] Measured (XRF) composition object (2026-08-22) - NEW project-level feature,
+  step 1 of 2. `models/composition.py` `Composition` (name / source / uuid /
+  oxides) held as `Project.composition` (optional, ONE per project - a project
+  describes one physical sample and its specimens are treatment variants), with
+  a `composition_changed` signal. Data -> Import composition opens
+  `import_composition_dialog.py` (ui/import_composition.ui), which reuses the
+  shared `OxideGrid` so the oxide set is EXACTLY `reporting_oxides()` - the same
+  rows the modelled composition reports, which is what makes the two comparable;
+  an oxide the model cannot produce could not take part in the comparison. Has
+  "Recompute to 100 %" (the modelled composition is always normalised to 100, so
+  a raw 97 % analysis would otherwise read as a difference that is not there;
+  note the grid holds 2 decimals so it can land on 100.01 - rounding, not a bug).
+  Re-opening the menu item EDITS the existing analysis (same uuid) rather than
+  adding a second. The model filters on set: non-reporting oxides, non-numeric,
+  NaN/inf and negatives are dropped, so a hand-edited file cannot poison the
+  comparison. PERSISTENCE is a `composition` property of the Project, written
+  ONLY when one exists and REMOVED when cleared - a project that never has one
+  round-trips exactly as before (guarded). FILE COMPATIBILITY: measured, the old
+  GTK app CANNOT read a project carrying one (`cls(**properties)` -> TypeError on
+  any unknown key; a new archive entry fails identically - only embedding in
+  `description` survives, which was rejected as too fragile since that field is a
+  user-editable text box). This is the accepted divergence the planned old-app /
+  PyXRD EXPORTERS will handle. Harness verify_composition_object.py (46).
+- [x] Composition COMPARISON (2026-08-22, step 2 of the same feature). The
+  Compositions dialog gained two optional column sets, both OFF by default so
+  the view opens exactly as before: (a) the measured XRF analysis as one column,
+  NORMALISED to 100 (every modelled column is, so a raw 97 % analysis would
+  otherwise read as a real difference); (b) the DEFAULT-PHASE STATE, one column
+  per specimen - the composition the mixture would have with every phase still
+  as the catalog ships it, weighted by the fractions the fit found. Computed by
+  `mixture_composition(..., substitutes={phase uuid: replacement phase})` - the
+  SAME loop, so the two columns cannot drift apart. New `default_state.py`
+  bridges the catalog (file_parsers) and the composition calc (calculations),
+  which deliberately does not depend on it. New `default_catalog.default_phase_
+  index()/default_phase_names()/build_default_phase()` (lazy, ~1.2 s once, 224
+  unique default PHASE names - a treatment triple builds three distinctly named
+  phases, so the phase name is the identity, not the entry name).
+  THE MAPPING IS USER-STATED AND CANNOT BE DERIVED - measured: a catalog build
+  mints FRESH uuids every time, the phase records nothing about its origin, and
+  users rename (the catalog's "Illite-Smectite R0 Ca-AD" is a real project's
+  "IS R0 Ca-AD"; only 3 of 6 fixture phases match by name). So
+  `default_phases_dialog.py` (ui/default_phases.ui) states it once per phase,
+  with Match-by-name doing EXACT matches only (a fuzzy guess would corrupt the
+  comparison invisibly), stored as `Project.default_phase_map` {phase uuid:
+  default phase name} and persisted like `composition` - written only when
+  non-empty, removed otherwise, stale uuids pruned on set. An unmapped phase
+  falls through to its current state and is NAMED in the title, so a partial
+  mapping gives a partial answer rather than a wrong one. Bulk view and the
+  default column are mutually exclusive: bulk weights by fraction alone, the
+  clay-only view by fraction x formula mass, so together they would put two
+  conventions in one table. `bind_mixture(project=...)` threads the project to
+  the dialog; without one it behaves exactly as before.
+  MEASURED FINDINGS worth keeping: Optimize does NOT change a Phase (only
+  fractions/scales/bg, which live on the Mixture) - only REFINEMENT does, via
+  (1) atom relations rewriting atom pn (Illite Fe2O3 39.9 -> 134.3, Al2O3 178.4
+  -> 118.2 on a 10-eval run) and (2) stacking probabilities changing the
+  component weights (`_component_weights` = probabilities.get_distribution_
+  array(); 0.8/0.2 -> 0.8675/0.1325). sigma*/CSDS/d001/delta_c do not affect
+  composition at all. Harness verify_composition_object.py now 91.
 - [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)

@@ -28,6 +28,8 @@ class Project(QObject):
     #: already open has to rebuild its list rather than keep the snapshot it
     #: took when it opened.
     atom_types_changed = Signal()
+    # The project's optional measured (XRF) composition was added or replaced.
+    composition_changed = Signal()
 
     name = Prop("New Project", "visuals_changed")
     author = Prop("", "data_changed")
@@ -83,6 +85,58 @@ class Project(QObject):
         self.raw_properties: dict = {}
         self.file_version: str | None = None
         self.filename: str | None = None
+        # Optional measured (XRF) oxide analysis - one per project, because one
+        # project describes one physical sample. None means "not provided", and
+        # every consumer must treat it as optional.
+        self._composition = None
+        # {phase uuid: default (catalog) phase name} - which shipped default
+        # phase each of the project's phases started life as. It CANNOT be
+        # derived: a catalog build mints fresh uuids every time and records
+        # nothing about its origin, and users rename phases freely, so the only
+        # reliable source is the user telling us once. Empty = not stated.
+        self._default_phase_map: dict = {}
+
+    # ------------------------------------------------------------------
+    # Measured (XRF) composition (optional, one per project)
+    # ------------------------------------------------------------------
+    @property
+    def composition(self):
+        """The measured oxide analysis, or None when none was imported."""
+        return self._composition
+
+    def set_composition(self, composition) -> None:
+        """Set or clear the measured composition (None clears it).
+
+        A project holds at most one: its specimens are treatment variants of a
+        single physical sample, so a second analysis REPLACES the first rather
+        than accumulating. The dialog confirms that with the user first.
+        """
+        self._composition = composition
+        self.composition_changed.emit()
+
+    @property
+    def default_phase_map(self) -> dict:
+        """{phase uuid: default phase name}. A COPY - use set_default_phase_map
+        to change it, so the change signal is never bypassed."""
+        return dict(self._default_phase_map)
+
+    def set_default_phase_map(self, mapping: dict | None) -> None:
+        """Record which default phase each project phase came from.
+
+        Entries for phases the project no longer has are dropped on the way in:
+        a stale uuid would otherwise sit in the file for ever, and re-adding a
+        phase mints a new uuid so it could never match again anyway.
+        """
+        known = {phase.uuid for phase in self._phases}
+        self._default_phase_map = {
+            str(uuid_): str(name)
+            for uuid_, name in (mapping or {}).items()
+            if str(uuid_) in known and str(name)
+        }
+        # composition_changed, not a signal of its own: the map exists solely to
+        # feed the composition comparison, so that is exactly what has changed
+        # for any listener.
+        self.composition_changed.emit()
 
     # ------------------------------------------------------------------
     # Atom types (reference data; a full periodic table of ions)
