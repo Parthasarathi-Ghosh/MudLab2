@@ -751,14 +751,22 @@ class RefinementDialog(QDialog):
         self._prog_ax = self._prog_fig.add_subplot(111)
         self._prog_evals: list[int] = []
         self._prog_best: list[float] = []
-        # {specimen name: (evaluations, Rp)} - the per-specimen curves behind
-        # the mean. Appended to per progress point (never rebuilt from a stored
-        # history), so the throttled redraw stays O(points) rather than
-        # regrouping thousands of breakdowns on every tick.
+        # {position in the breakdown: (specimen name, evaluations, Rp)} - the
+        # per-specimen curves behind the mean. Appended to per progress point
+        # (never rebuilt from a stored history), so the throttled redraw stays
+        # O(points) rather than regrouping thousands of breakdowns on every tick.
+        #
+        # KEYED BY POSITION, NOT BY NAME. Nothing stops two specimens sharing a
+        # name, and keying by name MERGED them: one curve collected two points
+        # per evaluation, the other specimen disappeared, and the curves stopped
+        # averaging to the mean they are drawn against (measured 37.55 against a
+        # plotted 30.00). The breakdown's order is fixed for a run - it follows
+        # `_Problem.contexts`, which the mixture cannot change mid-run - so the
+        # position is a stable identity where the name is not.
         self._prog_series: dict = {}
-        # Specimen names whose curve is switched off from the plot's right-click
-        # menu. Kept ACROSS runs (and never cleared by _start_progress): hiding
-        # a curve is a viewing preference, not part of a run's data.
+        # Positions whose curve is switched off from the plot's right-click menu.
+        # Kept ACROSS runs (and never cleared by _start_progress): hiding a curve
+        # is a viewing preference, not part of a run's data.
         self._prog_hidden: set = set()
         self._prog_dirty = False
         self._prog_timer = QTimer(self)
@@ -778,27 +786,40 @@ class RefinementDialog(QDialog):
         only test the builder. Hiding is purely a VIEW change: the series keep
         being recorded, so a curve switched back on still has its full history."""
         menu = QMenu(self)
-        names = sorted(self._prog_series)
-        if not names:
+        if not self._prog_series:
             empty = menu.addAction("No specimen curves yet")
             empty.setEnabled(False)
             return menu
-        for name in names:
-            action = menu.addAction(name)
+        labels = self._series_labels()
+        for position in sorted(self._prog_series):
+            action = menu.addAction(labels[position])
             action.setCheckable(True)
-            action.setChecked(name not in self._prog_hidden)
+            action.setChecked(position not in self._prog_hidden)
             action.toggled.connect(
-                lambda visible, n=name: self._set_curve_visible(n, visible))
+                lambda visible, p=position: self._set_curve_visible(p, visible))
         menu.addSeparator()
         menu.addAction("Show all", lambda: self._set_all_curves_visible(True))
         menu.addAction("Hide all", lambda: self._set_all_curves_visible(False))
         return menu
 
-    def _set_curve_visible(self, name: str, visible: bool) -> None:
+    def _series_labels(self) -> dict:
+        """{position: label} for the curves, disambiguating repeated specimen
+        names ("308 AD", "308 AD (2)"). Two specimens may share a name, and two
+        identical entries in the index or the menu would be unusable even now
+        that they no longer merge."""
+        labels, seen = {}, {}
+        for position in sorted(self._prog_series):
+            name = self._prog_series[position][0]
+            seen[name] = seen.get(name, 0) + 1
+            labels[position] = (name if seen[name] == 1
+                                else "%s (%d)" % (name, seen[name]))
+        return labels
+
+    def _set_curve_visible(self, position: int, visible: bool) -> None:
         if visible:
-            self._prog_hidden.discard(name)
+            self._prog_hidden.discard(position)
         else:
-            self._prog_hidden.add(name)
+            self._prog_hidden.add(position)
         self._draw_progress()
 
     def _set_all_curves_visible(self, visible: bool) -> None:
@@ -818,18 +839,18 @@ class RefinementDialog(QDialog):
         # that improves the mean by pulling one specimen down while pushing
         # another up is invisible in a single curve.
         shown = 0
-        # enumerate over ALL series, skipping the hidden ones inside the loop:
-        # the colour must follow the specimen, not its position among the
-        # visible curves, or hiding one would recolour the rest.
-        for position, (name, (evals, values)) in enumerate(
-            sorted(self._prog_series.items())
-        ):
-            if not evals or name in self._prog_hidden:
+        # Iterate ALL series, skipping the hidden ones inside the loop: the
+        # colour is keyed to the series' own position, so hiding one never
+        # recolours the rest.
+        labels = self._series_labels()
+        for position in sorted(self._prog_series):
+            _name, evals, values = self._prog_series[position]
+            if not evals or position in self._prog_hidden:
                 continue
             shown += 1
             ax.plot(evals, values, linewidth=0.8, alpha=0.75,
                     color=_SPECIMEN_COLORS[position % len(_SPECIMEN_COLORS)],
-                    label=_short_name(name))
+                    label=_short_name(labels[position]))
         if self._prog_evals:
             ax.plot(self._prog_evals, self._prog_best,
                     color="#1971C2", linewidth=1.6, label="mean", zorder=3)
@@ -891,9 +912,6 @@ class RefinementDialog(QDialog):
         self.ui.lbl_status.setText("Refining...")
         self._applied = None
         self._applied_by_user = False
-        # The run starts FROM any hand-set values and then writes its own, so
-        # they stop being hand-set the moment it begins.
-        self._hand_edited = set()
         self._elapsed = None
         self._refine_started = time.monotonic()
         self.ui.txt_report.clear()   # the previous run's report is now stale
@@ -915,10 +933,13 @@ class RefinementDialog(QDialog):
         # Append only - the throttle timer does the (expensive) redraw.
         self._prog_evals.append(n_evals)
         self._prog_best.append(best_residual)
-        for name, value in parts or []:
-            evals, values = self._prog_series.setdefault(name, ([], []))
-            evals.append(n_evals)
-            values.append(value)
+        for position, (name, value) in enumerate(parts or []):
+            entry = self._prog_series.get(position)
+            if entry is None:
+                entry = (name, [], [])
+                self._prog_series[position] = entry
+            entry[1].append(n_evals)
+            entry[2].append(value)
         self._prog_dirty = True
 
     def _on_finished(self, refiner) -> None:
@@ -936,6 +957,11 @@ class RefinementDialog(QDialog):
         # the old app ran it (it called apply_best_solution() on finish).
         self._applied = "best"
         self._applied_by_user = False
+        # The hand-set values are gone only NOW, overwritten by the solution the
+        # run left behind. Clearing this when the run STARTED was wrong: on
+        # failure `refine_mixture` restores the pre-run state - which is the
+        # hand-set values - so the warning vanished while its reason remained.
+        self._hand_edited = set()
         self._show_results(refiner)
         self._refresh_values()
         self._set_apply_enabled(True)

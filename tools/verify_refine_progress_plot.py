@@ -436,7 +436,33 @@ def _check_value_editing(dlg):
     check("warn: ...with the reason in the cell's own tooltip",
           "nearest bound" in item.toolTip(1))
 
-    # 6. Everything resets together when the state is clean again.
+    # 6. AUDIT REGRESSION: a FAILED run must NOT drop the hand-edit warning.
+    #    `refine_mixture` restores the pre-run state on error - which IS the
+    #    hand-set values - so clearing the flag when the run started made the
+    #    warning vanish while its reason was still in the model.
+    ref.value = before
+    dlg._refresh_values()
+    item.setText(1, "%.4f" % (before + 0.5))
+    app.processEvents()
+    flagged_value = ref.value
+    # _on_failed pops a modal QMessageBox; stub it just for this call rather
+    # than globally, so a real dialog anywhere else still hangs the harness
+    # loudly instead of being silently swallowed.
+    from PySide6.QtWidgets import QMessageBox
+
+    real_warning = QMessageBox.warning
+    QMessageBox.warning = staticmethod(lambda *a, **k: None)
+    try:
+        dlg._on_failed("simulated engine error")
+        app.processEvents()
+    finally:
+        QMessageBox.warning = real_warning
+    check("warn: a FAILED run keeps the hand-edit warning",
+          bool(dlg._hand_edited) and "set by hand" in warning.text())
+    check("warn: ...because the hand-set value is still in the model",
+          abs(ref.value - flagged_value) < 1e-9)
+
+    # 7. Everything resets together when the state is clean again.
     ref.set_ref_info(refine=False, minimum=keep[0], maximum=keep[1])
     ref.value = before
     dlg._hand_edited = set()
@@ -465,11 +491,12 @@ def _check_per_specimen_curves(dlg):
     for n, best, parts in points:
         dlg._on_progress(n, best, parts)
     check("per-specimen: a series is kept per specimen",
-          sorted(dlg._prog_series) == ["A", "B"])
+          sorted(dlg._prog_series) == [0, 1]
+          and [dlg._prog_series[p][0] for p in (0, 1)] == ["A", "B"])
     check("per-specimen: each series follows the mean's evaluation axis",
-          all(evals == [1, 4, 9] for evals, _v in dlg._prog_series.values()))
+          all(entry[1] == [1, 4, 9] for entry in dlg._prog_series.values()))
     check("per-specimen: the mean of the curves IS the plotted best",
-          all(abs((dlg._prog_series["A"][1][i] + dlg._prog_series["B"][1][i]) / 2
+          all(abs((dlg._prog_series[0][2][i] + dlg._prog_series[1][2][i]) / 2
                   - dlg._prog_best[i]) < 1e-9 for i in range(3)))
 
     dlg._redraw_progress(force=True)
@@ -486,6 +513,35 @@ def _check_per_specimen_curves(dlg):
 
     _check_plot_index(dlg)
     _check_curve_toggles(dlg)
+
+    # AUDIT REGRESSION: SPECIMEN NAMES ARE NOT UNIQUE either. Keyed by name,
+    # two specimens sharing one MERGED into a single series - it collected two
+    # points per evaluation, the other specimen vanished from the plot, and the
+    # drawn curves stopped averaging to the mean they sit against (measured
+    # 37.55 against a plotted 30.00). Series are keyed by POSITION in the
+    # breakdown, which is fixed for a run.
+    dlg._start_progress()
+    for n, best, parts in ((1, 30.0, [("Same", 20.0), ("Same", 40.0)]),
+                           (2, 29.0, [("Same", 19.0), ("Same", 39.0)])):
+        dlg._on_progress(n, best, parts)
+    check("per-specimen: two specimens sharing a NAME stay separate curves",
+          len(dlg._prog_series) == 2)
+    check("per-specimen: ...neither collects the other's points",
+          all(entry[1] == [1, 2] for entry in dlg._prog_series.values()))
+    check("per-specimen: ...and the curves still average to the mean",
+          all(abs((dlg._prog_series[0][2][i] + dlg._prog_series[1][2][i]) / 2
+                  - dlg._prog_best[i]) < 1e-9 for i in range(2)))
+    dlg._redraw_progress(force=True)
+    dup_labels = [l.get_label() for l in dlg._prog_ax.get_lines()]
+    check("per-specimen: ...and the index disambiguates the repeated name",
+          sorted(dup_labels) == ["Same", "Same (2)", "mean"])
+    # Hiding must address the right one of the two.
+    dlg._set_curve_visible(0, False)
+    dlg._redraw_progress(force=True)
+    check("per-specimen: ...hiding one of them leaves the other drawn",
+          sorted(l.get_label() for l in dlg._prog_ax.get_lines())
+          == ["Same (2)", "mean"])
+    dlg._set_all_curves_visible(True)
 
     # A run with no breakdown (an older signal, or a mixture with no usable
     # specimen) must still draw the mean and nothing else.
@@ -541,7 +597,8 @@ def _check_curve_toggles(dlg):
           dlg._prog_canvas.contextMenuPolicy()
           == _Qt.ContextMenuPolicy.CustomContextMenu)
 
-    names = sorted(dlg._prog_series)
+    labels = dlg._series_labels()
+    names = [labels[p] for p in sorted(dlg._prog_series)]
     menu = dlg._plot_menu()
     entries = [a.text() for a in menu.actions() if a.text()]
     check("toggle: one entry per specimen, plus show/hide all",
@@ -554,26 +611,26 @@ def _check_curve_toggles(dlg):
         dlg._redraw_progress(force=True)
         return {l.get_label(): l.get_color() for l in dlg._prog_ax.get_lines()}
 
+    first = sorted(dlg._prog_series)[0]
     before = drawn()
-    dlg._set_curve_visible(names[0], False)
+    dlg._set_curve_visible(first, False)
     after = drawn()
     check("toggle: hiding one removes ONLY that curve",
           names[0] not in after
           and all(n in after for n in names[1:]) and "mean" in after)
-    # The colour must follow the specimen, not its position among the visible
-    # curves - otherwise hiding one recolours the rest and the index lies.
+    # The colour must follow the series' own position, not its rank among the
+    # visible curves - otherwise hiding one recolours the rest and the index lies.
     check("toggle: the remaining curves keep their colours",
           all(after[n] == before[n] for n in names[1:]))
     check("toggle: ...and its data is kept, not discarded",
-          len(dlg._prog_series[names[0]][0]) > 0)
+          len(dlg._prog_series[first][1]) > 0)
 
     # It must survive a new run: it is a viewing preference, not run data.
     dlg._start_progress()
     check("toggle: a hidden curve stays hidden across a new run",
-          names[0] in dlg._prog_hidden)
+          first in dlg._prog_hidden)
     dlg._finish_progress()
-    for n, best, parts in ((1, 10.0, [(names[0], 8.0), (names[1], 12.0)]),):
-        dlg._on_progress(n, best, parts)
+    dlg._on_progress(1, 10.0, [(names[0], 8.0), (names[1], 12.0)])
     after_run = drawn()
     check("toggle: ...and is still hidden once the new run reports",
           names[0] not in after_run and names[1] in after_run)
