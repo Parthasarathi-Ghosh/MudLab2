@@ -17,6 +17,9 @@ from mudlab.file_parsers.gon_file import (
     DEFAULT_GONIO_DIR, list_setups_in, load_gon, save_gon,
 )
 from mudlab.models import Goniometer
+from mudlab.models.specimen import (
+    goniometer_setup_name, with_goniometer_setup_name,
+)
 from mudlab.ui.ui_goniometer import Ui_GoniometerWidget
 from mudlab.wavelength_distribution_dialog import WavelengthDistributionDialog
 
@@ -44,6 +47,7 @@ class GoniometerWidget(QWidget):
         self.ui.setupUi(self)
 
         self._goniometer: Goniometer | None = None
+        self._specimen = None      # owns the persisted setup name
         self._updating = False
 
         self.ui.gonio_has_soller1.toggled.connect(self.ui.gonio_soller1_spb.setEnabled)
@@ -97,11 +101,22 @@ class GoniometerWidget(QWidget):
 
         self.setEnabled(False)
 
-    def bind_goniometer(self, goniometer: Goniometer | None) -> None:
+    def bind_goniometer(self, goniometer: Goniometer | None,
+                        specimen=None) -> None:
+        """Bind a goniometer, and optionally the specimen that owns it.
+
+        The specimen is what makes the applied-setup name PERSIST: it is stored
+        as a labelled line in `specimen.source` (see
+        `models.specimen.with_goniometer_setup_name` for why it cannot live on
+        the goniometer itself)."""
         self._goniometer = goniometer
+        self._specimen = specimen
         self.setEnabled(goniometer is not None)
         self.ui.cmb_import_gonio.setCurrentIndex(0)
-        self._set_applied_label("")  # the source setup of a bound gonio is unknown
+        # Recover the remembered name, if this specimen carries one.
+        self._set_applied_label(
+            goniometer_setup_name(getattr(specimen, "source", ""))
+            if specimen is not None else "")
         if goniometer is None:
             return
         self._refresh_fields()
@@ -185,7 +200,7 @@ class GoniometerWidget(QWidget):
             return
         self._goniometer.apply_setup(props)
         self._refresh_fields()
-        self._set_applied_label(name)
+        self._remember_setup_name(name)
 
     def _on_store_setup(self) -> None:
         """Save the current goniometer as a `.gon` file (defaults to the user
@@ -209,14 +224,27 @@ class GoniometerWidget(QWidget):
             )
             return
         self._populate_setups()
-        self._set_applied_label(os.path.splitext(os.path.basename(path))[0])
+        self._remember_setup_name(os.path.splitext(os.path.basename(path))[0])
 
     def _set_applied_label(self, name: str) -> None:
         self.ui.lbl_applied_gonio.setText(("Goniometer: %s" % name) if name else "")
 
+    def _remember_setup_name(self, name: str) -> None:
+        """Show the name AND persist it on the specimen (when one is bound)."""
+        self._set_applied_label(name)
+        if self._specimen is None:
+            return
+        updated = with_goniometer_setup_name(
+            getattr(self._specimen, "source", ""), name)
+        if updated != getattr(self._specimen, "source", ""):
+            self._specimen.source = updated
+
     def _write(self, prop: str, value) -> None:
         if self._goniometer is not None and not self._updating:
             setattr(self._goniometer, prop, value)
+            # These values are no longer the named setup, so drop the name -
+            # a shown name must always mean "these values ARE that setup".
+            self._remember_setup_name("")
 
     def _on_divergence_mode_changed(self, index: int) -> None:
         if DIVERGENCE_MODES[index] == "AUTOMATIC":

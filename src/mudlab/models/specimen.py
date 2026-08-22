@@ -34,6 +34,36 @@ def _peak_label(two_theta: float, wavelength: float) -> str:
     return "%.*f" % (decimals, nm)
 
 
+#: Label of the goniometer-setup line inside `Specimen.source`.
+GONIO_SETUP_PREFIX = "Goniometer setup: "
+
+
+def goniometer_setup_name(source: str) -> str:
+    """The applied goniometer-setup name recorded in a specimen's `source`,
+    or "" when there is none."""
+    for line in (source or "").splitlines():
+        if line.startswith(GONIO_SETUP_PREFIX):
+            return line[len(GONIO_SETUP_PREFIX):].strip()
+    return ""
+
+
+def with_goniometer_setup_name(source: str, name: str) -> str:
+    """`source` with its goniometer-setup line set to `name` (or removed when
+    `name` is empty), leaving every other line untouched.
+
+    The name lives in `source` rather than on the Goniometer because the OLD
+    app deserialises each object with `cls(**properties)` and raises TypeError
+    on ANY unknown key - so a new `Goniometer.setup_name` property would make
+    every MudLab2-saved .mud unreadable there. `source` is a field the old app
+    already has (and where it kept this same information), so a labelled line
+    inside it costs no compatibility."""
+    lines = [line for line in (source or "").splitlines()
+             if not line.startswith(GONIO_SETUP_PREFIX)]
+    if name:
+        lines.append(GONIO_SETUP_PREFIX + name)
+    return "\n".join(lines)
+
+
 class Specimen(QObject):
     data_changed = Signal()
     visuals_changed = Signal()

@@ -219,12 +219,91 @@ def check_widget_store():
         QFileDialog.getSaveFileName = orig_save
 
 
+def _check_applied_setup_name():
+    """The applied setup NAME persists, and clears when the values stop matching.
+
+    It lives in `specimen.source`, not on the Goniometer, for a compatibility
+    reason that is easy to undo by accident: the OLD app deserialises every
+    object with `cls(**properties)` and raises TypeError on ANY unknown key, so
+    a new `Goniometer.setup_name` property would make every MudLab2-saved .mud
+    unreadable there. `source` is a field the old app already has - and where it
+    kept this same information."""
+    import tempfile
+
+    from mudlab.edit_specimen_dialog import EditSpecimenDialog
+    from mudlab.models.specimen import (
+        goniometer_setup_name, with_goniometer_setup_name,
+    )
+
+    # The pure helpers: set / read / replace / clear, leaving the rest alone.
+    provenance = "File: 308.rd\n2theta: 3.0000 - 45.0000"
+    named = with_goniometer_setup_name(provenance, "Bruker D8")
+    check("setup name: stored without disturbing the import provenance",
+          named.startswith(provenance)
+          and goniometer_setup_name(named) == "Bruker D8")
+    renamed = with_goniometer_setup_name(named, "PANalytical")
+    check("setup name: applying another REPLACES it, never duplicates",
+          renamed.count("Goniometer setup:") == 1
+          and goniometer_setup_name(renamed) == "PANalytical")
+    check("setup name: clearing restores the original text",
+          with_goniometer_setup_name(renamed, "") == provenance)
+    check("setup name: absent reads as empty", goniometer_setup_name(provenance) == "")
+
+    if not os.path.isfile(FIXTURE):
+        print("  (no fixture; skipped the widget + round-trip checks)")
+        return
+    project = load_mud(FIXTURE)
+    spec = next(s for s in project.specimens if s is not None)
+    other = next((s for s in project.specimens
+                  if s is not None and s is not spec), None)
+
+    dialog = EditSpecimenDialog()
+    dialog.bind_specimen(spec)
+    widget = dialog.goniometer
+    widget._remember_setup_name("Bruker D8")
+    check("setup name: applying one shows it and writes it to the specimen",
+          widget.ui.lbl_applied_gonio.text() == "Goniometer: Bruker D8"
+          and goniometer_setup_name(spec.source) == "Bruker D8")
+
+    if other is not None:
+        dialog.bind_specimen(other)
+        check("setup name: another specimen does not inherit it",
+              widget.ui.lbl_applied_gonio.text() == "")
+        dialog.bind_specimen(spec)
+        check("setup name: rebinding shows it again",
+              widget.ui.lbl_applied_gonio.text() == "Goniometer: Bruker D8")
+
+    # A hand-edit means the values are no longer that setup.
+    widget.ui.gonio_radius_spb.setValue(widget.ui.gonio_radius_spb.value() + 1.0)
+    check("setup name: a hand-edited field clears the name",
+          widget.ui.lbl_applied_gonio.text() == ""
+          and goniometer_setup_name(spec.source) == "")
+
+    # ...and it survives a save/reload, which was the whole point.
+    widget._remember_setup_name("Bruker D8")
+    tmp = os.path.join(tempfile.mkdtemp(), "named.mud")
+    save_mud(project, tmp)
+    reloaded = next(s for s in load_mud(tmp).specimens if s is not None)
+    check("setup name: survives save + reload",
+          goniometer_setup_name(reloaded.source) == "Bruker D8")
+    reopened = EditSpecimenDialog()
+    reopened.bind_specimen(reloaded)
+    check("setup name: the reopened dialog shows it",
+          reopened.goniometer.ui.lbl_applied_gonio.text() == "Goniometer: Bruker D8")
+
+    # COMPATIBILITY: it must never become a goniometer property.
+    gonio_keys = set(spec.goniometer.to_dict().get("properties", {}))
+    check("setup name: NOT written into the goniometer (old-app compatibility)",
+          not any("setup" in key for key in gonio_keys))
+
+
 def main():
     check_parser()
     check_apply_setup()
     check_persistence()
     check_widget_populate_and_load()
     check_widget_store()
+    _check_applied_setup_name()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
