@@ -156,13 +156,23 @@ class CompositionDialog(QDialog):
             self._specimen_names = list(self._specimen_names) + [
                 "%s (measured)" % (measured.name or "XRF")]
 
-        missing = unmapped_phases(project) if self.ui.chk_default.isChecked() else []
-        if missing:
+        if not self.ui.chk_default.isChecked():
+            return
+        missing = unmapped_phases(project)
+        if missing and len(missing) == len(structural_phases(project)):
+            # NO default column could be produced at all. Saying "shown at
+            # their current state" here would point at a column that is not
+            # there - the honest message is that there is nothing to show.
+            self.ui.lbl_title.setText(
+                "%s  -  no default state to show: none of the phases has a "
+                "default that can be found (use Default phases...)."
+                % self.ui.lbl_title.text())
+        elif missing:
             self.ui.lbl_title.setText(
                 "%s  -  %d phase(s) have no default stated (%s), so they are "
                 "shown at their current state."
                 % (self.ui.lbl_title.text(), len(missing),
-                   ", ".join(p.name for p in missing[:3])))
+                   ", ".join(ph.name for ph in missing[:3])))
 
     def _on_default_phases(self) -> None:
         """State the phase -> default-phase mapping, then refresh."""

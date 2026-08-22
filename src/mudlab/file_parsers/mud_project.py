@@ -305,9 +305,18 @@ def save_mud(project: Project, path: str) -> None:
     # Same rule for the default-phase map: written only when the user has stated
     # one, removed when they have not, so a project that never uses the feature
     # is byte-identical to how it was before it existed.
-    mapping = getattr(project, "default_phase_map", None) or {}
+    # Pruned against the phases that still exist: deleting a phase leaves its
+    # entry behind (the map is only cleaned when it is next set), and writing a
+    # dead uuid puts a reference to a phase that is not in the file into the
+    # file. Harmless on reload - it is pruned there too - but it should not be
+    # written in the first place.
+    live_uuids = {phase.uuid for phase in project.phases}
+    mapping = {uuid_: name
+               for uuid_, name in (getattr(project, "default_phase_map", None)
+                                   or {}).items()
+               if uuid_ in live_uuids}
     if mapping:
-        properties["default_phase_map"] = dict(mapping)
+        properties["default_phase_map"] = mapping
     else:
         properties.pop("default_phase_map", None)
     # ...and the imported reference phases they may point at, so the comparison

@@ -16,7 +16,8 @@ Covers the whole path the feature adds:
   - CAPTURE AT ENTRY: a phase entering the model records its reference at
     that moment - the only moment it is provably unrefined;
   - FROZEN BASELINES + Set as baseline, including the INHERITING case that
-    a naive copy gets badly wrong.
+    a naive copy gets badly wrong;
+  - the AUDIT findings, each pinned so it cannot come back.
 
 The feature is purely additive: an existing project that never gets a
 composition must round-trip exactly as it did before, which is what the
@@ -53,8 +54,9 @@ from mudlab.default_state import (
     available_default_names, capture_catalog_defaults,
     capture_imported_defaults, custom_default_names,
     default_state_composition, default_substitutes, import_custom_defaults,
-    make_baseline_copy, resolve_default_phase, set_as_baseline,
-    structural_phases, suggest_default_phase_map, unmapped_phases,
+    make_baseline_copy, mapping_is_complete, resolve_default_phase,
+    set_as_baseline, structural_phases, suggest_default_phase_map,
+    unmapped_phases,
 )
 from mudlab.file_parsers.atom_type_library import load_atom_type_library
 from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
@@ -872,6 +874,123 @@ def check_baseline_ui():
           all(a.isEnabled() for a in menu.actions() if a.text()))
 
 
+
+# ======================================================================
+# AUDIT REGRESSIONS (2026-08-22)
+# ======================================================================
+def check_audit_capture_cost():
+    """AUDIT: capture used to build the WHOLE catalog (224 phases, ~1.2 s) just
+    to check one name, which put a 1.2 s stall on Add phase -> Default. Given
+    the entry name it checks that ONE entry instead."""
+    import time
+
+    project = Project()
+    entry = "Illite-Smectite R0 Ca"
+    added = add_catalog_entry_to_project(project, entry)
+    start = time.perf_counter()
+    names = capture_catalog_defaults(project, added, entry)
+    elapsed = time.perf_counter() - start
+    check("audit: capture with the entry name is fast (%.0f ms)" % (elapsed * 1000),
+          elapsed < 0.4)
+    check("audit: ...and still records every phase", len(names) == len(added))
+    # The guard is not lost: a name the entry cannot build is refused.
+    other = Project()
+    stray = add_catalog_entry_to_project(other, "Illite")
+    stray[0].name = "Not A Catalog Phase"
+    check("audit: a name the entry cannot rebuild is refused",
+          capture_catalog_defaults(other, stray, "Illite") == [])
+
+
+def check_audit_dirty_tracking():
+    """AUDIT: the composition, the mapping and the imported references are all
+    saved with the project, so changing any of them is an unsaved change. It
+    used to leave the window clean - map every phase, close, lose the lot."""
+    from mudlab.main_window import MainWindow
+
+    window = MainWindow()
+    window._set_project(load_mud(PATH))
+    window._dirty = False
+    window.project.set_composition(Composition(oxides=SAMPLE))
+    check("audit: importing a composition marks the project dirty", window._dirty)
+
+    window._dirty = False
+    phase = structural_phases(window.project)[0]
+    window.project.set_default_phase_map({phase.uuid: "Illite"})
+    check("audit: stating a default marks the project dirty", window._dirty)
+
+    window._dirty = False
+    set_as_baseline(window.project, phase)
+    check("audit: setting a baseline marks the project dirty", window._dirty)
+
+
+def check_audit_stale_mapping():
+    """AUDIT: deleting a phase left its mapping entry behind, and it was written
+    to the file - a reference to a phase the file does not contain."""
+    project = load_mud(PATH)
+    phase = structural_phases(project)[0]
+    set_as_baseline(project, phase)
+    dead_uuid = phase.uuid
+    project.remove_phase(phase)
+    save_mud(project, TMP)
+    try:
+        written = _project_props(TMP).get("default_phase_map") or {}
+        check("audit: a deleted phase's mapping is not written to the file",
+              dead_uuid not in written)
+        check("audit: ...and the surviving entries are still written",
+              isinstance(written, dict))
+    finally:
+        for leftover in (TMP, TMP + "~"):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+
+
+def check_audit_unresolvable_mapping():
+    """AUDIT: a phase whose stated default no longer RESOLVES was counted as
+    mapped - so the view could report everything stated while quietly showing
+    that phase at its current state."""
+    project = load_mud(PATH)
+    phase = structural_phases(project)[0]
+    set_as_baseline(project, phase)
+    name = project.default_phase_map[phase.uuid]
+    check("audit: a resolvable mapping counts as mapped",
+          phase not in unmapped_phases(project))
+    project.remove_custom_default_phase(name)
+    check("audit: the mapping entry survives the reference going away",
+          phase.uuid in project.default_phase_map)
+    check("audit: ...but the phase is reported UNMAPPED",
+          phase in unmapped_phases(project))
+    check("audit: ...and the mapping is not called complete",
+          not mapping_is_complete(project))
+
+
+def check_audit_no_default_column():
+    """AUDIT: with every stated default unresolvable, no default column can be
+    produced. The view used to say the phases were "shown at their current
+    state" - pointing at a column that was not there."""
+    project = load_mud(PATH)
+    mixture = project.mixtures[0]
+    phase = structural_phases(project)[0]
+    set_as_baseline(project, phase)
+    project.remove_custom_default_phase(project.default_phase_map[phase.uuid])
+    dialog = CompositionDialog(mixture, project=project)
+    dialog.ui.chk_default.setChecked(True)
+    app.processEvents()
+    title = dialog.ui.lbl_title.text()
+    check("audit: it says there is no default state to show",
+          "no default state to show" in title)
+    check("audit: ...and does not claim a column that is absent",
+          "shown at their current state" not in title)
+
+    # The partial case must still use the other wording.
+    other = load_mud(PATH)
+    other.set_default_phase_map(suggest_default_phase_map(other))
+    partial = CompositionDialog(other.mixtures[0], project=other)
+    partial.ui.chk_default.setChecked(True)
+    app.processEvents()
+    check("audit: a PARTIAL mapping still names what it left out",
+          "shown at their current state" in partial.ui.lbl_title.text())
+
+
 def main():
     print("fixture: %s" % os.path.basename(PATH))
     check_model()
@@ -892,6 +1011,11 @@ def main():
     check_frozen_baseline()
     check_set_as_baseline()
     check_baseline_ui()
+    check_audit_capture_cost()
+    check_audit_dirty_tracking()
+    check_audit_stale_mapping()
+    check_audit_unresolvable_mapping()
+    check_audit_no_default_column()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

@@ -129,7 +129,8 @@ class EditPhasesDialog(ObjectStoreDialog):
             # catalog's own phases - so the composition comparison needs no
             # after-the-fact guessing. Only the mapping is stored; the catalog
             # rebuilds the phase itself on demand.
-            capture_catalog_defaults(self.project, new_phases)
+            capture_catalog_defaults(
+                self.project, new_phases, dialog.default_phase)
         else:
             if dialog.phase_type == "raw":
                 new_phases = [RawPatternPhase(name="New Raw Pattern Phase")]

@@ -212,6 +212,11 @@ class MainWindow(QMainWindow):
         project.visuals_changed.connect(self._mark_dirty)
         project.data_changed.connect(self._mark_dirty)
         project.specimens_changed.connect(self._mark_dirty)
+        # The measured composition, the default-phase map and the imported
+        # reference phases all live on the project and are all saved with it,
+        # so a change to any of them is an unsaved change. Without this the user
+        # can map every phase, close, and be told there was nothing to save.
+        project.composition_changed.connect(self._mark_dirty)
         # An added / imported specimen brings its own goniometer to listen to.
         project.specimens_changed.connect(self._wire_goniometer_signals)
         self._wire_goniometer_signals()

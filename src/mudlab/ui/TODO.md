@@ -730,13 +730,38 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   freeze is applied to references captured from a .phs, because each is
   persisted independently and a based_on pointing at a sibling would dangle on
   reload and silently fall back to stale own values.
+  AUDIT of the whole composition arc (2026-08-22, e4c2f77 + 86850b9) - 4 real
+  findings, all FIXED, each with a regression check:
+  (1) PERFORMANCE: capture_catalog_defaults built the WHOLE catalog index (224
+  phases, ~1.2 s) just to check one name, putting a 1.2 s stall on Add phase ->
+  Default (the add itself is 0.011 s). It now takes the entry name and checks
+  that ONE entry: 1.284 s -> 0.017 s, guard intact (a name the entry cannot
+  rebuild is still refused).
+  (2) DATA LOSS: nothing listened to composition_changed, so importing a
+  composition, stating a mapping or setting a baseline left the window CLEAN -
+  the user could do all of it, close, and be told there was nothing to save.
+  MainWindow now connects composition_changed to _mark_dirty.
+  (3) A deleted phase's mapping entry was WRITTEN to the file (a reference to a
+  phase the file does not contain). save_mud now prunes against the live phases.
+  Cosmetic only - the loader pruned it too - but it should not be written.
+  (4) SILENT INCOMPLETENESS: a phase whose stated default no longer RESOLVES
+  (its reference removed) was counted as MAPPED, so the view could report
+  everything stated while quietly showing that phase at its current state.
+  unmapped_phases now treats unresolvable as unmapped, and mapping_is_complete
+  follows it. Plus a wording fix: when NOTHING resolves, no default column can
+  be produced at all, and the title said the phases were "shown at their current
+  state" - pointing at a column that was not there; it now says there is no
+  default state to show.
+  Checked and SOUND: freeze on a link-only phase (no based_on); two saves in a
+  row do not drift; none of the three new keys is written by an untouched
+  project. Harness 176.
   MEASURED FINDINGS worth keeping: Optimize does NOT change a Phase (only
   fractions/scales/bg, which live on the Mixture) - only REFINEMENT does, via
   (1) atom relations rewriting atom pn (Illite Fe2O3 39.9 -> 134.3, Al2O3 178.4
   -> 118.2 on a 10-eval run) and (2) stacking probabilities changing the
   component weights (`_component_weights` = probabilities.get_distribution_
   array(); 0.8/0.2 -> 0.8675/0.1325). sigma*/CSDS/d001/delta_c do not affect
-  composition at all. Harness verify_composition_object.py now 161.
+  composition at all. Harness verify_composition_object.py now 176.
 - [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)

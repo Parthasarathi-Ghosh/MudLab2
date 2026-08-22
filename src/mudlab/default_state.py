@@ -50,7 +50,7 @@ from mudlab.file_parsers.atom_type_library import (
     atom_type_library_map, load_atom_type_library,
 )
 from mudlab.file_parsers.default_catalog import (
-    build_default_phase, default_phase_index,
+    build_catalog_entry_by_name, build_default_phase, default_phase_index,
 )
 from mudlab.file_parsers.phs_phases import load_phs
 
@@ -227,18 +227,28 @@ def _remember_defaults(project, mapping: dict) -> None:
         project.set_default_phase_map({**project.default_phase_map, **mapping})
 
 
-def capture_catalog_defaults(project, phases) -> list:
+def capture_catalog_defaults(project, phases, entry_name: str | None = None) -> list:
     """Record the default for phases just added from the SHIPPED catalog.
 
     No copy is stored: the catalog can rebuild these on demand, so only the
     mapping is needed. At this instant `phase.name` IS the catalog phase name -
     a later rename does not matter, because the mapping is keyed by uuid.
     Returns the names recorded.
+
+    `entry_name` is the catalog entry the phases came from. Given it, the names
+    are checked against THAT ONE entry (a few milliseconds); without it the
+    whole catalog index has to be built, which costs about 1.2 s the first time
+    - measured, and enough to make Add-phase feel broken. The check is worth
+    keeping either way: it stops a caller recording a mapping to a name the
+    catalog cannot rebuild, which would fail silently at comparison time.
     """
-    index = default_phase_index()
+    if entry_name is not None:
+        known = {phase.name for phase in build_catalog_entry_by_name(entry_name)}
+    else:
+        known = set(default_phase_index())
     mapping = {}
     for phase in phases:
-        if getattr(phase, "type", None) == "Phase" and phase.name in index:
+        if getattr(phase, "type", None) == "Phase" and phase.name in known:
             mapping[phase.uuid] = phase.name
     _remember_defaults(project, mapping)
     return sorted(mapping.values())
@@ -326,15 +336,20 @@ def default_state_composition(mixture, project, conversion: dict | None = None):
 
 
 def mapping_is_complete(project) -> bool:
-    """True when every structural phase has been mapped to a default phase."""
-    phases = structural_phases(project)
-    mapping = project.default_phase_map or {}
-    return bool(phases) and all(phase.uuid in mapping for phase in phases)
+    """True when every structural phase has a default that actually resolves."""
+    return bool(structural_phases(project)) and not unmapped_phases(project)
 
 
 def unmapped_phases(project) -> list:
-    """The structural phases with no default stated - named in the dialog so the
-    user can see exactly what the comparison is leaving out."""
+    """The structural phases the comparison cannot put a default against -
+    named in the dialog so the user sees exactly what it is leaving out.
+
+    A phase whose stated default no longer RESOLVES counts as unmapped: the
+    reference may have been removed since, and `default_substitutes` then skips
+    it. Counting it as mapped would report "all stated" while quietly showing
+    that phase at its current state - an answer that looks complete and is not.
+    """
     mapping = project.default_phase_map or {}
     return [phase for phase in structural_phases(project)
-            if phase.uuid not in mapping]
+            if phase.uuid not in mapping
+            or resolve_default_phase(project, mapping[phase.uuid]) is None]
