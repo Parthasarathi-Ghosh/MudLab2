@@ -742,6 +742,11 @@ class RefinementDialog(QDialog):
         self._prog_fig.set_layout_engine("tight")
         self._prog_canvas = FigureCanvasQTAgg(self._prog_fig)
         self._prog_canvas.setMinimumHeight(140)
+        self._prog_canvas.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self._prog_canvas.customContextMenuRequested.connect(self._on_plot_menu)
+        self._prog_canvas.setToolTip(
+            "Right-click to show or hide individual specimen curves.")
         self.ui.progressLayout.addWidget(self._prog_canvas)
         self._prog_ax = self._prog_fig.add_subplot(111)
         self._prog_evals: list[int] = []
@@ -751,10 +756,53 @@ class RefinementDialog(QDialog):
         # history), so the throttled redraw stays O(points) rather than
         # regrouping thousands of breakdowns on every tick.
         self._prog_series: dict = {}
+        # Specimen names whose curve is switched off from the plot's right-click
+        # menu. Kept ACROSS runs (and never cleared by _start_progress): hiding
+        # a curve is a viewing preference, not part of a run's data.
+        self._prog_hidden: set = set()
         self._prog_dirty = False
         self._prog_timer = QTimer(self)
         self._prog_timer.setInterval(150)  # ms - the redraw throttle
         self._prog_timer.timeout.connect(self._redraw_progress)
+        self._draw_progress()
+
+    def _on_plot_menu(self, pos) -> None:
+        self._plot_menu().exec(self._prog_canvas.mapToGlobal(pos))
+
+    def _plot_menu(self) -> QMenu:
+        """Build the progress plot's right-click menu: one checkable entry per
+        specimen curve, plus show/hide all.
+
+        Split from showing it for the same reason as the tree's menu -
+        `QMenu.exec` is a C++ slot and cannot be monkeypatched, so a harness can
+        only test the builder. Hiding is purely a VIEW change: the series keep
+        being recorded, so a curve switched back on still has its full history."""
+        menu = QMenu(self)
+        names = sorted(self._prog_series)
+        if not names:
+            empty = menu.addAction("No specimen curves yet")
+            empty.setEnabled(False)
+            return menu
+        for name in names:
+            action = menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(name not in self._prog_hidden)
+            action.toggled.connect(
+                lambda visible, n=name: self._set_curve_visible(n, visible))
+        menu.addSeparator()
+        menu.addAction("Show all", lambda: self._set_all_curves_visible(True))
+        menu.addAction("Hide all", lambda: self._set_all_curves_visible(False))
+        return menu
+
+    def _set_curve_visible(self, name: str, visible: bool) -> None:
+        if visible:
+            self._prog_hidden.discard(name)
+        else:
+            self._prog_hidden.add(name)
+        self._draw_progress()
+
+    def _set_all_curves_visible(self, visible: bool) -> None:
+        self._prog_hidden = set() if visible else set(self._prog_series)
         self._draw_progress()
 
     def _draw_progress(self) -> None:
@@ -769,28 +817,38 @@ class RefinementDialog(QDialog):
         # the eye follows. The point of the thin lines is the SPREAD - a run
         # that improves the mean by pulling one specimen down while pushing
         # another up is invisible in a single curve.
+        shown = 0
+        # enumerate over ALL series, skipping the hidden ones inside the loop:
+        # the colour must follow the specimen, not its position among the
+        # visible curves, or hiding one would recolour the rest.
         for position, (name, (evals, values)) in enumerate(
             sorted(self._prog_series.items())
         ):
-            if not evals:
+            if not evals or name in self._prog_hidden:
                 continue
+            shown += 1
             ax.plot(evals, values, linewidth=0.8, alpha=0.75,
                     color=_SPECIMEN_COLORS[position % len(_SPECIMEN_COLORS)],
                     label=_short_name(name))
         if self._prog_evals:
             ax.plot(self._prog_evals, self._prog_best,
                     color="#1971C2", linewidth=1.6, label="mean", zorder=3)
-        # A legend only where it fits: past a handful of specimens it would
-        # cover the curves it is meant to explain, and the report's per-specimen
-        # table names them all anyway. It sits ABOVE the axes - inside, it landed
-        # on the worst-fitting specimen's curve (the curves fill the plot by
-        # construction, since the axes autoscale to them), and "best" placement
-        # would re-solve an overlap search on every throttled redraw.
-        if 0 < len(self._prog_series) <= _MAX_LEGEND_SERIES:
+        # The index overlays the plot in its NE corner with NO background, so
+        # the curves stay readable through it. Past a handful of specimens it is
+        # dropped rather than allowed to blanket the plot - the report's
+        # per-specimen table names them all anyway, and individual curves can be
+        # switched off from the plot's right-click menu.
+        if 0 < shown <= _MAX_LEGEND_SERIES:
             ax.legend(fontsize=6, frameon=False, labelspacing=0.2,
-                      loc="lower center", bbox_to_anchor=(0.5, 1.0),
-                      borderaxespad=0.0, ncol=len(self._prog_series) + 1,
-                      handlelength=1.2, columnspacing=1.0, handletextpad=0.4)
+                      loc="upper right", borderaxespad=0.3,
+                      handlelength=1.2, handletextpad=0.4)
+            # Open up headroom for it. With no frame the curves read straight
+            # through the labels, and the axes autoscale to the curves - so the
+            # worst-fitting specimen's line runs through the index unless the
+            # top of the plot is given some empty space to sit in.
+            low, high = ax.get_ylim()
+            ax.set_ylim(low, high + (high - low)
+                        * min(0.07 * (shown + 1), 0.30))
         self._prog_canvas.draw_idle()
 
     def _redraw_progress(self, force: bool = False) -> None:

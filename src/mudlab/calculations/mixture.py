@@ -100,6 +100,23 @@ class _Problem:
         )
 
         self.contexts = self._build_contexts()
+        # Both of these are INVARIANT across objective calls, so they are
+        # resolved once here rather than thousands of times inside the solve:
+        #   - which specimens can yield an Rp at all. `observed` and `selected`
+        #     are fixed for the life of the problem, so a specimen with no
+        #     observation to fit cannot become fittable mid-solve.
+        #   - each scoring specimen's name, for the per-specimen breakdown.
+        # `scoring` and `names` are aligned with each other, which is what lets
+        # the breakdown be zipped together without re-deriving the skip.
+        self.scoring = [
+            float(np.sum(np.abs(ctx.observed[ctx.selected]))) > 0.0
+            for ctx in self.contexts
+        ]
+        self.names = [
+            getattr(self.mixture.specimens[ctx.index], "name", "")
+            or "Specimen %d" % (ctx.index + 1)
+            for ctx, ok in zip(self.contexts, self.scoring) if ok
+        ]
 
     # ------------------------------------------------------------------
     def _build_contexts(self):
@@ -165,37 +182,40 @@ class _Problem:
     def residual(self, x):
         """Mean Rp across specimens for the solution ``x`` (a large finite
         penalty replaces any non-finite value)."""
-        values = [value for _name, value in self.residual_parts(x)]
+        values = self.residual_values(x)
         if not values:
             return 0.0
         mean = float(np.mean(values))
         return mean if np.isfinite(mean) else _PENALTY
 
-    def residual_parts(self, x):
-        """``[(specimen name, Rp), ...]`` for the solution ``x`` - the values
-        `residual` takes the mean of.
+    def residual_values(self, x):
+        """Per-specimen Rp for the solution ``x``, aligned with `self.names`.
 
-        `residual` is defined in terms of this so the two can never drift: a
-        caller that shows the breakdown is showing exactly the numbers behind
-        the single reported figure, including the same skip of zero-observation
-        specimens and the same finite penalty."""
+        THE HOT PATH - a refinement calls this thousands of times - so it stays
+        a plain list of floats and does no bookkeeping the caller can do once.
+        A zero-observation specimen is skipped without computing its pattern at
+        all (its Rp is undefined, and whether it scores cannot change mid-solve)."""
         fractions, scales, bgshifts = self.parse_solution(x)
-        parts = []
-        for ctx in self.contexts:
+        values = []
+        for ctx, scoring in zip(self.contexts, self.scoring):
+            if not scoring:
+                continue
             total, _, _ = calculate_scaled_intensities(
                 ctx.phase_intensities, ctx.correction,
                 float(scales[ctx.index]), fractions, float(bgshifts[ctx.index]),
             )
-            observed = ctx.observed[ctx.selected]
-            calculated = total[ctx.selected]
-            denom = float(np.sum(np.abs(observed)))
-            if denom <= 0.0:
-                continue  # zero-observation specimen: undefined Rp, skip
-            r = Rp(observed, calculated)
-            specimen = self.mixture.specimens[ctx.index]
-            name = getattr(specimen, "name", "") or "Specimen %d" % (ctx.index + 1)
-            parts.append((name, float(r if np.isfinite(r) else _PENALTY)))
-        return parts
+            r = Rp(ctx.observed[ctx.selected], total[ctx.selected])
+            values.append(float(r) if np.isfinite(r) else _PENALTY)
+        return values
+
+    def residual_parts(self, x):
+        """``[(specimen name, Rp), ...]`` for ``x`` - the values `residual`
+        takes the mean of.
+
+        Both are built from `residual_values`, so a caller showing the breakdown
+        is showing exactly the numbers behind the single reported figure -
+        the same skips, the same finite penalty - and the two cannot drift."""
+        return list(zip(self.names, self.residual_values(x)))
 
 
 def get_current_residual(mixture) -> float:

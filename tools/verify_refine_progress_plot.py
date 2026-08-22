@@ -484,6 +484,9 @@ def _check_per_specimen_curves(dlg):
           all(mean_line.get_linewidth() > l.get_linewidth() for l in thin))
     check("per-specimen: the legend names them", dlg._prog_ax.get_legend() is not None)
 
+    _check_plot_index(dlg)
+    _check_curve_toggles(dlg)
+
     # A run with no breakdown (an older signal, or a mixture with no usable
     # specimen) must still draw the mean and nothing else.
     dlg._start_progress()
@@ -492,6 +495,96 @@ def _check_per_specimen_curves(dlg):
     dlg._redraw_progress(force=True)
     check("per-specimen: absent breakdown still draws just the mean",
           len(dlg._prog_ax.get_lines()) == 1 and dlg._prog_series == {})
+    dlg._finish_progress()
+
+
+def _check_plot_index(dlg):
+    """The curve index OVERLAYS the plot in its NE corner, with no background.
+
+    Pinned by geometry rather than by the private `_loc`: the requirement is
+    where it lands on screen, which is what a later matplotlib could change
+    under an unchanged argument."""
+    legend = dlg._prog_ax.get_legend()
+    check("index: drawn with no background (the curves read through it)",
+          legend is not None and not legend.get_frame_on())
+    dlg._prog_canvas.draw()
+    try:
+        renderer = dlg._prog_fig.canvas.get_renderer()
+        box = legend.get_window_extent(renderer)
+        axes_box = dlg._prog_ax.get_window_extent(renderer)
+    except Exception as exc:   # noqa: BLE001 - reported, not swallowed silently
+        print("  (no renderer for the index geometry check: %s)" % exc)
+        return
+    inside = (box.x0 >= axes_box.x0 - 1 and box.x1 <= axes_box.x1 + 1
+              and box.y0 >= axes_box.y0 - 1 and box.y1 <= axes_box.y1 + 1)
+    check("index: sits INSIDE the axes (an overlay, not a band above them)",
+          inside)
+    check("index: in the NE corner",
+          (box.x0 + box.x1) / 2 > (axes_box.x0 + axes_box.x1) / 2
+          and (box.y0 + box.y1) / 2 > (axes_box.y0 + axes_box.y1) / 2)
+    # With no frame the curves run through the labels, so the axes must keep
+    # headroom above the highest curve for the index to sit in.
+    top_curve = max(max(line.get_ydata()) for line in dlg._prog_ax.get_lines())
+    check("index: the axes keep headroom above the highest curve",
+          dlg._prog_ax.get_ylim()[1] > top_curve)
+
+
+def _check_curve_toggles(dlg):
+    """Individual specimen curves switch off from the plot's right-click menu.
+
+    Hiding is a VIEW change only: the series keep recording, so a curve turned
+    back on still has its whole history. Split builder/show for the same reason
+    as the tree menu - `QMenu.exec` cannot be monkeypatched."""
+    from PySide6.QtCore import Qt as _Qt
+
+    check("toggle: the plot has a custom context menu",
+          dlg._prog_canvas.contextMenuPolicy()
+          == _Qt.ContextMenuPolicy.CustomContextMenu)
+
+    names = sorted(dlg._prog_series)
+    menu = dlg._plot_menu()
+    entries = [a.text() for a in menu.actions() if a.text()]
+    check("toggle: one entry per specimen, plus show/hide all",
+          entries == names + ["Show all", "Hide all"])
+    check("toggle: each specimen entry is checkable and starts checked",
+          all(a.isCheckable() and a.isChecked()
+              for a in menu.actions() if a.text() in names))
+
+    def drawn():
+        dlg._redraw_progress(force=True)
+        return {l.get_label(): l.get_color() for l in dlg._prog_ax.get_lines()}
+
+    before = drawn()
+    dlg._set_curve_visible(names[0], False)
+    after = drawn()
+    check("toggle: hiding one removes ONLY that curve",
+          names[0] not in after
+          and all(n in after for n in names[1:]) and "mean" in after)
+    # The colour must follow the specimen, not its position among the visible
+    # curves - otherwise hiding one recolours the rest and the index lies.
+    check("toggle: the remaining curves keep their colours",
+          all(after[n] == before[n] for n in names[1:]))
+    check("toggle: ...and its data is kept, not discarded",
+          len(dlg._prog_series[names[0]][0]) > 0)
+
+    # It must survive a new run: it is a viewing preference, not run data.
+    dlg._start_progress()
+    check("toggle: a hidden curve stays hidden across a new run",
+          names[0] in dlg._prog_hidden)
+    dlg._finish_progress()
+    for n, best, parts in ((1, 10.0, [(names[0], 8.0), (names[1], 12.0)]),):
+        dlg._on_progress(n, best, parts)
+    after_run = drawn()
+    check("toggle: ...and is still hidden once the new run reports",
+          names[0] not in after_run and names[1] in after_run)
+
+    dlg._set_all_curves_visible(True)
+    check("toggle: Show all restores every curve", not dlg._prog_hidden)
+    dlg._set_all_curves_visible(False)
+    check("toggle: Hide all leaves only the mean",
+          [l.get_label() for l in dlg._prog_ax.get_lines()] == ["mean"])
+    dlg._set_all_curves_visible(True)
+    dlg._start_progress()
     dlg._finish_progress()
 
 
