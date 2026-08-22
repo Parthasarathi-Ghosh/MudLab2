@@ -663,13 +663,80 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   clay-only view by fraction x formula mass, so together they would put two
   conventions in one table. `bind_mixture(project=...)` threads the project to
   the dialog; without one it behaves exactly as before.
+  CUSTOM DEFAULTS (2026-08-22, same feature): the shipped catalog cannot cover a
+  reference clay the user built, so the Default phases dialog gained
+  **Import .phs...** -> `default_state.import_custom_defaults()` loads the file
+  into a THROWAWAY project seeded with the atom-type library and stores the
+  phases on `Project.custom_default_phases` - deliberately NOT in
+  `project.phases` (a default is a yardstick, not part of the model; putting one
+  there would offer it in every mixture cell and in Edit Phases) and WITHOUT
+  adopting atom types into the project. Persisted under `custom_default_phases`
+  (written only when non-empty), resolved on load against the project's atom
+  types AND the library BY NAME - `Atom.from_dict` already falls back to
+  `atom_type_name`, which is what makes a foreign .phs readable without
+  polluting the project. So the comparison survives the .phs being moved or
+  deleted, and the project opening on another machine. Custom names are offered
+  FIRST and SHADOW a shipped name of the same spelling (yours is the more
+  specific answer; the import reports it); re-importing the same name REPLACES
+  so a corrected reference updates in place and existing mappings keep working.
+  The combo stores the BARE name - "custom" is a tooltip, not a decoration to
+  strip. Verified on the user's real data (AT460 r2.mud + 4 ISK .phs): 4
+  references imported, project phases 11 and atom types 218 both untouched,
+  Match-by-name then maps 4 of 11, and the default-state column survives a
+  save/reload with the .phs files deleted.
+  CAPTURE AT ENTRY (2026-08-22): the mapping now fills ITSELF IN at the only
+  moment a phase is provably unrefined - when it enters the model.
+  `capture_catalog_defaults()` on Add phase -> Default phase records
+  {uuid: catalog phase name} with NO copy stored (the catalog rebuilds it), and
+  survives a later rename because the map is keyed by uuid;
+  `capture_imported_defaults()` on Edit Phases -> Import loads a SECOND,
+  independent copy from the same .phs and stores it as the reference. The second
+  load is the whole point: `load_phs` returns the WORKING phases, which a
+  refinement rewrites IN PLACE, so a reference sharing their components or atoms
+  would be refined with them and the comparison would always read "no change".
+  Verified: the captured reference shares no components and no atoms, and
+  mutating the model phase's relations moved its Fe2O3 33.5 -> 97.4 while the
+  reference held at 33.5. Both captures MERGE into the existing map (never
+  replace - a capture must not discard what the user stated), and capture never
+  blocks an import: an unreadable file captures nothing and raises nothing.
+  Deliberately NOT offered: a general "snapshot this phase as its default"
+  action - on an already-refined phase it would record the refined state as the
+  baseline, a comparison that always reads zero, which is worse than no baseline.
+  SET AS BASELINE + FROZEN BASELINES (2026-08-22). Capture-at-entry cannot cover
+  a phase built FROM SCRATCH (no reference ever existed) or one built by editing
+  a catalog default (its baseline is then STOCK, so the comparison mixes the
+  user's modelling with refinement). `set_as_baseline()` records a phase's
+  current state on demand, wired to a button in the phase editor
+  (edit_phase.ui btn_set_baseline + lbl_baseline, the primary spot - attention
+  is on the editor while a phase is built) AND to a right-click on the phase
+  list; the list route DELEGATES to the editor's handler so the confirmation
+  cannot drift. Always confirmed, never automatic: the app cannot distinguish a
+  freshly-built phase from a refined one, so only the user knows whether NOW is
+  the right start; replacing an existing baseline is called out as unrecoverable.
+  Baselines are named "<phase> (baseline)", numbered if two phases share a name
+  (nothing prevents duplicates - this codebase has been bitten by name-keying
+  twice already).
+  INHERITANCE IS THE HARD PART, and the examples did not cover it.
+  `freeze_baseline()` snapshots inherited values into the copy's own storage and
+  severs based_on / linked_with, re-cloning atoms for any component that was
+  linked (`Component.snapshot_inherited` bakes atom lists by SHARING the
+  template's atom objects - safe in its original caller, where the template is
+  being deleted, but here it would leave the "frozen" baseline holding the live
+  phase's atoms). MEASURED on a catalog treatment triple with the parent moved
+  away from the child's own stored values: a naive to_dict/from_dict copy gave
+  Fe2O3 39.9 and sigma* 3.0 where the phase resolves to 167.7 and 9.99 - a 4x
+  error. Frozen copies are correct and immune: moving the parent afterwards
+  moved the live phase and left the baseline exactly where it was. The same
+  freeze is applied to references captured from a .phs, because each is
+  persisted independently and a based_on pointing at a sibling would dangle on
+  reload and silently fall back to stale own values.
   MEASURED FINDINGS worth keeping: Optimize does NOT change a Phase (only
   fractions/scales/bg, which live on the Mixture) - only REFINEMENT does, via
   (1) atom relations rewriting atom pn (Illite Fe2O3 39.9 -> 134.3, Al2O3 178.4
   -> 118.2 on a 10-eval run) and (2) stacking probabilities changing the
   component weights (`_component_weights` = probabilities.get_distribution_
   array(); 0.8/0.2 -> 0.8675/0.1325). sigma*/CSDS/d001/delta_c do not affect
-  composition at all. Harness verify_composition_object.py now 91.
+  composition at all. Harness verify_composition_object.py now 161.
 - [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)

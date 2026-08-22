@@ -8,12 +8,18 @@ PhasesController; opened by the edit_phases action.
 from __future__ import annotations
 
 from PySide6.QtCore import QModelIndex
-from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QPushButton, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDialog, QFileDialog, QMenu, QMessageBox, QPushButton, QWidget,
+)
 
 from mudlab.add_phase_dialog import AddPhaseDialog
 from mudlab.edit_nonclay_phase_widget import EditNonClayPhaseWidget
 from mudlab.edit_phase_widget import EditPhaseWidget
 from mudlab.edit_raw_pattern_phase_widget import EditRawPatternPhaseWidget
+from mudlab.default_state import (
+    capture_catalog_defaults, capture_imported_defaults, set_as_baseline,
+)
 from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
 from mudlab.file_parsers.phs_phases import PHS_FILTERS, load_phs, save_phs
 from mudlab.import_nonclay_dialog import ImportNonClayDialog
@@ -73,6 +79,12 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.ui.button_del_object.clicked.connect(self._on_remove_phase)
         self.ui.button_load_object.clicked.connect(self._on_import_phases)
         self.ui.button_save_object.clicked.connect(self._on_export_phases)
+        # The phase list gets the same Set-as-baseline action as the editor -
+        # the editor is where attention is while a phase is being built, the
+        # list is where it is when reviewing several.
+        tree = self.ui.edit_objects_treeview
+        tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tree.customContextMenuRequested.connect(self._on_phase_menu)
         self.ui.button_load_object.setToolTip("Import phase(s) from a .phs file.")
         self.ui.button_save_object.setToolTip(
             "Export the selected phase(s) to a .phs file."
@@ -113,6 +125,11 @@ class EditPhasesDialog(ObjectStoreDialog):
                 self.project, dialog.default_phase)
             if not new_phases:
                 return
+            # Record what these started as, NOW, while they provably are the
+            # catalog's own phases - so the composition comparison needs no
+            # after-the-fact guessing. Only the mapping is stored; the catalog
+            # rebuilds the phase itself on demand.
+            capture_catalog_defaults(self.project, new_phases)
         else:
             if dialog.phase_type == "raw":
                 new_phases = [RawPatternPhase(name="New Raw Pattern Phase")]
@@ -128,6 +145,49 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.ui.edit_objects_treeview.setCurrentIndex(
             self.objects_model.index(first_row, 0)
         )
+
+    def _on_phase_menu(self, pos) -> None:
+        tree = self.ui.edit_objects_treeview
+        self._phase_menu().exec(tree.viewport().mapToGlobal(pos))
+
+    def _phase_menu(self) -> QMenu:
+        """Right-click menu for the phase list. Built separately from showing it
+        so it can be inspected without entering a modal loop (`QMenu.exec` is a
+        C++ slot and cannot be monkeypatched)."""
+        menu = QMenu(self)
+        phase = self._selected_phase()
+        action = menu.addAction("Set as baseline")
+        action.setEnabled(phase is not None
+                          and getattr(phase, "type", None) == "Phase"
+                          and self.project is not None)
+        action.setToolTip(
+            "Record this phase's current state as what it is compared against "
+            "in the Composition view.")
+        action.triggered.connect(self._on_set_baseline_from_list)
+        return menu
+
+    def _selected_phase(self):
+        rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
+        for index in rows:
+            if 0 <= index.row() < len(self._phases):
+                return self._phases[index.row()]
+        return None
+
+    def _on_set_baseline_from_list(self) -> None:
+        """Same action as the editor's button, and the same confirmation - it is
+        delegated to the editor so the two can never drift apart."""
+        phase = self._selected_phase()
+        if phase is None or self.project is None:
+            return
+        # The editor is bound to the selected phase, so reuse its handler.
+        if getattr(self.phase_widget, "_phase", None) is not phase:
+            self.phase_widget.bind_phase(
+                phase, atom_types=self.project.atom_types,
+                link_candidates=self._link_candidates(),
+                phase_candidates=self._phase_candidates(),
+                project=self.project,
+            )
+        self.phase_widget._on_set_baseline()
 
     def _on_remove_phase(self) -> None:
         rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
@@ -242,6 +302,10 @@ class EditPhasesDialog(ObjectStoreDialog):
                 self, "Import phases", "Could not import:\n%s\n\n%s" % (path, exc)
             )
             return
+        # Capture a PRISTINE reference copy of what was just imported, before
+        # anything can refine it, so it can serve as the "default state" in the
+        # composition comparison. A convenience: it never blocks the import.
+        capture_imported_defaults(self.project, path, imported)
         first_row = len(self._phases)
         for phase in imported:
             self._phases.append(phase)
@@ -323,6 +387,7 @@ class EditPhasesDialog(ObjectStoreDialog):
                 atom_types=atom_types,
                 link_candidates=self._link_candidates(),
                 phase_candidates=self._phase_candidates(),
+                project=self.project,
             )
 
     def _phase_candidates(self):

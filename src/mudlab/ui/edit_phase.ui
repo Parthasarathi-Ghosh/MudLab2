@@ -132,6 +132,30 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="baselineRow">
+     <item>
+      <widget class="QPushButton" name="btn_set_baseline">
+       <property name="text">
+        <string>Set as baseline</string>
+       </property>
+       <property name="toolTip">
+        <string>Record this phase's CURRENT state as the baseline it is compared against in the Composition view. Everything already done to the phase becomes part of that baseline, so use it when the phase is as you want to start from - typically just after building it, before refining.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_baseline">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QTabWidget" name="book_wrapper">
      <property name="currentIndex">
       <number>0</number>

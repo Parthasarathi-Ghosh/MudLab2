@@ -114,6 +114,22 @@ class Ui_EditPhaseWidget(object):
 
         self.phaseLayout.addLayout(self.phaseForm)
 
+        self.baselineRow = QHBoxLayout()
+        self.baselineRow.setObjectName(u"baselineRow")
+        self.btn_set_baseline = QPushButton(EditPhaseWidget)
+        self.btn_set_baseline.setObjectName(u"btn_set_baseline")
+
+        self.baselineRow.addWidget(self.btn_set_baseline)
+
+        self.lbl_baseline = QLabel(EditPhaseWidget)
+        self.lbl_baseline.setObjectName(u"lbl_baseline")
+        self.lbl_baseline.setWordWrap(True)
+
+        self.baselineRow.addWidget(self.lbl_baseline)
+
+
+        self.phaseLayout.addLayout(self.baselineRow)
+
         self.book_wrapper = QTabWidget(EditPhaseWidget)
         self.book_wrapper.setObjectName(u"book_wrapper")
         self.tabCSDS = QWidget()
@@ -219,6 +235,11 @@ class Ui_EditPhaseWidget(object):
         self.phase_inherit_sigma_star.setToolTip(QCoreApplication.translate("EditPhaseWidget", u"Inherit the value from the \"based on\" phase.", None))
 #endif // QT_CONFIG(tooltip)
         self.phase_inherit_sigma_star.setText(QCoreApplication.translate("EditPhaseWidget", u"Inherit", None))
+        self.btn_set_baseline.setText(QCoreApplication.translate("EditPhaseWidget", u"Set as baseline", None))
+#if QT_CONFIG(tooltip)
+        self.btn_set_baseline.setToolTip(QCoreApplication.translate("EditPhaseWidget", u"Record this phase's CURRENT state as the baseline it is compared against in the Composition view. Everything already done to the phase becomes part of that baseline, so use it when the phase is as you want to start from - typically just after building it, before refining.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_baseline.setText("")
 #if QT_CONFIG(tooltip)
         self.phase_inherit_CSDS_distribution.setToolTip(QCoreApplication.translate("EditPhaseWidget", u"Inherit the CSDS distribution from the \"based on\" phase.", None))
 #endif // QT_CONFIG(tooltip)

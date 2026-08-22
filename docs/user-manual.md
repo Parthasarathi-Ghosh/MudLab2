@@ -508,6 +508,78 @@ The mapping is remembered with the project. A phase you leave unstated is simply
 shown at its current state, and the view says which ones those are — a partial
 mapping gives a partial answer rather than a wrong one.
 
+### Usually there is nothing to state
+
+A phase records what it started as **when it enters the model**, so in normal use
+the mapping fills itself in:
+
+- **Add phase → Default phase** — the phase *is* the catalog's phase at that
+  moment, so its default is recorded straight away. Renaming it afterwards
+  changes nothing; the record follows the phase, not its name.
+- **Edit Phases → Import** (a `.phs`) — a pristine copy of what you imported is
+  kept as the reference at the same moment.
+
+Either way the default is captured **before** anything can refine the phase,
+which is the only moment it is provably unrefined. You only need the dialog for
+phases that predate this — projects built earlier, or phases built from scratch,
+which have no reference to capture.
+
+> **Why a separate copy for an imported phase?** Refinement rewrites phases in
+> place. If the reference were the same object, refining your model would refine
+> the yardstick with it, and the comparison would always read "no change". The
+> captured copy shares no components and no atoms with the working phase, so it
+> cannot move.
+
+### Setting a baseline yourself
+
+Two cases capture cannot cover: a phase you built **from scratch** (it never had
+a reference state), and one you built by heavily editing a catalog default — its
+baseline is then the *stock* phase, so the comparison mixes your own modelling
+with what refinement did.
+
+For both, use **Set as baseline**, in the phase editor and on the phase list's
+right-click menu. It records the phase exactly as it is at that moment.
+
+Because it can only ever mean "start from here", it always asks first, and says
+so plainly: everything already done to the phase becomes part of the baseline,
+and the comparison will only show what changes afterwards. Setting one where a
+baseline already exists replaces it, and the old one cannot be recovered.
+
+The natural moment is **just after you finish building a phase and before you
+refine it**.
+
+> **Inherited phases are handled correctly.** A treated phase that is *based on*
+> another, or whose components are *linked* to a template, is captured with its
+> resolved values baked in and its links cut. So refining the parent later moves
+> the phase but never its baseline. (A plain copy would get this badly wrong —
+> on a test case it reported Fe₂O₃ 39.9 where the phase actually resolves to
+> 167.7, because a copy without its parent falls back to its own stale values.)
+
+### Your own reference phases
+
+The built-in list only contains the clays MudLab ships. For a phase that was
+already in your project before this — a custom mixed-layer clay, say — export it
+from **Edit Phases → Export** as a `.phs` and bring it in with **Import .phs…**
+in the Default phases dialog. It joins the drop-downs immediately, listed first
+and marked as yours, and any phase whose name matches it is filled in for you.
+
+> Export the phase in the state you want as the **baseline**. If it has already
+> been refined, that refined state is what you are exporting — and comparing
+> against it will understate what refinement changed.
+
+Two things worth knowing:
+
+- An imported reference is **not** a phase of your model. It never appears in
+  Edit Phases or in a mixture cell — it exists only to be compared against.
+- It is **saved inside the project**, so the comparison keeps working later even
+  if the original `.phs` has been moved or deleted, or the project is opened on
+  another machine.
+
+Importing a reference whose name matches a built-in one replaces it *for this
+project* — yours is the more specific answer — and the dialog tells you when
+that happens. Re-importing a corrected `.phs` under the same name updates the
+reference in place, so any mapping pointing at it keeps working.
+
 > **What actually changes the chemistry?** Refinement, not Optimize. Optimize
 > only fits fractions, scale and background, which live on the mixture — your
 > phases are untouched. Refinement changes them two ways: **atom relations**

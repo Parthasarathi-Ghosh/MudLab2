@@ -89,6 +89,12 @@ class Project(QObject):
         # project describes one physical sample. None means "not provided", and
         # every consumer must treat it as optional.
         self._composition = None
+        # Reference phases imported from .phs to act as DEFAULTS for phases the
+        # shipped catalog does not contain (a user's own reference clay). They
+        # are deliberately NOT in `self._phases`: a default is a yardstick to
+        # compare against, not a phase of the model, and putting one there would
+        # offer it in every mixture cell and in Edit Phases.
+        self._custom_default_phases: list = []
         # {phase uuid: default (catalog) phase name} - which shipped default
         # phase each of the project's phases started life as. It CANNOT be
         # derived: a catalog build mints fresh uuids every time and records
@@ -113,6 +119,36 @@ class Project(QObject):
         """
         self._composition = composition
         self.composition_changed.emit()
+
+    @property
+    def custom_default_phases(self) -> tuple:
+        """Imported reference phases available as defaults, alongside the
+        shipped catalog. Not part of `phases` - see the note in __init__."""
+        return tuple(self._custom_default_phases)
+
+    def add_custom_default_phase(self, phase) -> None:
+        """Add (or REPLACE by name) an imported reference phase.
+
+        Replacing by name rather than accumulating means re-importing a
+        corrected .phs updates the reference instead of leaving two entries a
+        user would have to tell apart - and any `default_phase_map` pointing at
+        that name keeps working, because the name is the identity."""
+        name = getattr(phase, "name", "")
+        self._custom_default_phases = [
+            existing for existing in self._custom_default_phases
+            if getattr(existing, "name", "") != name
+        ]
+        self._custom_default_phases.append(phase)
+        self.composition_changed.emit()
+
+    def remove_custom_default_phase(self, name: str) -> None:
+        before = len(self._custom_default_phases)
+        self._custom_default_phases = [
+            phase for phase in self._custom_default_phases
+            if getattr(phase, "name", "") != name
+        ]
+        if len(self._custom_default_phases) != before:
+            self.composition_changed.emit()
 
     @property
     def default_phase_map(self) -> dict:

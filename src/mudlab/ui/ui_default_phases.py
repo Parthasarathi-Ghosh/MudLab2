@@ -54,6 +54,11 @@ class Ui_DefaultPhasesDialog(object):
 
         self.actionRow.addWidget(self.button_clear)
 
+        self.button_import = QPushButton(DefaultPhasesDialog)
+        self.button_import.setObjectName(u"button_import")
+
+        self.actionRow.addWidget(self.button_import)
+
         self.actionSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.actionRow.addItem(self.actionSpacer)
@@ -82,12 +87,16 @@ class Ui_DefaultPhasesDialog(object):
 
     def retranslateUi(self, DefaultPhasesDialog):
         DefaultPhasesDialog.setWindowTitle(QCoreApplication.translate("DefaultPhasesDialog", u"Default phases", None))
-        self.lblIntro.setText(QCoreApplication.translate("DefaultPhasesDialog", u"For each phase, choose the built-in default phase it started as. This cannot be worked out automatically: adding a default phase gives it a new identity, and phases are often renamed afterwards.", None))
+        self.lblIntro.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Choose the default phase each phase started as - it cannot be worked out automatically. Import .phs... adds your own reference phases.", None))
         self.button_match.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Match by name", None))
 #if QT_CONFIG(tooltip)
         self.button_match.setToolTip(QCoreApplication.translate("DefaultPhasesDialog", u"Fill in every phase whose name exactly matches a built-in default phase. Renamed phases are left for you to set.", None))
 #endif // QT_CONFIG(tooltip)
         self.button_clear.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Clear all", None))
+        self.button_import.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Import .phs...", None))
+#if QT_CONFIG(tooltip)
+        self.button_import.setToolTip(QCoreApplication.translate("DefaultPhasesDialog", u"Import your own reference phase from a .phs file, so it can be chosen as a default. It is saved with the project, and does NOT become a phase of the model.", None))
+#endif // QT_CONFIG(tooltip)
         self.lbl_status.setText("")
     # retranslateUi
 

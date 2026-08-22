@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 from mudlab.inheritance_detach import ask_detach_choice
 
@@ -35,6 +35,7 @@ class EditPhaseWidget(QWidget):
         self.ui.setupUi(self)
 
         self._phase = None
+        self._project = None
         self._atom_types: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
@@ -69,6 +70,8 @@ class EditPhaseWidget(QWidget):
         # Phase-level inheritance (old based_on): pick a reference phase, then
         # tick which properties to take from it.
         self.ui.phase_based_on.currentIndexChanged.connect(self._on_based_on_changed)
+        self.ui.btn_set_baseline.clicked.connect(
+            self._on_set_baseline)
         self.ui.phase_inherit_sigma_star.toggled.connect(
             lambda checked: self._on_phase_inherit_toggled("sigma_star", checked)
         )
@@ -82,6 +85,55 @@ class EditPhaseWidget(QWidget):
         self.setEnabled(False)
 
     # ------------------------------------------------------------------
+    def _refresh_baseline_row(self) -> None:
+        """Say whether this phase has a baseline, and enable the button only
+        when one could be stored."""
+        phase = self._phase
+        usable = (phase is not None
+                  and getattr(phase, "type", None) == "Phase"
+                  and self._project is not None)
+        self.ui.btn_set_baseline.setEnabled(bool(usable))
+        if not usable:
+            self.ui.lbl_baseline.setText("")
+            return
+        name = (self._project.default_phase_map or {}).get(phase.uuid)
+        self.ui.lbl_baseline.setText(
+            "Compared against: %s" % name if name
+            else "No baseline recorded - it will be shown at its current state.")
+
+    def _on_set_baseline(self) -> None:
+        """Record the phase's current state as its baseline, after confirming.
+
+        Confirmed every time, and never automatic: the app cannot tell a
+        freshly-built phase from a refined one, so only the user knows whether
+        NOW is the right starting point. Replacing an existing baseline is
+        called out, since the old one cannot be recovered.
+        """
+        from mudlab.default_state import set_as_baseline
+
+        phase = self._phase
+        if phase is None or self._project is None:
+            return
+        existing = (self._project.default_phase_map or {}).get(phase.uuid)
+        detail = (
+            "This records %r exactly as it is now, as the state it is compared "
+            "against in the Composition view.\n\n"
+            "Everything already done to this phase becomes part of the "
+            "baseline - the comparison will only show what changes after this "
+            "point." % phase.name
+        )
+        if existing:
+            detail += ("\n\nIt replaces the current baseline (%s), which "
+                       "cannot be recovered." % existing)
+        if QMessageBox.question(
+            self, "Set as baseline", detail,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        ) != QMessageBox.StandardButton.Ok:
+            return
+        if set_as_baseline(self._project, phase):
+            self._refresh_baseline_row()
+
     def bind_phase(
         self,
         phase,
@@ -89,17 +141,23 @@ class EditPhaseWidget(QWidget):
         atom_types=None,
         link_candidates=None,
         phase_candidates=None,
+        project=None,
     ) -> None:
         """Show and edit a real Phase model. `atom_types` feeds the component
         atom-element combos; `link_candidates` are (label, component) pairs
         offered as component-linking templates. `on_changed` runs after every
-        accepted edit (used to recompute + redraw the pattern)."""
+        accepted edit (used to recompute + redraw the pattern). `project`, when
+        given, enables Set as baseline - which has to store the captured state
+        on the project."""
         self._phase = phase
+        if project is not None:
+            self._project = project
         self._atom_types = list(atom_types or [])
         self._link_candidates = list(link_candidates or [])
         self._phase_candidates = list(phase_candidates or [])
         self._on_changed = on_changed
         self.setEnabled(phase is not None)
+        self._refresh_baseline_row()
         if phase is None:
             self.csds_widget.bind_csds(None)
             self.probabilities_widget.bind_probabilities(None)

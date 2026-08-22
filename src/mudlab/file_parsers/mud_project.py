@@ -217,6 +217,21 @@ def load_mud(path: str) -> Project:
     # Which default phase each phase started as - user-stated, so it can only
     # be read back, never recomputed. Set AFTER the phases exist, since unknown
     # uuids are pruned against them.
+    # Imported reference ("custom default") phases. Resolved against the
+    # project's atom types AND the built-in library by NAME, because these
+    # phases came from a .phs whose atom-type uuids are foreign - the name is
+    # the stable reference (see Atom.from_dict) - and because a reference phase
+    # must not have to pollute the project's atom-type list to be readable.
+    custom = properties.get("custom_default_phases")
+    if isinstance(custom, list) and custom:
+        from mudlab.file_parsers.atom_type_library import atom_type_library_map
+
+        resolve_map = {**atom_type_library_map(), **project.atom_type_uuid_map()}
+        for phase_dict in custom:
+            if isinstance(phase_dict, dict):
+                project.add_custom_default_phase(
+                    Phase.from_dict(phase_dict, resolve_map))
+
     mapping = properties.get("default_phase_map")
     if isinstance(mapping, dict):
         project.set_default_phase_map(mapping)
@@ -295,6 +310,14 @@ def save_mud(project: Project, path: str) -> None:
         properties["default_phase_map"] = dict(mapping)
     else:
         properties.pop("default_phase_map", None)
+    # ...and the imported reference phases they may point at, so the comparison
+    # keeps working when the project is reopened (or opened elsewhere) without
+    # the original .phs files being present.
+    custom = getattr(project, "custom_default_phases", None) or ()
+    if custom:
+        properties["custom_default_phases"] = [ph.to_dict() for ph in custom]
+    else:
+        properties.pop("custom_default_phases", None)
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
 

@@ -26,7 +26,7 @@
    <item>
     <widget class="QLabel" name="lblIntro">
      <property name="text">
-      <string>For each phase, choose the built-in default phase it started as. This cannot be worked out automatically: adding a default phase gives it a new identity, and phases are often renamed afterwards.</string>
+      <string>Choose the default phase each phase started as - it cannot be worked out automatically. Import .phs... adds your own reference phases.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -59,6 +59,16 @@
       <widget class="QPushButton" name="button_clear">
        <property name="text">
         <string>Clear all</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="button_import">
+       <property name="text">
+        <string>Import .phs...</string>
+       </property>
+       <property name="toolTip">
+        <string>Import your own reference phase from a .phs file, so it can be chosen as a default. It is saved with the project, and does NOT become a phase of the model.</string>
        </property>
       </widget>
      </item>

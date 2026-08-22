@@ -16,6 +16,29 @@ WHY THE MAPPING IS USER-SUPPLIED. It cannot be derived:
     "IS R0 Ca-AD" is the catalog's "Illite-Smectite R0 Ca-AD".
 So the user states it once, and `Project.default_phase_map` remembers it.
 
+CUSTOM DEFAULTS. The shipped catalog cannot cover a reference clay the user
+built themselves, so a `.phs` can be imported as a default too. Those phases
+live on the project (`Project.custom_default_phases`), NOT in `project.phases` -
+a default is a yardstick, not part of the model - and they are saved with the
+project, so the comparison still works when the original `.phs` is not to hand.
+A custom default SHADOWS a shipped one of the same name (the user's own
+reference is the more specific answer).
+
+A BASELINE IS FROZEN. Every stored reference is snapshotted and detached:
+inherited values are baked into its own storage and its `based_on` /
+`linked_with` links are severed, so nothing that happens to the project later
+can move it. This is not optional - measured, a naive copy of an inheriting
+phase reported Fe2O3 39.9 where the phase actually resolves to 167.7, because a
+copy without its parent silently falls back to its own (stale) stored values.
+A live link would be worse still: refining the PARENT would move the baseline.
+
+CAPTURE AT ENTRY. The moment a phase enters the model is the only moment it is
+PROVABLY pristine, so that is when its reference is recorded (`capture_*`
+below). Afterwards a phase may have been refined, and snapshotting it then would
+quietly record the refined state as the baseline - a comparison that always
+reads "no change", which is worse than having no baseline at all. Nothing is
+captured for a phase built from scratch: there is no reference to capture.
+
 This module is the bridge between the catalog (file_parsers) and the
 composition calc (calculations), which deliberately does not depend on it.
 """
@@ -23,9 +46,13 @@ composition calc (calculations), which deliberately does not depend on it.
 from __future__ import annotations
 
 from mudlab.calculations.composition import mixture_composition
+from mudlab.file_parsers.atom_type_library import (
+    atom_type_library_map, load_atom_type_library,
+)
 from mudlab.file_parsers.default_catalog import (
     build_default_phase, default_phase_index,
 )
+from mudlab.file_parsers.phs_phases import load_phs
 
 
 def structural_phases(project) -> list:
@@ -36,18 +63,235 @@ def structural_phases(project) -> list:
             if getattr(phase, "type", None) == "Phase"]
 
 
+def _resolution_map(project) -> dict:
+    """Atom-type resolution for a baseline copy: the project's own types first,
+    the built-in library behind them (both keyed by uuid AND name)."""
+    return {**atom_type_library_map(), **project.atom_type_uuid_map()}
+
+
+def freeze_baseline(phase, atom_type_map: dict) -> None:
+    """Bake `phase`'s inherited values into its own storage and cut every link,
+    IN PLACE. Only ever called on a copy the caller owns.
+
+    Order matters: the values can only be baked while the links still resolve,
+    so snapshot first and sever afterwards. `Component.snapshot_inherited` bakes
+    atom lists by SHARING the template's atom objects (safe in its original
+    caller, where the template is being deleted), so any component that was
+    linked is re-cloned afterwards - otherwise the "frozen" baseline would still
+    hold the live phase's atoms and move with them.
+    """
+    linked = [component for component in phase.components
+              if getattr(component, "linked_with", None) is not None]
+    phase.snapshot_inherited()
+    for component in phase.components:
+        component.snapshot_inherited()
+    phase.set_based_on(None)
+    for component in phase.components:
+        component.set_linked_with(None)
+    for component in linked:
+        component.reclone_atoms(atom_type_map)
+
+
+def make_baseline_copy(project, phase):
+    """An independent, frozen snapshot of `phase` exactly as it is now.
+
+    The copy is re-attached to the LIVE parent and templates only long enough to
+    bake their resolved values in, then cut loose. Afterwards it shares no
+    object with the project and reads no value from it.
+    """
+    from mudlab.models.phase import Phase
+
+    atom_type_map = _resolution_map(project)
+    copy = Phase.from_dict(phase.to_dict(), atom_type_map)
+    copy.set_based_on(getattr(phase, "based_on", None))
+    for own, live in zip(copy.components, phase.components):
+        template = getattr(live, "linked_with", None)
+        if template is not None:
+            own.set_linked_with(template)
+    freeze_baseline(copy, atom_type_map)
+    return copy
+
+
+def set_as_baseline(project, phase) -> bool:
+    """Record `phase`'s CURRENT state as its own baseline.
+
+    The deliberate, user-invoked counterpart to capture-at-entry, for a phase
+    that never had a reference (built from scratch) or whose captured one is no
+    longer the right starting point. Everything already done to the phase
+    becomes part of the baseline - which is why this is never automatic.
+    """
+    if getattr(phase, "type", None) != "Phase":
+        return False
+    copy = make_baseline_copy(project, phase)
+    copy.name = _baseline_name(project, phase)
+    project.add_custom_default_phase(copy)
+    _remember_defaults(project, {phase.uuid: copy.name})
+    return True
+
+
+def _baseline_name(project, phase) -> str:
+    """A name for `phase`'s captured baseline that reads clearly in the
+    drop-down and cannot collide with another phase's.
+
+    Suffixed rather than reusing the phase's own name so it is obvious in the
+    list that this is a captured state, and numbered if two phases share a name
+    - which nothing prevents, and which would otherwise make the second capture
+    silently overwrite the first's baseline.
+    """
+    base = "%s (baseline)" % (phase.name or "Phase")
+    mapping = project.default_phase_map
+    taken = {name for uuid_, name in mapping.items() if uuid_ != phase.uuid}
+    if base not in taken:
+        return base
+    index = 2
+    while "%s %d" % (base, index) in taken:
+        index += 1
+    return "%s %d" % (base, index)
+
+
+def _load_phs_standalone(path: str) -> list:
+    """Phases from a .phs, built WITHOUT touching any real project.
+
+    Loaded into a throwaway project seeded with the atom-type library, so the
+    atoms resolve (by name) without the caller having to adopt foreign atom
+    types into their own project.
+    """
+    from mudlab.models.project import Project
+
+    scratch = Project()
+    for atom_type in load_atom_type_library():
+        scratch.add_atom_type(atom_type)
+    phases, _missing = load_phs(path, scratch)
+    return phases
+
+
+def custom_default_names(project) -> list:
+    """The names of the project's imported reference phases, sorted."""
+    return sorted(getattr(phase, "name", "")
+                  for phase in getattr(project, "custom_default_phases", ()))
+
+
+def available_default_names(project) -> list:
+    """Every name that can be chosen as a default: the project's imported
+    references first, then the shipped catalog (minus any a custom one
+    shadows), so the list never offers the same name twice."""
+    custom = custom_default_names(project)
+    shipped = [name for name in sorted(default_phase_index())
+               if name not in set(custom)]
+    return custom + shipped
+
+
+def resolve_default_phase(project, name: str):
+    """The phase for a default NAME - a custom import first, then the shipped
+    catalog. Returns None when neither has it (a project naming a custom
+    default whose import was later removed)."""
+    for phase in getattr(project, "custom_default_phases", ()):
+        if getattr(phase, "name", "") == name:
+            return phase
+    return build_default_phase(name)
+
+
+def import_custom_defaults(project, path: str) -> tuple:
+    """Import a `.phs` as reference (default) phases for `project`.
+
+    Returns ``(added_names, shadowed_names)``: what was imported, and which of
+    those shadow a shipped catalog name - worth telling the user, since the
+    custom one then wins.
+
+    The .phs is loaded into a THROWAWAY project seeded with the atom-type
+    library, never into `project`: importing a yardstick must not add phases to
+    the model, nor quietly extend the project's atom-type list. The atoms keep
+    their names, and `Atom.from_dict` resolves by name, so the phases still read
+    back correctly after a save (see mud_project).
+    """
+    phases = _load_phs_standalone(path)
+    atom_type_map = _resolution_map(project)
+    shipped = default_phase_index()
+    added, shadowed = [], []
+    for phase in phases:
+        # Only structural phases have a composition to compare against.
+        if getattr(phase, "type", None) != "Phase":
+            continue
+        freeze_baseline(phase, atom_type_map)
+        project.add_custom_default_phase(phase)
+        added.append(phase.name)
+        if phase.name in shipped:
+            shadowed.append(phase.name)
+    return added, shadowed
+
+
+def _remember_defaults(project, mapping: dict) -> None:
+    """Merge `mapping` into the project's default-phase map (never replace: a
+    capture must not discard what the user stated earlier)."""
+    if mapping:
+        project.set_default_phase_map({**project.default_phase_map, **mapping})
+
+
+def capture_catalog_defaults(project, phases) -> list:
+    """Record the default for phases just added from the SHIPPED catalog.
+
+    No copy is stored: the catalog can rebuild these on demand, so only the
+    mapping is needed. At this instant `phase.name` IS the catalog phase name -
+    a later rename does not matter, because the mapping is keyed by uuid.
+    Returns the names recorded.
+    """
+    index = default_phase_index()
+    mapping = {}
+    for phase in phases:
+        if getattr(phase, "type", None) == "Phase" and phase.name in index:
+            mapping[phase.uuid] = phase.name
+    _remember_defaults(project, mapping)
+    return sorted(mapping.values())
+
+
+def capture_imported_defaults(project, path: str, imported) -> list:
+    """Record references for phases just imported into the model from `path`.
+
+    A SECOND, independent copy is loaded from the same file rather than reusing
+    the objects now in the project: those are the working phases, and a
+    refinement rewrites them in place - a reference sharing their components or
+    atoms would be refined along with them and the comparison would collapse to
+    "no change".
+
+    Pairs the two loads BY POSITION: both read the archive members in the same
+    order, and a .phs may legitimately contain two phases with one name, which
+    name-matching would confuse. Returns the names recorded.
+    """
+    try:
+        pristine = _load_phs_standalone(path)
+    except Exception:  # noqa: BLE001 - capture is a convenience, never fatal
+        return []
+    atom_type_map = _resolution_map(project)
+    mapping = {}
+    for phase, reference in zip(imported, pristine):
+        if getattr(phase, "type", None) != "Phase":
+            continue
+        if getattr(reference, "type", None) != "Phase":
+            continue
+        # Freeze even though these came from a throwaway load: a .phs may carry
+        # a whole family, and each reference is persisted on its own - a
+        # based_on pointing at a sibling would dangle on reload and silently
+        # fall back to stale own values.
+        freeze_baseline(reference, atom_type_map)
+        project.add_custom_default_phase(reference)
+        mapping[phase.uuid] = reference.name
+    _remember_defaults(project, mapping)
+    return sorted(mapping.values())
+
+
 def suggest_default_phase_map(project) -> dict:
     """A best-effort ``{phase uuid: default phase name}`` for pre-filling the
-    mapping dialog, by exact name match against the catalog.
+    mapping dialog, by exact name match against the available defaults.
 
     Only a starting point: on a real project this matches the unrenamed
     single-clay phases and misses the mixed-layer ones, which is precisely why
-    the user gets to correct it.
+    the user gets to correct it. Imported custom defaults are included, which is
+    what makes importing a `.phs` named after the phase immediately useful.
     """
-    index = default_phase_index()
+    available = set(available_default_names(project))
     return {phase.uuid: phase.name
             for phase in structural_phases(project)
-            if phase.name in index}
+            if phase.name in available}
 
 
 def default_substitutes(project, atom_type_map: dict | None = None) -> dict:
@@ -59,7 +303,7 @@ def default_substitutes(project, atom_type_map: dict | None = None) -> dict:
     """
     out = {}
     for uuid_, name in (project.default_phase_map or {}).items():
-        phase = build_default_phase(name, atom_type_map)
+        phase = resolve_default_phase(project, name)
         if phase is not None:
             out[uuid_] = phase
     return out

@@ -10,7 +10,13 @@ Covers the whole path the feature adds:
   - the Import composition dialog + its Data-menu action;
   - STEP 2: the default-phase mapping (which shipped default each phase
     started as - user-stated, because it cannot be derived) and the
-    comparison columns in the Compositions dialog.
+    comparison columns in the Compositions dialog;
+  - CUSTOM DEFAULTS: importing a user's own reference phase from a .phs so
+    it can be chosen as a default, stored with the project;
+  - CAPTURE AT ENTRY: a phase entering the model records its reference at
+    that moment - the only moment it is provably unrefined;
+  - FROZEN BASELINES + Set as baseline, including the INHERITING case that
+    a naive copy gets badly wrong.
 
 The feature is purely additive: an existing project that never gets a
 composition must round-trip exactly as it did before, which is what the
@@ -44,9 +50,16 @@ from mudlab.calculations.refinement import enumerate_refinables, refine_mixture
 from mudlab.composition_dialog import CompositionDialog
 from mudlab.default_phases_dialog import DefaultPhasesDialog
 from mudlab.default_state import (
-    default_state_composition, default_substitutes, structural_phases,
-    suggest_default_phase_map, unmapped_phases,
+    available_default_names, capture_catalog_defaults,
+    capture_imported_defaults, custom_default_names,
+    default_state_composition, default_substitutes, import_custom_defaults,
+    make_baseline_copy, resolve_default_phase, set_as_baseline,
+    structural_phases, suggest_default_phase_map, unmapped_phases,
 )
+from mudlab.file_parsers.atom_type_library import load_atom_type_library
+from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
+from mudlab.file_parsers.phs_phases import load_phs
+from mudlab.file_parsers.phs_phases import save_phs
 from mudlab.file_parsers.default_catalog import (
     build_default_phase, default_phase_names,
 )
@@ -468,6 +481,397 @@ def check_comparison_columns():
               "rule verified in _update_comparison_controls)", True)
 
 
+
+# ======================================================================
+# CUSTOM DEFAULTS: a user's own reference phase, imported from a .phs
+# ======================================================================
+def _write_custom_phs(name):
+    """Build a catalog phase, rename it, and save it as a .phs - a stand-in for
+    the user's own reference clay, with no external fixture needed."""
+    phase = build_default_phase("Illite")
+    phase.name = name
+    path = os.path.join(tempfile.gettempdir(),
+                        "mudlab_custom_%s_%d.phs" % (name.replace(" ", "_"),
+                                                     os.getpid()))
+    save_phs([phase], path)
+    return path
+
+
+def check_custom_defaults():
+    project = load_mud(PATH)
+    phases_before = len(structural_phases(project))
+    atom_types_before = len(project.atom_types)
+    shipped_before = len(available_default_names(project))
+
+    path = _write_custom_phs("My Reference Clay")
+    try:
+        added, shadowed = import_custom_defaults(project, path)
+        check("custom: the .phs is imported as a default",
+              added == ["My Reference Clay"])
+        check("custom: it shadows nothing when the name is new", shadowed == [])
+        check("custom: it is NOT added to the project's phases",
+              len(structural_phases(project)) == phases_before)
+        check("custom: ...and does not extend the project's atom types",
+              len(project.atom_types) == atom_types_before)
+        check("custom: it is offered as a default",
+              "My Reference Clay" in available_default_names(project))
+        check("custom: the custom names come FIRST in the offered list",
+              available_default_names(project)[0] == "My Reference Clay")
+        check("custom: the shipped defaults are still offered",
+              len(available_default_names(project)) == shipped_before + 1)
+        check("custom: it resolves to a real phase",
+              getattr(resolve_default_phase(project, "My Reference Clay"),
+                      "name", None) == "My Reference Clay")
+
+        # Re-importing the same name REPLACES rather than accumulating, so a
+        # corrected reference updates in place and the mapping keeps working.
+        import_custom_defaults(project, path)
+        check("custom: re-importing the same name replaces, not duplicates",
+              custom_default_names(project).count("My Reference Clay") == 1)
+
+        # It can actually be used as a default, and drives the comparison.
+        target = structural_phases(project)[0]
+        project.set_default_phase_map({target.uuid: "My Reference Clay"})
+        subs = default_substitutes(project)
+        check("custom: a phase can be mapped to it",
+              subs.get(target.uuid) is not None
+              and subs[target.uuid].name == "My Reference Clay")
+        _names, rows = default_state_composition(project.mixtures[0], project)
+        check("custom: it produces a default-state composition", bool(rows))
+
+        # It must survive the .phs going away - the project carries it.
+        save_mud(project, TMP)
+        os.remove(path)
+        back = load_mud(TMP)
+        check("custom: it is saved with the project",
+              custom_default_names(back) == ["My Reference Clay"])
+        check("custom: ...and still resolves without the original .phs",
+              resolve_default_phase(back, "My Reference Clay") is not None)
+        check("custom: the reloaded reference still has its atoms resolved",
+              all(atom.atom_type is not None
+                  for comp in resolve_default_phase(
+                      back, "My Reference Clay").components
+                  for atom in list(comp.layer_atoms) + list(comp.interlayer_atoms)))
+        check("custom: the mapping survives with it",
+              back.default_phase_map == project.default_phase_map)
+        _n2, rows2 = default_state_composition(back.mixtures[0], back)
+        check("custom: the comparison is identical after reload",
+              all(abs(a - b) < 1e-9
+                  for (_o, av), (_o2, bv) in zip(rows, rows2)
+                  for a, b in zip(av, bv)))
+        check("custom: reloading does not add it to the project's phases",
+              len(structural_phases(back)) == phases_before)
+
+        # Removing it, and the empty-key rule.
+        back.remove_custom_default_phase("My Reference Clay")
+        check("custom: it can be removed", custom_default_names(back) == [])
+        save_mud(back, TMP)
+        check("custom: an empty list writes no key",
+              "custom_default_phases" not in _project_props(TMP))
+    finally:
+        for leftover in (path, TMP, TMP + "~"):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+
+
+def check_custom_shadowing():
+    """A custom default named like a shipped one WINS - the user's own
+    reference is the more specific answer - and the import says so."""
+    project = load_mud(PATH)
+    path = _write_custom_phs("Illite")
+    try:
+        added, shadowed = import_custom_defaults(project, path)
+        check("shadow: importing a shipped name is reported as shadowing",
+              added == ["Illite"] and shadowed == ["Illite"])
+        check("shadow: the name is offered only ONCE",
+              available_default_names(project).count("Illite") == 1)
+        resolved = resolve_default_phase(project, "Illite")
+        check("shadow: it resolves to the CUSTOM phase, not the shipped one",
+              resolved is project.custom_default_phases[0])
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def check_custom_dialog():
+    project = load_mud(PATH)
+    path = _write_custom_phs("Dialog Reference")
+    try:
+        import_custom_defaults(project, path)
+        dialog = DefaultPhasesDialog(project)
+        combo = dialog._combos[0]
+        check("custom dialog: the import button exists",
+              hasattr(dialog.ui, "button_import"))
+        check("custom dialog: the custom name is offered first",
+              combo.itemText(1) == "Dialog Reference")
+        check("custom dialog: every default is offered",
+              combo.count() == len(available_default_names(project)) + 1)
+        from PySide6.QtCore import Qt as _Qt
+        check("custom dialog: the custom entry is marked as yours",
+              "not built in" in (combo.itemData(1, _Qt.ItemDataRole.ToolTipRole) or ""))
+        # The stored value must be the BARE name - no "(custom)" decoration to
+        # strip later.
+        combo.setCurrentIndex(1)
+        dialog._on_accept()
+        check("custom dialog: it stores the bare name",
+              "Dialog Reference" in (dialog.mapping or {}).values())
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+
+# ======================================================================
+# CAPTURE AT ENTRY: record the reference when a phase joins the model
+# ======================================================================
+def check_capture_from_catalog():
+    """A phase added from the shipped catalog knows its own default, so the
+    mapping is recorded there and then - and NO copy is stored, because the
+    catalog can rebuild it."""
+    project = Project()
+    added = add_catalog_entry_to_project(project, "Illite-Smectite R0 Ca")
+    check("capture: the catalog entry adds its treatment triple", len(added) == 3)
+    names = capture_catalog_defaults(project, added)
+    check("capture: every added phase is mapped automatically",
+          len(project.default_phase_map) == len(added))
+    check("capture: mapped to the catalog's own phase names",
+          names == sorted(ph.name for ph in added))
+    check("capture: no custom copy is stored for a shipped default",
+          custom_default_names(project) == [])
+    check("capture: each mapping resolves to a real phase",
+          all(resolve_default_phase(project, name) is not None
+              for name in project.default_phase_map.values()))
+
+    # Renaming the phase afterwards must not break it: the map is keyed by uuid.
+    target = added[0]
+    original = target.name
+    target.name = "My own air-dried"
+    resolved = resolve_default_phase(project, project.default_phase_map[target.uuid])
+    check("capture: a later RENAME does not break the mapping",
+          resolved is not None and resolved.name == original)
+
+    # Capturing again must MERGE, never wipe what the user stated by hand.
+    other = structural_phases(project)[1]
+    project.set_default_phase_map({**project.default_phase_map,
+                                   other.uuid: "Illite"})
+    capture_catalog_defaults(project, [])
+    check("capture: capturing nothing leaves the existing map alone",
+          project.default_phase_map.get(other.uuid) == "Illite")
+
+
+def check_capture_from_phs():
+    """A .phs imported INTO THE MODEL captures a pristine reference copy at the
+    same moment - independent of the working phase, so refinement cannot move
+    it."""
+    path = _write_custom_phs("Captured Reference")
+    try:
+        project = Project()
+        for atom_type in load_atom_type_library():
+            project.add_atom_type(atom_type)
+        imported, _missing = load_phs(path, project)
+        captured = capture_imported_defaults(project, path, imported)
+        check("capture: importing into the model records a reference",
+              captured == ["Captured Reference"])
+        check("capture: the reference is stored as a custom default",
+              custom_default_names(project) == ["Captured Reference"])
+        check("capture: the imported phase is mapped to it",
+              project.default_phase_map.get(imported[0].uuid)
+              == "Captured Reference")
+
+        working = imported[0]
+        reference = resolve_default_phase(project, "Captured Reference")
+        check("capture: the reference is a DIFFERENT object", working is not reference)
+        shared_components = ({id(c) for c in working.components}
+                             & {id(c) for c in reference.components})
+        shared_atoms = ({id(a) for c in working.components
+                         for a in list(c.layer_atoms) + list(c.interlayer_atoms)}
+                        & {id(a) for c in reference.components
+                           for a in list(c.layer_atoms) + list(c.interlayer_atoms)})
+        check("capture: it shares no components with the working phase",
+              not shared_components)
+        check("capture: ...and no atoms either", not shared_atoms)
+        check("capture: the reference is not a phase of the model",
+              reference not in structural_phases(project))
+
+        # THE POINT OF ALL THIS: what refinement does to the model must not
+        # reach the reference, or the comparison would always read "no change".
+        from mudlab.calculations.composition import (
+            _clay_oxide_masses, load_conversion_table,
+        )
+
+        conv = load_conversion_table()
+        before = {k: round(v, 6) for k, v in _clay_oxide_masses(reference, conv).items()}
+        component = working.components[0]
+        moved = False
+        for relation in component.atom_relations:
+            if hasattr(relation, "value"):
+                relation.value = min(1.0, float(relation.value) + 0.25)
+                moved = True
+        component.apply_atom_relations()
+        after_model = {k: round(v, 6)
+                       for k, v in _clay_oxide_masses(working, conv).items()}
+        after_ref = {k: round(v, 6)
+                     for k, v in _clay_oxide_masses(reference, conv).items()}
+        check("capture: mutating the model phase changes its composition",
+              after_model != before if moved else True)
+        check("capture: ...and leaves the reference UNTOUCHED", after_ref == before)
+
+        # A bad path must not break an import - capture is a convenience.
+        check("capture: an unreadable file captures nothing, without raising",
+              capture_imported_defaults(project, path + ".missing", imported) == [])
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+
+# ======================================================================
+# FROZEN BASELINES: inheritance is where a naive copy goes badly wrong
+# ======================================================================
+def _oxides(phase):
+    from mudlab.calculations.composition import (
+        _clay_oxide_masses, load_conversion_table,
+    )
+    return {k: round(v, 4)
+            for k, v in _clay_oxide_masses(phase, load_conversion_table()).items()}
+
+
+def _inheriting_project():
+    """A project whose EG phase inherits from AD, with the parent moved away
+    from what the child stores itself - so own-values and resolved values
+    differ and a copy that gets it wrong is visible."""
+    project = Project()
+    ad, eg, heated = add_catalog_entry_to_project(
+        project, "Illite-Smectite R0 Ca")
+    ad.sigma_star = 9.99
+    for component in ad.components:
+        for relation in component.atom_relations:
+            if hasattr(relation, "value"):
+                relation.value = min(1.0, float(relation.value) + 0.4)
+        component.apply_atom_relations()
+    return project, ad, eg, heated
+
+
+def check_frozen_baseline():
+    project, ad, eg, _heated = _inheriting_project()
+    check("frozen: the fixture phase really does inherit",
+          eg.based_on is ad and any(c.linked_with is not None
+                                    for c in eg.components))
+
+    # The trap: a plain serialise/deserialise loses the inherited values.
+    from mudlab.file_parsers.atom_type_library import atom_type_library_map
+    from mudlab.models.phase import Phase
+
+    naive = Phase.from_dict(eg.to_dict(), atom_type_library_map())
+    check("frozen: a NAIVE copy of an inheriting phase is wrong",
+          _oxides(naive) != _oxides(eg))
+
+    baseline = make_baseline_copy(project, eg)
+    check("frozen: the baseline preserves the RESOLVED composition",
+          _oxides(baseline) == _oxides(eg))
+    check("frozen: ...and the resolved scalar values",
+          abs(baseline.sigma_star - eg.sigma_star) < 1e-9
+          and abs(baseline.CSDS.average - eg.CSDS.average) < 1e-9)
+    check("frozen: it is detached from its parent", baseline.based_on is None)
+    check("frozen: every component is unlinked",
+          all(c.linked_with is None for c in baseline.components))
+    live_atoms = {id(a) for c in eg.components
+                  for a in list(c.layer_atoms) + list(c.interlayer_atoms)}
+    live_atoms |= {id(a) for c in ad.components
+                   for a in list(c.layer_atoms) + list(c.interlayer_atoms)}
+    base_atoms = {id(a) for c in baseline.components
+                  for a in list(c.layer_atoms) + list(c.interlayer_atoms)}
+    check("frozen: it shares no atom with the phase OR its parent",
+          not (live_atoms & base_atoms))
+
+    # The whole point: the parent moving must not move the baseline.
+    held = _oxides(baseline)
+    ad.sigma_star = 1.23
+    for component in ad.components:
+        for relation in component.atom_relations:
+            if hasattr(relation, "value"):
+                relation.value = max(0.0, float(relation.value) - 0.3)
+        component.apply_atom_relations()
+    check("frozen: refining the PARENT moves the live phase",
+          _oxides(eg) != held)
+    check("frozen: ...and leaves the baseline exactly where it was",
+          _oxides(baseline) == held)
+
+
+def check_set_as_baseline():
+    project, _ad, eg, heated = _inheriting_project()
+    project.set_default_phase_map({})
+    check("baseline: nothing is recorded to begin with",
+          project.default_phase_map == {})
+
+    check("baseline: setting one succeeds", set_as_baseline(project, eg))
+    name = project.default_phase_map.get(eg.uuid)
+    check("baseline: the phase is mapped to it", bool(name))
+    check("baseline: it is named as a captured state", "(baseline)" in (name or ""))
+    stored = resolve_default_phase(project, name)
+    check("baseline: it resolves", stored is not None)
+    check("baseline: it captured the RESOLVED composition",
+          _oxides(stored) == _oxides(eg))
+
+    # Re-running on the same phase REPLACES its baseline.
+    count = len(project.custom_default_phases)
+    set_as_baseline(project, eg)
+    check("baseline: re-running replaces rather than accumulating",
+          len(project.custom_default_phases) == count)
+
+    # Two phases sharing a NAME must not overwrite each other's baseline -
+    # nothing stops a duplicate name, and it has bitten this codebase twice.
+    heated.name = eg.name
+    set_as_baseline(project, heated)
+    check("baseline: a same-named phase gets its OWN baseline",
+          project.default_phase_map[heated.uuid]
+          != project.default_phase_map[eg.uuid])
+    check("baseline: ...and both are kept",
+          len(project.custom_default_phases) == count + 1)
+
+    # It survives a save/reload with its resolved values intact.
+    save_mud(project, TMP)
+    try:
+        back = load_mud(TMP)
+        reloaded = resolve_default_phase(
+            back, back.default_phase_map[eg.uuid])
+        check("baseline: it survives save/reload", reloaded is not None)
+        check("baseline: ...with the same composition",
+              _oxides(reloaded) == _oxides(stored))
+    finally:
+        for leftover in (TMP, TMP + "~"):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+
+    check("baseline: a raw/non-structural phase is refused",
+          not set_as_baseline(project, object()))
+
+
+def check_baseline_ui():
+    from mudlab.edit_phases_dialog import EditPhasesDialog
+
+    project, _ad, eg, _h = _inheriting_project()
+    dialog = EditPhasesDialog(project=project)
+    row = [i for i, ph in enumerate(dialog._phases) if ph is eg][0]
+    dialog.ui.edit_objects_treeview.setCurrentIndex(
+        dialog.objects_model.index(row, 0))
+    app.processEvents()
+    widget = dialog.phase_widget
+    check("baseline UI: the editor has a Set as baseline button",
+          hasattr(widget.ui, "btn_set_baseline"))
+    check("baseline UI: it is enabled for a structural phase",
+          widget.ui.btn_set_baseline.isEnabled())
+    check("baseline UI: it reports when there is no baseline",
+          "No baseline" in widget.ui.lbl_baseline.text())
+
+    menu = dialog._phase_menu()
+    entries = [a.text() for a in menu.actions() if a.text()]
+    check("baseline UI: the phase list offers it on right-click",
+          entries == ["Set as baseline"])
+    check("baseline UI: the list action is enabled for a structural phase",
+          all(a.isEnabled() for a in menu.actions() if a.text()))
+
+
 def main():
     print("fixture: %s" % os.path.basename(PATH))
     check_model()
@@ -480,6 +884,14 @@ def main():
     check_default_state_composition()
     check_mapping_dialog()
     check_comparison_columns()
+    check_custom_defaults()
+    check_custom_shadowing()
+    check_custom_dialog()
+    check_capture_from_catalog()
+    check_capture_from_phs()
+    check_frozen_baseline()
+    check_set_as_baseline()
+    check_baseline_ui()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)
