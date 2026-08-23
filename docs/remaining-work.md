@@ -86,6 +86,28 @@ so whoever picks one up starts from facts rather than a search.
    Still worth doing when PyXRD is available: open an exported `.pyxrd` in real
    PyXRD and confirm the strip/map list. See `verify_exporters.py`.
 
+### Requested 2026-08-23, second round
+
+9. ~~**Peaks dialog: rename, hide during plot interaction, keep sorted.**~~ —
+   **DONE 2026-08-23.** Renamed to Peaks (visible strings only; the model and
+   the `.mud` key stay `marker`); steps aside for a Sample pick and while Match
+   Minerals is open; the list re-sorts when a position is *committed*.
+   Required a cancel path for armed picks (Esc) — without it a hidden dialog
+   could be stranded. verify_peaks_dialog.py 37/37.
+
+**Deferred at the user's request (2026-08-23):**
+
+- **#4 CIF component import with c\* projection** — a real feature: project the
+  CIF's fractional atom positions onto c\* and bin them into layer/interlayer
+  atoms with `z` + `pn`. The existing `nonclay/structure.py` CIF reader gives a
+  3-D stick list, not this.
+- **#6 A Reset feature on Phase objects** — feasible and mostly already built on
+  `default_state`'s captured defaults. THREE QUESTIONS FOR THE USER FIRST:
+  does Reset restore the shipped default or the user's own baseline when both
+  exist; structure only, or fractions/scales too; and — since phases are SHARED
+  across mixtures — confirmation that a reset necessarily applies everywhere
+  that phase is used.
+
 ## Deferred by design (working, intentionally postponed)
 - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
   was the brute-force grid scan, which was intentionally removed (Basin Hopping

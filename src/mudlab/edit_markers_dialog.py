@@ -1,4 +1,4 @@
-"""Edit Markers window: the object-store shell hosting the marker editor,
+"""Peaks window: the object-store shell hosting the peak (marker) editor,
 with a Find peaks / Match minerals extra-widget row in the list panel.
 
 Old: EditMarkersView (specimen/views/markers.py) = ObjectListStoreView +
@@ -22,10 +22,13 @@ from mudlab.object_store_dialog import ObjectStoreDialog
 class EditMarkersDialog(ObjectStoreDialog):
     def __init__(self, parent: QWidget | None = None, specimen: Specimen | None = None) -> None:
         self.specimen = specimen
-        title = "Edit Markers"
+        # "Peaks" is what the user calls these; MARKER remains the model name
+        # (and the .mud key), so the code keeps saying marker and only the
+        # visible strings say peak.
+        title = "Peaks"
         if specimen is not None:
             title += f" - {specimen.name}"
-        super().__init__(parent, title=title, columns=("Marker", "Position"))
+        super().__init__(parent, title=title, columns=("Peak", "Position"))
 
         self.marker_widget = EditMarkerWidget(self)
         self.set_properties_widget(self.marker_widget)
@@ -46,7 +49,13 @@ class EditMarkersDialog(ObjectStoreDialog):
         # Sample button: pick the marker position directly on the plot.
         self.marker_widget.ui.cmd_sample.clicked.connect(self._on_sample_position)
 
+        # A position is only COMMITTED on editingFinished; valueChanged fires
+        # per keystroke and re-sorting there would move the row mid-type.
+        self.marker_widget.ui.spb_position.editingFinished.connect(
+            self._resort_to_position)
+
         self._match_dialog: MatchMineralsDialog | None = None
+        self._hidden_for_plot = False
         self._reload_markers()
 
     def _close_match_dialog(self) -> None:
@@ -79,17 +88,54 @@ class EditMarkersDialog(ObjectStoreDialog):
         self.raise_()
         self.activateWindow()
 
+    # ------------------------------------------------------------------
+    # Getting out of the way of the plot
+    # ------------------------------------------------------------------
+    def _step_aside(self) -> None:
+        """Hide, remembering that WE hid - so a dialog the user closed while it
+        was out of the way is not resurrected behind their back."""
+        if self.isVisible():
+            self._hidden_for_plot = True
+            self.hide()
+
+    def _step_back(self) -> None:
+        """Come back, but only if `_step_aside` is what put us away."""
+        if self._hidden_for_plot:
+            self._hidden_for_plot = False
+            self.show()
+            self.raise_()
+            self.activateWindow()
+
     def _on_sample_position(self) -> None:
-        # Arm the main window's eye-dropper; the next plot click fills the
-        # position field (which writes to the bound marker).
+        """Pick the peak position on the plot.
+
+        The dialog steps aside for the duration: it is a tall window that
+        routinely covers the pattern the user is being asked to click.
+
+        Hiding is only safe because the pick is CANCELLABLE - `on_cancel`
+        brings the window back when the user presses Esc instead of clicking.
+        Before that existed, an armed pick could only ever end in a click, and
+        a hidden dialog would have been stranded.
+        """
         if self.marker_widget._marker is None:
             return
         main_window = self.parent()
-        if main_window is not None and hasattr(main_window, "arm_position_pick"):
-            main_window.arm_position_pick(
-                lambda plot, x: self.marker_widget.ui.spb_position.setValue(x),
-                "Click the marker position on the pattern...",
-            )
+        if main_window is None or not hasattr(main_window, "arm_position_pick"):
+            return
+
+        def picked(_plot, x):
+            self.marker_widget.ui.spb_position.setValue(x)
+            self._step_back()
+            # Sampling COMMITS a position, so this is one of the two moments
+            # the list is re-sorted (see _resort_to_position).
+            self._resort_to_position()
+
+        self._step_aside()
+        main_window.arm_position_pick(
+            picked,
+            "Click the peak position on the pattern...",
+            on_cancel=self._step_back,
+        )
 
     def _reload_markers(self, select_row: int = 0) -> None:
         self.objects_model.removeRows(0, self.objects_model.rowCount())
@@ -113,7 +159,7 @@ class EditMarkersDialog(ObjectStoreDialog):
     def _on_add_marker(self) -> None:
         if self.specimen is None:
             return
-        marker = self.specimen.add_marker(Marker(label="New Marker"))
+        marker = self.specimen.add_marker(Marker(label="New Peak"))
         marker.visuals_changed.connect(self._sync_selected_row)
         self._reload_markers(select_row=len(self._markers()) - 1)
 
@@ -127,6 +173,24 @@ class EditMarkersDialog(ObjectStoreDialog):
             if 0 <= row < len(markers):
                 self.specimen.remove_marker(markers[row])
         self._reload_markers(select_row=rows[-1] if rows else 0)
+
+    def _resort_to_position(self) -> None:
+        """Put the list back in position order and keep the edited peak selected.
+
+        WHY ONLY ON COMMIT: the position spin box writes on every `valueChanged`,
+        so sorting there would move the row under the user's cursor on each
+        keystroke - typing "25" would jump the selection twice, once at "2".
+        This runs at the two moments a position is FINISHED: the spin box's
+        editingFinished, and a completed Sample pick.
+        """
+        marker = self.marker_widget._marker
+        if self.specimen is None or marker is None:
+            return
+        if not self.specimen.sort_markers():
+            return          # already in order - do not disturb the selection
+        markers = self._markers()
+        row = markers.index(marker) if marker in markers else 0
+        self._reload_markers(select_row=row)
 
     def _sync_selected_row(self) -> None:
         # Reflect label/position edits back into the list without a full
@@ -162,6 +226,10 @@ class EditMarkersDialog(ObjectStoreDialog):
                 cleared = True
         dialog = DetectPeaksDialog(self, specimen=self.specimen)
         dialog.exec()
+        # Detected peaks are appended, so a set added on top of existing
+        # markers interleaves them - sort so the list reads by position again.
+        if dialog.added_markers:
+            self.specimen.sort_markers()
         # Reload whenever the marker set changed: peaks were added, OR we
         # cleared (even if the dialog was cancelled or found nothing) - otherwise
         # the list would keep showing markers that no longer exist.
@@ -188,6 +256,12 @@ class EditMarkersDialog(ObjectStoreDialog):
         self._match_dialog = MatchMineralsDialog(
             self, specimen=self.specimen, targets=targets)
         self._match_dialog.applied.connect(self._on_labels_applied)
+        # Step aside for it too: Match Minerals draws reference peaks ON the
+        # pattern, which is the whole point of it, and this window sits over
+        # them. `finished` covers every way it can end - its own buttons, the
+        # window X, or _close_match_dialog from here.
+        self._match_dialog.finished.connect(self._step_back)
+        self._step_aside()
         self._match_dialog.show()
 
     def _on_labels_applied(self) -> None:

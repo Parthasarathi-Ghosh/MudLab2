@@ -14,7 +14,7 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Refining a mixture](#refining-a-mixture)
 - [Importing measured patterns (CSV options)](#importing-measured-patterns-csv-options)
 - [Preparing experimental data](#preparing-experimental-data)
-- [Markers, peak detection, and mineral matching](#markers-peak-detection-and-mineral-matching)
+- [Peaks, peak detection, and mineral matching](#peaks-peak-detection-and-mineral-matching)
 - [The goniometer emission spectrum](#the-goniometer-emission-spectrum)
 - [Viewing the plot](#viewing-the-plot)
 
@@ -1015,12 +1015,42 @@ so converting the wrong way can be undone by converting back.
 
 ---
 
-## Markers, peak detection, and mineral matching
+## Peaks, peak detection, and mineral matching
 
-Markers label reflections on a pattern by 2θ position (and the d-spacing they
-correspond to). Open **Edit Markers** for the current specimen to add, remove,
-and edit them by hand, or use the two tools at the bottom of the list to build
-and label a marker set automatically.
+The **Peaks** window (toolbar, or right-click a specimen) lists the peaks marked
+on a pattern, with their positions, and lets you add, label and remove them.
+
+### It gets out of your way
+
+Two things need the plot rather than the window, and for both the Peaks window
+**hides itself and comes back on its own**:
+
+- pressing **Sample** to pick a position — click the pattern and the window
+  returns with the position filled in. Changed your mind? Press **Esc**: the
+  pick is cancelled and the window comes back either way.
+- opening **Match minerals**, which draws its reference peaks on the pattern.
+  The Peaks window returns when you close it.
+
+### The list stays in order
+
+Peaks are listed by position. Detected peaks arrive in order already; a peak you
+add by hand starts at the bottom of the list at position 0, because it does not
+have a position yet. As soon as you **finish setting** its position — by typing
+it and pressing Enter or leaving the field, or by using **Sample** — it moves to
+its proper place in the list, and stays selected so you do not lose it.
+
+It deliberately does *not* re-sort on every keystroke: typing "25" would
+otherwise jump the row once at "2" and again at "25", moving the field out from
+under you mid-edit.
+
+Each peak marks a reflection by its 2θ position, labelled with the d-spacing it
+corresponds to. Add, remove and edit them by hand in the Peaks window, or use
+the two tools at the bottom of the list — **Find peaks** and **Match minerals**
+— to build and label a set automatically.
+
+> **"Peak" here, "marker" in the file.** These are the same thing: the project
+> file and the original MudLab both call them markers, and that has been left
+> alone so files stay readable by both apps. Only the wording you see changed.
 
 ### Detect Peaks
 

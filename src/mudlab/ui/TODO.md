@@ -781,6 +781,41 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Peaks dialog: renamed, steps aside, and stays sorted (2026-08-23, item #9).
+  (a) RENAMED to **Peaks** - window title, the toolbar button, its tooltip, the
+  specimens context menu, the first column header ("Peak"), and the default
+  label of a hand-added peak ("New Peak"). Only the VISIBLE strings changed:
+  the model, the class and the .mud key are still `marker`, because that key is
+  the old app's too and renaming it would break file compatibility for nothing.
+  (b) IT STEPS ASIDE while the user has to work on the plot - for a Sample pick,
+  and for as long as Match Minerals is open (which draws reference peaks on the
+  very pattern this tall window covers).
+  WHAT HAD TO BE BUILT FIRST: a pick had NO CANCEL PATH. `_disarm_pick` was
+  reachable only from `_on_plot_click`, so an armed pick could end only in a
+  click - and a dialog that hid itself and was never clicked would have been
+  STRANDED with no way back. `arm_position_pick` now takes `on_cancel`, Esc
+  fires it (a QShortcut on the main window), the status hint says so, and
+  arming a second pick releases the first owner rather than leaving it waiting.
+  Hiding is safe only because of that, which is why the harness pins it.
+  `_step_aside`/`_step_back` remember that WE hid: a dialog the user closed
+  while it was out of the way is not resurrected behind their back.
+  (c) SORTED ON COMMIT. New `Specimen.sort_markers()` returns whether the order
+  actually CHANGED, so a no-op sort never disturbs the selection. Called from
+  the position spin box's `editingFinished`, from a completed Sample pick, and
+  after Find peaks (detected peaks are appended, so a set added on top of
+  existing markers interleaves them).
+  WHY COMMIT AND NOT LIVE - the recommendation the user asked for: `spb_position`
+  writes on `valueChanged`, i.e. once per keystroke, so sorting there would move
+  the row out from under the cursor mid-type - typing "25" would jump the
+  selection at "2" and again at "25". Committing is the only moment the position
+  is a position rather than a prefix. The edited peak keeps the selection across
+  the move.
+  HARNESS TRAP found while writing this: `MainWindow.close()` on a DIRTY project
+  raises the modal unsaved-changes prompt, which hangs a head-less run forever
+  and looks exactly like a slow harness. Clear `_dirty` before closing the
+  window. (The same shape as the in-use-deletion `information()` trap.)
+  verify_peaks_dialog.py 37/37.
+
 - [x] Component pane: Show Structure (2026-08-23, item #5). Ports the old app's
   `btn_show_structure` -> `phases/models/component_diagram.build_structure_diagram`
   -> a modal text window. New `component_diagram.py` (the builder, Qt-free so it

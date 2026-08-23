@@ -13,7 +13,7 @@ import os
 import numpy as np
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QFontDatabase, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -99,7 +99,15 @@ class MainWindow(QMainWindow):
         self._shown_specimens: list[Specimen] = []
         self._dirty = False
         self._pending_pick = None
+        self._pending_pick_cancel = None
         self._range_pick_callback = None
+
+        # Esc abandons an armed Sample pick. Without it a dialog that hides
+        # itself for the pick (the Peaks dialog) could never be recovered if
+        # the user changed their mind and never clicked the plot.
+        self._cancel_pick_shortcut = QShortcut(
+            QKeySequence(Qt.Key.Key_Escape), self)
+        self._cancel_pick_shortcut.activated.connect(self.cancel_position_pick)
 
         self._setup_plot_area()
         self._setup_specimens_panel()
@@ -621,18 +629,40 @@ class MainWindow(QMainWindow):
     # Eye-dropper position picking (old EyeDropper)
     # ------------------------------------------------------------------
     def arm_position_pick(
-        self, callback, hint: str = "Click a point on the pattern..."
+        self, callback, hint: str = "Click a point on the pattern...",
+        on_cancel=None,
     ) -> None:
         """Arm a one-shot pick: the next left click on a pattern calls
         callback(plot, x_pos) and disarms. Used by Select Point and the
-        Sample buttons in the marker / strip-peak / peak-property dialogs."""
+        Sample buttons in the peaks / strip-peak / peak-property dialogs.
+
+        `on_cancel` runs if the pick is abandoned instead (Esc). It exists
+        because a caller may HIDE ITSELF to clear the plot - the Peaks dialog
+        does - and without a cancel path an armed pick that is never clicked
+        would strand that window with no way to bring it back.
+        """
+        # Arming twice: the first caller must be told, or it waits forever.
+        self._cancel_pending_pick()
         self._pending_pick = callback
-        self.ui.statusBar.showMessage(hint)
+        self._pending_pick_cancel = on_cancel
+        self.ui.statusBar.showMessage(hint + "   (Esc to cancel)")
         for plot in self.pattern_plots:
             plot.set_pick_cursor(True)
 
+    def cancel_position_pick(self) -> None:
+        """Abandon an armed pick and tell whoever armed it. Bound to Esc."""
+        self._cancel_pending_pick()
+
+    def _cancel_pending_pick(self) -> None:
+        on_cancel = getattr(self, "_pending_pick_cancel", None)
+        armed = self._pending_pick is not None
+        self._disarm_pick()
+        if armed and on_cancel is not None:
+            on_cancel()
+
     def _disarm_pick(self) -> None:
         self._pending_pick = None
+        self._pending_pick_cancel = None
         self.ui.statusBar.clearMessage()
         for plot in self.pattern_plots:
             plot.set_pick_cursor(False)
@@ -712,7 +742,7 @@ class MainWindow(QMainWindow):
     def _on_plot_click(self, plot: PatternPlot, x_pos: float) -> None:
         if self._pending_pick is not None and x_pos > 0:
             callback = self._pending_pick
-            self._disarm_pick()
+            self._disarm_pick()   # also drops the cancel callback
             callback(plot, x_pos)
 
     def _report_sampled_point(self, plot: PatternPlot, x_pos: float) -> None:
@@ -842,7 +872,7 @@ class MainWindow(QMainWindow):
         act_edit.setEnabled(single)
         act_edit.triggered.connect(lambda: self._show_edit_specimen(specimens[0]))
 
-        act_markers = menu.addAction("Edit markers")
+        act_markers = menu.addAction("Peaks")
         act_markers.setEnabled(single)
         act_markers.triggered.connect(self._show_edit_markers)
 

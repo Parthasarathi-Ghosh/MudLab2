@@ -176,6 +176,24 @@ class Specimen(QObject):
             marker.deleteLater()
             self.visuals_changed.emit()
 
+    def sort_markers(self) -> bool:
+        """Order the markers by position. Returns True if the order CHANGED.
+
+        Peak detection appends in ascending 2theta, so a detected set already
+        reads in order; a hand-added peak lands at the end and stays there
+        until its position is set. Sorting puts it where it belongs.
+
+        The return value matters to callers: re-selecting a row is only worth
+        doing when something actually moved, and a no-op sort should not
+        disturb the user's selection.
+        """
+        ordered = sorted(self._markers, key=lambda m: m.position)
+        if ordered == self._markers:
+            return False
+        self._markers[:] = ordered
+        self.visuals_changed.emit()
+        return True
+
     def clear_markers(self) -> None:
         """Remove every marker in one batch (old Specimen.clear_markers)."""
         if not self._markers:

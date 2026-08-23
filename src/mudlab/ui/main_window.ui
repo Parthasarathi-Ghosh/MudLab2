@@ -563,10 +563,10 @@
   </action>
   <action name="actionEditMarkers">
    <property name="text">
-    <string>Edit markers</string>
+    <string>Peaks</string>
    </property>
    <property name="toolTip">
-    <string>Edit Markers</string>
+    <string>List, add and label the peaks on this pattern</string>
    </property>
   </action>
   <action name="actionSamplePoint">
