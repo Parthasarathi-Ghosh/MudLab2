@@ -13,9 +13,9 @@ specimen. This covers:
   3. widget: each phase cell is a combo of the project's phases; an invalid
      phase is present but DISABLED (greyed), and choosing a valid phase writes
      it to the model + recomputes;
-  4. deletion (scenario 2): removing a phase the mixture uses empties its cells
-     (Project.remove_phase -> unset_phase); the mixture recomputes, it does not
-     break.
+  4. deletion (scenario 2): a phase the mixture uses CANNOT be removed - the
+     project refuses it and the cells keep their phase; once the cells are
+     freed the same delete goes through and the mixture still recomputes.
 
 Run head-less with the bundled interpreter from the repo root:
 
@@ -141,11 +141,23 @@ def run():
         check("3 choosing a phase in the combo assigns it in the model", True)
     widget.deleteLater()
 
-    # 4. Deletion (scenario 2): removing an assigned phase empties its cells.
+    # 4. Deletion (scenario 2): an ASSIGNED phase is not deletable. Emptying the
+    # cell behind the user's back is the damage this refusal exists to prevent,
+    # so the cell must still hold the phase afterwards.
     victim = mix.phase_matrix[i][j]
-    project.remove_phase(victim)
-    check("4 deleting an assigned phase empties its mixture cell",
-          mix.phase_matrix[i][j] is None)
+    removed = project.remove_phase(victim)
+    check("4 deleting an assigned phase is refused",
+          removed is False and victim in project.phases)
+    check("4 ...and its mixture cell is untouched",
+          mix.phase_matrix[i][j] is victim)
+    check("4 ...and phase_usage says where it is used",
+          any(m is mix and (i, j) in cells
+              for m, cells in project.phase_usage(victim)))
+    # Freed, the same delete goes through.
+    for other in project.mixtures:
+        other.unset_phase(victim)
+    check("4 freeing the cells makes it deletable",
+          project.remove_phase(victim) is True and victim not in project.phases)
     mix.calculate()  # must not raise with an empty cell
     check("4 the mixture still recomputes after the deletion", True)
     return None

@@ -212,27 +212,39 @@ def cascade_pass():
     name = os.path.basename(target_path)
     print("  cascade: using %s" % name)
 
-    # --- delete a specimen in use (reload fresh each sub-test) ---
+    # --- a specimen IN USE cannot be deleted; freed, it can ---
     project = load_mud(target_path)
     mix, i, spec, j, ph = _pick_target(project)
     mname = mix.name
-    project.remove_specimen(spec)
+    check("cascade/specimen: deleting one a mixture uses is REFUSED",
+          project.remove_specimen(spec) is False and spec in project.specimens)
     m = next(x for x in project.mixtures if x.name == mname)
-    viol, _ = all_violations(project)
-    check("cascade/specimen: removed from project.specimens",
-          spec not in project.specimens)
-    check("cascade/specimen: mixture row emptied in BOTH reps",
+    check("cascade/specimen: the refusal leaves both reps intact",
+          m.specimens[i] is spec and m.specimen_uuids[i] == spec.uuid)
+    m.unset_specimen(spec)
+    check("cascade/specimen: freeing empties BOTH reps",
           m.specimens[i] is None and m.specimen_uuids[i] == "")
+    check("cascade/specimen: freed, it deletes",
+          project.remove_specimen(spec) is True
+          and spec not in project.specimens)
+    viol, _ = all_violations(project)
     check("cascade/specimen: grid invariant still holds", not viol,
           "; ".join(viol[:4]))
 
-    # --- delete a phase in use ---
+    # --- a phase IN USE cannot be deleted; freed, it can ---
     project = load_mud(target_path)
     mix, i, spec, j, ph = _pick_target(project)
     mname = mix.name
     dependants = [p for p in project.phases if p.based_on is ph]
-    project.remove_phase(ph)
+    check("cascade/phase: deleting one a mixture uses is REFUSED",
+          project.remove_phase(ph) is False and ph in project.phases)
     m = next(x for x in project.mixtures if x.name == mname)
+    check("cascade/phase: the refusal leaves both reps intact",
+          m.phase_matrix[i][j] is ph and m.phase_uuids[i][j] == ph.uuid)
+    for other in project.mixtures:
+        other.unset_phase(ph)
+    check("cascade/phase: freed, it deletes",
+          project.remove_phase(ph) is True)
     held = any(cell is ph for row in m.phase_matrix for cell in row)
     uuid_held = any(u == ph.uuid for row in m.phase_uuids for u in row)
     viol, _ = all_violations(project)
@@ -262,7 +274,12 @@ def cascade_pass():
         if base is None:
             continue
         kids = [p for p in pr.phases if p.based_on is base]
-        pr.remove_phase(base)
+        # Mixture membership is a separate gate (checked above); free it so the
+        # inheritance cascade itself can be reached.
+        for mixture in pr.mixtures:
+            mixture.unset_phase(base)
+        check("cascade/detach: %s freed base deletes" % os.path.basename(path),
+              pr.remove_phase(base) is True)
         viol, _ = all_violations(pr)
         check("cascade/detach: %s children detached when base deleted"
               % os.path.basename(path),

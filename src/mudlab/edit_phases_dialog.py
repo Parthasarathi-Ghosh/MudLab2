@@ -27,6 +27,7 @@ from mudlab.models import Project
 from mudlab.models.phase import Phase
 from mudlab.models.raw_pattern_phase import RawPatternPhase
 from mudlab.object_store_dialog import ObjectStoreDialog
+from mudlab.qt_utils import in_use_message
 
 
 def deletion_confirm_message(phase, dependants) -> str:
@@ -221,20 +222,30 @@ class EditPhasesDialog(ObjectStoreDialog):
         if not (0 <= index < len(self._phases)):
             return
         phase = self._phases[index]
-        # The old app confirms - deleting a phase is irreversible and also
-        # clears every based_on / linked_with / mixture reference to it. When
-        # other phases depend on this one, warn and name them: they are detached
-        # but their values are baked in first (snapshot-on-detach), so their
-        # patterns are preserved.
+        # A phase that is IN A MIXTURE is part of a live model: refuse, and say
+        # where it is used, rather than emptying those cells behind the user.
+        # Refuse BEFORE the confirmation - being asked and then told no is worse
+        # than not being asked.
+        usage = self.project.phase_usage(phase)
+        if usage:
+            QMessageBox.information(
+                self, "Remove phase",
+                in_use_message(phase.name, "phase", usage))
+            return
+        # The old app confirms - deleting a phase is irreversible and clears
+        # every based_on / linked_with reference to it. When other phases depend
+        # on this one, warn and name them: they are detached but their values
+        # are baked in first (snapshot-on-detach), so their patterns hold.
         dependants = self.project.phase_dependants(phase)
         if QMessageBox.question(
             self, "Remove phase", deletion_confirm_message(phase, dependants),
         ) != QMessageBox.StandardButton.Yes:
             return
-        self.project.remove_phase(phase)  # cascades every reference to it
-        # Recompute: a mixture that used the phase now has an empty cell, so
-        # its stored calculated pattern still carries the removed phase's
-        # contribution until this runs.
+        if not self.project.remove_phase(phase):
+            return
+        # Recompute: the phase was in no mixture (the gate above), but a
+        # dependant that just detached from it may have shifted, and its
+        # mixture's stored pattern is stale until this runs.
         self.project.calculate()
         del self._phases[index]
         self.objects_model.removeRow(index)

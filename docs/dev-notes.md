@@ -63,12 +63,29 @@ per phase; "mutually linked" really means "children inherit from a shared base".
 
 ### Deletion cascades — what is automatic, what is a gap
 
-**1. Delete a specimen** — `Project.remove_specimen` (automatic). Disconnects its
-signals, drops it from `_specimens`, and cascades `mixture.unset_specimen` into
-every mixture → that row's `specimens[i] = None` **and** `specimen_uuids[i] = ""`
-(both reps). The row stays (scale / bgshift / phase cells kept); `calculate()`
-skips `None` rows. Emits `specimens_changed` + `data_changed`. Nothing else
-references a specimen. ✅
+**0. In use = in a mixture — deletion is REFUSED.** A phase or specimen a
+mixture still holds cannot be deleted: `Project.remove_phase` /
+`remove_specimen` return `False` and change nothing. Emptying a live model's
+cells behind the user's back is the damage this gate exists to prevent — the
+old app cascade-cleared, and this is a deliberate divergence.
+`Project.phase_usage(phase)` → `[(mixture, [(row, slot), …]), …]` and
+`specimen_usage(specimen)` → `[(mixture, [row, …]), …]` answer *where*, and
+`qt_utils.in_use_message` turns that into the refusal text ("… is still used by
+Mix1 (3 cells) — free it in Edit Mixtures"). Both UI paths refuse **before**
+their confirmation prompt (Edit Phases' Remove; the specimen tree's Remove,
+which refuses a mixed selection wholesale rather than half-deleting it).
+**Inheritance is not membership**: a `based_on` parent or a `linked_with`
+template with no mixture cell is still deletable — that severing is safe
+(snapshot-on-detach, §4). Guarded by `verify_in_use_deletion.py`.
+
+**1. Delete a specimen** — `Project.remove_specimen` (automatic, once it is not
+in any mixture). Disconnects its signals, drops it from `_specimens`, and
+cascades `mixture.unset_specimen` into every mixture → that row's
+`specimens[i] = None` **and** `specimen_uuids[i] = ""` (both reps). The row
+stays (scale / bgshift / phase cells kept); `calculate()` skips `None` rows.
+Emits `specimens_changed` + `data_changed`. Nothing else references a specimen.
+The cascade is now belt-and-braces (the usage gate means there is nothing left
+to clear), kept because it is the invariant `verify_link_integrity` checks. ✅
 
 **2. Delete a mixture** — `Project.remove_mixture` (minimal, leaves staleness).
 Just drops it from `_mixtures`. **No cascade, no signal, no recompute.** Its
@@ -78,14 +95,15 @@ curves) — now stale. A specimen left in no other mixture is **orphaned**:
 clears it. ⚠️ The caller must clear/recompute + refresh; orphaned specimens are a
 real staleness gap.
 
-**3. Delete a phase in use** — `Project.remove_phase` (automatic, cascade-clears,
-never refuses). Drops it from `_phases`; clears its own `based_on`; detaches any
+**3. Delete a phase** — `Project.remove_phase`. A phase **in a mixture is
+refused** (§0); what follows is what happens to a freed one. Drops it from
+`_phases`; clears its own `based_on`; detaches any
 phase `based_on` it (`set_based_on(None)`); unlinks any component `linked_with`
-its components (`set_linked_with(None)`); cascades `mixture.unset_phase` → empties
-each holding cell in both reps (`phase_matrix[i][j]=None`, `phase_uuids[i][j]=""`).
-The slot/column stays (label + fraction kept). Emits `phases_changed` +
-`data_changed`. ⚠️ `data_changed` **redraws but does not recompute** — the deleted
-phase's contribution stays in the displayed curve until an F5/refresh.
+its components (`set_linked_with(None)`); cascades `mixture.unset_phase` (a no-op after
+the gate, kept as the invariant). The slot/column stays (label + fraction kept).
+Emits `phases_changed` + `data_changed`. ⚠️ `data_changed` **redraws but does not
+recompute** — a freed cell's contribution stays in the displayed curve until an
+F5/refresh.
 
 **4. Delete a treatment-variant member** — the subtle one. A *leaf* (nothing
 depends on it) removes cleanly; the base and siblings are unaffected. Deleting the

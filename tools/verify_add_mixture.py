@@ -52,6 +52,125 @@ def check(label, ok):
     results.append((label, bool(ok)))
 
 
+def check_removal_persists():
+    """AUDIT: deleting the LAST mixture did not persist.
+
+    `save_mud` guarded the write with `if project.mixtures:`, so an empty live
+    list left the STALE raw list in the file and the mixture came back on
+    reload - silent data loss on an action the app calls irreversible. Phases
+    carried the identical guard and lost it in ae75d60; this one was left.
+    """
+    import tempfile
+
+    from mudlab.file_parsers.mud_project import save_mud
+
+    tmp = os.path.join(tempfile.gettempdir(),
+                       "verify_add_mixture_%d.mud" % os.getpid())
+    try:
+        # The last mixture.
+        project = load_mud(FIXTURE)
+        check("removal: the fixture has a mixture to delete",
+              len(project.mixtures) == 1)
+        project.remove_mixture(project.mixtures[0])
+        save_mud(project, tmp)
+        check("removal: deleting the LAST mixture persists",
+              len(load_mud(tmp).mixtures) == 0)
+
+        # One of several - this always worked, and must keep working.
+        project = load_mud(FIXTURE)
+        project.add_mixture(Mixture(name="Second"))
+        save_mud(project, tmp)
+        project = load_mud(tmp)
+        project.remove_mixture(project.mixtures[0])
+        save_mud(project, tmp)
+        back = load_mud(tmp)
+        check("removal: deleting one of several still persists",
+              [m.name for m in back.mixtures] == ["Second"])
+    finally:
+        for leftover in (tmp, tmp + "~"):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+
+
+def check_add_remove_signal():
+    """AUDIT: neither add nor remove signalled, so the window stayed CLEAN and
+    closing threw the change away with no prompt."""
+    project = load_mud(FIXTURE)
+    fired = []
+    project.data_changed.connect(lambda: fired.append(1))
+    added = project.add_mixture(Mixture(name="Signalled"))
+    check("signal: adding a mixture announces the change", len(fired) == 1)
+    project.remove_mixture(added)
+    check("signal: removing one announces it too", len(fired) == 2)
+    # Removing something that is not there must stay silent.
+    project.remove_mixture(added)
+    check("signal: removing a mixture that is not there is silent",
+          len(fired) == 2)
+
+
+def check_orphaned_patterns():
+    """Deleting a mixture leaves its specimens holding the curve IT produced -
+    a calculated pattern with no model behind it, which is then saved.
+
+    Cleared, but only for specimens no REMAINING mixture drives: a specimen can
+    sit in several mixtures, and the others still produce its curve. And only
+    for the specimens THIS deletion detached - sweeping every specimen would
+    also clear a curve that was already orphaned long before and has nothing to
+    do with this edit (308 r1.mud carries exactly such a specimen).
+    """
+    # 1. the plain case
+    project = load_mud(FIXTURE)
+    project.calculate()
+    mixture = project.mixtures[0]
+    driven = [s for s in mixture.specimens if s is not None]
+    check("orphan: the mixture's specimens have curves to begin with",
+          driven and all(s.has_calculated_data for s in driven))
+    project.remove_mixture(mixture)
+    check("orphan: deleting the mixture clears them",
+          not any(s.has_calculated_data for s in driven))
+
+    # 2. a specimen SHARED with another mixture keeps its curve
+    project = load_mud(FIXTURE)
+    project.calculate()
+    first = project.mixtures[0]
+    shared = first.specimens[0]
+    second = Mixture(name="Second")
+    second.add_specimen_slot(shared)
+    second.add_phase_slot()
+    project.add_mixture(second)
+    project.calculate()
+    others = [s for s in first.specimens if s is not None and s is not shared]
+    project.remove_mixture(first)
+    check("orphan: a specimen another mixture still drives KEEPS its curve",
+          shared.has_calculated_data)
+    check("orphan: ...while the rest are cleared",
+          not any(s.has_calculated_data for s in others))
+
+    # 3. an already-orphaned specimen is not collateral damage
+    project = load_mud(FIXTURE)
+    project.calculate()
+    in_a_mixture = {id(s) for m in project.mixtures for s in m.specimens
+                    if s is not None}
+    stale = [s for s in project.specimens
+             if s is not None and s.has_calculated_data
+             and id(s) not in in_a_mixture]
+    if stale:
+        project.remove_mixture(project.mixtures[0])
+        check("orphan: an ALREADY-orphaned specimen is left alone",
+              stale[0].has_calculated_data)
+    else:
+        check("orphan: (no already-orphaned specimen in this fixture)", True)
+
+    # 4. the helper's own contract
+    project = load_mud(FIXTURE)
+    project.calculate()
+    mixture = project.mixtures[0]
+    still_driven = [s for s in mixture.specimens if s is not None]
+    cleared = project.clear_orphaned_patterns(still_driven)
+    check("orphan: a specimen its mixture still drives is never cleared",
+          cleared == [] and all(s.has_calculated_data for s in still_driven))
+
+
 def _selected_row(dialog):
     rows = dialog.ui.edit_objects_treeview.selectionModel().selectedRows(0)
     return rows[0].row() if rows else -1
@@ -123,6 +242,9 @@ def main():
     rc = run()
     if rc == 2:
         return 2
+    check_removal_persists()
+    check_add_remove_signal()
+    check_orphaned_patterns()
     passed = 0
     for label, ok in results:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

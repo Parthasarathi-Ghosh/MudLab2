@@ -54,6 +54,10 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
 # QMessageBox.question returns, so a "user says No" case can be exercised too.
 _confirm = {"answer": QMessageBox.StandardButton.Yes}
 QMessageBox.question = staticmethod(lambda *a, **k: _confirm["answer"])
+# The in-use refusal is an information() box - modal, and it would hang the
+# run. Record what it said instead, so a refusal can be asserted on.
+_informed = []
+QMessageBox.information = staticmethod(lambda *a, **k: _informed.append(a[2]))
 
 from mudlab.add_phase_dialog import AddPhaseDialog  # noqa: E402
 from mudlab.edit_phases_dialog import EditPhasesDialog  # noqa: E402
@@ -197,15 +201,42 @@ def check_add(project, results):
     dialog.deleteLater()
 
 
+def check_remove_in_use(project, results):
+    """4a. A phase a mixture uses is refused - with a message naming where, and
+    without ever asking for confirmation."""
+    dialog = EditPhasesDialog(None, project=project)
+    victim = next((p for p in project.phases if project.phase_usage(p)), None)
+    if victim is None:
+        results.append(("4a (fixture has no phase in a mixture; skipped)", True))
+        dialog.deleteLater()
+        return
+    _select_row(dialog, project.phases.index(victim))
+    n0 = len(project.phases)
+    _informed.clear()
+    _confirm["answer"] = QMessageBox.StandardButton.No  # must not even be asked
+    dialog._on_remove_phase()
+    results.append(("4a an in-use phase is not deleted", len(project.phases) == n0))
+    results.append(("4a the refusal names the mixture",
+                    bool(_informed)
+                    and project.mixtures[0].name in _informed[-1]))
+    results.append(("4a views in sync after the refusal", _in_sync(dialog, project)))
+    dialog.deleteLater()
+
+
 def check_remove_confirmed(project, results):
     """4. Remove confirms, removes, and keeps the three views in sync."""
     dialog = EditPhasesDialog(None, project=project)
     n0 = len(project.phases)
     target_name = project.phases[1].name
     _select_row(dialog, 1)
+    # Free it first: an in-use phase is refused (4a covers that).
+    for mixture in project.mixtures:
+        mixture.unset_phase(project.phases[1])
 
     _confirm["answer"] = QMessageBox.StandardButton.Yes
+    _informed.clear()
     dialog._on_remove_phase()
+    results.append(("4 no refusal for a freed phase", not _informed))
     results.append(("4 project lost a phase", len(project.phases) == n0 - 1))
     results.append(("4 the right phase went",
                     target_name not in [p.name for p in project.phases]))
@@ -221,6 +252,8 @@ def check_remove_declined(project, results):
     n0 = len(project.phases)
     names = [p.name for p in project.phases]
     _select_row(dialog, 0)
+    for mixture in project.mixtures:
+        mixture.unset_phase(project.phases[0])
     _confirm["answer"] = QMessageBox.StandardButton.No
     dialog._on_remove_phase()
     results.append(("4b declining leaves the count unchanged",
@@ -364,6 +397,7 @@ def run(path):
     check_button_state(load_mud(path), results)
     check_add_dialog_restrictions(results)
     check_add(load_mud(path), results)
+    check_remove_in_use(load_mud(path), results)
     check_remove_confirmed(load_mud(path), results)
     check_remove_declined(load_mud(path), results)
     check_add_then_remove_roundtrips(load_mud(path), results)

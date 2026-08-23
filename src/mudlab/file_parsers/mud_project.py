@@ -262,8 +262,13 @@ def save_mud(project: Project, path: str) -> None:
     ]
     # Atom types and mixtures are modeled: write the live lists back.
     properties["atom_types"] = [at.to_dict() for at in project.atom_types]
-    if project.mixtures:
-        properties["mixtures"] = [mix.to_dict() for mix in project.mixtures]
+    # Written UNCONDITIONALLY. Guarding this with `if project.mixtures:` meant
+    # that deleting the LAST mixture left the stale raw list in place, so the
+    # deletion did not persist and the mixture came back on reload. Phases
+    # carried the identical guard and lost it in ae75d60 for the same reason;
+    # this one was simply left behind. An empty list is what `MULTI_PARTS`
+    # would default the key to anyway, so writing it changes nothing else.
+    properties["mixtures"] = [mix.to_dict() for mix in project.mixtures]
     # Phases: "Phase" and "RawPatternPhase" entries are modeled, so the raw
     # list is walked to write the modeled ones from their live models while
     # keeping any other (still-unmodeled) type verbatim and in place.

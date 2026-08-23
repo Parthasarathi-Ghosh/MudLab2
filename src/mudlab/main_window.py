@@ -54,6 +54,7 @@ from mudlab.line_dialogs import (
 )
 from mudlab.models import Project, Specimen
 from mudlab.plot_controller import PatternPlot
+from mudlab.qt_utils import in_use_message
 from mudlab.specimen_dialogs import (
     SaveGraphSizeDialog,
     StatisticsDialog,
@@ -880,6 +881,25 @@ class MainWindow(QMainWindow):
 
     def _remove_specimens(self, specimens: list[Specimen]) -> None:
         if not specimens:
+            return
+        # A specimen a mixture still holds is being fitted against: refuse before
+        # asking anything, rather than pulling it out from under the model.
+        blocked = [(s, u) for s, u in
+                   ((s, self.project.specimen_usage(s)) for s in specimens) if u]
+        if blocked:
+            names = ", ".join(s.name or "specimen" for s, _u in blocked)
+            # Several blocked specimens can sit in DIFFERENT mixtures, so merge
+            # their usage - listing only the first one's would send the user to
+            # the wrong place for the rest.
+            merged: dict[int, tuple] = {}
+            for _s, usage in blocked:
+                for mixture, rows in usage:
+                    hit = merged.setdefault(id(mixture), (mixture, []))
+                    hit[1].extend(rows)
+            QMessageBox.information(
+                self, "Remove Specimen",
+                in_use_message(names, "specimen", list(merged.values()),
+                               subjects=len(blocked)))
             return
         count = len(specimens)
         what = specimens[0].name if count == 1 else f"{count} specimens"

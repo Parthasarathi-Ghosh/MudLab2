@@ -781,6 +781,108 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] In-use deletion AUDIT (2026-08-23) - 6 findings, all FIXED, 5 of them in
+  text the user actually reads. No behavioural bugs: the refusal gate, both UI
+  paths and the harness rewrites audited correct.
+  (1) `Project.remove_phase` was still annotated `-> None` while returning bool,
+  and its docstring still OPENED with "cascade-clears rather than refusing: a
+  phase can always be deleted" - the exact opposite of what it now does - with
+  the refusal buried four paragraphs down and an unreachable step 4 still listed
+  as a cascade. Rewritten so the refusal leads and step 4 is marked as the
+  kept-but-unreachable invariant.
+  (2) THE MESSAGE CALLED A SPECIMEN'S ROWS "CELLS". `in_use_message` hard-coded
+  "cell"/"cells" for both kinds, so a refused specimen read "Mix1 (1 cell)". A
+  phase occupies cells of the grid, a specimen occupies rows; `kind` now picks
+  the unit.
+  (3) A MULTI-SELECTION READ AS A SINGULAR. Two blocked specimens produced
+  "A, B is still used by ... Remove it ... delete it here." New `subjects`
+  argument gives are/them.
+  (4) "from the mixture first" even when the list named several mixtures.
+  (5) THE MESSAGE NAMED A MENU ITEM THAT DOES NOT EXIST: it said "remove the
+  row", but the row is dropped from the row header's **"Remove specimen"**
+  entry - and that label collides with the main-window action that DELETES a
+  specimen, so the refusal has to disambiguate rather than paraphrase. The
+  message now names the real path ('right-click the row header and assign
+  "(none)", or "Remove specimen" to drop the row') and the user manual's freeing
+  steps were rewritten to match the actual menus (including the note that Edit
+  Mixtures' "Remove specimen" removes the ROW, not the specimen).
+  (6) Two 134-character lines in `edit_mixture_widget.py` where an earlier patch
+  lost a line continuation and collapsed a conditional onto one line (valid
+  Python, but the file otherwise stays under ~95). Reflowed.
+  The harness grew the wording checks that would have caught (2)-(5): unit per
+  kind, plural subjects, plural mixtures, single-row not pluralised, and that
+  the specimen text names a REAL menu item. verify_in_use_deletion 55/55 (was
+  50).
+  PROCESS NOTE: the first full-suite run of this round was INVALID and thrown
+  away - it was launched before the audit fixes and `qt_utils.py` was briefly
+  unparseable mid-run, which showed up as six harnesses "failing" in 1.5-2.0 s
+  each. Uniform sub-2 s failures across unrelated harnesses mean an import
+  break, not assertions. Do not edit source while the suite runs.
+
+- [x] An object a mixture uses cannot be deleted (2026-08-23). Deleting a
+  PHASE or a SPECIMEN that a mixture still holds used to succeed and cascade:
+  the cells were emptied behind the user's back and a model they had built (and
+  probably refined) quietly changed shape, with only a generic "irreversible"
+  confirmation - which does not say *what* is about to be dismantled. Both are
+  now REFUSED. `Project.phase_usage(phase)` -> `[(mixture, [(row, slot), ...])]`
+  and `specimen_usage(specimen)` -> `[(mixture, [row, ...])]` answer WHERE, and
+  `remove_phase` / `remove_specimen` return a bool (False = refused, and nothing
+  is touched: not the project list, not either grid representation, not the
+  residual). `qt_utils.in_use_message` turns a usage list into the refusal text,
+  naming each mixture, counting the cells/rows and pointing at Edit Mixtures.
+  BOTH UI PATHS REFUSE BEFORE THEIR CONFIRMATION PROMPT - being asked "delete
+  this?" and then told "no" is worse than not being asked; the specimen path
+  also refuses a MIXED multi-selection wholesale rather than deleting the free
+  half and leaving the user to guess which went.
+  SCOPE, deliberately: "in use" means IN A MIXTURE. Being a `based_on` parent or
+  a `linked_with` template is NOT use - that severing is already safe
+  (snapshot-on-detach bakes the dependants' resolved values first, so their
+  patterns do not move) and the delete confirmation already names them.
+  COST, measured before building it: in the sample projects essentially every
+  phase sits in a mixture (6/6, 5/5, 5/5, 8/15 in AT460 r2), so in practice a
+  phase must be freed in Edit Mixtures before it can be deleted. That is the
+  point - it is the same work the cascade used to do silently.
+  The old cascades (`unset_phase` / `unset_specimen` inside the remove methods)
+  are KEPT as no-ops behind the gate: they are the invariant verify_link_integrity
+  checks, and they cost nothing.
+  New verify_in_use_deletion.py 48/48 (model + message + both UI paths + the
+  inheritance exclusion). Six harnesses encoded the old cascade contract and now
+  encode this one: verify_phase_crud (128), verify_mixture_assign (18),
+  verify_link_integrity (30), verify_remove_phase_snapshot (11),
+  verify_phase_dialogs (82), verify_composition_object (231). NOTE for future
+  harnesses: the refusal is a modal `QMessageBox.information`, so any harness
+  that drives a delete must stub it or it HANGS (verify_phase_dialogs did).
+  docs/dev-notes.md "Deletion cascades" and the user manual updated.
+
+- [x] Mixture deletion: persistence, signal, and orphaned patterns (2026-08-23).
+  Three faults on one action the app calls irreversible.
+  (1) DELETING THE LAST MIXTURE DID NOT PERSIST. `save_mud` guarded the write
+  with `if project.mixtures:`, so an empty live list left the STALE raw list in
+  the file and the mixture came back on reload. Phases carried the identical
+  guard and lost it in ae75d60 ("fix removal reference integrity"); the mixture
+  one was simply left behind. Written unconditionally now - an empty list is
+  what MULTI_PARTS would default the key to anyway. Deleting one of SEVERAL
+  always worked, which is why it went unnoticed.
+  (2) NEITHER add_mixture NOR remove_mixture SIGNALLED, so the window stayed
+  clean and closing threw the change away with no prompt. Both emit
+  data_changed now. (Row deletion was fine all along - the real UI path goes
+  through `_after_structural_change` -> `_notify`; an early probe that called
+  the model method directly made it look broken.)
+  (3) ORPHANED CALCULATED PATTERNS. The specimens a deleted mixture drove kept
+  the curve IT produced, and it was SAVED - a calculated curve on the plot with
+  no model behind it. New `Project.clear_orphaned_patterns(candidates)` clears
+  them, with two deliberate limits: only specimens no REMAINING mixture drives
+  (a specimen can sit in several, and the others still produce its curve), and
+  only the specimens THIS edit detached - a blanket sweep would also clear a
+  curve orphaned long before and unrelated to the edit (308 r1.mud carries
+  exactly such a specimen, 308 500). Wired to remove_mixture and to the mixture
+  editor's row-remove / row-reassign.
+  WHY THE OTHER DELETIONS NEED NOTHING (measured): deleting a PHASE leaves the
+  specimen still driven, and `_on_remove_phase` already calls
+  project.calculate(), which recomputes it correctly - recompute, not clear.
+  Deleting a SPECIMEN removes the object itself and leaves its siblings' curves
+  untouched. verify_add_mixture 22/22 (was 10).
+
 - [ ] REVISIT THE ENTER / autoDefault POLICY once every UI element has had
   feedback (user's call, 2026-08-23). The app-wide rule below is deliberately
   blunt - Enter accepts only at an AcceptRole button, and does nothing anywhere

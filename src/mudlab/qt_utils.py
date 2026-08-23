@@ -150,3 +150,37 @@ class ColorButton:
         self._button.setStyleSheet(
             f"background-color: {self._color.name()}; color: {text_color};"
         )
+
+
+def in_use_message(name: str, kind: str, usage, subjects: int = 1) -> str:
+    """Why a delete was refused, and WHERE to go to free it.
+
+    A refusal that only says "no" moves the puzzle onto the user;
+    `Project.phase_usage` / `specimen_usage` already know the answer, so name
+    the mixture and how many places in it hold the object.
+
+    `kind` picks what those places ARE - a phase occupies CELLS of the grid, a
+    specimen occupies ROWS - and `subjects` how many objects were refused, so a
+    multi-selection does not read "A, B is still used by".
+    """
+    unit = "cell" if kind == "phase" else "row"
+    where = "\n".join(
+        "  \u2022 %s  (%d %s%s)"
+        % (mixture.name or "mixture", len(places), unit,
+           "" if len(places) == 1 else "s")
+        for mixture, places in usage
+    )
+    freeing = ('set those cells to "(none)", or remove the phase slot'
+               if kind == "phase"
+               else 'right-click the row header and assign "(none)", or '
+                    '"Remove specimen" to drop the row')
+    them = "them" if subjects > 1 else "it"
+    where_from = "the mixtures" if len(usage) > 1 else "the mixture"
+    return (
+        "%s %s still used by:\n\n%s\n\n"
+        "Remove %s from %s first - in Edit Mixtures, %s - then delete "
+        "%s here."
+        % (name or "This %s" % kind,
+           "are" if subjects > 1 else "is",
+           where, them, where_from, freeing, them)
+    )

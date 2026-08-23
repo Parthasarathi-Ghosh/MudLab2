@@ -80,14 +80,25 @@ available yet, so catalog entries needing them are not listed.
 Select a phase and press **Remove**. Because deleting a phase cannot be undone,
 MudLab2 asks you to confirm.
 
-Removing a phase also cleans up everything that pointed at it, so nothing is
-left dangling:
+**A phase that a mixture uses cannot be deleted.** MudLab2 tells you which
+mixture holds it and in how many cells, and stops there — nothing is asked and
+nothing is changed. To delete it, open **Edit Mixtures** first and free it: set
+those cells to **(none)**, or remove the phase slot entirely. Then Remove works.
+
+This is deliberate. A phase sitting in a mixture is part of a model you have
+built and probably refined; silently blanking its cells would change what that
+model means without telling you.
+
+Removing a phase that is *not* in any mixture also cleans up everything that
+pointed at it, so nothing is left dangling:
 
 - any phase that was **based on** the removed one stops inheriting and keeps the
   values it currently shows (it falls back to its own stored numbers);
-- any component **linked** to one of the removed phase's components is unlinked;
-- the phase is cleared from every **mixture** — its slot stays, but the cell
-  that named it becomes empty, so you can assign a different phase there.
+- any component **linked** to one of the removed phase's components is unlinked.
+
+Being a reference for another phase does **not** count as "in use" — you can
+delete a base phase whose children still inherit from it, and their values are
+kept (see below).
 
 The removal takes effect immediately in the calculated pattern. As with every
 edit, nothing is written to disk until you save the project, so a removal you
@@ -363,18 +374,33 @@ This is the answer to a common question:
 > assign it. Fill in (or import) its components' atoms and it becomes
 > selectable — no separate "validate" step is needed.
 
-### Deleting a phase that a mixture uses
+### Deleting a phase or specimen that a mixture uses
 
-Removing a phase in **Edit Phases** does **not** break your mixtures. Every cell
-that named the deleted phase simply **empties** — the slot itself stays, the
-fraction is kept, and the cell shows **(none)**. The mixture keeps calculating
-(the emptied slot contributes nothing), and you can drop a different phase into
-that cell whenever you like.
+You cannot. **Edit Phases** refuses to remove a phase any mixture still holds,
+and the specimen list refuses to remove a specimen any mixture still holds. In
+both cases MudLab2 names the mixture and how many cells (or rows) hold it.
 
-> **I added a phase to a mixture, then deleted it in Edit Phases — is the
-> mixture now invalid?** No. The mixture stays usable; only the cells that
-> referenced the deleted phase go blank, ready for a replacement. Nothing is
-> left dangling and no error is raised.
+Free it first, in **Edit Mixtures**:
+
+- **a phase** — set its cells to **(none)** in the cell drop-down, or
+  right-click the slot header and choose **Remove phase slot**;
+- **a specimen** — right-click the row header and assign **(none)**, or choose
+  **Remove specimen** there to drop the row. (That menu item removes the row
+  from *this mixture*; it does not delete the specimen from the project.)
+
+Emptying a cell is safe on its own: the slot stays, the fraction is kept, the
+mixture keeps calculating (an empty slot contributes nothing), and you can drop
+a different phase in whenever you like. Once no mixture holds the object any
+more, Remove works normally.
+
+> **I have several mixtures — do I have to free the phase from all of them?**
+> Yes. The check asks whether *any* mixture still holds it, not just the one you
+> were last looking at, and the message lists every mixture involved.
+
+> **I selected several specimens and one of them is in a mixture — will the
+> others be removed?** No. The whole selection is refused, so you are never left
+> guessing which ones went. Free the one that is in use, then remove them
+> together.
 
 ### Reusing a phase, and what refinement shares
 

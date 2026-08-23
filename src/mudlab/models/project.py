@@ -9,6 +9,8 @@ only need to listen to the project.
 
 from __future__ import annotations
 
+import numpy as np
+
 from PySide6.QtCore import QObject, Signal
 
 from mudlab.models.properties import Prop
@@ -219,28 +221,74 @@ class Project(QObject):
         self.phases_changed.emit()
         return phase
 
-    def remove_phase(self, phase) -> None:
-        """Remove a phase and clear every reference to it.
+    # ------------------------------------------------------------------
+    # "Is this still in use?" - asked before a delete, and answered with
+    # WHERE, so the user can go and free it.
+    # ------------------------------------------------------------------
+    def phase_usage(self, phase) -> list:
+        """``[(mixture, [(row, slot), ...]), ...]`` - every mixture cell holding
+        `phase`. Empty when nothing uses it.
 
-        Ported from the old Project.on_phase_removed, which **cascade-clears
-        rather than refusing**: a phase can always be deleted, and whatever
-        pointed at it silently falls back to its own stored values. Concretely:
+        Only mixture membership counts as "in use". A phase that is merely an
+        inheritance parent or a link template is NOT in use in this sense: that
+        relationship is severed safely (snapshot-on-detach bakes the dependant's
+        resolved values first, so its pattern does not move), and the delete
+        confirmation already names those dependants.
+        """
+        found = []
+        for mixture in self._mixtures:
+            cells = [(i, j)
+                     for i, row in enumerate(mixture.phase_matrix)
+                     for j, held in enumerate(row)
+                     if held is phase]
+            if cells:
+                found.append((mixture, cells))
+        return found
+
+    def specimen_usage(self, specimen) -> list:
+        """``[(mixture, [row, ...]), ...]`` - every mixture row holding
+        `specimen`. Empty when nothing uses it."""
+        found = []
+        for mixture in self._mixtures:
+            rows = [i for i, held in enumerate(mixture.specimens)
+                    if held is specimen]
+            if rows:
+                found.append((mixture, rows))
+        return found
+
+    def remove_phase(self, phase) -> bool:
+        """Remove a phase and clear every reference to it. Returns True if it
+        was removed, False if it was refused or was not in the project.
+
+        **A phase that is IN A MIXTURE is refused**, and nothing is touched. It
+        is part of a live model, and emptying its cells behind the user's back
+        is the kind of silent damage a delete should not do. Free it first - set
+        those cells to "(none)", or remove the slot; `phase_usage` says exactly
+        where to go. This is a deliberate divergence from the old
+        Project.on_phase_removed, which cascade-cleared the cells instead.
+
+        For a phase that IS free, the rest of the old cascade still applies -
+        whatever pointed at it falls back to its own stored values:
 
         1. the removed phase's own `based_on` link,
         2. any phase based_on the removed one (the dependant keeps the values
            it had stored - inheritance is a read-time overlay, so it simply
-           stops reading through),
+           stops reading through, and snapshot-on-detach bakes the resolved
+           values in first so its pattern does not move),
         3. any component elsewhere linked_with one of the removed phase's
            components (the old app does this via its removed-signal broadcast;
            MudLab2 has no object pool, so the project walks the graph),
-        4. every mixture cell holding the phase (the slot stays, the cell
-           empties).
+        4. `mixture.unset_phase` still runs, but the refusal above means there
+           is never a cell left for it to clear - it is kept as the invariant
+           verify_link_integrity checks.
 
         Deleting a phase is irreversible in the old app too - there is no undo,
         and nothing is written until the user saves.
         """
         if phase not in self._phases:
-            return
+            return False
+        if self.phase_usage(phase):
+            return False
         self._phases.remove(phase)
 
         # Snapshot dependants BEFORE clearing the removed phase's own based_on:
@@ -271,6 +319,7 @@ class Project(QObject):
 
         self.phases_changed.emit()
         self.data_changed.emit()
+        return True
 
     def phase_dependants(self, phase) -> list:
         """Phases that read from `phase` - directly based_on it, or with a
@@ -318,15 +367,59 @@ class Project(QObject):
 
     def add_mixture(self, mixture) -> "object":
         self._mixtures.append(mixture)
+        self.data_changed.emit()
         return mixture
 
     def remove_mixture(self, mixture) -> None:
-        """Drop a mixture from the project. Nothing back-references a mixture
-        (phases / specimens do not know which mixtures use them), so there is no
-        cascade - unlike remove_phase / remove_specimen. The specimens it drove
-        keep their last calculated pattern until the next recompute."""
+        """Drop a mixture from the project.
+
+        Nothing back-references a mixture (phases / specimens do not know which
+        mixtures use them), so there is no cascade of the kind remove_phase /
+        remove_specimen have. What there IS: the specimens it drove keep the
+        calculated pattern IT produced, and that pattern is written to the file
+        - a calculated curve on the plot with no model behind it. Those are
+        cleared here (see clear_orphaned_patterns).
+
+        Signals the change, like every other add/remove on the project. Without
+        it the window stayed CLEAN after a deletion the app had just called
+        irreversible, so closing threw the deletion away with no prompt."""
         if mixture in self._mixtures:
+            driven = [s for s in mixture.specimens if s is not None]
             self._mixtures.remove(mixture)
+            self.clear_orphaned_patterns(driven)
+            self.data_changed.emit()
+
+    def clear_orphaned_patterns(self, candidates=None) -> list:
+        """Clear the calculated pattern of specimens NO mixture drives any more.
+
+        `candidates` are the specimens just detached from something - a deleted
+        mixture, an emptied row. Each is cleared only if no REMAINING mixture
+        drives it, because a specimen may sit in several mixtures and the others
+        still produce its curve.
+
+        Pass the affected specimens, not None. Called with None it sweeps every
+        specimen, which would also clear a curve that was ALREADY orphaned long
+        before this edit and has nothing to do with it - `308 r1.mud` carries
+        exactly such a specimen. Clearing derived data is defensible as the
+        direct consequence of an action the user just confirmed; doing it to an
+        unrelated specimen as a side effect is not.
+
+        Returns the specimens cleared.
+        """
+        driven = {id(specimen)
+                  for mixture in self._mixtures
+                  for specimen in mixture.specimens
+                  if specimen is not None}
+        pool = self._specimens if candidates is None else candidates
+        cleared = []
+        for specimen in pool:
+            if specimen is None or id(specimen) in driven:
+                continue
+            if not specimen.has_calculated_data:
+                continue
+            specimen.set_calculated_pattern(np.empty(0), np.empty(0))
+            cleared.append(specimen)
+        return cleared
 
     def calculate(self) -> None:
         """Recompute every mixture's calculated patterns (non-optimising).
@@ -362,7 +455,18 @@ class Project(QObject):
         self.specimens_changed.emit()
         return specimen
 
-    def remove_specimen(self, specimen: Specimen) -> None:
+    def remove_specimen(self, specimen: Specimen) -> bool:
+        """Remove a specimen from the project.
+
+        Refused (returns False) while a mixture still holds it in a row: the
+        mixture is fitting against it, so dropping it silently would change what
+        the model means. Free the row first - assign "(none)", or remove the row
+        - and `specimen_usage` says which mixture and which rows.
+
+        Returns True if the specimen was removed.
+        """
+        if self.specimen_usage(specimen):
+            return False
         if specimen in self._specimens:
             specimen.data_changed.disconnect(self.data_changed)
             specimen.visuals_changed.disconnect(self.visuals_changed)
@@ -380,3 +484,5 @@ class Project(QObject):
             specimen.deleteLater()
             self.specimens_changed.emit()
             self.data_changed.emit()
+            return True
+        return False

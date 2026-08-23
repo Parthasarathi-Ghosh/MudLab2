@@ -103,8 +103,10 @@ def check_add(path, results):
                     or np.isfinite(reloaded.mixtures[0].current_residual())))
 
 
-def check_remove_clears_mixture(path, results):
-    """4. Mixture cells holding the phase empty out - resolved AND uuid grid."""
+def check_remove_in_use(path, results):
+    """4. A phase a mixture uses is NOT deletable - the project refuses and the
+    grid is untouched. Freed, the same delete goes through and leaves no uuid
+    behind (a stale uuid would revive the phase on the next load)."""
     project = load_mud(path)
     if not project.mixtures:
         return
@@ -120,10 +122,20 @@ def check_remove_clears_mixture(path, results):
     if target is None:
         return
 
-    project.remove_phase(target)
-    results.append(("4 phase gone from the project", target not in project.phases))
+    removed = project.remove_phase(target)
+    results.append(("4 deleting a phase a mixture uses is REFUSED",
+                    removed is False and target in project.phases))
     still_resolved = any(p is target for row in mixture.phase_matrix for p in row)
-    results.append(("4 no mixture cell still resolves to it", not still_resolved))
+    results.append(("4 its mixture cells are untouched by the refusal",
+                    still_resolved))
+    results.append(("4 phase_usage names the mixture holding it",
+                    any(m is mixture for m, _cells in project.phase_usage(target))))
+
+    # Free it the way the user would, then delete for real.
+    for other in project.mixtures:
+        other.unset_phase(target)
+    results.append(("4 a freed phase deletes", project.remove_phase(target) is True))
+    results.append(("4 phase gone from the project", target not in project.phases))
     still_uuid = any(u == target.uuid for row in mixture.phase_uuids for u in row)
     results.append(("4 no mixture uuid still names it (else save revives it)",
                     not still_uuid))
@@ -155,7 +167,13 @@ def check_remove_cascades_based_on(path, results):
         for d in dependants
     ]
 
-    project.remove_phase(parent)
+    # In a real project the parent is usually IN a mixture, and that is now a
+    # refusal - so free it first; the cascade being tested here is the
+    # inheritance one, which is unrelated to mixture membership.
+    for mixture in project.mixtures:
+        mixture.unset_phase(parent)
+    results.append(("2 the freed parent deletes",
+                    project.remove_phase(parent) is True))
     results.append(("2 dependants' based_on cleared",
                     all(d.based_on is None for d in dependants)))
     results.append(("2 dependants keep their RESOLVED F values (snapshot-on-detach)",
@@ -194,7 +212,10 @@ def check_remove_clears_links(path, results):
             break
     if target is None:
         return
-    project.remove_phase(target)
+    for mixture in project.mixtures:
+        mixture.unset_phase(target)
+    results.append(("3 the freed template phase deletes",
+                    project.remove_phase(target) is True))
     results.append(("3 components linked to the removed phase are unlinked (%d)"
                     % len(dependants),
                     all(c.linked_with is None for c in dependants)))
@@ -203,10 +224,12 @@ def check_remove_clears_links(path, results):
 
 
 def check_remove_specimen(path, results):
-    """5. remove_specimen must unset the specimen from every mixture.
+    """5. A specimen a mixture is fitting against is NOT deletable; freed, it
+    deletes and the mixture stops fitting it.
 
-    Regression guard: it did not, so the optimiser kept fitting against a
-    deleted specimen - the residual was byte-identical before and after.
+    Regression guard behind the second half: remove_specimen once left the row
+    in place, so the optimiser kept fitting a deleted specimen - the residual
+    was byte-identical before and after.
     """
     project = load_mud(path)
     if not project.mixtures:
@@ -217,7 +240,19 @@ def check_remove_specimen(path, results):
         return
     spec = rows[0]
     before = mixture.current_residual()
-    project.remove_specimen(spec)
+    results.append(("5 deleting a specimen a mixture uses is REFUSED",
+                    project.remove_specimen(spec) is False
+                    and spec in project.specimens))
+    results.append(("5 the refusal leaves the mixture row alone",
+                    any(s is spec for s in mixture.specimens)
+                    and mixture.current_residual() == before))
+    results.append(("5 specimen_usage names the mixture holding it",
+                    any(m is mixture for m, _rows in project.specimen_usage(spec))))
+
+    for other in project.mixtures:
+        other.unset_specimen(spec)
+    results.append(("5 a freed specimen deletes",
+                    project.remove_specimen(spec) is True))
     after = mixture.current_residual()
     results.append(("5 removed specimen is gone from the project",
                     spec not in project.specimens))
@@ -236,7 +271,7 @@ def run(path):
     print("=" * 72)
     results = []
     check_add(path, results)
-    check_remove_clears_mixture(path, results)
+    check_remove_in_use(path, results)
     check_remove_cascades_based_on(path, results)
     check_remove_clears_links(path, results)
     check_remove_specimen(path, results)

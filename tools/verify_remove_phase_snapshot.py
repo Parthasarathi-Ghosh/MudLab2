@@ -104,6 +104,21 @@ if PATH is None:
     raise SystemExit(2)
 
 
+def _delete_after_freeing(project, phase):
+    """Delete `phase` the way the UI now requires.
+
+    A phase a mixture still uses is refused outright, and in a real fixture
+    almost every phase sits in one - so free its cells first. Mixture membership
+    is orthogonal to what this harness tests (the inheritance / component-link
+    cascade), and the specimen these checks watch never has `phase` in its row.
+    """
+    for mixture in project.mixtures:
+        mixture.unset_phase(phase)
+    removed = project.remove_phase(phase)
+    check("setup: the freed phase %r deletes" % (phase.name,), removed is True)
+    return removed
+
+
 def check_preserves_pattern():
     project = load_mud(PATH)
     B, D, mix, spec = _find_base_dependent_specimen(project)
@@ -117,7 +132,7 @@ def check_preserves_pattern():
     check("setup: editing the base moves the dependant's specimen pattern",
           not np.allclose(baseline, pre))
 
-    project.remove_phase(B)
+    _delete_after_freeing(project, B)
     mix.calculate()
     after = spec.calculated_pattern[1]
     check("remove_phase: dependant specimen pattern preserved (snapshot worked)",
@@ -166,7 +181,7 @@ def check_aliasing_dedup():
     second.inherit_layer_atoms = True
     second.inherit_interlayer_atoms = True
 
-    project.remove_phase(base_phase)
+    _delete_after_freeing(project, base_phase)
 
     # NB: duplicate atom uuids across linked components are a benign, pre-existing
     # norm here (the old app inlined each linked copy keeping the template's
@@ -199,7 +214,7 @@ def check_midchain_deletion():
     C.inherit_sigma_star = B.inherit_sigma_star = True
     A._sigma_star = 0.111  # a value distinct from B's / C's own
     before = C.sigma_star   # reads through B -> A
-    project.remove_phase(B)  # delete the middle node
+    _delete_after_freeing(project, B)  # delete the middle node
     check("mid-chain: deleting the middle node keeps C's resolved value",
           abs(C.sigma_star - before) < 1e-12 and C.based_on is not B)
 

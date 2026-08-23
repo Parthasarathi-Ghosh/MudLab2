@@ -938,7 +938,9 @@ def check_audit_stale_mapping():
     phase = structural_phases(project)[0]
     set_as_baseline(project, phase)
     dead_uuid = phase.uuid
-    project.remove_phase(phase)
+    for mixture in project.mixtures:   # an in-use phase is not deletable
+        mixture.unset_phase(phase)
+    check("audit: the phase deletes once freed", project.remove_phase(phase))
     save_mud(project, TMP)
     try:
         written = _project_props(TMP).get("default_phase_map") or {}

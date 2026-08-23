@@ -434,9 +434,20 @@ class EditMixtureWidget(QWidget):
         self._mixture.add_phase_slot("New Phase", 1.0)
         self._after_structural_change()
 
-    def _after_structural_change(self) -> None:
+    def _after_structural_change(self, detached=None) -> None:
         """Rebuild the grid, recompute and refresh the residual after a slot /
-        specimen was added or removed."""
+        specimen was added or removed.
+
+        `detached` are specimens this edit took out of the grid - an emptied row
+        or a deleted one. They keep the calculated pattern THIS mixture gave
+        them, and it is written to the file, so a curve with no model behind it
+        would sit on the plot. The project clears the ones no OTHER mixture
+        still drives; a specimen shared with another mixture keeps its curve,
+        because that other mixture still produces it.
+        """
+        project = getattr(self, "_project", None)
+        if project is not None and detached:
+            project.clear_orphaned_patterns(detached)
         self._populate()
         self._notify()
         self._update_residual_label()
@@ -512,8 +523,16 @@ class EditMixtureWidget(QWidget):
         if chosen is None:
             return
         if chosen is act_remove:
+            in_range = 0 <= spec_index < len(self._mixture.specimens)
+            detached = ([self._mixture.specimens[spec_index]] if in_range
+                        else [])
             self._mixture.del_specimen_slot(spec_index)
-            self._after_structural_change()
+            self._after_structural_change(detached)
         elif chosen in by_action:
+            # Reassigning a row detaches whoever was in it (including the
+            # "(none)" case, which empties the row).
+            in_range = 0 <= spec_index < len(self._mixture.specimens)
+            previous = (self._mixture.specimens[spec_index] if in_range
+                        else None)
             self._mixture.set_specimen_at(spec_index, by_action[chosen])
-            self._after_structural_change()
+            self._after_structural_change([previous] if previous is not None else [])
