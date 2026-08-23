@@ -17,7 +17,10 @@ Covers the whole path the feature adds:
     that moment - the only moment it is provably unrefined;
   - FROZEN BASELINES + Set as baseline, including the INHERITING case that
     a naive copy gets badly wrong;
-  - the AUDIT findings, each pinned so it cannot come back.
+  - the AUDIT findings, each pinned so it cannot come back;
+  - the two-pane Compositions dialog and its comparison plot;
+  - the Default-phases list filter and its no-scroll combos, and where the
+    focus lands after Add phase.
 
 The feature is purely additive: an existing project that never gets a
 composition must round-trip exactly as it did before, which is what the
@@ -54,9 +57,9 @@ from mudlab.default_state import (
     available_default_names, capture_catalog_defaults,
     capture_imported_defaults, custom_default_names,
     default_state_composition, default_substitutes, import_custom_defaults,
-    make_baseline_copy, mapping_is_complete, resolve_default_phase,
-    set_as_baseline, structural_phases, suggest_default_phase_map,
-    unmapped_phases,
+    make_baseline_copy, mapping_is_complete, phases_used_in_mixtures,
+    resolve_default_phase, set_as_baseline, structural_phases,
+    suggest_default_phase_map, unmapped_phases,
 )
 from mudlab.file_parsers.atom_type_library import load_atom_type_library
 from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
@@ -69,8 +72,13 @@ from mudlab.file_parsers import load_mud, save_mud
 from mudlab.import_composition_dialog import ImportCompositionDialog
 from mudlab.models import Composition
 from mudlab.models.project import Project
+from mudlab.qt_utils import install_enter_policy
 
 app = QApplication.instance() or QApplication([])
+# The app installs an application-wide Enter policy at start-up; the dialogs
+# rely on it, so the harness has to run under it too or it would be testing a
+# configuration no user ever sees.
+install_enter_policy(app)
 results: list[tuple[str, bool]] = []
 
 
@@ -991,6 +999,467 @@ def check_audit_no_default_column():
           "shown at their current state" in partial.ui.lbl_title.text())
 
 
+
+# ======================================================================
+# The two-pane dialog and its comparison plot
+# ======================================================================
+def check_comparison_plot():
+    project = load_mud(PATH)
+    mixture = project.mixtures[0]
+    project.set_composition(Composition(name="XRF", oxides=SAMPLE))
+    project.set_default_phase_map(suggest_default_phase_map(project))
+    dialog = CompositionDialog(mixture, project=project)
+
+    check("plot: the dialog has a left pane and a plot pane",
+          hasattr(dialog.ui, "leftPane") and hasattr(dialog.ui, "plotLayout"))
+    check("plot: the table is in the LEFT pane",
+          dialog.ui.leftPane.isAncestorOf(dialog.ui.tbl_composition))
+    check("plot: a canvas is embedded in the right pane",
+          dialog.ui.plotLayout.count() >= 1 and dialog._canvas is not None)
+
+    def lines():
+        return dialog._axes.get_lines()
+
+    oxides = len(dialog._oxide_rows)
+    check("plot: one LINE per column, joining the oxides",
+          len(lines()) == len(dialog._specimen_names))
+    check("plot: each line has a point per oxide",
+          all(len(line.get_ydata()) == oxides for line in lines()))
+    check("plot: one tick per oxide",
+          len(dialog._axes.get_xticks()) == oxides)
+    check("plot: the oxide names are the x axis",
+          [label.get_text() for label in dialog._axes.get_xticklabels()]
+          == [oxide for oxide, _v in dialog._oxide_rows])
+
+    # It must follow the same columns the table shows - one source of truth.
+    before = len(dialog._specimen_names)
+    dialog.ui.chk_measured.setChecked(True)
+    app.processEvents()
+    check("plot: adding the measured column adds its line",
+          len(lines()) == len(dialog._specimen_names) == before + 1)
+    labels = [text.get_text() for text in dialog._axes.get_legend().get_texts()]
+    check("plot: the legend has one entry per column",
+          len(labels) == len(dialog._specimen_names))
+    check("plot: the measured series is named as measured",
+          any("measured" in label for label in labels))
+
+    dialog.ui.chk_default.setChecked(True)
+    app.processEvents()
+    labels = [text.get_text() for text in dialog._axes.get_legend().get_texts()]
+    # AUDIT REGRESSION: eliding the whole label cut " (default)" off, so a
+    # specimen and its own default state appeared under one identical name -
+    # the two series the plot exists to compare.
+    check("plot: a default series keeps its (default) suffix in the legend",
+          any(label.endswith("(default)") for label in labels))
+    check("plot: no two legend entries are identical",
+          len(set(labels)) == len(labels))
+    check("plot: a default line is dashed, so a pair reads as before/after",
+          any(line.get_linestyle() in ("--", "dashed") for line in lines()))
+
+    # The points must be the values in the table, not a re-derivation.
+    ok = True
+    for index, line in enumerate(lines()):
+        drawn = [round(float(v), 6) for v in line.get_ydata()]
+        expected = [round(values[index], 6)
+                    for _oxide, values in dialog._oxide_rows]
+        ok = ok and drawn == expected
+    check("plot: every point comes from the table's own rows", ok)
+
+    # The index overlays the plot with no background of its own.
+    check("plot: the index has no background (lines read through it)",
+          not dialog._axes.get_legend().get_frame_on())
+    tallest = max(max(line.get_ydata()) for line in lines())
+    check("plot: the axes leave headroom for the index",
+          dialog._axes.get_ylim()[1] > tallest)
+
+
+def check_plot_too_many_columns():
+    """Past a sensible number of columns the lines stop being readable, so the
+    plot says so rather than drawing spaghetti - the table still has it all."""
+    project = load_mud(PATH)
+    dialog = CompositionDialog(project.mixtures[0], project=project)
+    dialog._specimen_names = ["col %d" % i
+                              for i in range(dialog._MAX_PLOT_SERIES + 2)]
+    dialog._oxide_rows = [(oxide, [1.0] * len(dialog._specimen_names))
+                          for oxide, _v in dialog._oxide_rows]
+    dialog._draw_plot()
+    check("plot: too many columns draws no lines", not dialog._axes.get_lines())
+    check("plot: ...and says why instead",
+          any("too many" in text.get_text() for text in dialog._axes.texts))
+
+
+def check_unused_filter():
+    project = load_mud(PATH)
+    project.set_default_phase_map({})
+    phases = structural_phases(project)
+    used = phases_used_in_mixtures(project)
+    unused = [ph for ph in phases if ph.uuid not in used]
+
+    dialog = DefaultPhasesDialog(project)
+    check("filter: only phases a mixture uses are listed",
+          dialog.ui.tbl_phases.rowCount() == len(phases) - len(unused))
+    if unused:
+        check("filter: the status says how many are hidden",
+              "hidden" in dialog.ui.lbl_status.text())
+    dialog.ui.chk_show_unused.setChecked(True)
+    app.processEvents()
+    check("filter: showing unused lists every phase",
+          dialog.ui.tbl_phases.rowCount() == len(phases))
+    dialog.ui.chk_show_unused.setChecked(False)
+    app.processEvents()
+    check("filter: unticking hides them again",
+          dialog.ui.tbl_phases.rowCount() == len(phases) - len(unused))
+
+    if unused:
+        # A statement made on an unused phase must survive being hidden - the
+        # filter is a VIEW, and must never be a way to lose a mapping.
+        dialog.ui.chk_show_unused.setChecked(True)
+        app.processEvents()
+        row = [i for i, ph in enumerate(dialog._phases) if ph is unused[0]][0]
+        dialog._combos[row].setCurrentIndex(1)
+        chosen = dialog._combos[row].currentText()
+        dialog.ui.chk_show_unused.setChecked(False)
+        app.processEvents()
+        check("filter: hiding a row does not drop what it said",
+              unused[0].uuid not in {ph.uuid for ph in dialog._phases})
+        dialog._on_accept()
+        check("filter: ...and accept still carries it",
+              dialog.mapping.get(unused[0].uuid) == chosen)
+
+        # An unused phase that ALREADY has a default stays visible, so an
+        # existing statement is never hidden behind a checkbox.
+        project.set_default_phase_map({unused[0].uuid: chosen})
+        again = DefaultPhasesDialog(project)
+        check("filter: an unused phase with a default is still listed",
+              unused[0].uuid in {ph.uuid for ph in again._phases})
+
+
+def check_combo_ignores_wheel():
+    """A combo in a table row must not eat the wheel: scrolling the list would
+    silently re-state every default it passed over."""
+    from PySide6.QtCore import QPoint, Qt as _Qt
+    from PySide6.QtGui import QWheelEvent
+
+    project = load_mud(PATH)
+    dialog = DefaultPhasesDialog(project)
+    combo = dialog._combos[0]
+    combo.setCurrentIndex(3)
+    before = combo.currentIndex()
+    event = QWheelEvent(
+        QPoint(5, 5), combo.mapToGlobal(QPoint(5, 5)), QPoint(0, -120),
+        QPoint(0, -120), _Qt.MouseButton.NoButton,
+        _Qt.KeyboardModifier.NoModifier, _Qt.ScrollPhase.NoScrollPhase, False)
+    combo.wheelEvent(event)
+    app.processEvents()
+    check("wheel: scrolling over a combo does NOT change its selection",
+          combo.currentIndex() == before)
+    check("wheel: ...and the event is passed on, so the table scrolls",
+          not event.isAccepted())
+
+
+def check_focus_after_add():
+    """After Add phase the caret belongs in the new phase's Name box - naming it
+    is the first thing anyone does, and the focus used to fall back to the Add
+    button, where the next Return adds another phase."""
+    from PySide6.QtWidgets import QDialog as _QDialog
+
+    from mudlab.add_phase_dialog import AddPhaseDialog
+    from mudlab.edit_phases_dialog import EditPhasesDialog
+
+    cases = (
+        ("empty", "rdb_empty_phase", "phase_widget", "phase_name"),
+        ("default", "rdb_default_phase", "phase_widget", "phase_name"),
+        ("raw", "rdb_raw_pattern", "raw_phase_widget", "raw_phase_name"),
+    )
+    for label, radio, widget_name, field in cases:
+        project = load_mud(PATH)
+        dialog = EditPhasesDialog(project=project)
+        dialog.show()
+        app.processEvents()
+        real = AddPhaseDialog.exec
+
+        def fake(self, _radio=radio):
+            getattr(self.ui, _radio).setChecked(True)
+            return _QDialog.DialogCode.Accepted
+
+        AddPhaseDialog.exec = fake
+        try:
+            dialog._on_add_phase()
+            app.processEvents()
+        finally:
+            AddPhaseDialog.exec = real
+        widget = getattr(dialog, widget_name)
+        edit = getattr(widget.ui, field)
+        check("focus: a %s phase opens its own editor" % label, widget.isVisible())
+        check("focus: ...with the caret in its Name box" , edit.hasFocus())
+        check("focus: ...and the name selected, so typing replaces it",
+              edit.selectedText() == edit.text() and bool(edit.text()))
+        dialog.close()
+        app.processEvents()
+
+
+
+def check_enter_does_not_fire_a_button():
+    """AUDIT: Qt gives every QPushButton in a QDialog `autoDefault` and promotes
+    one to THE default on show. In Edit Phases the winner was **Add**, so Return
+    pressed anywhere that does not consume it - a name box, a spin box, a combo -
+    silently added another phase."""
+    from PySide6.QtCore import Qt as _Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import (
+        QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QPushButton, QSpinBox,
+    )
+
+    from mudlab.edit_phases_dialog import EditPhasesDialog
+
+    project = load_mud(PATH)
+    dialog = EditPhasesDialog(project=project)
+    dialog.show()
+    app.processEvents()
+    check("enter: no button is the dialog's default",
+          not any(b.isDefault() for b in dialog.findChildren(QPushButton)))
+    check("enter: no button can grab it by taking focus",
+          not any(b.autoDefault() for b in dialog.findChildren(QPushButton)))
+
+    before = len(project.phases)
+    pressed = 0
+    for kind in (QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QCheckBox,
+                 QPushButton):
+        for widget in dialog.phase_widget.findChildren(kind):
+            if not widget.isEnabled():
+                continue
+            widget.setFocus()
+            for key in (_Qt.Key.Key_Return, _Qt.Key.Key_Enter):
+                app.sendEvent(widget, QKeyEvent(
+                    QKeyEvent.Type.KeyPress, key, _Qt.KeyboardModifier.NoModifier))
+                app.sendEvent(widget, QKeyEvent(
+                    QKeyEvent.Type.KeyRelease, key, _Qt.KeyboardModifier.NoModifier))
+            pressed += 1
+    app.processEvents()
+    check("enter: pressing it across the whole editor pane (%d widgets) adds "
+          "no phase" % pressed, len(project.phases) == before)
+    dialog.close()
+    app.processEvents()
+
+
+def check_mixtures_enter_adds_nothing():
+    """The same autoDefault trap in Edit Mixtures, where the promoted button was
+    **Add** - so Return in a fraction cell added a mixture."""
+    from PySide6.QtCore import Qt as _Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import (
+        QComboBox, QDoubleSpinBox, QLineEdit, QPushButton, QTableWidget,
+    )
+
+    from mudlab.edit_mixtures_dialog import EditMixturesDialog
+
+    project = load_mud(PATH)
+    dialog = EditMixturesDialog(project=project)
+    dialog.show()
+    app.processEvents()
+    check("enter: Edit Mixtures has no default button",
+          not any(b.isDefault() for b in dialog.findChildren(QPushButton)))
+    before = len(project.mixtures)
+    for kind in (QLineEdit, QDoubleSpinBox, QComboBox, QTableWidget, QPushButton):
+        for widget in dialog.mixture_widget.findChildren(kind):
+            if not widget.isEnabled():
+                continue
+            widget.setFocus()
+            for key in (_Qt.Key.Key_Return, _Qt.Key.Key_Enter):
+                app.sendEvent(widget, QKeyEvent(
+                    QKeyEvent.Type.KeyPress, key, _Qt.KeyboardModifier.NoModifier))
+                app.sendEvent(widget, QKeyEvent(
+                    QKeyEvent.Type.KeyRelease, key, _Qt.KeyboardModifier.NoModifier))
+    app.processEvents()
+    check("enter: ...and pressing it in the editor adds no mixture",
+          len(project.mixtures) == before)
+    dialog.close()
+    app.processEvents()
+
+
+def check_enter_policy_across_dialogs():
+    """The app-wide policy: Enter accepts only where a QDialogButtonBox says so.
+
+    A loose button never becomes the default again - that is what kept picking
+    something destructive by accident of tab order. A button box IS the app
+    declaring the dialog has an accept action, so Enter=OK stays there, which is
+    what a modal form should do."""
+    from PySide6.QtWidgets import QDialogButtonBox, QPushButton
+
+    from mudlab.add_phase_dialog import AddPhaseDialog
+    from mudlab.csv_import_dialog import CsvImportDialog
+
+    project = load_mud(PATH)
+
+    # 1. Loose buttons: no default at all.
+    loose = [("Compositions", CompositionDialog(project.mixtures[0],
+                                                project=project))]
+    for label, dialog in loose:
+        dialog.show()
+        app.processEvents()
+        check("policy: %s has no default (its buttons are loose)" % label,
+              not any(b.isDefault() for b in dialog.findChildren(QPushButton)))
+        dialog.close()
+        app.processEvents()
+
+    # 2. Button-box dialogs KEEP Enter = accept.
+    boxed = [("Add phase", AddPhaseDialog()),
+             ("Import composition", ImportCompositionDialog()),
+             ("Default phases", DefaultPhasesDialog(project)),
+             ("CSV import", CsvImportDialog())]
+    for label, dialog in boxed:
+        dialog.show()
+        app.processEvents()
+        default = [b for b in dialog.findChildren(QPushButton) if b.isDefault()]
+        in_box = False
+        if default:
+            for box in dialog.findChildren(QDialogButtonBox):
+                if default[0] in box.buttons():
+                    in_box = (box.buttonRole(default[0])
+                              == QDialogButtonBox.ButtonRole.AcceptRole)
+        check("policy: %s keeps Enter = accept" % label, in_box)
+        dialog.close()
+        app.processEvents()
+
+
+
+def check_audit_filter_keeps_hidden_statements():
+    """AUDIT: a statement made while a row was visible, then hidden, lived ONLY
+    in `_hidden` until accept - and `_refresh_rows` rebuilt from the project
+    alone, so the very next rebuild (a second filter toggle, or an Import) threw
+    it away silently."""
+    from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
+
+    project = load_mud(PATH)
+    project.set_default_phase_map({})
+    add_catalog_entry_to_project(project, "Kaolinite")   # in no mixture
+    unused = [ph for ph in structural_phases(project)
+              if ph.uuid not in phases_used_in_mixtures(project)]
+    if not unused:
+        check("audit: (no unused phase available to test the filter)", True)
+        return
+
+    dialog = DefaultPhasesDialog(project)
+    dialog.ui.chk_show_unused.setChecked(True)
+    app.processEvents()
+    row = [i for i, ph in enumerate(dialog._phases) if ph is unused[0]][0]
+    dialog._combos[row].setCurrentIndex(1)
+    chosen = dialog._combos[row].currentText()
+    dialog.ui.chk_show_unused.setChecked(False)
+    app.processEvents()
+    check("audit: hiding a stated row parks it, it is not lost",
+          dialog._hidden.get(unused[0].uuid) == chosen)
+
+    # The rebuild that used to drop it (what Import does).
+    dialog._refresh_rows(keep=dialog._current())
+    check("audit: a SECOND rebuild still keeps it",
+          dialog._hidden.get(unused[0].uuid) == chosen)
+    dialog.ui.chk_show_unused.setChecked(True)
+    app.processEvents()
+    row = [i for i, ph in enumerate(dialog._phases) if ph is unused[0]][0]
+    check("audit: showing it again shows what was stated",
+          dialog._combos[row].currentText() == chosen)
+    dialog._on_accept()
+    check("audit: ...and accept carries it",
+          dialog.mapping.get(unused[0].uuid) == chosen)
+
+    # "Clear all" must mean all - including the rows the filter is hiding.
+    again = DefaultPhasesDialog(project)
+    again.ui.chk_show_unused.setChecked(True)
+    app.processEvents()
+    again._on_match()
+    again.ui.chk_show_unused.setChecked(False)
+    app.processEvents()
+    again._on_clear()
+    again._on_accept()
+    check("audit: Clear all clears the hidden rows too", again.mapping == {})
+
+
+def check_audit_object_store_enter():
+    """AUDIT: the autoDefault trap is a property of the SHELL, so every
+    object-store dialog had it - Edit Atom Types and Edit Markers promoted
+    **Add** too. Swept in ObjectStoreDialog.showEvent, which also runs after the
+    subclass has finished building."""
+    from PySide6.QtWidgets import QPushButton
+
+    from mudlab.edit_atom_types_dialog import EditAtomTypesDialog
+    from mudlab.edit_markers_dialog import EditMarkersDialog
+    from mudlab.edit_mixtures_dialog import EditMixturesDialog
+    from mudlab.edit_phases_dialog import EditPhasesDialog
+
+    project = load_mud(PATH)
+    dialogs = [
+        ("Edit Phases", EditPhasesDialog(project=project)),
+        ("Edit Mixtures", EditMixturesDialog(project=project)),
+        ("Edit Atom Types", EditAtomTypesDialog(project=project)),
+    ]
+    specimens = [s for s in project.specimens if s is not None]
+    if specimens:
+        dialogs.append(("Edit Markers", EditMarkersDialog(specimen=specimens[0])))
+    for label, dialog in dialogs:
+        dialog.show()
+        app.processEvents()
+        check("audit: %s has no default button (Enter fires nothing)" % label,
+              not any(b.isDefault() for b in dialog.findChildren(QPushButton)))
+        dialog.close()
+        app.processEvents()
+
+
+def check_audit_refine_enter():
+    """AUDIT: the Refine dialog promoted **Refine**, so a stray Return - in the
+    parameter tree, or after typing an option - started a run that rewrites the
+    model and can take minutes."""
+    from PySide6.QtCore import Qt as _Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import QPushButton
+
+    from mudlab.refinement_dialog import RefinementDialog
+
+    project = load_mud(PATH)
+    mixture = project.mixtures[0]
+    for ref in mixture.refinables():          # nothing flagged: a run would be
+        ref.set_ref_info(refine=False)        # near-instant if one did start
+    dialog = RefinementDialog(mixture=mixture)
+    # Never Basin Hopping in a UI test.
+    dialog.ui.cmb_method.setCurrentIndex(dialog.ui.cmb_method.findData(0))
+    dialog.show()
+    app.processEvents()
+    check("audit: the Refine dialog has no default button",
+          not any(b.isDefault() for b in dialog.findChildren(QPushButton)))
+    for widget in (dialog.ui.tree_refinables,
+                   list(dialog._option_spins.values())[0][0]):
+        widget.setFocus()
+        for key in (_Qt.Key.Key_Return, _Qt.Key.Key_Enter):
+            app.sendEvent(widget, QKeyEvent(
+                QKeyEvent.Type.KeyPress, key, _Qt.KeyboardModifier.NoModifier))
+            app.sendEvent(widget, QKeyEvent(
+                QKeyEvent.Type.KeyRelease, key, _Qt.KeyboardModifier.NoModifier))
+        app.processEvents()
+    check("audit: Enter does not start a refinement",
+          dialog._thread is None and dialog._refiner is None)
+    dialog._abort_refinement()
+    dialog.close()
+    app.processEvents()
+
+
+def check_audit_escape_still_closes():
+    """Enter no longer closes these dialogs, so Esc has to - it is the only
+    keyboard way out."""
+    from PySide6.QtCore import Qt as _Qt
+    from PySide6.QtGui import QKeyEvent
+
+    from mudlab.edit_phases_dialog import EditPhasesDialog
+
+    project = load_mud(PATH)
+    dialog = EditPhasesDialog(project=project)
+    dialog.show()
+    app.processEvents()
+    dialog.keyPressEvent(QKeyEvent(QKeyEvent.Type.KeyPress, _Qt.Key.Key_Escape,
+                                   _Qt.KeyboardModifier.NoModifier))
+    app.processEvents()
+    check("audit: Esc still closes an object-store dialog", not dialog.isVisible())
+
+
 def main():
     print("fixture: %s" % os.path.basename(PATH))
     check_model()
@@ -1016,6 +1485,18 @@ def main():
     check_audit_stale_mapping()
     check_audit_unresolvable_mapping()
     check_audit_no_default_column()
+    check_comparison_plot()
+    check_plot_too_many_columns()
+    check_unused_filter()
+    check_combo_ignores_wheel()
+    check_focus_after_add()
+    check_enter_does_not_fire_a_button()
+    check_mixtures_enter_adds_nothing()
+    check_enter_policy_across_dialogs()
+    check_audit_filter_keeps_hidden_statements()
+    check_audit_object_store_enter()
+    check_audit_refine_enter()
+    check_audit_escape_still_closes()
 
     passed = sum(1 for _, ok in results if ok)
     total = len(results)

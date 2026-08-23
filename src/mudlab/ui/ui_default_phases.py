@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication, QDialog,
-    QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
-    QPushButton, QSizePolicy, QSpacerItem, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication, QCheckBox,
+    QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView,
+    QLabel, QPushButton, QSizePolicy, QSpacerItem,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_DefaultPhasesDialog(object):
     def setupUi(self, DefaultPhasesDialog):
@@ -53,6 +53,11 @@ class Ui_DefaultPhasesDialog(object):
         self.button_clear.setObjectName(u"button_clear")
 
         self.actionRow.addWidget(self.button_clear)
+
+        self.chk_show_unused = QCheckBox(DefaultPhasesDialog)
+        self.chk_show_unused.setObjectName(u"chk_show_unused")
+
+        self.actionRow.addWidget(self.chk_show_unused)
 
         self.button_import = QPushButton(DefaultPhasesDialog)
         self.button_import.setObjectName(u"button_import")
@@ -93,6 +98,10 @@ class Ui_DefaultPhasesDialog(object):
         self.button_match.setToolTip(QCoreApplication.translate("DefaultPhasesDialog", u"Fill in every phase whose name exactly matches a built-in default phase. Renamed phases are left for you to set.", None))
 #endif // QT_CONFIG(tooltip)
         self.button_clear.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Clear all", None))
+        self.chk_show_unused.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Show unused phases", None))
+#if QT_CONFIG(tooltip)
+        self.chk_show_unused.setToolTip(QCoreApplication.translate("DefaultPhasesDialog", u"Also list phases that are in the project but not in any mixture. They cannot affect a composition, so they are hidden by default. Anything you have already stated for them is kept either way.", None))
+#endif // QT_CONFIG(tooltip)
         self.button_import.setText(QCoreApplication.translate("DefaultPhasesDialog", u"Import .phs...", None))
 #if QT_CONFIG(tooltip)
         self.button_import.setToolTip(QCoreApplication.translate("DefaultPhasesDialog", u"Import your own reference phase from a .phs file, so it can be chosen as a default. It is saved with the project, and does NOT become a phase of the model.", None))

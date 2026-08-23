@@ -730,6 +730,129 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   freeze is applied to references captured from a .phs, because each is
   persisted independently and a based_on pointing at a sibling would dangle on
   reload and silently fall back to stale own values.
+  TWO-PANE COMPOSITION DIALOG + COMPARISON PLOT (2026-08-22). The dialog is now
+  1000x520 (min 860x420) with the existing controls+table in a left pane and a
+  grouped-bar plot in a new right pane: one group per OXIDE, one bar per table
+  column (modelled per specimen, default-state per specimen, measured XRF).
+  Driven from `_oxide_rows` in `_populate`, i.e. the SAME data the table and the
+  CSV export use, so the three cannot disagree. Measured = the one strong
+  colour; a default-state column is drawn HOLLOW (hatched, lower alpha) in its
+  specimen's own colour so a pair reads as before/after rather than as rivals.
+  Two things found by looking at the render: eliding the whole legend label cut
+  " (default)" off, so a specimen and its own baseline appeared under one
+  identical truncated name (now `_elide` shortens only the specimen part and
+  never the suffix); and an upper-right legend lands exactly on SiO2, the
+  tallest oxide at ~60 wt% (now proportional headroom, as in the refiner plot).
+  Past `_MAX_PLOT_SERIES` (10) columns it draws a message instead of mush.
+  NOTE the bars are drawn one SERIES at a time, so patches run COLUMN-major -
+  a harness check that assumed row-major compared the wrong values.
+  UI POLISH ROUND (2026-08-22/23), five items:
+  (a) COMPOSITION PLOT is LINES, not grouped bars - the oxides are a fixed
+  ordered set, so a line makes the SHAPE of a composition visible and a column
+  that departs stands out; bars put every series at a different x and hid that.
+  Index overlays the plot with NO background (frameon=False) + proportional
+  headroom (an upper-right legend lands on SiO2, the tallest oxide at ~60 wt%).
+  Measured = one bold solid line; a default-state column is DASHED in its
+  specimen's own colour so a pair reads as before/after. Two defects found only
+  by LOOKING at the render: eliding the whole legend label cut " (default)" off
+  so a specimen and its own baseline shared one truncated name (now `_elide`
+  shortens only the specimen part); and the legend sat on the tallest lines.
+  (b) DEFAULT PHASES list hides phases in NO mixture (7 of 15 on a real
+  project) - only `mixture.phase_matrix` can affect a composition, so the rest
+  is noise. "Show unused phases" reveals them; an unused phase that ALREADY has
+  a default stays visible, and anything stated on a row that is later hidden is
+  MERGED BACK on accept, so the filter is a view and never a way to lose a
+  mapping.
+  (c) The combos in that grid IGNORE THE MOUSE WHEEL (`_NoScrollComboBox`).
+  A combo in a table row swallows the wheel and CHANGES ITS SELECTION, so
+  scrolling the list silently re-stated every default it passed over.
+  (d) FOCUS after Add phase lands in the new phase's Name box with the text
+  SELECTED, picking the right editor per phase kind (clay / raw / non-clay).
+  (e) THE `autoDefault` TRAP - the real cause of "Enter goes to the Add button".
+  Qt gives every QPushButton in a QDialog autoDefault and promotes one to THE
+  default ON SHOW; Edit Phases promoted **Add**, so Return in any field that
+  does not consume it (name box, spin box, combo) added another phase. New
+  `qt_utils.clear_auto_default()` strips it from every button; applied to Edit
+  Phases (24 buttons) and Edit Mixtures (same bug - promoted **Add**, i.e.
+  Return added a MIXTURE). The Compositions view had the same trap as a
+  REGRESSION of this round - the new "Default phases..." button stole the
+  default from Close, so Enter opened a sub-dialog; it is cleared and given
+  back to Close alone. Default phases promotes OK, which is correct for a modal
+  and left alone. Guarded by brute force: Return AND Enter on every enabled
+  widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
+  nothing. Harness 214.
+- [ ] REVISIT THE ENTER / autoDefault POLICY once every UI element has had
+  feedback (user's call, 2026-08-23). The app-wide rule below is deliberately
+  blunt - Enter accepts only at an AcceptRole button, and does nothing anywhere
+  else - and it was settled from the dialogs as they stand TODAY. Once the user
+  has exercised each element in anger, revisit: some dialog may want Enter to
+  advance a field, submit a search, or accept where there is no button box at
+  all, and a per-dialog opt-in (set autoDefault back on that ONE button, after
+  the policy has run) is the intended escape hatch. Do not widen the default
+  rule without measuring which dialogs actually want it - a blanket change was
+  already tried twice and was wrong both times (see the two wrong turns below).
+  APP-WIDE ENTER POLICY (2026-08-23) - replaces the five per-dialog sweeps.
+  `qt_utils.install_enter_policy(app)` (called from `create_app`) filters Show
+  on THIS PROJECT'S dialogs and applies `clear_auto_default`. THE POLICY:
+  **Enter accepts only where a QDialogButtonBox declares an AcceptRole button;
+  otherwise it commits the field you are in and does nothing else; Esc always
+  closes.** An app-level filter rather than a per-dialog call because the trap
+  is Qt's, not any one dialog's - a per-dialog rule was already missed four
+  times - and Show runs AFTER the whole construction chain, so it catches
+  buttons a subclass or a late rebind adds. Scoped to `mudlab` dialogs, so
+  QMessageBox / QFileDialog behave exactly as Qt intends.
+  WHY autoDefault IS THE DEFAULT: Qt sets it on any QPushButton with a QDialog
+  ANCESTOR (including on reparenting); a button under a plain QWidget does not
+  get it. On show Qt promotes one to THE default, chosen by tab order - which
+  is why the winner kept being something destructive.
+  A BLANKET disable was considered and REJECTED, measured: four dialogs (Add
+  phase, Import composition, Default phases, CSV import) legitimately want
+  Enter=OK, and a blanket clear would strip it from all four.
+  TWO WRONG TURNS ON THE WAY, both worth not repeating:
+  (a) sparing EVERY button-box button - the editor dialogs' boxes hold a lone
+  **Close (RejectRole)**, which Qt then promoted, so Enter shut the editor
+  while the user was typing. Spare AcceptRole ONLY; Close already has Esc.
+  (b) excluding the spared buttons via an **id()-keyed set** - UNSOUND: the
+  wrappers `QDialogButtonBox.buttons()` yields are temporaries, CPython frees
+  one and reuses its address for the next, and the set spared the WRONG button
+  (measured: spared Cancel, cleared OK, in 2 of 4 dialogs). Now it sweeps
+  everything and then sets the flag back on the accept button explicitly - no
+  identity comparison at all. (A naive test that holds references to the
+  wrappers will NOT reproduce this; the ids look stable.)
+  VERIFIED Enter still commits what was typed: phase name (editingFinished,
+  and the phase-list row updates), sigma* spin box (valueChanged, already
+  live), and a mixture fraction cell (0.04 -> 0.1234, item view commits) - all
+  with no phase or mixture added. Final state: Add phase / Import composition /
+  Default phases / CSV import -> OK; the six editor-style dialogs -> nothing.
+  Harness 230.
+  AUDIT of the UI polish round (2026-08-23) - 4 real findings, all FIXED:
+  (1) SILENT DATA LOSS in the new unused-phase filter. A default stated while a
+  row was VISIBLE and then hidden lived only in `self._hidden` until accept, but
+  `_refresh_rows` rebuilt `stated` from the PROJECT alone - so the very next
+  rebuild (a second filter toggle, or an Import) threw it away with no sign.
+  Now seeded from three places in increasing recency: the project, `_hidden`,
+  then the visible rows. Also "Clear all" now clears the hidden rows too - the
+  button says all, and leaving hidden statements behind would send the user away
+  believing they had cleared something they had not.
+  (2) THE autoDefault TRAP IS A PROPERTY OF THE SHELL, so it was never just Edit
+  Phases + Edit Mixtures: **Edit Atom Types and Edit Markers promoted Add too**.
+  The sweep moved into `ObjectStoreDialog.showEvent` - one implementation for
+  all four, and showEvent runs AFTER the whole construction chain so it also
+  catches buttons a subclass adds (the per-dialog calls were removed).
+  (3) THE REFINE DIALOG PROMOTED **Refine** - a stray Return in the parameter
+  tree, or after typing an option, started a run that rewrites the model and can
+  take minutes. Measured from both the tree and an options spin box. Swept.
+  (4) (from the earlier round, restated) the Compositions view promoted the new
+  "Default phases..." button; cleared and given back to Close.
+  Checked and SOUND: the >10-column plot path leaves NO stale lines or legend
+  and recovers on the next refresh; an empty mixture does not crash the plot;
+  `_focus_editor_name` only ever focuses a VISIBLE pane and is a no-op with no
+  phase bound; **Esc still closes** every swept dialog (Enter no longer does, so
+  Esc is the keyboard way out). KNOWN COSMETIC LIMIT: `_short_label` parses the
+  " (default)"/" (measured)" suffix back out, so a specimen literally NAMED
+  "X (default)" renders like the default column of a specimen "X" - it would
+  take deliberately pathological naming, and fixing it means restructuring how
+  the column kind travels. Harness 226.
   AUDIT of the whole composition arc (2026-08-22, e4c2f77 + 86850b9) - 4 real
   findings, all FIXED, each with a regression check:
   (1) PERFORMANCE: capture_catalog_defaults built the WHOLE catalog index (224
@@ -761,7 +884,7 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   -> 118.2 on a 10-eval run) and (2) stacking probabilities changing the
   component weights (`_component_weights` = probabilities.get_distribution_
   array(); 0.8/0.2 -> 0.8675/0.1325). sigma*/CSDS/d001/delta_c do not affect
-  composition at all. Harness verify_composition_object.py now 176.
+  composition at all. Harness verify_composition_object.py now 230.
 - [x] Original-pattern overlay / live data-op preview - line_dialogs.py _SpecimenDialog._compute_preview + Specimen.preview_* (non-mutating) + PatternPlot.set_preview/clear_preview + main_window.set_pattern_preview; Remove Background/Smooth/Shift/Strip/Add Noise preview live over the original, clear on close; verify_pattern_preview.py + verify_data_op_preview.py
 - [x] CSV import options - csv_import.ui, csv_import_dialog.py (generic/views/glade/csv_import.glade); separator/decimal/header + live preview; common file_parsers/csv_io.py drives all CSV import/export; offered by the shared import_pattern helper; verify_csv_import.py
 - [x] Specimens context menu - main_window `_build_specimens_menu` (Add/Import, Edit specimen, Edit markers, View statistics, Remove specimen; per-specimen items need a single selection)

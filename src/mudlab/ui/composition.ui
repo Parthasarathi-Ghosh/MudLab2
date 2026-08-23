@@ -6,93 +6,154 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>440</width>
-    <height>320</height>
+    <width>1000</width>
+    <height>520</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>860</width>
+    <height>420</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Composition</string>
   </property>
   <layout class="QVBoxLayout" name="rootLayout">
    <item>
-    <widget class="QLabel" name="lbl_title">
-     <property name="text">
-      <string>Oxide composition of the specimens in this mixture (wt%):</string>
+    <layout class="QHBoxLayout" name="panesRow">
+     <property name="spacing">
+      <number>10</number>
      </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="chk_bulk">
-     <property name="toolTip">
-      <string>Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition, which instead weights each clay by fraction x formula mass - so the clay oxides themselves shift a little (~1 wt%) between the two views. Enabled only when the mixture has a non-clay phase.</string>
-     </property>
-     <property name="text">
-      <string>Include non-clay phases (bulk composition)</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="chk_measured">
-     <property name="toolTip">
-      <string>Add a column with the measured (XRF) analysis imported through Data -&gt; Import composition, normalised to 100% so it is directly comparable. Disabled when the project has no measured composition.</string>
-     </property>
-     <property name="text">
-      <string>Show measured (XRF) composition</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="defaultRow">
      <item>
-      <widget class="QCheckBox" name="chk_default">
-       <property name="toolTip">
-        <string>Add, for each specimen, the composition the mixture would have if every phase were still in its shipped default state - weighted by the fractions the fit found. Shows what refinement did to the chemistry. Needs the default phases to be stated first.</string>
+      <widget class="QWidget" name="leftPane" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>4</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
+       <layout class="QVBoxLayout" name="leftLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+     <item>
+      <widget class="QLabel" name="lbl_title">
        <property name="text">
-        <string>Show default-phase state</string>
+        <string>Oxide composition of the specimens in this mixture (wt%):</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btn_default_phases">
-       <property name="text">
-        <string>Default phases...</string>
-       </property>
+      <widget class="QCheckBox" name="chk_bulk">
        <property name="toolTip">
-        <string>State which built-in default phase each phase started as. Required for the default-state comparison, and remembered with the project.</string>
+        <string>Include non-clay phases: a bulk composition = each phase's own composition (normalised to 100%) weighted by its fraction. Unchecked shows the clay-only composition, which instead weights each clay by fraction x formula mass - so the clay oxides themselves shift a little (~1 wt%) between the two views. Enabled only when the mixture has a non-clay phase.</string>
+       </property>
+       <property name="text">
+        <string>Include non-clay phases (bulk composition)</string>
        </property>
       </widget>
      </item>
      <item>
-      <spacer name="defaultSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+      <widget class="QCheckBox" name="chk_measured">
+       <property name="toolTip">
+        <string>Add a column with the measured (XRF) analysis imported through Data -&gt; Import composition, normalised to 100% so it is directly comparable. Disabled when the project has no measured composition.</string>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
+       <property name="text">
+        <string>Show measured (XRF) composition</string>
        </property>
-      </spacer>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="defaultRow">
+       <item>
+        <widget class="QCheckBox" name="chk_default">
+         <property name="toolTip">
+          <string>Add, for each specimen, the composition the mixture would have if every phase were still in its shipped default state - weighted by the fractions the fit found. Shows what refinement did to the chemistry. Needs the default phases to be stated first.</string>
+         </property>
+         <property name="text">
+          <string>Show default-phase state</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_default_phases">
+         <property name="text">
+          <string>Default phases...</string>
+         </property>
+         <property name="toolTip">
+          <string>State which built-in default phase each phase started as. Required for the default-state comparison, and remembered with the project.</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="defaultSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="tbl_composition">
+       <property name="editTriggers">
+        <set>QAbstractItemView::NoEditTriggers</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::ContiguousSelection</enum>
+       </property>
+      </widget>
+     </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QWidget" name="rightPane" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>5</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <layout class="QVBoxLayout" name="plotLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+       </layout>
+      </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QTableWidget" name="tbl_composition">
-     <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::ContiguousSelection</enum>
-     </property>
-    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="buttonRow">

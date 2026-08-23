@@ -489,6 +489,22 @@ optional columns sit beside the modelled ones:
 
 Both are off by default, and each is greyed until the data behind it exists.
 
+### The comparison plot
+
+The right-hand pane plots exactly what the table shows — one group of bars per
+oxide, one bar per column. It is the fastest way to spot the disagreements a
+grid of numbers hides: a measured oxide the model has none of, or a phase whose
+chemistry has moved a long way from its baseline.
+
+- The **measured** analysis is the one strongly coloured series, since it is
+  usually what you are checking against.
+- A **default-state** column is drawn hollow in its specimen's own colour, so a
+  specimen and its baseline read as before-and-after rather than as two
+  unrelated series.
+
+Past about ten columns the groups stop being legible, so the plot says so rather
+than drawing something unreadable — the table still lists everything.
+
 ### Which phase started as which default?
 
 The default-state column needs to know which built-in default phase each of your

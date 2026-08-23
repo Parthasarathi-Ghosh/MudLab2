@@ -18,16 +18,27 @@ Two optional COMPARISON columns sit beside the modelled ones:
     relations rewrite occupancies; stacking probabilities change the component
     weights) rather than only the pattern.
 Both are off by default, so the dialog opens exactly as it always has.
+
+The right pane plots the SAME columns as the table - one LINE per column,
+joining its value at each oxide - so the eye can find the big disagreements that
+a grid of numbers hides. Lines rather than bars because the oxides are a fixed,
+ordered set: a line makes the shape of a composition visible, and a column that
+departs from the others stands out. It is driven from `_oxide_rows`, the very
+data the table and the CSV export use, so the three can never disagree.
 """
 
 from __future__ import annotations
 
 import os
 
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget,
 )
+
+from mudlab.chart_style import SURFACE, style_axes
 
 from mudlab.calculations.composition import (
     bulk_composition, composition_to_csv, mixture_composition, mixture_has_nonclay,
@@ -36,6 +47,30 @@ from mudlab.default_state import (
     default_state_composition, structural_phases, unmapped_phases,
 )
 from mudlab.ui.ui_composition import Ui_CompositionDialog
+
+
+#: Series colours for the comparison plot - the modelled specimen columns,
+#: reused (hollow) by their default-state partners so a pair reads as one
+#: specimen before and after.
+_PLOT_COLORS = ["#2a78d6", "#2F9E44", "#9C36B5", "#0B7285", "#C2255C", "#5C940D"]
+_MAX_LABEL = 14
+_SUFFIXES = (" (default)", " (measured)")
+
+
+def _elide(text: str) -> str:
+    return text if len(text) <= _MAX_LABEL else text[:_MAX_LABEL - 1] + "\u2026"
+
+
+def _short_label(label: str) -> str:
+    """Shorten the SPECIMEN part of a column name, never its suffix.
+
+    Eliding the whole string cut " (default)" off the end, so a specimen and its
+    own default state appeared in the legend under one identical, truncated
+    name - the two series the plot exists to compare."""
+    for suffix in _SUFFIXES:
+        if label.endswith(suffix):
+            return _elide(label[:-len(suffix)].strip()) + suffix
+    return _elide(label)
 
 
 class CompositionDialog(QDialog):
@@ -65,6 +100,7 @@ class CompositionDialog(QDialog):
         self.ui.chk_measured.toggled.connect(self._refresh)
         self.ui.chk_default.toggled.connect(self._refresh)
         self.ui.btn_default_phases.clicked.connect(self._on_default_phases)
+        self._setup_plot()
         self._update_comparison_controls()
         self._refresh()
 
@@ -189,6 +225,89 @@ class CompositionDialog(QDialog):
             self.ui.chk_default.setChecked(True)
         self._refresh()
 
+    # ------------------------------------------------------------------
+    # The comparison plot (right pane)
+    # ------------------------------------------------------------------
+    #: Bars past this many series stop being readable in one group; the table
+    #: still holds everything, so the plot says so rather than drawing mush.
+    _MAX_PLOT_SERIES = 10
+
+    def _setup_plot(self) -> None:
+        self._figure = Figure(figsize=(4.4, 3.2), facecolor=SURFACE,
+                              layout="constrained")
+        self._canvas = FigureCanvasQTAgg(self._figure)
+        self._canvas.setMinimumWidth(320)
+        self.ui.plotLayout.addWidget(self._canvas)
+        self._axes = self._figure.add_subplot(111)
+
+    def _series_colour(self, index: int, label: str):
+        """Measured is the reference the eye should find first, so it gets the
+        one strong colour; the default-state columns are drawn hollow so a
+        modelled/default pair reads as before/after rather than as two rivals."""
+        if label.endswith("(measured)"):
+            return {"color": "#C2410C", "linestyle": "-", "linewidth": 2.0,
+                    "marker": "o", "markersize": 5, "zorder": 3}
+        if label.endswith("(default)"):
+            # Its specimen's colour, dashed and lighter: a specimen and its own
+            # baseline should read as one pair, before and after.
+            return {"color": _PLOT_COLORS[index % len(_PLOT_COLORS)],
+                    "linestyle": "--", "linewidth": 1.2, "marker": "s",
+                    "markersize": 4, "alpha": 0.75}
+        return {"color": _PLOT_COLORS[index % len(_PLOT_COLORS)],
+                "linestyle": "-", "linewidth": 1.4, "marker": "o",
+                "markersize": 4}
+
+    def _draw_plot(self) -> None:
+        """One line per column, joining that column's value at each oxide.
+
+        Lines rather than grouped bars: the oxides are a fixed, ordered set the
+        eye reads left to right, so a line makes the SHAPE of a composition
+        visible and a column that departs from the others stands out - which is
+        the whole question being asked. Bars put every series at a different x,
+        which hides exactly that."""
+        axes = self._axes
+        axes.clear()
+        style_axes(axes)
+        oxides = [oxide for oxide, _values in self._oxide_rows]
+        columns = list(self._specimen_names)
+        if not oxides or not columns:
+            self._canvas.draw_idle()
+            return
+        if len(columns) > self._MAX_PLOT_SERIES:
+            axes.text(0.5, 0.5,
+                      "%d columns is too many to plot legibly.\n"
+                      "The table shows them all." % len(columns),
+                      ha="center", va="center", fontsize=8,
+                      transform=axes.transAxes)
+            axes.set_xticks([])
+            axes.set_yticks([])
+            self._canvas.draw_idle()
+            return
+
+        positions = list(range(len(oxides)))
+        for index, label in enumerate(columns):
+            values = [row_values[index] for _oxide, row_values in self._oxide_rows]
+            axes.plot(positions, values, label=_short_label(label),
+                      **self._series_colour(index, label))
+        axes.set_xticks(positions)
+        # Oxide names carry subscripts in the table headers already; here they
+        # are the axis, so keep them horizontal and small enough not to rotate.
+        axes.set_xticklabels(oxides, fontsize=8)
+        axes.set_xlim(-0.35, len(oxides) - 0.65)
+        axes.set_ylabel("wt %", fontsize=8)
+        axes.tick_params(labelsize=8)
+        # frameon=False: the index sits over the plot with NO background, so a
+        # line passing behind it stays readable.
+        axes.legend(fontsize=7, frameon=False, ncol=2 if len(columns) > 4 else 1,
+                    loc="upper right", handlelength=1.6, handletextpad=0.4,
+                    labelspacing=0.25, columnspacing=1.0)
+        # Headroom for the legend: the tallest oxide is normally SiO2 at ~60
+        # wt%, which is exactly where an upper-right legend lands.
+        low, high = axes.get_ylim()
+        axes.set_ylim(low, high + (high - low)
+                      * min(0.09 * (1 + len(columns) // 2), 0.34))
+        self._canvas.draw_idle()
+
     def _populate(self) -> None:
         table = self.ui.tbl_composition
         table.setColumnCount(len(self._specimen_names))
@@ -202,6 +321,9 @@ class CompositionDialog(QDialog):
                 item.setTextAlignment(align)
                 table.setItem(i, j, item)
         table.resizeColumnsToContents()
+        # The plot is built from the same rows, in the same call, so the two
+        # panes cannot show different things.
+        self._draw_plot()
 
     # ------------------------------------------------------------------
     def _csv_text(self) -> str:

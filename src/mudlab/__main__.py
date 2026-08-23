@@ -6,6 +6,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QStyleFactory
 
 from mudlab import APP_NAME, ORG_NAME, __version__
+from mudlab.qt_utils import install_enter_policy
 from mudlab.main_window import MainWindow
 from mudlab.resources import app_icon
 from mudlab.splash import show_splash, _MIN_VISIBLE_MS
@@ -28,6 +29,12 @@ def create_app(argv: list[str] | None = None) -> QApplication:
         if style in available:
             app.setStyle(style)
             break
+
+    # Enter accepts only where a QDialogButtonBox says so; everywhere else it
+    # commits the field you are in and does nothing more. Qt's own rule -
+    # promote some autoDefault button on show - kept picking a destructive one
+    # by accident of tab order (Add, and Refine). See qt_utils.install_enter_policy.
+    install_enter_policy(app)
 
     # Windows system UI font.
     app.setFont(QFont("Segoe UI", 9))

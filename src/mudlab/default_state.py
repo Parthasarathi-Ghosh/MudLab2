@@ -165,6 +165,22 @@ def _load_phs_standalone(path: str) -> list:
     return phases
 
 
+def phases_used_in_mixtures(project) -> set:
+    """uuids of the phases that actually sit in some mixture's phase grid.
+
+    Only these can affect a composition - `mixture_composition` reads
+    `phase_matrix` and nothing else - so a phase in the project but in no
+    mixture cannot contribute a column, and stating its default is busywork.
+    """
+    used = set()
+    for mixture in project.mixtures:
+        for row in mixture.phase_matrix:
+            for phase in row:
+                if phase is not None:
+                    used.add(phase.uuid)
+    return used
+
+
 def custom_default_names(project) -> list:
     """The names of the project's imported reference phases, sorted."""
     return sorted(getattr(phase, "name", "")

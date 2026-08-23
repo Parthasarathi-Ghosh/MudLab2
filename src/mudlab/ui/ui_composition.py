@@ -24,33 +24,47 @@ class Ui_CompositionDialog(object):
     def setupUi(self, CompositionDialog):
         if not CompositionDialog.objectName():
             CompositionDialog.setObjectName(u"CompositionDialog")
-        CompositionDialog.resize(440, 320)
+        CompositionDialog.resize(1000, 520)
+        CompositionDialog.setMinimumSize(QSize(860, 420))
         self.rootLayout = QVBoxLayout(CompositionDialog)
         self.rootLayout.setObjectName(u"rootLayout")
-        self.lbl_title = QLabel(CompositionDialog)
+        self.panesRow = QHBoxLayout()
+        self.panesRow.setSpacing(10)
+        self.panesRow.setObjectName(u"panesRow")
+        self.leftPane = QWidget(CompositionDialog)
+        self.leftPane.setObjectName(u"leftPane")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(4)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.leftPane.sizePolicy().hasHeightForWidth())
+        self.leftPane.setSizePolicy(sizePolicy)
+        self.leftLayout = QVBoxLayout(self.leftPane)
+        self.leftLayout.setObjectName(u"leftLayout")
+        self.leftLayout.setContentsMargins(0, 0, 0, 0)
+        self.lbl_title = QLabel(self.leftPane)
         self.lbl_title.setObjectName(u"lbl_title")
         self.lbl_title.setWordWrap(True)
 
-        self.rootLayout.addWidget(self.lbl_title)
+        self.leftLayout.addWidget(self.lbl_title)
 
-        self.chk_bulk = QCheckBox(CompositionDialog)
+        self.chk_bulk = QCheckBox(self.leftPane)
         self.chk_bulk.setObjectName(u"chk_bulk")
 
-        self.rootLayout.addWidget(self.chk_bulk)
+        self.leftLayout.addWidget(self.chk_bulk)
 
-        self.chk_measured = QCheckBox(CompositionDialog)
+        self.chk_measured = QCheckBox(self.leftPane)
         self.chk_measured.setObjectName(u"chk_measured")
 
-        self.rootLayout.addWidget(self.chk_measured)
+        self.leftLayout.addWidget(self.chk_measured)
 
         self.defaultRow = QHBoxLayout()
         self.defaultRow.setObjectName(u"defaultRow")
-        self.chk_default = QCheckBox(CompositionDialog)
+        self.chk_default = QCheckBox(self.leftPane)
         self.chk_default.setObjectName(u"chk_default")
 
         self.defaultRow.addWidget(self.chk_default)
 
-        self.btn_default_phases = QPushButton(CompositionDialog)
+        self.btn_default_phases = QPushButton(self.leftPane)
         self.btn_default_phases.setObjectName(u"btn_default_phases")
 
         self.defaultRow.addWidget(self.btn_default_phases)
@@ -60,15 +74,34 @@ class Ui_CompositionDialog(object):
         self.defaultRow.addItem(self.defaultSpacer)
 
 
-        self.rootLayout.addLayout(self.defaultRow)
+        self.leftLayout.addLayout(self.defaultRow)
 
-        self.tbl_composition = QTableWidget(CompositionDialog)
+        self.tbl_composition = QTableWidget(self.leftPane)
         self.tbl_composition.setObjectName(u"tbl_composition")
         self.tbl_composition.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tbl_composition.setAlternatingRowColors(True)
         self.tbl_composition.setSelectionMode(QAbstractItemView.ContiguousSelection)
 
-        self.rootLayout.addWidget(self.tbl_composition)
+        self.leftLayout.addWidget(self.tbl_composition)
+
+
+        self.panesRow.addWidget(self.leftPane)
+
+        self.rightPane = QWidget(CompositionDialog)
+        self.rightPane.setObjectName(u"rightPane")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy1.setHorizontalStretch(5)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.rightPane.sizePolicy().hasHeightForWidth())
+        self.rightPane.setSizePolicy(sizePolicy1)
+        self.plotLayout = QVBoxLayout(self.rightPane)
+        self.plotLayout.setObjectName(u"plotLayout")
+        self.plotLayout.setContentsMargins(0, 0, 0, 0)
+
+        self.panesRow.addWidget(self.rightPane)
+
+
+        self.rootLayout.addLayout(self.panesRow)
 
         self.buttonRow = QHBoxLayout()
         self.buttonRow.setObjectName(u"buttonRow")

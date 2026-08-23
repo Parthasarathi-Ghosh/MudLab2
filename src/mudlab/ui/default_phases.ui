@@ -63,6 +63,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QCheckBox" name="chk_show_unused">
+       <property name="text">
+        <string>Show unused phases</string>
+       </property>
+       <property name="toolTip">
+        <string>Also list phases that are in the project but not in any mixture. They cannot affect a composition, so they are hidden by default. Anything you have already stated for them is kept either way.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="button_import">
        <property name="text">
         <string>Import .phs...</string>

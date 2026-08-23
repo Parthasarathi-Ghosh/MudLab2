@@ -146,6 +146,29 @@ class EditPhasesDialog(ObjectStoreDialog):
         self.ui.edit_objects_treeview.setCurrentIndex(
             self.objects_model.index(first_row, 0)
         )
+        # ...and put the caret in its NAME box. Naming it is the first thing
+        # anyone does with a new phase, and without this the focus falls back to
+        # the Add button - so the next keystroke goes nowhere, or worse, Return
+        # adds another phase.
+        self._focus_editor_name()
+
+    def _focus_editor_name(self) -> None:
+        """Focus (and select) the name field of whichever editor is showing.
+
+        Each phase kind has its own editor and its own field, so this asks the
+        visible one rather than assuming the clay editor."""
+        for widget, field in (
+            (self.phase_widget, "phase_name"),
+            (self.raw_phase_widget, "raw_phase_name"),
+            (self.nonclay_widget, "nonclay_name"),
+        ):
+            if not widget.isVisible():
+                continue
+            edit = getattr(widget.ui, field, None)
+            if edit is not None:
+                edit.setFocus(Qt.FocusReason.OtherFocusReason)
+                edit.selectAll()   # typing replaces "New Phase" outright
+            return
 
     def _on_phase_menu(self, pos) -> None:
         tree = self.ui.edit_objects_treeview
