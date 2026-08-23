@@ -1,11 +1,104 @@
 # MudLab2 — remaining & deferred work
 
-Snapshot as of 2026-08-01 (V1 in sync with origin @ `1f0e4bb`). The GTK→Qt/PySide6
+Snapshot as of 2026-08-23 (V1 in sync with origin @ `3af0586`). The GTK→Qt/PySide6
 port is far along: the analytics/calc
 engine is golden-validated, both major editors (Edit Phases, Edit Mixtures) are
 feature-complete, and the default-phase catalog now matches old MudLab/PyXRD (80
 entries, all R0–R3 models). This is the single canonical to-do — it folds in the
 memory audit notes; update it as items land.
+
+## Requested 2026-08-23 (user's list — pending, none started)
+
+Recorded verbatim in intent; the notes under each are what the code says today,
+so whoever picks one up starts from facts rather than a search.
+
+1. **Main pattern plot — three changes.** (`src/mudlab/plot_controller.py`)
+   - a) **Remove the background grid.** Only `axes.grid(False, axis="y")` is set
+     today (line ~425), so the x-grid is whatever the style supplies — turn both
+     off explicitly.
+   - b) **Tick per degree on the x-axis.** No locator is set at all right now;
+     needs a `MultipleLocator(1)` (with a sane minor/label policy, since a 4–80°
+     scan would otherwise print ~76 labels).
+   - c) **Move the left-hand text into the upper-right legend.** The per-specimen
+     block (sample name, then `Rp` / `Rwp` / `GoF` when stats are shown) is drawn
+     by `axes.text(...)` at line ~371, built at ~364. It must be appended *before*
+     the existing per-mixture legend entries in `_draw_mixture_legend`
+     (line ~455, the `AnchoredOffsetbox` at ~527). Then reclaim the freed space:
+     `subplots_adjust(left=0.18, ...)` at line ~247 is the reserved left margin.
+
+2. **Discard the MudLab2 splash and copy the OLD app's exactly** — including its
+   display time. The user prefers the old one. This *reverses* the deliberate
+   teal-slate/gold branding decision recorded in the splash memory note, so that
+   note must be updated when this lands, not left contradicting the code.
+   Current: `src/mudlab/splash.py` + `ui/splash.ui`, guarded by
+   `verify_splash.py`.
+
+3. **Plot export (SVG + bitmap) on the Composition dialog's plot context menu.**
+   The composition plot has **no context menu at all** today. The main plot
+   already has the machinery to reuse: `PatternPlot.save_figure(filename, dpi,
+   ...)` (`plot_controller.py` line ~185) and the main window's Save Graph flow
+   (size dialog → file picker → `save_figure`).
+
+4. **CIF component import with built-in c\* projection — ANSWER: no, not
+   available.** Edit Phases' component import accepts **`.cmp` only**
+   (`CMP_FILTERS = "Component files (*.cmp);;All files (*.*)"`,
+   `component_widget._on_import_component`, line ~449). There is no CIF path
+   anywhere in the component importer, and therefore no c\* projection of atom
+   positions. What *does* exist is a CIF reader for the experimental non-clay
+   phases (`nonclay/structure.py`: `_parse_cif`, `reference_from_cif`,
+   `reflections_from_cif`) — but it produces a 3-D reflection stick list and an
+   oxide composition, **not** the 1-D projection onto c\* that a clay component
+   needs. So this is a real feature to build, not a switch to flip: the missing
+   piece is projecting the CIF's fractional atom positions onto c\* and binning
+   them into layer/interlayer atoms with `z` + `pn`.
+
+5. **Component pane "Show Structure" button — ANSWER: not ported.** The old app
+   has it: `btn_show_structure` in `phases/glade/component.glade` (label
+   "Show Structure", tooltip "Show a typographic cross-section diagram of this
+   component") → `component_controllers.on_btn_show_structure_clicked`, which
+   opens a modal scrolled dialog (740×540) rendering
+   `phases/models/component_diagram.build_structure_diagram(component)`. That
+   builder is a self-contained **236-line pure-text module** (clusters layer
+   atoms into zones, labels the interlayer, formats `pn`) with no GTK
+   dependency — so the port is: copy the module nearly verbatim, add the button
+   to `ui/edit_component.ui`, and show the text in a read-only fixed-pitch
+   dialog. Small and low-risk.
+
+6. **A Reset feature on Phase objects — ANSWER: feasible, and most of it already
+   exists.** `default_state.py` already records what every phase *started as*
+   and can rebuild it: `capture_catalog_defaults` / `capture_imported_defaults`
+   store the mapping at the moment a phase enters the model,
+   `resolve_default_phase(project, name)` rebuilds that reference on demand, and
+   `set_as_baseline` / `freeze_baseline` / `make_baseline_copy` already handle
+   the hard part (severing inheritance and re-cloning atoms so a frozen copy
+   cannot drift). A "Reset phase" would be: resolve the phase's recorded default
+   → copy its values back over the live phase → recompute. Open questions to put
+   to the user before building: does Reset restore the **shipped default** or the
+   **user's own baseline** when both exist; does it reset structure only or also
+   fractions/scales; and — since phases are SHARED across mixtures — does a reset
+   apply everywhere that phase is used (it must, there is one object).
+
+7. **Rename "Import composition" → "Edit composition", move it to a new
+   "Composition" menu, and add removal.** Today the action is
+   `actionImportComposition` (`ui/main_window.ui` line ~433) sitting inside
+   **menuData** (added at line ~129), wired to `MainWindow._import_composition`
+   (line ~1022). Note the top-level menus are only Project / View / Data / Help,
+   so "Composition" is a new one.
+   **How the user removes a composition — ANSWER: the model already supports it,
+   the UI does not expose it.** `Project.set_composition(None)` clears it and is
+   documented to do so ("None clears it", `models/project.py` line ~115), and
+   `composition_changed` is already wired to `_mark_dirty`, so a removal would
+   persist correctly. All that is missing is a menu entry — e.g. **Composition ▸
+   Remove composition**, enabled only when `project.composition is not None`, with
+   a confirmation since it is not undoable. (An "Edit composition" dialog opened
+   on an empty grid is *not* a removal path — it should not silently clear.)
+
+8. **Exporters for the old app's `.mud` and for `.pyxrd`.** Research was already
+   collected and is deferred, not lost — see the exporter memory note and the
+   TODO entry: the old app reads `.mud` via `cls(**properties)` and raises
+   `TypeError` on any unknown key, its `pyxrd.`→`mudlab.` remap is decode-side
+   only, and separate exporters (rather than one shared writer) were chosen
+   deliberately so each can also drop the goniometer-saving constraint.
 
 ## Deferred by design (working, intentionally postponed)
 - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
