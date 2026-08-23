@@ -278,18 +278,59 @@ def check_menu():
     window = MainWindow()
     window._set_project(load_mud(PATH))
     window._dirty = False
-    action = getattr(window.ui, "actionImportComposition", None)
-    check("menu: the Import composition action exists", action is not None)
+    # The action moved out of Data into its own Composition menu and was
+    # renamed Edit (2026-08-23).
+    action = getattr(window.ui, "actionEditComposition", None)
+    remove = getattr(window.ui, "actionRemoveComposition", None)
+    check("menu: the Edit composition action exists", action is not None)
+    check("menu: the Remove composition action exists", remove is not None)
     if action is not None:
-        check("menu: it sits in the Data menu",
-              action in window.ui.menuData.actions())
-        check("menu: it is labelled for composition import",
+        check("menu: it sits in the Composition menu",
+              action in window.ui.menuComposition.actions())
+        check("menu: it is NOT left behind in the Data menu",
+              action not in window.ui.menuData.actions())
+        check("menu: it is labelled for composition",
               "composition" in action.text().lower())
+    if remove is not None:
+        check("menu: Remove sits in the Composition menu",
+              remove in window.ui.menuComposition.actions())
+
+    # Remove is only offered when there is something to remove, and the Edit
+    # entry reads as Enter until then.
+    window.project.set_composition(None)
+    window._sync_composition_menu()
+    check("menu: Remove is disabled with no composition", not remove.isEnabled())
+    check("menu: Edit reads as 'Enter' with no composition",
+          "enter" in action.text().lower())
+
     # Applying one through the project marks the file dirty, or the analysis
     # would be silently lost on close.
     window.project.set_composition(Composition(oxides=SAMPLE))
     window._mark_dirty()
     check("menu: importing marks the project dirty", window._dirty)
+    window._sync_composition_menu()
+    check("menu: Remove is enabled once one exists", remove.isEnabled())
+    check("menu: Edit reads as 'Edit' once one exists",
+          "edit" in action.text().lower())
+
+    # Removing clears it AND dirties the project (a removal that does not mark
+    # the file dirty is thrown away on close with no prompt).
+    from PySide6.QtWidgets import QMessageBox
+
+    QMessageBox.question = staticmethod(
+        lambda *a, **k: QMessageBox.StandardButton.Yes)
+    window._dirty = False
+    window._remove_composition()
+    check("menu: Remove clears the composition", window.project.composition is None)
+    check("menu: Remove marks the project dirty", window._dirty)
+
+    # ...and declining leaves it alone.
+    window.project.set_composition(Composition(oxides=SAMPLE))
+    QMessageBox.question = staticmethod(
+        lambda *a, **k: QMessageBox.StandardButton.No)
+    window._remove_composition()
+    check("menu: declining the confirmation keeps the composition",
+          window.project.composition is not None)
 
 
 

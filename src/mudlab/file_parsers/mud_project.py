@@ -252,7 +252,17 @@ def load_mud(path: str) -> Project:
 # ----------------------------------------------------------------------
 # Saving
 # ----------------------------------------------------------------------
-def save_mud(project: Project, path: str) -> None:
+def build_project_properties(project: Project) -> dict:
+    """The full property dict `save_mud` writes, without writing anything.
+
+    Split out so the exporters can start from exactly what a normal save would
+    produce and then strip on the way out - otherwise they would have to
+    reimplement the phase-list reconciliation and the write-only/remove-only
+    rules below, and drift from them.
+
+    The result shares structure with `project.raw_properties`; callers that
+    mutate it (the exporters do) must deep-copy first.
+    """
     properties = dict(getattr(project, "raw_properties", None) or {})
     for prop in PROJECT_PROPS:
         properties[prop] = getattr(project, prop)
@@ -334,6 +344,11 @@ def save_mud(project: Project, path: str) -> None:
         properties.pop("custom_default_phases", None)
     for part in MULTI_PARTS:
         properties.setdefault(part, [])
+    return properties
+
+
+def save_mud(project: Project, path: str) -> None:
+    properties = build_project_properties(project)
 
     content_props = {
         key: (f"file://{key}" if key in MULTI_PARTS else value)

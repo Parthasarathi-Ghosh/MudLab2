@@ -76,27 +76,22 @@ so whoever picks one up starts from facts rather than a search.
    fractions/scales; and — since phases are SHARED across mixtures — does a reset
    apply everywhere that phase is used (it must, there is one object).
 
-7. **Rename "Import composition" → "Edit composition", move it to a new
-   "Composition" menu, and add removal.** Today the action is
-   `actionImportComposition` (`ui/main_window.ui` line ~433) sitting inside
-   **menuData** (added at line ~129), wired to `MainWindow._import_composition`
-   (line ~1022). Note the top-level menus are only Project / View / Data / Help,
-   so "Composition" is a new one.
-   **How the user removes a composition — ANSWER: the model already supports it,
-   the UI does not expose it.** `Project.set_composition(None)` clears it and is
-   documented to do so ("None clears it", `models/project.py` line ~115), and
-   `composition_changed` is already wired to `_mark_dirty`, so a removal would
-   persist correctly. All that is missing is a menu entry — e.g. **Composition ▸
-   Remove composition**, enabled only when `project.composition is not None`, with
-   a confirmation since it is not undoable. (An "Edit composition" dialog opened
-   on an empty grid is *not* a removal path — it should not silently clear.)
+7. ~~**Rename "Import composition" → "Edit composition", move it to a new
+   "Composition" menu, and add removal.**~~ — **DONE 2026-08-23.** New top-level
+   **Composition** menu with *Edit composition…* (reads *Enter composition…*
+   until one exists) and *Remove composition* (disabled until one exists,
+   confirms, marks the project dirty).
 
-8. **Exporters for the old app's `.mud` and for `.pyxrd`.** Research was already
-   collected and is deferred, not lost — see the exporter memory note and the
-   TODO entry: the old app reads `.mud` via `cls(**properties)` and raises
-   `TypeError` on any unknown key, its `pyxrd.`→`mudlab.` remap is decode-side
-   only, and separate exporters (rather than one shared writer) were chosen
-   deliberately so each can also drop the goniometer-saving constraint.
+8. ~~**Exporters for the old app's `.mud` and for `.pyxrd`.**~~ — **DONE
+   2026-08-23**, under **Project → Export**. The old-app exporter is verified by
+   actually loading its output under the old app's own interpreter, with a
+   control proving a native save fails there. The PyXRD exporter is a real
+   schema translation (sample_length/absorption move back onto the Specimen,
+   wavelength distribution → single wavelength, ADS group, refine_method
+   remapped) verified structurally against 12 real `.pyxrd` files — **but PyXRD
+   itself has never opened the output**, and the export dialog says so.
+   Still worth doing when PyXRD is available: open an exported `.pyxrd` in real
+   PyXRD and confirm the strip/map list. See `verify_exporters.py`.
 
 ## Deferred by design (working, intentionally postponed)
 - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source

@@ -471,15 +471,21 @@ or **Export CSV…** to save it to a file.
 
 ## Measured (XRF) composition
 
-**Data → Import composition…** records the sample's measured oxide analysis —
-typically from XRF — so it can be compared against the composition MudLab
-computes from your model.
+**Composition → Edit composition…** records the sample's measured oxide
+analysis — typically from XRF — so it can be compared against the composition
+MudLab computes from your model. Until you have entered one the menu entry reads
+**Enter composition…**.
 
 A MudLab project describes **one physical sample**; its specimens are treatment
 variants of that same material (air-dried, glycolated, heated). So a project
 holds **at most one** analysis. Choosing the menu item again re-opens the dialog
 on the values you already entered, so correcting one figure does not mean
 retyping the whole analysis.
+
+To delete the analysis, use **Composition → Remove composition**. It asks for
+confirmation, and is greyed out when there is nothing to remove. Clearing the
+grid in the editor is *not* a way to delete it — removal is a separate,
+deliberate action, so an analysis you typed in can never be lost by accident.
 
 ### Entering the analysis
 
@@ -641,6 +647,47 @@ reference in place, so any mapping pointing at it keeps working.
 > composition is written exactly as before. A project **with** one cannot be
 > opened by the old GTK MudLab, which rejects any file property it does not
 > recognise — the same limitation that applies to non-clay phases.
+
+## Exporting to other programs
+
+**Project → Export** writes a copy of your project in another program's format.
+It is a *copy*: your own project file is untouched, it keeps its own name, and
+exporting is not a substitute for saving.
+
+Two targets:
+
+- **MudLab (old app) project…** — a `.mud` the original GTK MudLab can open.
+- **PyXRD project…** — a `.pyxrd` file.
+
+### Why an export is needed at all
+
+MudLab2's own `.mud` is the old format plus a few things MudLab2 added, such as
+the measured composition. The old app rejects a file containing anything it does
+not recognise — it will not open it at all — so a project with an XRF analysis
+in it cannot be handed straight over. Exporting removes those additions on the
+way out, which is precisely what lets MudLab2 keep them natively.
+
+### What does not survive
+
+Every export ends with a summary of what changed. Read it — the export is
+deliberately lossy, and the summary is how you find out where.
+
+Common ones:
+
+- The **measured composition**, the record of **which default each phase started
+  as**, and any **imported reference phases** are dropped. Neither target knows
+  them.
+- A **non-clay phase** is written as a plain measured-pattern phase. Its pattern
+  and its place in the mixture are kept; its oxide chemistry is not.
+- For PyXRD only: the **emission spectrum** is reduced to a single wavelength
+  (PyXRD has no wavelength distribution), the **absorption correction** is not
+  carried over (PyXRD stores a different quantity), and MudLab's inner-iteration
+  refinement limits are removed from the saved refinement options.
+
+> **How reliable are these?** The old-app export is checked by actually opening
+> the exported file in the old MudLab. The **PyXRD export has never been opened
+> in PyXRD** — it is built to match real PyXRD files field by field, but treat
+> it as best-effort and check the result before relying on it.
 
 ## Refining a mixture
 

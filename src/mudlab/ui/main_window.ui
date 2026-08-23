@@ -81,11 +81,19 @@
     <addaction name="actionOpenProject"/>
     <addaction name="actionSaveProject"/>
     <addaction name="actionSaveProjectAs"/>
+    <addaction name="menuExport"/>
     <addaction name="separator"/>
     <addaction name="actionEditProject"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+    <widget class="QMenu" name="menuExport">
+     <property name="title">
+      <string>&amp;Export</string>
+     </property>
+     <addaction name="actionExportOldMud"/>
+     <addaction name="actionExportPyxrd"/>
+    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
      <string>&amp;View</string>
@@ -126,7 +134,13 @@
     <addaction name="separator"/>
     <addaction name="actionEditMixtures"/>
     <addaction name="separator"/>
-    <addaction name="actionImportComposition"/>
+   </widget>
+   <widget class="QMenu" name="menuComposition">
+    <property name="title">
+     <string>&amp;Composition</string>
+    </property>
+    <addaction name="actionEditComposition"/>
+    <addaction name="actionRemoveComposition"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -138,6 +152,7 @@
    <addaction name="menuProject"/>
    <addaction name="menuView"/>
    <addaction name="menuData"/>
+   <addaction name="menuComposition"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -430,18 +445,36 @@
     <string>Phases</string>
    </property>
   </action>
-  <action name="actionImportComposition">
+  <action name="actionEditComposition">
    <property name="text">
-    <string>Import &amp;composition...</string>
-   </property>
-   <property name="iconText">
-    <string>Composition</string>
+    <string>&amp;Edit composition...</string>
    </property>
    <property name="toolTip">
-    <string>Enter the measured (XRF) oxide analysis for this sample</string>
+    <string>Enter or edit the measured (XRF) oxide analysis for this project.</string>
    </property>
-   <property name="statusTip">
-    <string>Enter or edit the measured (XRF) oxide composition of the sample this project describes</string>
+  </action>
+  <action name="actionRemoveComposition">
+   <property name="text">
+    <string>&amp;Remove composition</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete the measured composition from this project.</string>
+   </property>
+  </action>
+  <action name="actionExportOldMud">
+   <property name="text">
+    <string>MudLab (&amp;old app) project...</string>
+   </property>
+   <property name="toolTip">
+    <string>Write a .mud the original GTK MudLab can open.</string>
+   </property>
+  </action>
+  <action name="actionExportPyxrd">
+   <property name="text">
+    <string>&amp;PyXRD project...</string>
+   </property>
+   <property name="toolTip">
+    <string>Write a .pyxrd project file (best-effort).</string>
    </property>
   </action>
   <action name="actionEditAtomTypes">

@@ -781,6 +781,66 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Exporters: old-app .mud and PyXRD .pyxrd (2026-08-23, item #8).
+  New `file_parsers/exporters.py` + **Project > Export** (this app's File menu is
+  called Project). `save_mud` was split so both start from exactly what a normal
+  save produces: `build_project_properties(project)` builds the dict, `save_mud`
+  writes it. An export NEVER touches the project - not `filename`, not the dirty
+  flag; saving and exporting are different acts.
+  MEASURED, not assumed: a native MudLab2 save carrying a composition is
+  genuinely UNREADABLE in the old app - loaded under its own interpreter it dies
+  with the predicted `TypeError: object.__init__() takes exactly one argument`.
+  The export of the same project loads fine (5 specimens / 6 phases / 1 mixture).
+  Both are harness checks, the failure one kept as a CONTROL so the exporter
+  cannot outlive the problem it solves.
+  OLD APP = drop `composition` / `default_phase_map` / `custom_default_phases`,
+  and demote `NonClayPhase` to the `RawPatternPhase` it extends (dropping it
+  would leave dangling uuids in the mixture grid; demoting keeps the pattern and
+  the cell).
+  PYXRD IS NOT JUST A KEY STRIP - it is a schema divergence, measured across the
+  user's 12 real .pyxrd files rather than the one file the earlier research used:
+  * PyXRD keeps `sample_length` and `absorption` on the SPECIMEN; MudLab moved
+    them onto the Goniometer - so the exporter moves them back.
+  * PyXRD's goniometer wants `wavelength` + the ADS group (`has_ads`,
+    `ads_const`, `ads_fact`, `ads_phase_fact`, `ads_phase_shift`); MudLab has a
+    wavelength DISTRIBUTION and `divergence_mode`. Mapped: strongest line ->
+    wavelength, divergence_mode == AUTOMATIC -> has_ads, PyXRD defaults for the
+    ADS shape.
+  * `refine_method_index` -> `refine_method`, and the INDEX IS REMAPPED (MudLab
+    renumbered to 0 = L-BFGS-B, 1 = Basin Hopping; PyXRD's original numbering
+    puts Basin Hopping at 4 - confirmed because MudLab's own `refine_options`
+    dict is still keyed by the ORIGINAL numbering and its "4" entry holds
+    niter/T/stepsize).
+  * PyXRD has no `version` archive member; MudLab2 writes one. Dropped - the
+    loader injects every entry as a Project property.
+  TWO CORRECTIONS THE 12-FILE CORPUS FORCED on the earlier one-file research:
+  (1) `refine_options` is NOT a MudLab addition - real PyXRD files carry it, in
+  the same shape - so it is KEPT and merely cleaned of MudLab's `inner_maxfun` /
+  `inner_maxiter`. Stripping it was a guess, and wrong.
+  (2) `Marker` and `R0G1Model` are absent from all 12 files, but that is because
+  those projects never used them, not because PyXRD lacks them - so the
+  structural check asserts KEYS only, and only for types the corpus contains.
+  A key absent from a sample file is not the same as a key the app rejects.
+  EVIDENCE IS DELIBERATELY UNEVEN and the docstrings say so: the old-app side is
+  MEASURED against the old app; the PyXRD side is STRUCTURAL only (PyXRD is not
+  installed and has never opened the output), and the export dialog itself tells
+  the user it is best-effort.
+  Every export returns an `ExportReport` whose notes the dialog shows - a lossy
+  export that says nothing is worse than one that refuses.
+  verify_exporters.py 33/33.
+
+- [x] Composition menu + removal (2026-08-23, item #7). "Import composition"
+  left the Data menu and became **Composition > Edit composition...**, in a new
+  top-level Composition menu, alongside a new **Remove composition**. Remove is
+  disabled when there is none, and the Edit entry reads "Enter composition..."
+  until one exists (`_sync_composition_menu` on `aboutToShow`).
+  Removal is a SEPARATE action on purpose: opening the editor on an empty grid
+  and accepting must never become a silent way to clear an analysis the user
+  typed in. It confirms first, and goes through `Project.set_composition(None)`,
+  which already emits `composition_changed` -> the project is marked dirty, so
+  the removal is not thrown away on close.
+  verify_composition_object.py 241 (menu block rewritten).
+
 - [x] Composition plot: export from its context menu (2026-08-23, item #3).
   The table had Copy / Export buttons; the chart had no way out of the dialog.
   Right-click now gives "Save plot as..." (SVG / PDF / PNG / TIFF / JPEG) and

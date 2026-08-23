@@ -138,8 +138,15 @@ class MainWindow(QMainWindow):
         self.ui.actionEditPhases.triggered.connect(self._show_edit_phases)
         self.ui.actionEditAtomTypes.triggered.connect(self._show_edit_atom_types)
         self.ui.actionEditMixtures.triggered.connect(self._show_edit_mixtures)
-        self.ui.actionImportComposition.triggered.connect(
-            self._import_composition)
+        self.ui.actionEditComposition.triggered.connect(
+            self._edit_composition)
+        self.ui.actionRemoveComposition.triggered.connect(
+            self._remove_composition)
+        self.ui.menuComposition.aboutToShow.connect(self._sync_composition_menu)
+        self.ui.actionExportOldMud.triggered.connect(
+            lambda: self._export_project("old_mud"))
+        self.ui.actionExportPyxrd.triggered.connect(
+            lambda: self._export_project("pyxrd"))
         self.ui.actionAddSpecimen.triggered.connect(self._add_specimen)
         self.ui.actionImportSpecimens.triggered.connect(self._import_specimens)
 
@@ -1019,7 +1026,83 @@ class MainWindow(QMainWindow):
         self._edit_atom_types_dialog = EditAtomTypesDialog(self, project=self.project)
         self._edit_atom_types_dialog.show()
 
-    def _import_composition(self) -> None:
+    def _sync_composition_menu(self) -> None:
+        """Remove is only meaningful when there IS one; Edit reads as Enter
+        when there is not, so the label follows the state."""
+        has = getattr(self.project, "composition", None) is not None
+        self.ui.actionRemoveComposition.setEnabled(has)
+        self.ui.actionEditComposition.setText(
+            "&Edit composition..." if has else "&Enter composition...")
+
+    def _remove_composition(self) -> None:
+        """Delete the measured composition. Deliberately a SEPARATE action:
+        opening the editor on an empty grid and accepting must never be a way to
+        silently clear an analysis the user typed in."""
+        composition = getattr(self.project, "composition", None)
+        if composition is None:
+            QMessageBox.information(
+                self, "Remove composition",
+                "This project has no measured composition.")
+            return
+        name = getattr(composition, "name", "") or "the measured composition"
+        if QMessageBox.question(
+            self, "Remove composition",
+            "Remove %s from this project?\n\n"
+            "The comparison with the model will no longer be available. This "
+            "cannot be undone, but nothing is written until you save."
+            % name,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        self.project.set_composition(None)   # emits composition_changed -> dirty
+
+    # ------------------------------------------------------------------
+    # Export (Project > Export)
+    # ------------------------------------------------------------------
+    _EXPORT_TARGETS = {
+        "old_mud": ("MudLab (old app)", ".mud",
+                    "MudLab project (*.mud);;All files (*)"),
+        "pyxrd": ("PyXRD", ".pyxrd",
+                  "PyXRD project (*.pyxrd);;All files (*)"),
+    }
+
+    def _export_project(self, target: str) -> None:
+        """Write a copy of the project in another app's format.
+
+        An export never touches the project: not its filename, not its dirty
+        flag. Saving and exporting are different acts, and conflating them would
+        leave the user's real file silently un-saved.
+        """
+        from mudlab.file_parsers.exporters import (
+            export_old_mud, export_pyxrd, suggested_name,
+        )
+
+        label, extension, file_filter = self._EXPORT_TARGETS[target]
+        path, _filter = QFileDialog.getSaveFileName(
+            self, "Export as %s" % label,
+            suggested_name(self.project, extension), file_filter,
+        )
+        if not path:
+            return
+        if not os.path.splitext(path)[1]:
+            path += extension
+        writer = export_old_mud if target == "old_mud" else export_pyxrd
+        try:
+            report = writer(self.project, path)
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash
+            QMessageBox.warning(
+                self, "Export failed",
+                "Could not write the file:\n\n%s" % exc)
+            return
+        # Say what did not survive. An export that quietly drops the measured
+        # composition is worse than one that refuses.
+        message = "Exported to:\n%s" % path
+        if report.notes:
+            message += "\n\nNot everything carries over:\n\n" + "\n\n".join(
+                "\u2022 %s" % note for note in report.notes)
+        QMessageBox.information(self, "Export as %s" % label, message)
+
+    def _edit_composition(self) -> None:
         """Data -> Import composition: the sample's measured (XRF) analysis.
 
         A project describes ONE physical sample, so it holds at most one
