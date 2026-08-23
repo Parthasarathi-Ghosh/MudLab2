@@ -781,6 +781,40 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Splash: EXACT copy of the old GTK app's (2026-08-23). Deliberately
+  REVERSES the earlier "brand it distinctly" decision - the user prefers the old
+  one, so this is a faithful port of `mudlab/application/splash.py`, not an
+  homage. Matched: palette (BG #1a2a3a / text #d0dce8 / gold #e8b84b, replacing
+  the teal-slate + #E9C46A), the 220 px logo (the .png is byte-identical between
+  the two apps, 708x708), the ELEMENT ORDER (logo, title, tagline, VERSION,
+  separator, status - the Qt build had version above tagline), "v<version>"
+  instead of "version <version>", the hairline separator, the "Loading ..."
+  status, 12 px rounded corners, margins 40/30/40/24 and the per-widget bottom
+  gaps 14/2/10/18/14, and the FIVE-SECOND minimum on screen (was 700 ms).
+  THREE THINGS THAT MATTER IN THE PORT:
+  (a) GTK's "Segoe UI Bold 26" is 26 POINTS - using px would render the title
+  noticeably small, so the QSS uses pt throughout.
+  (b) GTK's per-widget `set_margin_bottom(n)` has no direct Qt equivalent in a
+  box with spacing 0; each becomes a FIXED n-px spacer, which is why the layout
+  interleaves spacers between the labels.
+  (c) `border-radius: 12px` only rounds if the TOP LEVEL is translucent -
+  otherwise the window's own square background paints over the corners. Hence
+  WA_TranslucentBackground on the window plus a rounded child `#splashCard`.
+  ONE DELIBERATE DIFFERENCE, mechanical not visual: the old `close()` blocks in
+  `sleep(0.1)` while pumping GTK events, and is called BEFORE the main window is
+  built - so the old startup costs 5 s PLUS the build. `hold_for` does the same
+  blocking wait, but the window is built DURING it, so the user sees the
+  identical sequence (splash 5 s, then the window) without paying twice.
+  Messages: the old app's three ("Initializing ..." / "Loading matplotlib ..." /
+  "Loading icons ...") spanned work that in MudLab2 happens at IMPORT time,
+  before main() runs, so they would flash past unread; one honest message spans
+  the window build instead.
+  FONT TRAP for anyone re-checking this head-less: the offscreen platform has
+  ZERO font families in this environment, so every glyph is tofu and any
+  rendered width/height is meaningless - the geometry was verified by rendering
+  with QT_QPA_PLATFORM=windows and grabbing the un-shown widget (no flash on
+  screen). verify_splash.py 35/35 (was 12).
+
 - [x] In-use deletion AUDIT (2026-08-23) - 6 findings, all FIXED, 5 of them in
   text the user actually reads. No behavioural bugs: the refusal gate, both UI
   paths and the harness rewrites audited correct.

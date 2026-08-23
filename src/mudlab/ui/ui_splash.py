@@ -15,58 +15,83 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QLabel, QSizePolicy, QSpacerItem,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QSizePolicy,
+    QSpacerItem, QVBoxLayout, QWidget)
 
 class Ui_SplashScreen(object):
     def setupUi(self, SplashScreen):
         if not SplashScreen.objectName():
             SplashScreen.setObjectName(u"SplashScreen")
-        SplashScreen.resize(480, 300)
-        SplashScreen.setMinimumSize(QSize(480, 300))
-        SplashScreen.setMaximumSize(QSize(480, 300))
-        self.splashLayout = QVBoxLayout(SplashScreen)
-        self.splashLayout.setSpacing(6)
+        SplashScreen.resize(520, 460)
+        self.outerLayout = QVBoxLayout(SplashScreen)
+        self.outerLayout.setSpacing(0)
+        self.outerLayout.setObjectName(u"outerLayout")
+        self.outerLayout.setContentsMargins(0, 0, 0, 0)
+        self.splashCard = QFrame(SplashScreen)
+        self.splashCard.setObjectName(u"splashCard")
+        self.splashLayout = QVBoxLayout(self.splashCard)
+        self.splashLayout.setSpacing(0)
         self.splashLayout.setObjectName(u"splashLayout")
-        self.splashLayout.setContentsMargins(32, 26, 32, 20)
-        self.topSpacer = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
-        self.splashLayout.addItem(self.topSpacer)
-
-        self.lbl_logo = QLabel(SplashScreen)
+        self.splashLayout.setContentsMargins(40, 30, 40, 24)
+        self.lbl_logo = QLabel(self.splashCard)
         self.lbl_logo.setObjectName(u"lbl_logo")
         self.lbl_logo.setAlignment(Qt.AlignCenter)
 
         self.splashLayout.addWidget(self.lbl_logo)
 
-        self.lbl_name = QLabel(SplashScreen)
+        self.afterLogo = QSpacerItem(20, 14, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.splashLayout.addItem(self.afterLogo)
+
+        self.lbl_name = QLabel(self.splashCard)
         self.lbl_name.setObjectName(u"lbl_name")
         self.lbl_name.setAlignment(Qt.AlignCenter)
 
         self.splashLayout.addWidget(self.lbl_name)
 
-        self.lbl_version = QLabel(SplashScreen)
+        self.afterName = QSpacerItem(20, 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.splashLayout.addItem(self.afterName)
+
+        self.lbl_tagline = QLabel(self.splashCard)
+        self.lbl_tagline.setObjectName(u"lbl_tagline")
+        self.lbl_tagline.setAlignment(Qt.AlignCenter)
+
+        self.splashLayout.addWidget(self.lbl_tagline)
+
+        self.afterTagline = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.splashLayout.addItem(self.afterTagline)
+
+        self.lbl_version = QLabel(self.splashCard)
         self.lbl_version.setObjectName(u"lbl_version")
         self.lbl_version.setAlignment(Qt.AlignCenter)
 
         self.splashLayout.addWidget(self.lbl_version)
 
-        self.lbl_tagline = QLabel(SplashScreen)
-        self.lbl_tagline.setObjectName(u"lbl_tagline")
-        self.lbl_tagline.setAlignment(Qt.AlignCenter)
-        self.lbl_tagline.setWordWrap(True)
+        self.afterVersion = QSpacerItem(20, 18, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
-        self.splashLayout.addWidget(self.lbl_tagline)
+        self.splashLayout.addItem(self.afterVersion)
 
-        self.bottomSpacer = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.separator = QFrame(self.splashCard)
+        self.separator.setObjectName(u"separator")
+        self.separator.setFrameShape(QFrame.HLine)
+        self.separator.setFrameShadow(QFrame.Plain)
 
-        self.splashLayout.addItem(self.bottomSpacer)
+        self.splashLayout.addWidget(self.separator)
 
-        self.lbl_status = QLabel(SplashScreen)
+        self.afterSeparator = QSpacerItem(20, 14, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.splashLayout.addItem(self.afterSeparator)
+
+        self.lbl_status = QLabel(self.splashCard)
         self.lbl_status.setObjectName(u"lbl_status")
         self.lbl_status.setAlignment(Qt.AlignCenter)
 
         self.splashLayout.addWidget(self.lbl_status)
+
+
+        self.outerLayout.addWidget(self.splashCard)
 
 
         self.retranslateUi(SplashScreen)
@@ -76,9 +101,9 @@ class Ui_SplashScreen(object):
 
     def retranslateUi(self, SplashScreen):
         self.lbl_name.setText(QCoreApplication.translate("SplashScreen", u"MudLab", None))
-        self.lbl_version.setText(QCoreApplication.translate("SplashScreen", u"version", None))
         self.lbl_tagline.setText(QCoreApplication.translate("SplashScreen", u"X-ray Diffraction Analysis of Disordered Layered Minerals", None))
-        self.lbl_status.setText(QCoreApplication.translate("SplashScreen", u"Starting...", None))
+        self.lbl_version.setText(QCoreApplication.translate("SplashScreen", u"v0.0.0", None))
+        self.lbl_status.setText(QCoreApplication.translate("SplashScreen", u"Loading ...", None))
         pass
     # retranslateUi
 

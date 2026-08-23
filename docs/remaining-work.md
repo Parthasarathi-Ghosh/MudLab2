@@ -26,12 +26,12 @@ so whoever picks one up starts from facts rather than a search.
      (line ~455, the `AnchoredOffsetbox` at ~527). Then reclaim the freed space:
      `subplots_adjust(left=0.18, ...)` at line ~247 is the reserved left margin.
 
-2. **Discard the MudLab2 splash and copy the OLD app's exactly** — including its
-   display time. The user prefers the old one. This *reverses* the deliberate
-   teal-slate/gold branding decision recorded in the splash memory note, so that
-   note must be updated when this lands, not left contradicting the code.
-   Current: `src/mudlab/splash.py` + `ui/splash.ui`, guarded by
-   `verify_splash.py`.
+2. ~~**Discard the MudLab2 splash and copy the OLD app's exactly**~~ — **DONE
+   2026-08-23.** Faithful port of the old palette, order, typography, 220 px
+   logo, separator and five-second hold; the branding decision it reverses has
+   been struck from the splash note. See the TODO entry for the three porting
+   traps (points not pixels, per-widget margins become spacers, rounded corners
+   need a translucent top level). verify_splash.py 35/35.
 
 3. **Plot export (SVG + bitmap) on the Composition dialog's plot context menu.**
    The composition plot has **no context menu at all** today. The main plot

@@ -90,13 +90,23 @@ def main() -> int:
     app = create_app(sys.argv)
     if "--selftest" in sys.argv:
         return _selftest()
-    splash, started = show_splash()   # branded splash while the window builds
+    # Old-app startup sequence: the splash carries its own progress messages,
+    # holds for its full five seconds, and only THEN does the main window
+    # appear. The window is built during the wait rather than after it, so the
+    # five seconds are the splash's, not added to the startup.
+    splash, started = show_splash()
+    # One message, not the old app's three: its "Initializing ..." /
+    # "Loading matplotlib ..." / "Loading icons ..." spanned work that in
+    # MudLab2 happens at IMPORT time, before main() runs, so those would flash
+    # past unread. This one spans the window build, which is the real wait.
+    splash.set_message("Loading application ...")
     window = MainWindow()
+    splash.hold_for(_MIN_VISIBLE_MS, started)
+    splash.close()
     # Fill the available screen area (the .ui's fixed 1280x800 default left a gap
     # on wider screens); the normal size is kept as the restore geometry.
     window.showMaximized()
     window.raise_()
-    splash.finish_after(_MIN_VISIBLE_MS, started)  # closes on the event loop
     return app.exec()
 
 
