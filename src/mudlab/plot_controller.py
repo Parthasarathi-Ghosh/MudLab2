@@ -34,6 +34,7 @@ from matplotlib.offsetbox import (
     VPacker,
 )
 from matplotlib.patches import FancyBboxPatch
+from matplotlib.ticker import MultipleLocator
 from matplotlib.transforms import Bbox, IdentityTransform
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
@@ -70,6 +71,46 @@ def _max_display_y(specimen: Specimen) -> float:
     if specimen.has_calculated_data:
         peak = max(peak, float(np.max(specimen.calculated_pattern[1])))
     return peak
+
+
+def save_figure(figure, canvas, filename: str, dpi: float,
+                i_width: float, i_height: float) -> None:
+    """Export `figure` to `filename` (.png / .pdf / .svg / other bitmaps) at the
+    given inch size and dpi, restoring the on-screen size and dpi afterwards.
+
+    Port of the old plot_controller.save_figure. Module-level rather than a
+    PatternPlot method because the Composition dialog's chart is a plain Figure
+    and needs the identical behaviour - in particular the `finally` that puts
+    the interactive size back even when saving fails, which is easy to omit in a
+    second copy.
+
+    dpi is ignored for the vector formats, where it means nothing.
+    """
+    is_vector = filename.lower().endswith((".svg", ".pdf"))
+    original_dpi = figure.get_dpi()
+    original_size = figure.get_size_inches()
+    figure.set_size_inches((i_width, i_height))
+    if not is_vector:
+        figure.set_dpi(dpi)
+    canvas.draw()
+    bbox = Bbox.from_bounds(0, 0, i_width, i_height)
+    save_kwargs = {"bbox_inches": bbox}
+    if not is_vector:
+        save_kwargs["dpi"] = dpi
+    if filename.lower().endswith((".tif", ".tiff")):
+        # Matplotlib writes TIFF UNCOMPRESSED. At the size dialog's default
+        # 8000x4800 that is 153 MB for a chart a compressed PNG stores in
+        # ~340 KB. LZW is lossless and universally readable, so nothing is
+        # given up for the ~10x saving. (Journals often ask for TIFF, which is
+        # why the format is offered at all.)
+        save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
+    try:
+        figure.savefig(filename, **save_kwargs)
+    finally:
+        # Always restore the interactive size/dpi, even if saving failed.
+        figure.set_dpi(original_dpi)
+        figure.set_size_inches(original_size)
+        canvas.draw()
 
 
 class PatternPlot:
@@ -185,27 +226,9 @@ class PatternPlot:
     def save_figure(self, filename: str, dpi: float,
                     i_width: float, i_height: float) -> None:
         """Export the plot to `filename` (.png / .pdf / .svg) at the given inch
-        size and dpi (dpi is ignored for the vector formats), restoring the
-        on-screen size and dpi afterwards. Port of the old plot_controller.
-        save_figure."""
-        is_vector = filename.lower().endswith((".svg", ".pdf"))
-        original_dpi = self.figure.get_dpi()
-        original_size = self.figure.get_size_inches()
-        self.figure.set_size_inches((i_width, i_height))
-        if not is_vector:
-            self.figure.set_dpi(dpi)
-        self.canvas.draw()
-        bbox = Bbox.from_bounds(0, 0, i_width, i_height)
-        save_kwargs = {"bbox_inches": bbox}
-        if not is_vector:
-            save_kwargs["dpi"] = dpi
-        try:
-            self.figure.savefig(filename, **save_kwargs)
-        finally:
-            # Always restore the interactive size/dpi, even if saving failed.
-            self.figure.set_dpi(original_dpi)
-            self.figure.set_size_inches(original_size)
-            self.canvas.draw()
+        size and dpi. See the module-level `save_figure`, which the Composition
+        dialog's plot shares."""
+        save_figure(self.figure, self.canvas, filename, dpi, i_width, i_height)
 
     def _redraw_keep_view(self) -> None:
         view = self.user_view()  # the user's zoom, if any (None = home view)
@@ -244,7 +267,12 @@ class PatternPlot:
         self._crosshair_line = None
         self._drag_highlight_lines = []
         self._marker_artists = {}
-        self.figure.subplots_adjust(left=0.18, right=0.97, top=0.96, bottom=0.10)
+        # The left margin used to reserve 18% of the figure for the specimen
+        # name / Rp / Rwp / GoF text. That text now lives in the upper-right
+        # index, so the plot takes the space back: just enough for the y tick
+        # labels when the y axis is shown, and a hair otherwise.
+        left = 0.10 if project.axes_yvisible else 0.045
+        self.figure.subplots_adjust(left=left, right=0.97, top=0.96, bottom=0.10)
 
         # Old Project.get_scale_factor():
         max_all = max((_max_display_y(s) for s in self.specimens), default=0.0)
@@ -255,7 +283,6 @@ class PatternPlot:
             scale, scale_unit = 1.0 / (max_all or 1.0), 1.0
 
         base_offset = project.display_plot_offset
-        label_offset = project.display_label_pos
         group_by = max(1, int(project.display_group_by))
 
         current_y_pos = 0.0
@@ -263,6 +290,9 @@ class PatternPlot:
         ylim_top = scale_unit
         lines = 0
         marker_specs: list[tuple] = []
+        # (name, [stat lines]) per specimen, in stacking order (index 0 is the
+        # BOTTOM of the plot); the index renders them top-first.
+        specimen_entries: list[tuple] = []
 
         for specimen in self.specimens:
             spec_max = _max_display_y(specimen)
@@ -359,23 +389,17 @@ class PatternPlot:
                         color=MINERAL_PREVIEW_COLOR, linewidth=1.0, zorder=5,
                     )
 
-            # Old plot_label: specimen name in the left margin, right
-            # aligned, y in data coordinates at the label position. With
-            # display_stats_in_lbl, append Rp/Rwp/GoF (old Specimen.label).
-            label_text = specimen.name
+            # The specimen name (and, with display_stats_in_lbl, its Rp / Rwp /
+            # GoF) used to be drawn in the left margin at display_label_pos.
+            # It is collected here and rendered in the upper-right index
+            # instead - see _draw_plot_index.
+            stats_lines = []
             if specimen.display_stats_in_lbl and specimen.statistics.has_data:
                 st = specimen.statistics
-                label_text += "\nRp = %.1f%%\nRwp = %.1f%%\nGoF = %.3f" % (
-                    st.Rp, st.Rwp, st.GoF
-                )
-            axes.text(
-                -0.02,
-                (current_y_pos + label_offset + specimen.display_vshift) * scale_unit,
-                label_text,
-                transform=axes.get_yaxis_transform(),
-                ha="right", va="center", clip_on=False,
-                color=INK_PRIMARY, fontsize="medium",
-            )
+                stats_lines = ["Rp = %.1f%%" % st.Rp,
+                               "Rwp = %.1f%%" % st.Rwp,
+                               "GoF = %.3f" % st.GoF]
+            specimen_entries.append((specimen.name, stats_lines))
 
             for marker in specimen.markers:
                 marker_specs.append(
@@ -416,20 +440,25 @@ class PatternPlot:
                 xlim = (0.0, 70.0)
 
         style_axes(axes)
+        # No grid on the pattern plot. style_axes turns one on for every chart
+        # in the app, so it is switched off HERE rather than there - the other
+        # seven charts that share that helper still want theirs.
+        axes.grid(False)
         axes.set_xlim(xlim)
         axes.set_ylim(0.0, ylim_top)
         axes.set_xlabel("2θ (°)", color=INK_SECONDARY)
+        self._set_degree_ticks(axes, xlim)
         axes.yaxis.set_visible(bool(project.axes_yvisible))
         if not project.axes_yvisible:
             axes.spines["left"].set_visible(False)
-            axes.grid(False, axis="y")
 
         # Markers, once the y-range is fixed (top-of-plot markers need it).
         for spec in marker_specs:
             self._draw_marker(*spec, xlim=xlim, y_top=ylim_top)
 
-        # Phase index: an upper-right legend of the mixtures on show.
-        self._draw_mixture_legend()
+        # Upper-right index: the specimen names + fit statistics that used to
+        # sit in the left margin, then the mixtures on show.
+        self._draw_plot_index(specimen_entries)
 
         # Shift dialog's reference line: a fixed dotted vertical at the target
         # 2theta, so the user can line the shifted peak up against it.
@@ -452,15 +481,60 @@ class PatternPlot:
         # crosshair/highlight artists can never alter the view ranges.
         axes.set_autoscale_on(False)
 
-    def _draw_mixture_legend(self) -> None:
-        """Port of the old plot_mixtures: an upper-right index of every mixture
-        that owns a displayed specimen. Each block is the mixture name, then one
-        row per phase slot - "<label>: <fraction %>" and a colour swatch per
-        specimen-cell filling that slot, in the phase's display_color (the same
-        colour its per-phase curve uses). Always drawn (as in the old app); it
-        simply shows nothing when no displayed specimen belongs to a mixture.
-        `axes.clear()` at the top of draw_pattern drops the previous one, so no
-        remove-old bookkeeping is needed.
+    # Label steps tried in order; the first whose labels fit is used.
+    _LABEL_STEPS = (1, 2, 5, 10, 20)
+
+    def _set_degree_ticks(self, axes, xlim) -> None:
+        """A tick every degree on the 2-theta axis.
+
+        Every degree gets a MINOR tick, which is the visible "tick per degree".
+        Labelling every degree as well is not readable - a routine 4-70 deg scan
+        would print 67 numbers into a few hundred pixels and they would overlap
+        into a smear - so the LABELLED (major) step is the smallest of 1, 2, 5,
+        10, 20 that leaves room for its labels at the current figure width. On a
+        zoomed-in span that resolves to 1, and the labels really are per degree.
+        """
+        span = abs(float(xlim[1]) - float(xlim[0])) or 1.0
+        # Width available to the axes, in points; ~28 pt per "70.0"-ish label
+        # plus a gap is comfortable.
+        width_px = max(self.figure.get_size_inches()[0], 1.0) * self.figure.dpi
+        width_pt = width_px * 72.0 / self.figure.dpi
+        axes_pt = width_pt * max(
+            0.1, 1.0 - self.figure.subplotpars.left
+            - (1.0 - self.figure.subplotpars.right))
+        room_for = max(2.0, axes_pt / 28.0)
+
+        step = self._LABEL_STEPS[-1]
+        for candidate in self._LABEL_STEPS:
+            if span / candidate <= room_for:
+                step = candidate
+                break
+        axes.xaxis.set_major_locator(MultipleLocator(step))
+        axes.xaxis.set_minor_locator(MultipleLocator(1))
+        # Minor ticks are the per-degree marks: shorter, so the labelled ones
+        # still read as the primary scale.
+        axes.tick_params(axis="x", which="major", length=5)
+        axes.tick_params(axis="x", which="minor", length=2.5, color=INK_MUTED)
+
+    def _draw_plot_index(self, specimen_entries=()) -> None:
+        """The upper-right index: the specimen names and fit statistics first,
+        then a block per mixture on show.
+
+        `specimen_entries` are (name, [stat lines]) in STACKING order - index 0
+        is the bottom of the plot - and are rendered TOP-FIRST so the list reads
+        down the screen in the same order as the curves. That ordering is the
+        only cue left tying a name to its curve: every specimen draws in the
+        same experimental/calculated colour (they are distinguished by vertical
+        position, not hue), so a colour swatch here would say nothing. This is
+        the one thing the move costs, and reversing the list is what pays most
+        of it back.
+
+        The mixture half is the old plot_mixtures: each block is the mixture
+        name, then one row per phase slot - "<label>: <fraction %>" and a colour
+        swatch per specimen-cell filling that slot, in the phase's display_color
+        (the same colour its per-phase curve uses). `axes.clear()` at the top of
+        draw_pattern drops the previous index, so no remove-old bookkeeping is
+        needed.
 
         SHOWN-ONLY swatches: a slot's swatches come from the mixture's DISPLAYED
         specimens only, so the swatch columns match the curves on screen. (The
@@ -477,7 +551,7 @@ class PatternPlot:
             m for m in getattr(project, "mixtures", [])
             if any(id(s) in shown for s in m.specimens)
         ]
-        if not mixtures:
+        if not mixtures and not specimen_entries:
             return
 
         default_color = getattr(project, "display_calc_color", INK_PRIMARY)
@@ -499,6 +573,15 @@ class PatternPlot:
                 color=INK_PRIMARY, size="small", weight=weight))
 
         blocks = []
+        # Specimen names + fit statistics, top of plot first.
+        for name, stats_lines in reversed(list(specimen_entries)):
+            rows = [HPacker(children=[text(name or "(unnamed)", weight="bold")],
+                            align="right", pad=0, sep=3)]
+            for line in stats_lines:
+                rows.append(HPacker(children=[text(line)],
+                                    align="right", pad=0, sep=3))
+            blocks.append(VPacker(children=rows, align="right", pad=0, sep=2))
+
         for mixture in mixtures:
             labels = mixture.phase_labels
             fractions = mixture.fractions
@@ -525,9 +608,20 @@ class PatternPlot:
             blocks.append(VPacker(children=rows, align="right", pad=0, sep=3))
 
         legend = AnchoredOffsetbox(
-            loc="upper right", pad=0.2, borderpad=0.3, frameon=False,
+            loc="upper right", pad=0.3, borderpad=0.3, frameon=True,
             child=VPacker(children=blocks, align="right", pad=0, sep=6),
         )
+        # The index used to be frameless, which was fine when it held only
+        # mixture rows. Now it also carries the specimen names and fit
+        # statistics that moved out of the left margin, so it is tall enough to
+        # sit over the curves - and unbacked text over a pattern is unreadable.
+        # A near-opaque surface-coloured panel keeps it legible without hiding
+        # much: it is nudged toward opaque rather than fully so, so a curve
+        # running behind it is still perceptible.
+        legend.patch.set_facecolor(SURFACE)
+        legend.patch.set_edgecolor(GRIDLINE)
+        legend.patch.set_alpha(0.92)
+        legend.patch.set_linewidth(0.8)
         legend.set_zorder(10)
         self.axes.add_artist(legend)
 

@@ -781,6 +781,62 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Composition plot: export from its context menu (2026-08-23, item #3).
+  The table had Copy / Export buttons; the chart had no way out of the dialog.
+  Right-click now gives "Save plot as..." (SVG / PDF / PNG / TIFF / JPEG) and
+  "Copy plot image". It reuses the main window's Save Graph flow - the same
+  SaveGraphSizeDialog, then the file picker - so exporting a chart works one way
+  everywhere. `PatternPlot.save_figure` was lifted out into a module-level
+  `plot_controller.save_figure(figure, canvas, ...)` and the method now
+  delegates; the point of sharing rather than copying is its `finally`, which
+  restores the interactive figure size even when the save fails.
+  MEASURED AND FIXED WHILE BUILDING IT: matplotlib writes TIFF UNCOMPRESSED, and
+  the size dialog defaults to 8000x4800 at 300 dpi = 38.4 Mpx, so a TIFF export
+  came out at 153.6 MB for a chart PNG stores in 340 KB. save_figure now asks
+  for LZW (lossless, universally readable) -> 2.6 MB. TIFF is kept rather than
+  dropped because journals routinely require it.
+  `plot_menu()` is built separately from the handler so a harness can inspect it
+  without a modal exec() - QMenu.exec is a C++ slot and cannot be patched.
+  verify_composition_plot_export.py 18/18.
+
+- [x] Main pattern plot: no grid, per-degree ticks, text moved into the index
+  (2026-08-23, item #1).
+  (a) NO GRID. Switched off in `draw_pattern`, NOT in `chart_style.style_axes` -
+  seven other dialogs share that helper and still want their grid, so the
+  harness pins that style_axes keeps gridding everything else.
+  (b) A TICK PER DEGREE. Every degree gets a MINOR tick; the LABELLED (major)
+  step adapts through 1/2/5/10/20 to whatever fits the current figure width.
+  Labelling every degree as well is not readable - a routine 4-70 deg scan would
+  print ~67 numbers into a few hundred pixels and they would overlap into a
+  smear - so the per-degree marks are the minor ticks (drawn shorter), and a
+  zoomed-in span resolves the labels to every degree too.
+  (c) THE LEFT-MARGIN TEXT MOVED INTO THE UPPER-RIGHT INDEX. The specimen name
+  and its Rp / Rwp / GoF now head the index, ahead of the mixture blocks, and
+  the 18% of figure width the margin reserved goes back to the plot (left 0.18
+  -> 0.045, or 0.10 when the y axis is visible and needs room for labels).
+  `_draw_mixture_legend` became `_draw_plot_index(specimen_entries)`.
+  TWO CONSEQUENCES WORTH KNOWING:
+  * Entries are listed TOP-OF-PLOT FIRST, i.e. reversed against stacking order
+    (the stack draws specimens[0] at the BOTTOM). That ordering is the only cue
+    left tying a name to its curve - every specimen draws in the same
+    experimental/calculated colour, so a colour swatch would say nothing - which
+    is the one thing the move costs.
+  * The index is no longer frameless. Holding the names + statistics makes it
+    tall enough to sit over the curves, and unbacked text over a pattern is
+    unreadable, so it gained a SURFACE-coloured panel at alpha 0.92 (near-opaque
+    but a curve behind it is still perceptible).
+  `display_label_pos` is now inert: the index is anchored, not positioned. The
+  PROPERTY stays - it is persisted in the .mud and the old GTK app reads it, and
+  dropping a key from the file format is not worth a dead 0.35 - but the Edit
+  Project spinbox and its label are DISABLED with a tooltip saying why, rather
+  than left looking live.
+  verify_plot_axes_index.py 27/27; verify_mixture_legend updated (a mixture-free
+  specimen now DOES get an index - its name - so that check asserts name-yes,
+  mixture-block-no, swatches-no) 15/15.
+  HARNESS NOTE: the first version of the new harness walked the index with a
+  LIFO stack and so read the entries reversed, which quietly made both ordering
+  checks meaningless - they passed nothing. It now walks children in order.
+
 - [x] Splash: EXACT copy of the old GTK app's (2026-08-23). Deliberately
   REVERSES the earlier "brand it distinctly" decision - the user prefers the old
   one, so this is a faithful port of `mudlab/application/splash.py`, not an

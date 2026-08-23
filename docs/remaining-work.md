@@ -12,19 +12,15 @@ memory audit notes; update it as items land.
 Recorded verbatim in intent; the notes under each are what the code says today,
 so whoever picks one up starts from facts rather than a search.
 
-1. **Main pattern plot — three changes.** (`src/mudlab/plot_controller.py`)
-   - a) **Remove the background grid.** Only `axes.grid(False, axis="y")` is set
-     today (line ~425), so the x-grid is whatever the style supplies — turn both
-     off explicitly.
-   - b) **Tick per degree on the x-axis.** No locator is set at all right now;
-     needs a `MultipleLocator(1)` (with a sane minor/label policy, since a 4–80°
-     scan would otherwise print ~76 labels).
-   - c) **Move the left-hand text into the upper-right legend.** The per-specimen
-     block (sample name, then `Rp` / `Rwp` / `GoF` when stats are shown) is drawn
-     by `axes.text(...)` at line ~371, built at ~364. It must be appended *before*
-     the existing per-mixture legend entries in `_draw_mixture_legend`
-     (line ~455, the `AnchoredOffsetbox` at ~527). Then reclaim the freed space:
-     `subplots_adjust(left=0.18, ...)` at line ~247 is the reserved left margin.
+1. ~~**Main pattern plot — three changes.**~~ — **DONE 2026-08-23.** Grid off
+   (in `draw_pattern`, not in the shared `style_axes` — seven other charts still
+   want theirs); a minor tick every degree with an adaptive labelled step
+   (1/2/5/10/20, resolving to 1 when zoomed in); and the specimen name + Rp /
+   Rwp / GoF moved from the left margin into the upper-right index, ahead of the
+   mixture blocks, with the reserved 18% of width given back to the plot. Note
+   `display_label_pos` is now inert — the property stays (persisted, old app
+   reads it) but its Edit Project control is disabled with a tooltip.
+   verify_plot_axes_index.py 27/27.
 
 2. ~~**Discard the MudLab2 splash and copy the OLD app's exactly**~~ — **DONE
    2026-08-23.** Faithful port of the old palette, order, typography, 220 px
@@ -33,11 +29,13 @@ so whoever picks one up starts from facts rather than a search.
    traps (points not pixels, per-widget margins become spacers, rounded corners
    need a translucent top level). verify_splash.py 35/35.
 
-3. **Plot export (SVG + bitmap) on the Composition dialog's plot context menu.**
-   The composition plot has **no context menu at all** today. The main plot
-   already has the machinery to reuse: `PatternPlot.save_figure(filename, dpi,
-   ...)` (`plot_controller.py` line ~185) and the main window's Save Graph flow
-   (size dialog → file picker → `save_figure`).
+3. ~~**Plot export (SVG + bitmap) on the Composition dialog's plot context
+   menu.**~~ — **DONE 2026-08-23.** Right-click gives "Save plot as..."
+   (SVG / PDF / PNG / TIFF / JPEG) and "Copy plot image", reusing the Save Graph
+   size dialog and a now-shared `plot_controller.save_figure`. TIFF is written
+   LZW-compressed — matplotlib's default is uncompressed, which at the size
+   dialog's 8000×4800 default produced a 153 MB file.
+   verify_composition_plot_export.py 18/18.
 
 4. **CIF component import with built-in c\* projection — ANSWER: no, not
    available.** Edit Phases' component import accepts **`.cmp` only**

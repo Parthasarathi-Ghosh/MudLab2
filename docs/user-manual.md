@@ -517,10 +517,10 @@ Both are off by default, and each is greyed until the data behind it exists.
 
 ### The comparison plot
 
-The right-hand pane plots exactly what the table shows — one group of bars per
-oxide, one bar per column. It is the fastest way to spot the disagreements a
-grid of numbers hides: a measured oxide the model has none of, or a phase whose
-chemistry has moved a long way from its baseline.
+The right-hand pane plots exactly what the table shows: the oxides along the
+bottom, and one line per column joining its values. It is the fastest way to
+spot the disagreements a grid of numbers hides — a measured oxide the model has
+none of, or a phase whose chemistry has moved a long way from its baseline.
 
 - The **measured** analysis is the one strongly coloured series, since it is
   usually what you are checking against.
@@ -528,8 +528,15 @@ chemistry has moved a long way from its baseline.
   specimen and its baseline read as before-and-after rather than as two
   unrelated series.
 
-Past about ten columns the groups stop being legible, so the plot says so rather
+Past about ten columns the lines stop being legible, so the plot says so rather
 than drawing something unreadable — the table still lists everything.
+
+**Saving the plot.** Right-click the chart for **Save plot as…** and **Copy
+plot image**. Save offers **SVG** and **PDF** (vector — they stay sharp at any
+size, and are what a journal usually wants) as well as **PNG**, **TIFF** and
+**JPEG**. A size and resolution box opens first, exactly as it does for
+**Save Graph** on the main plot. The Copy entry puts the chart on the clipboard
+so it can be pasted straight into a document.
 
 ### Which phase started as which default?
 
@@ -1082,20 +1089,48 @@ phase curves are recomputed the moment you toggle them (they are derived from th
 current fit and are not stored in the file); a **Refresh** (F5) also recomputes
 them. A project saved with the option on shows the curves as soon as it loads.
 
-### Phase index
+### The axes
 
-The top-right corner of the plot carries a **phase index** for every mixture that
-owns a specimen currently on show. Each entry lists the mixture's name, then one
-line per phase slot giving its **label and fraction** (as a percentage), next to
-a small **colour swatch** for each specimen — in the same colour that phase's
-curve uses when *Show phase patterns* is on. So you can read off, at a glance,
-which phase is which colour and what proportion it makes up.
+There is **no background grid** — the patterns are easier to read against a
+clean surface.
+
+The 2θ axis carries a **tick every degree**. The short marks are the individual
+degrees; the longer, numbered ones are spaced as widely as they need to be for
+the numbers to stay legible at the current window width — every 5° on a full
+4–70° scan, for instance. **Zoom in and the numbers close up**, until on a span
+of a few degrees every degree is labelled.
+
+### The index (top right)
+
+The top-right corner of the plot carries an **index**, in two parts.
+
+First, **every specimen on show**, listed in the order they appear on the
+graph — top of the list is the top curve. Each gives the specimen's name, and,
+for any specimen set to show them, its **Rp**, **Rwp** and **GoF**. (Turn those
+on per specimen with *Display statistics in label* in the Edit Specimen dialog.)
+This information used to sit in the left margin; moving it here frees that
+space, so the plot itself is now noticeably wider.
+
+Then a **phase index** for every mixture that owns a specimen currently on show.
+Each entry lists the mixture's name, then one line per phase slot giving its
+**label and fraction** (as a percentage), next to a small **colour swatch** for
+each specimen — in the same colour that phase's curve uses when *Show phase
+patterns* is on. So you can read off, at a glance, which phase is which colour
+and what proportion it makes up.
 
 Because a slot can hold a different phase in each specimen (the air-dried,
 glycolated and heated forms of one clay), a row shows one swatch per specimen —
 usually the same colour across the row, but a different colour wherever a slot
-holds a differently-coloured phase. The index appears automatically; it is empty
-(and hidden) only when none of the shown specimens belongs to a mixture.
+holds a differently-coloured phase.
+
+The index sits on a light panel so it stays readable where it overlaps a
+pattern. It appears automatically, and shows only the parts that apply: a
+specimen belonging to no mixture still gets its name listed, just without a
+mixture block.
+
+> **The label position setting does nothing now.** *Edit Project → Patterns →
+> Label position* is greyed out: it positioned the specimen name in the left
+> margin, and the index is anchored to the corner instead.
 
 ### Saving the graph as an image
 

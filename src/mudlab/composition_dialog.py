@@ -35,10 +35,13 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget,
+    QApplication, QDialog, QFileDialog, QMenu, QMessageBox, QTableWidgetItem,
+    QWidget,
 )
 
 from mudlab.chart_style import SURFACE, style_axes
+from mudlab.plot_controller import save_figure
+from mudlab.specimen_dialogs import SaveGraphSizeDialog
 
 from mudlab.calculations.composition import (
     bulk_composition, composition_to_csv, mixture_composition, mixture_has_nonclay,
@@ -239,6 +242,60 @@ class CompositionDialog(QDialog):
         self._canvas.setMinimumWidth(320)
         self.ui.plotLayout.addWidget(self._canvas)
         self._axes = self._figure.add_subplot(111)
+        # Right-click the chart to export it. The table beside it already has
+        # Copy / Export buttons; the plot had no way out of the dialog at all.
+        self._canvas.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self._canvas.customContextMenuRequested.connect(self._on_plot_menu)
+
+    # ------------------------------------------------------------------
+    # Plot export (right-click)
+    # ------------------------------------------------------------------
+    def plot_menu(self) -> QMenu:
+        """The chart's context menu. Built separately from the handler so a
+        harness can inspect it without entering a modal exec() loop - QMenu.exec
+        is a C++ slot and cannot be patched away."""
+        menu = QMenu(self)
+        act_save = menu.addAction("Save plot as...")
+        act_save.setToolTip("Export this chart as SVG, PDF or a bitmap image.")
+        act_save.triggered.connect(self._on_save_plot)
+        act_copy = menu.addAction("Copy plot image")
+        act_copy.setToolTip("Copy the chart to the clipboard as an image.")
+        act_copy.triggered.connect(self._on_copy_plot)
+        return menu
+
+    def _on_plot_menu(self, pos) -> None:
+        self.plot_menu().exec(self._canvas.mapToGlobal(pos))
+
+    def _on_copy_plot(self) -> None:
+        QApplication.clipboard().setPixmap(self._canvas.grab())
+
+    def _on_save_plot(self) -> None:
+        """Size/DPI dialog, then the file picker, then save - the same flow and
+        the same size dialog as the main window's Save Graph, so exporting a
+        chart works the one way everywhere."""
+        size = SaveGraphSizeDialog(self)
+        if not size.exec():
+            return
+        width = float(size.ui.entry_width.value())
+        height = float(size.ui.entry_height.value())
+        dpi = float(size.ui.entry_dpi.value()) or 100.0
+        name = (getattr(self._mixture, "name", "") or "composition").strip()
+        path, _filter = QFileDialog.getSaveFileName(
+            self, "Save plot", "%s composition.png" % name,
+            "PNG image (*.png);;SVG image (*.svg);;PDF document (*.pdf);;"
+            "TIFF image (*.tif);;JPEG image (*.jpg)",
+        )
+        if not path:
+            return
+        if not os.path.splitext(path)[1]:
+            path += ".png"
+        try:
+            save_figure(self._figure, self._canvas, path,
+                        dpi, width / dpi, height / dpi)
+        except Exception as exc:  # noqa: BLE001 - surface, don't crash
+            QMessageBox.warning(
+                self, "Save plot", "Could not save the plot:\n\n%s" % exc)
 
     def _series_colour(self, index: int, label: str):
         """Measured is the reference the eye should find first, so it gets the

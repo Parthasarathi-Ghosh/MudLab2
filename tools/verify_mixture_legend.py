@@ -149,13 +149,19 @@ def main():
         drew = False
     check("the figure renders with the legend", drew)
 
-    # a specimen in NO mixture gets no legend
+    # A specimen in NO mixture still gets an index - its NAME lives there now
+    # (it moved out of the left margin) - but no mixture block and no swatches.
     orphan = next((s for s in PROJECT.specimens
                    if s is not None and s.has_experimental_data
                    and not any(s in m.specimens for m in PROJECT.mixtures)), None)
     if orphan is not None:
-        check("no legend for a specimen in no mixture",
-              _legend_of(PatternPlot([orphan], PROJECT)) is None)
+        oplot = PatternPlot([orphan], PROJECT)
+        check("a mixture-free specimen still gets an index (its name)",
+              _legend_of(oplot) is not None
+              and orphan.name in _texts_of(oplot))
+        check("...but no mixture block for it",
+              not any(m.name in _texts_of(oplot) for m in PROJECT.mixtures))
+        check("...and no phase swatches", not _swatches_of(oplot))
     else:
         print("  (no mixture-free specimen in this fixture; skipped that check)")
 

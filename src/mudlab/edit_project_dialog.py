@@ -93,6 +93,19 @@ class EditProjectDialog(QDialog):
             (u.project_axes_dspacing, "axes_dspacing"),
         )
 
+        # Label position no longer does anything: the specimen name and its fit
+        # statistics moved out of the left margin into the plot's upper-right
+        # index (2026-08-23), which is anchored, not positioned. The PROPERTY
+        # stays - it is persisted in the .mud and the old GTK app still reads
+        # it, and dropping a key from the file is not worth a dead 0.35 - but
+        # the control is disabled rather than left looking live.
+        u.project_display_label_pos.setEnabled(False)
+        u.lblLabelPos.setEnabled(False)
+        _dead = ("No longer used: specimen names and fit statistics are shown "
+                 "in the plot's upper-right index, not in the left margin.")
+        u.project_display_label_pos.setToolTip(_dead)
+        u.lblLabelPos.setToolTip(_dead)
+
         for widget, prop in self._text_bindings:
             widget.textChanged.connect(lambda text, p=prop: self._write(p, text))
         u.project_description.textChanged.connect(
