@@ -781,6 +781,48 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Component pane: Show Structure (2026-08-23, item #5). Ports the old app's
+  `btn_show_structure` -> `phases/models/component_diagram.build_structure_diagram`
+  -> a modal text window. New `component_diagram.py` (the builder, Qt-free so it
+  can be tested and diffed without a widget), `structure_diagram_dialog.py` +
+  `ui/structure_diagram.ui` (the viewer, 740x540 like the old one), and a
+  `btn_show_structure` in `ui/edit_component.ui`.
+  Verified against a 2:1 (illite: LOWER/UPPER tetrahedral sheets, dioctahedral
+  4 sites/uc, K interlayer with the Fe:Al ratio summarised) and a 1:1
+  (kaolinite: one tetrahedral sheet, no interlayer).
+  FOUR DELIBERATE DIVERGENCES from the old module:
+  (1) "\n", not CRLF - the old one targeted a GtkTextView; a Qt text widget
+  renders a stray CR as a control glyph.
+  (2) NO "Generated" timestamp. It made two renders of the same unchanged
+  component differ, which defeats comparing one against another, and it was the
+  only thing keeping the function impure.
+  (3) MODELESS, where the old one was modal. The diagram is a reference you read
+  WHILE editing the component it describes; `refresh()` re-renders in place, and
+  one tracked instance is re-pointed rather than stacking windows.
+  (4) The PHASE NAME IS PASSED IN. The old Component had a `.phase`
+  back-reference; MudLab2's does not, and adding one purely to label a diagram
+  would put a cycle into the object graph that both the serialiser and
+  snapshot-on-detach would have to know about. `bind_components(...,
+  phase_name=)` carries it from the editor, which already knows.
+  Plus Copy and Save-as-text, which the old one lacked - a cross-section is the
+  kind of thing that ends up in a notebook. Saved UTF-8; the diagram is drawn
+  with box-drawing characters.
+  The charge-balance block carries the scattering-ion caveat WITH the number: a
+  stock kaolinite reads net -4.000 "imbalanced" by construction (atom_type.charge
+  is the scattering ion, not a formal charge - the same divergence documented for
+  the refinement validation), and without the caveat that looks like a bug in the
+  user's model.
+  AUTODEFAULT (the user asked for care here, and the app has been bitten four
+  times): Qt grants autoDefault to every QPushButton with a QDialog ancestor and
+  RE-GRANTS it on REPARENTING, so a flag set in the .ui is not enough once the
+  component pane is placed inside Edit Phases. Three layers: the .ui declares
+  autoDefault=false, `component_widget` clears it again after wiring (for use
+  outside a shown dialog), and the app-wide `install_enter_policy` clears it on
+  every dialog show - which is the real guarantee. The harness asserts the state
+  AFTER a real show, and then presses Return AND Enter in the component-name
+  field to confirm nothing opens.
+  verify_structure_diagram.py 36/36.
+
 - [x] Exporters: old-app .mud and PyXRD .pyxrd (2026-08-23, item #8).
   New `file_parsers/exporters.py` + **Project > Export** (this app's File menu is
   called Project). `save_mud` was split so both start from exactly what a normal

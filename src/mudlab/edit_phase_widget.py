@@ -191,7 +191,7 @@ class EditPhaseWidget(QWidget):
 
         self.component_widget.bind_components(
             phase.components, atom_types=self._atom_types, on_changed=self._notify,
-            link_candidates=self._link_candidates,
+            link_candidates=self._link_candidates, phase_name=phase.name or "",
         )
 
     # ------------------------------------------------------------------

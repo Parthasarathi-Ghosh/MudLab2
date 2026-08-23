@@ -55,6 +55,12 @@ class Ui_EditComponentWidget(object):
 
         self.componentSelectRow.addWidget(self.btn_export_component)
 
+        self.btn_show_structure = QPushButton(EditComponentWidget)
+        self.btn_show_structure.setObjectName(u"btn_show_structure")
+        self.btn_show_structure.setAutoDefault(False)
+
+        self.componentSelectRow.addWidget(self.btn_show_structure)
+
 
         self.componentForm.setLayout(0, QFormLayout.ItemRole.FieldRole, self.componentSelectRow)
 
@@ -284,6 +290,9 @@ class Ui_EditComponentWidget(object):
 
         self.retranslateUi(EditComponentWidget)
 
+        self.btn_show_structure.setDefault(False)
+
+
         QMetaObject.connectSlotsByName(EditComponentWidget)
     # setupUi
 
@@ -297,6 +306,10 @@ class Ui_EditComponentWidget(object):
         self.btn_export_component.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Export the selected component to a .cmp file.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_export_component.setText(QCoreApplication.translate("EditComponentWidget", u"Export\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_show_structure.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Show a typographic cross-section diagram of this component.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_show_structure.setText(QCoreApplication.translate("EditComponentWidget", u"Show Structure", None))
         self.lblComponentName.setText(QCoreApplication.translate("EditComponentWidget", u"Name", None))
         self.lblD001.setText(QCoreApplication.translate("EditComponentWidget", u"Cell length c / d001 [nm]", None))
 #if QT_CONFIG(tooltip)

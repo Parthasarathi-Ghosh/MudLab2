@@ -54,6 +54,8 @@ class EditComponentWidget(QWidget):
 
         self._components: list = []
         self._component = None
+        self._structure_dialog = None
+        self._phase_name = ""
         self._atom_types: list = []
         self._link_candidates: list = []
         self._on_changed: Callable[[], None] | None = None
@@ -87,6 +89,15 @@ class EditComponentWidget(QWidget):
         self.ui.cmb_component.currentIndexChanged.connect(self._on_component_selected)
         self.ui.btn_import_component.clicked.connect(self._on_import_component)
         self.ui.btn_export_component.clicked.connect(self._on_export_component)
+        self.ui.btn_show_structure.clicked.connect(self._on_show_structure)
+        # AUTODEFAULT: Qt hands autoDefault to every QPushButton with a QDialog
+        # ancestor, and re-grants it on REPARENTING - so the flag set in the
+        # .ui is not enough once this widget is placed inside Edit Phases. The
+        # app-wide policy (qt_utils.install_enter_policy) clears it on every
+        # dialog show, which is the real guarantee; this is belt-and-braces for
+        # the case where the widget is used outside a shown dialog.
+        self.ui.btn_show_structure.setAutoDefault(False)
+        self.ui.btn_show_structure.setDefault(False)
         self.ui.component_name.editingFinished.connect(self._on_name_edited)
         self.ui.component_d001.valueChanged.connect(
             lambda v: self._on_scalar_changed("d001", v)
@@ -131,11 +142,13 @@ class EditComponentWidget(QWidget):
         atom_types=None,
         on_changed: Callable[[], None] | None = None,
         link_candidates=None,
+        phase_name: str = "",
     ) -> None:
         """Show and edit a phase's Component list. `atom_types` fills the atom
         element combos; `link_candidates` are (label, component) pairs offered
         as linking templates (the whole project's components); `on_changed`
         runs after an accepted edit (used to recompute + redraw the pattern)."""
+        self._phase_name = phase_name   # labels the structure diagram
         # Keep the phase's ACTUAL component list (not a copy) so an import
         # can replace a component in place (Component import = replace).
         self._components = components if components is not None else []
@@ -445,6 +458,29 @@ class EditComponentWidget(QWidget):
             QMessageBox.critical(
                 self, "Export component", "Could not export:\n%s\n\n%s" % (path, exc)
             )
+
+    def _on_show_structure(self) -> None:
+        """Open (or re-use) the cross-section diagram for the bound component.
+
+        One tracked instance, re-pointed rather than stacked: clicking twice
+        should not leave two windows describing the same thing. It is MODELESS,
+        so the diagram can be read while the component that it describes is
+        edited - `refresh()` brings it up to date.
+        """
+        if self._component is None:
+            return
+        from mudlab.structure_diagram_dialog import StructureDiagramDialog
+
+        dialog = getattr(self, "_structure_dialog", None)
+        if dialog is None:
+            dialog = StructureDiagramDialog(
+                self, component=self._component, phase_name=self._phase_name)
+            self._structure_dialog = dialog
+        else:
+            dialog.set_component(self._component, self._phase_name)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def _on_import_component(self) -> None:
         """Replace the selected component with one imported from a .cmp (the

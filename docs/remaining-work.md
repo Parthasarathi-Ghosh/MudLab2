@@ -50,17 +50,10 @@ so whoever picks one up starts from facts rather than a search.
    piece is projecting the CIF's fractional atom positions onto c\* and binning
    them into layer/interlayer atoms with `z` + `pn`.
 
-5. **Component pane "Show Structure" button — ANSWER: not ported.** The old app
-   has it: `btn_show_structure` in `phases/glade/component.glade` (label
-   "Show Structure", tooltip "Show a typographic cross-section diagram of this
-   component") → `component_controllers.on_btn_show_structure_clicked`, which
-   opens a modal scrolled dialog (740×540) rendering
-   `phases/models/component_diagram.build_structure_diagram(component)`. That
-   builder is a self-contained **236-line pure-text module** (clusters layer
-   atoms into zones, labels the interlayer, formats `pn`) with no GTK
-   dependency — so the port is: copy the module nearly verbatim, add the button
-   to `ui/edit_component.ui`, and show the text in a read-only fixed-pitch
-   dialog. Small and low-risk.
+5. ~~**Component pane "Show Structure" button**~~ — **DONE 2026-08-23.**
+   Ported as `component_diagram.py` (Qt-free builder) plus a modeless viewer
+   with Copy and Save-as-text. Verified on a 2:1 and a 1:1 clay.
+   verify_structure_diagram.py 36/36.
 
 6. **A Reset feature on Phase objects — ANSWER: feasible, and most of it already
    exists.** `default_state.py` already records what every phase *started as*

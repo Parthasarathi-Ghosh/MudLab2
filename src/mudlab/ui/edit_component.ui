@@ -44,6 +44,22 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="btn_show_structure">
+         <property name="toolTip">
+          <string>Show a typographic cross-section diagram of this component.</string>
+         </property>
+         <property name="text">
+          <string>Show Structure</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+         <property name="default">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item row="1" column="0">

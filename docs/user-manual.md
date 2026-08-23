@@ -265,6 +265,26 @@ to this component's own stored values). The inherit boxes are cleared either way
 
 ---
 
+### Seeing the structure
+
+**Show Structure**, in the component pane, draws the component as a labelled
+cross-section: the `d001` boundary at the top, the interlayer and what the atom
+relations put in it, the `lattice_d` boundary, then the sheets — tetrahedral and
+octahedral, named — with every atom's z position, `pn` and type, down to z = 0.
+A 2:1 clay shows a lower and an upper tetrahedral sheet; a 1:1 clay shows one.
+The octahedral sheet is labelled **dioctahedral** or **trioctahedral** from its
+cation occupancy.
+
+It reads the live model, so it shows the values the relations have actually
+applied. The window stays open while you edit — it is meant to be read
+alongside the editor, not instead of it. **Copy** puts the diagram on the
+clipboard and **Save as text…** writes it to a `.txt` file.
+
+> **Why does it say the charge is imbalanced?** Because the charge shown comes
+> from each atom type's **scattering** ion, not its formal valence. A stock
+> kaolinite reads −4.000 for that reason alone, refined or not. Treat the number
+> as a relative check between your own edits, not as a verdict on the mineral.
+
 ## Atom relations (substitutions and contents)
 
 On the **Components** tab, the **Atom relations** group ties atom occupancies
