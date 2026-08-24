@@ -1,8 +1,22 @@
 # MudLab
 
+**Version 1.0.0** - X-ray diffraction analysis of disordered layered minerals.
+
 Windows desktop application built with PySide6 (Qt 6), NumPy, SciPy, and
 Matplotlib. Working folder is `MudLab2` while the legacy MudLab is still
 installed; the product name is **MudLab**.
+
+## Releases
+
+`package.cmd` builds the portable Windows package: a clean PyInstaller build,
+a frozen self-test, then `MudLab-<version>-win64-portable.zip` - a no-install
+folder that users unzip and run. Keep the version in step across
+`src/mudlab/__init__.py` (the source of truth), `pyproject.toml` and
+`version_info.txt`; `tools/verify_release_metadata.py` checks that they agree
+and that no project fixtures reached the build.
+
+Licensed BSD 3-Clause - see `LICENSE`. MudLab descends from PyXRD / MudLab by
+Mathijs Dumon, whose copyright notice travels with every binary release.
 
 ## Self-contained environment
 

@@ -1,0 +1,44 @@
+# Windows version resource for MudLab.exe (PyInstaller `version=` on EXE).
+#
+# Without this the built .exe has NO version, product name or copyright in its
+# File Properties. That matters for a public release: it is what a user sees in
+# the file's Details tab, what corporate software inventories read, and one of
+# the signals SmartScreen and antivirus heuristics weigh on an unsigned binary.
+#
+# KEEP THE VERSION IN STEP with src/mudlab/__init__.py __version__ (the source of
+# truth) and pyproject.toml. filevers/prodvers are 4-integer tuples, so 1.0.0
+# becomes (1, 0, 0, 0).
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0),
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          "040904B0",
+          [
+            StringStruct("CompanyName", "Parthasarathi Ghosh"),
+            StringStruct("FileDescription",
+                         "MudLab - X-ray diffraction analysis of disordered layered minerals"),
+            StringStruct("FileVersion", "1.0.0"),
+            StringStruct("InternalName", "MudLab"),
+            StringStruct("LegalCopyright",
+                         "Copyright (c) 2013 Mathijs Dumon; (c) 2026 Parthasarathi Ghosh. BSD 3-Clause."),
+            StringStruct("OriginalFilename", "MudLab.exe"),
+            StringStruct("ProductName", "MudLab"),
+            StringStruct("ProductVersion", "1.0.0"),
+          ],
+        )
+      ]
+    ),
+    VarFileInfo([VarStruct("Translation", [1033, 1200])]),
+  ],
+)

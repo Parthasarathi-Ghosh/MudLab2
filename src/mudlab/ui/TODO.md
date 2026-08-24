@@ -781,6 +781,48 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] RELEASE 1.0.0 - first public release, portable Windows build (2026-08-23).
+  Version 0.2.0 -> **1.0.0** in the two places that carry it
+  (`src/mudlab/__init__.py` is the source of truth, `pyproject.toml` mirrors it)
+  and in a NEW third: `version_info.txt`, a Windows version resource wired into
+  the spec. Without it the .exe reported no version, product name or copyright
+  at all in File Properties - unhelpful to users, invisible to corporate
+  software inventories, and one more thing for SmartScreen to dislike on an
+  unsigned binary.
+  **LICENSE added** (BSD 3-Clause, retaining (c) 2013 Mathijs Dumon alongside
+  the user's own line). This is not decoration: MudLab's analytics are a direct
+  port of PyXRD / old MudLab, and clause 2 REQUIRES that notice to be reproduced
+  in a BINARY distribution - so `package.cmd` copies LICENSE into the package,
+  not merely into the repo.
+  README-TESTERS.md -> **README-PORTABLE.md**, bundled as `README.md`: the
+  tester text told people not to redistribute it, which is exactly wrong for a
+  public release.
+  New `verify_release_metadata.py` (21 checks) pins the three version strings
+  against each other, the licence and its upstream notice, and - when a build is
+  present - the CONTENTS of `dist\MudLab`.
+  ONE FALSE ALARM WORTH RECORDING: the first version of that check forbade
+  `.mud`/`.cmp`/`.phs` anywhere in a build and reported 27 violations. All 27
+  were the SHIPPED default-component catalog under `mudlab/data`, which is meant
+  to be bundled. Corrected: a `.mud` is always wrong (those are the user's
+  projects); a `.cmp`/`.phs` is wrong only OUTSIDE `mudlab/data`; and the
+  catalog's PRESENCE is now asserted too, so the opposite mistake - shipping a
+  build with no catalog - fails as well.
+  VERIFIED ON THE ARTIFACT, not the recipe: the frozen self-test passes inside
+  the build; the 598-entry zip has a single `MudLab/` root, contains LICENSE +
+  README.md, and holds NO .mud and no component outside `mudlab/data`; the .exe
+  reports ProductName/FileVersion/ProductVersion/Company/Copyright correctly;
+  and the frozen app really LAUNCHES (window title "MudLab - New Project",
+  ~223 MB working set) - the self-test never builds a window, and frozen builds
+  fail at exactly that step in ways a self-test misses.
+  Artifact: `MudLab-1.0.0-win64-portable.zip`, 102.6 MB, folder-in-a-zip
+  (onedir) as the user chose over a single-file build - onefile would unpack
+  ~200 MB to %TEMP% on every launch and draw more AV false positives.
+  Build outputs stay gitignored (`/dist/`, `/build/`, `/MudLab-*-portable.zip`).
+  Full suite 76/76. Tagged **v1.0.0**.
+  STILL UNSIGNED: SmartScreen will warn on first run. Code signing needs a
+  certificate the project does not have; the bundled README explains the warning
+  rather than pretending it will not appear.
+
 - [x] AUDIT of 3af0586..b7851f4 (2026-08-23) - splash, plot axes/index,
   composition export, Composition menu, exporters, Show Structure, Peaks.
   **5 findings, all real, all FIXED.** Two were user-visible misbehaviour, one

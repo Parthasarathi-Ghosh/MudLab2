@@ -32,6 +32,10 @@ exe = EXE(
     # Force UTF-8 mode (PEP 540) inside the frozen app, matching the dev launchers.
     options=[("X utf8", None, "OPTION")],
     icon="src/mudlab/data/icons/mudlab.ico",
+    # File Properties -> Details. Without it the .exe reports no version,
+    # product name or copyright at all, which for an UNSIGNED public release is
+    # both unhelpful to users and one more thing for SmartScreen to dislike.
+    version="version_info.txt",
 )
 
 coll = COLLECT(

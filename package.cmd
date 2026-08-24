@@ -1,5 +1,5 @@
 @echo off
-REM Build the portable Windows package for testers:
+REM Build the portable Windows package:
 REM   clean PyInstaller build -> frozen self-test -> bundle README -> zip.
 REM Output: MudLab-<version>-win64-portable.zip (a no-install folder, zipped).
 REM Run from the repo root:  package.cmd
@@ -24,8 +24,11 @@ if not "%ST%"=="0" goto :err
 findstr /c:"SELFTEST PASS" "%TEMP%\mudlab_selftest.txt" >nul || goto :err
 
 echo.
-echo === [3/5] Bundle the tester README ===
-copy /Y "README-TESTERS.md" "dist\MudLab\README-TESTERS.md" >nul || goto :err
+echo === [3/5] Bundle the README and the licence ===
+REM The BSD-3 licence REQUIRES its notice to travel with a binary distribution,
+REM so LICENSE is part of the package, not just the repo.
+copy /Y "README-PORTABLE.md" "dist\MudLab\README.md" >nul || goto :err
+copy /Y "LICENSE" "dist\MudLab\LICENSE" >nul || goto :err
 
 echo.
 echo === [4/5] Read version ===
@@ -47,7 +50,7 @@ if errorlevel 1 goto :err
 echo.
 echo === DONE ===
 echo Portable package: %ZIP%
-echo Testers extract it and run  MudLab\MudLab.exe
+echo Users extract it and run  MudLab\MudLab.exe
 exit /b 0
 
 :err
