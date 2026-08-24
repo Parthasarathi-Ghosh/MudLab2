@@ -5,7 +5,7 @@ container. The curve can come from a measured file (preferred for accuracy -
 Finding 19) or from a structure via ``mudlab.nonclay.structure.reference_from_cif``.
 ``apply_lpf`` stays False (RawPatternPhase's default): the reference is taken in
 observed-intensity space (Finding 11); the E1 gate
-(``tools/nonclay_experiments/e1_refspace.py``) checks that precondition.
+(an experiment kept outside this repository) checks that precondition.
 """
 
 from __future__ import annotations

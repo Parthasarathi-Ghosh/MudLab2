@@ -15,3 +15,13 @@ __pycache__/
 # calc-engine regression harness only. NEVER commit or push these - see
 # tools/sample_projects/README.md.
 tools/sample_projects/*.mud
+
+# Unpublished non-clay method work: findings, algorithm spec and the
+# reproducibility experiments. Kept outside this repository on purpose (see
+# ../MudLab2-private/); listed here so they cannot be re-added by accident.
+/docs/non-clay-analysis-notes.md
+/docs/nonclay-algorithm.md
+/docs/crystalline-accessory-notes.md
+/tools/nonclay_experiments/
+/tools/prototype_nonclay.py
+/tools/prototype_nonclay_survey.py

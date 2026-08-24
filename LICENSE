@@ -34,7 +34,3 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 This software is based on PyXRD (https://github.com/mathijs-dumon/PyXRD),
 originally written by Mathijs Dumon, and has been substantially modified and
 extended as MudLab by Parthasarathi Ghosh.
-
-The bundled MVC framework (data/lib/python3.14/site-packages/mvc/) is derived
-from pygtkmvc and is licensed under the GNU Library General Public License v2.
-See data/lib/python3.14/site-packages/mvc/LICENSE for details.

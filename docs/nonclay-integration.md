@@ -10,10 +10,10 @@ The non-clay feature is **experimental** and built to be removed cleanly. It is
   `nonclay.ui` + `ui_nonclay.py`), all in one deletable package.
 - `tools/verify_nonclay.py` — the harness (engine + dialog + the isolation
   invariant).
-- `tools/nonclay_experiments/` — throwaway reproducibility scripts and the
-  from-CIF calculator (`structure_pattern.py`).
-- `docs/non-clay-analysis-notes.md` — the design / evidence notes (Findings
-  1–33); `docs/nonclay-algorithm.md` — the paper-ready methods write-up.
+
+The method notes, the algorithm write-up and the reproducibility experiments are
+deliberately kept **outside this repository**: the method is unpublished work.
+This file documents how the shipped feature is wired, not how it was derived.
 
 ## The one mainstream seam — grep token `NONCLAY`
 - `src/mudlab/ui/edit_mixture.ui` — the `btn_nonclay` button ("Non-clay…", next
@@ -27,9 +27,7 @@ Delete `src/mudlab/nonclay/`. The app still runs — the defensive wiring catche
 the `ImportError` and hides the Non-clay button. Nothing else breaks.
 
 ## To fully retract
-1. Delete `src/mudlab/nonclay/`, `tools/verify_nonclay.py`,
-   `tools/nonclay_experiments/`, `docs/non-clay-analysis-notes.md`, and this
-   file.
+1. Delete `src/mudlab/nonclay/`, `tools/verify_nonclay.py` and this file.
 2. In `src/mudlab/ui/edit_mixture.ui`, remove the `<widget … name="btn_nonclay">`
    `<item>`, then recompile:
    `./python/Scripts/pyside6-uic.exe src/mudlab/ui/edit_mixture.ui -o src/mudlab/ui/ui_edit_mixture.py`

@@ -7,8 +7,8 @@ mutates a model or edits ``calculations/``. Nothing in mainstream imports this
 package except one fenced ``NONCLAY`` seam (Slice 3 - see the retraction
 manifest, not present yet). Delete this directory to retract the engine.
 
-Evidence base: ``docs/non-clay-analysis-notes.md`` (Findings 1-20) and the
-reproducibility scripts in ``tools/nonclay_experiments/``. Every output is
+Evidence base: the method notes and reproducibility scripts are kept OUTSIDE
+this repository - the method is unpublished work. Every output is
 SEMI-QUANTITATIVE (no RIR / internal standard yet).
 """
 

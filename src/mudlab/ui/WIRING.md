@@ -919,7 +919,7 @@ R2G2 validates it at corr 1.000000 (`verify_calc_engine` on
 ### R1G4: MATRIX-validated vs the real old app (no full-pattern fixture yet)
 
 `R1G4Probability` (4×4, reps 1, 12 params) ports `R1G4Model.update` verbatim
-from PyXRD (`C:\Users\pxgho\PyXRD`; confirmed byte-identical to old mudlab's).
+from PyXRD (a local PyXRD checkout; confirmed byte-identical to old mudlab's).
 It dispatches and loads like the others. There is no R1G4 `.mud` test project,
 so it does not get a stored-**pattern** golden - but it gets the next best
 thing, a **matrix golden against the REAL old app**: the old mudlab ships its
