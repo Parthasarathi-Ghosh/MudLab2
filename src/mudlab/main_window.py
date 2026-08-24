@@ -233,6 +233,12 @@ class MainWindow(QMainWindow):
         # so a change to any of them is an unsaved change. Without this the user
         # can map every phase, close, and be told there was nothing to save.
         project.composition_changed.connect(self._mark_dirty)
+        # Keep the Composition menu honest from the start, not only once the
+        # menu has been opened: aboutToShow alone left Remove ENABLED on a
+        # project with no composition, which is wrong the moment anything but
+        # the menu itself can reach the action (a shortcut, a toolbar).
+        project.composition_changed.connect(self._sync_composition_menu)
+        self._sync_composition_menu()
         # An added / imported specimen brings its own goniometer to listen to.
         project.specimens_changed.connect(self._wire_goniometer_signals)
         self._wire_goniometer_signals()

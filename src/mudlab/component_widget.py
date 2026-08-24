@@ -459,6 +459,18 @@ class EditComponentWidget(QWidget):
                 self, "Export component", "Could not export:\n%s\n\n%s" % (path, exc)
             )
 
+    def _refresh_structure_dialog(self) -> None:
+        """Keep an open structure diagram pointing at the CURRENT component.
+
+        The window is modeless precisely so it can be read while the component
+        is edited; left alone it kept showing whichever component was selected
+        when it opened, with nothing on screen to say so - the one failure a
+        reference window must not have.
+        """
+        dialog = getattr(self, "_structure_dialog", None)
+        if dialog is not None and dialog.isVisible():
+            dialog.set_component(self._component, self._phase_name)
+
     def _on_show_structure(self) -> None:
         """Open (or re-use) the cross-section diagram for the bound component.
 
@@ -528,6 +540,7 @@ class EditComponentWidget(QWidget):
     def _on_component_selected(self, index: int) -> None:
         if not self._updating:
             self._bind_one(index)
+            self._refresh_structure_dialog()
 
     def _on_name_edited(self) -> None:
         if self._component is not None and not self._updating:
@@ -561,5 +574,9 @@ class EditComponentWidget(QWidget):
         )
 
     def _notify(self) -> None:
+        # An open structure diagram is a view of this component; every accepted
+        # edit already funnels through here, so this is the one place that
+        # keeps it true without sprinkling refresh calls through the editor.
+        self._refresh_structure_dialog()
         if self._on_changed is not None:
             self._on_changed()

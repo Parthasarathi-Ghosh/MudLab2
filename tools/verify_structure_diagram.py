@@ -238,6 +238,44 @@ def main():
     check("autodefault: Return/Enter in the name field opens nothing",
           getattr(widget, "_structure_dialog", None) is opened_before)
 
+    # AUDIT 2026-08-23: the window is modeless so it can be read WHILE editing,
+    # but it did not follow the editor - switching component left it showing the
+    # previous one, silently, which is the one failure a reference window must
+    # not have.
+    multi = next(((ph, ph.components) for ph in PROJECT.phases
+                  if len(getattr(ph, "components", None) or []) > 1), None)
+    if multi is not None:
+        phase, components = multi
+        editor.ui.edit_objects_treeview.setCurrentIndex(
+            editor.objects_model.index(list(PROJECT.phases).index(phase), 0))
+        app.processEvents()
+        pane = editor.phase_widget.component_widget
+        pane._on_show_structure()
+        app.processEvents()
+        window = pane._structure_dialog
+        pane.ui.cmb_component.setCurrentIndex(1)
+        app.processEvents()
+        check("follows: switching component re-points the open diagram",
+              pane._component.name in window.windowTitle())
+        # ...and follows a live edit, which is why it is modeless at all.
+        before = window.ui.txt_diagram.toPlainText()
+        pane._on_scalar_changed("d001", pane._component.d001 + 0.1)
+        app.processEvents()
+        check("follows: a live edit refreshes the open diagram",
+              window.ui.txt_diagram.toPlainText() != before)
+        pane._on_scalar_changed("d001", pane._component.d001 - 0.1)
+        window.close()
+        app.processEvents()
+        # A CLOSED diagram must not be resurrected by editing.
+        text_when_closed = window.ui.txt_diagram.toPlainText()
+        pane._on_scalar_changed("d001", pane._component.d001 + 0.1)
+        app.processEvents()
+        check("follows: a closed diagram is not reopened by an edit",
+              not window.isVisible())
+        pane._on_scalar_changed("d001", pane._component.d001 - 0.1)
+    else:
+        check("follows: (no multi-component phase in this fixture; skipped)", True)
+
     # The button still works when actually clicked.
     widget._on_show_structure()
     app.processEvents()

@@ -162,6 +162,29 @@ def main():
     dialog.show()
     app.processEvents()
 
+    # AUDIT 2026-08-23: a pick armed by a dialog that is then REPLACED used to
+    # outlive it. Reopening Peaks while it was hidden for a Sample pick closed
+    # this one and left its pick armed; the next plot click ran its callback and
+    # `_step_back` SHOWED THE CLOSED WINDOW - two Peaks dialogs, and the
+    # position written into the dead one.
+    dialog._on_sample_position()
+    app.processEvents()
+    check("outlive: hidden for the pick", not dialog.isVisible())
+    window._open_edit_markers(specimen)      # user reopens Peaks
+    app.processEvents()
+    replacement = window._edit_markers_dialog
+    check("outlive: reopening replaces the dialog", replacement is not dialog)
+    check("outlive: closing it cancelled its pick", window._pending_pick is None)
+    window._on_plot_click(window.pattern_plots[0], 20.0)
+    app.processEvents()
+    check("outlive: the closed dialog does NOT come back", not dialog.isVisible())
+    check("outlive: only one Peaks window is up",
+          not (dialog.isVisible() and replacement.isVisible()))
+    dialog = replacement
+    dialog.ui.edit_objects_treeview.setCurrentIndex(
+        dialog.objects_model.index(0, 0))
+    app.processEvents()
+
     # ---------------------------------------------------- (b) match minerals
     dialog._on_match_minerals()
     app.processEvents()

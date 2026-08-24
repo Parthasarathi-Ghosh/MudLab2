@@ -56,6 +56,7 @@ class EditMarkersDialog(ObjectStoreDialog):
 
         self._match_dialog: MatchMineralsDialog | None = None
         self._hidden_for_plot = False
+        self._closing = False
         self._reload_markers()
 
     def _close_match_dialog(self) -> None:
@@ -72,6 +73,15 @@ class EditMarkersDialog(ObjectStoreDialog):
             self._match_dialog = None
 
     def closeEvent(self, event) -> None:
+        # A pick armed by THIS dialog must die with it. Reopening Peaks from the
+        # toolbar while it was hidden for a Sample pick used to close this one
+        # and leave its pick armed: the next plot click then ran our callback
+        # and `_step_back` SHOWED THE CLOSED WINDOW again, so the user ended up
+        # with two Peaks dialogs and the position written into the dead one.
+        self._closing = True
+        main_window = self.parent()
+        if main_window is not None and hasattr(main_window, "cancel_position_pick"):
+            main_window.cancel_position_pick()
         self._close_match_dialog()
         super().closeEvent(event)
 
@@ -99,8 +109,9 @@ class EditMarkersDialog(ObjectStoreDialog):
             self.hide()
 
     def _step_back(self) -> None:
-        """Come back, but only if `_step_aside` is what put us away."""
-        if self._hidden_for_plot:
+        """Come back, but only if `_step_aside` is what put us away - and never
+        once this dialog is closing, or the close would put it back on screen."""
+        if self._hidden_for_plot and not self._closing:
             self._hidden_for_plot = False
             self.show()
             self.raise_()
@@ -234,7 +245,16 @@ class EditMarkersDialog(ObjectStoreDialog):
         # cleared (even if the dialog was cancelled or found nothing) - otherwise
         # the list would keep showing markers that no longer exist.
         if cleared or dialog.added_markers:
-            self._reload_markers(select_row=len(self._markers()) - 1)
+            # Select the first NEW peak rather than the last row: the sort above
+            # means the last row is simply the highest-position peak, which has
+            # nothing to do with what was just detected.
+            markers = self._markers()
+            row = 0
+            if dialog.added_markers:
+                rows = [markers.index(m) for m in dialog.added_markers
+                        if m in markers]
+                row = min(rows) if rows else 0
+            self._reload_markers(select_row=row)
 
     def _selected_markers(self) -> list:
         markers = self._markers()

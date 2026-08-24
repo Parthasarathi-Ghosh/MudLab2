@@ -173,6 +173,9 @@ class PatternPlot:
         self.canvas.mpl_connect("button_press_event", self._on_button_press)
         self.canvas.mpl_connect("button_release_event", self._on_button_release)
         self.canvas.mpl_connect("key_press_event", self._on_key_press)
+        # A wider window fits more labels, so the per-degree tick step is
+        # recomputed on resize too - xlim_changed only covers zoom/pan.
+        self.canvas.mpl_connect("resize_event", self._on_canvas_resize)
         self.canvas.mpl_connect("pick_event", self._on_pick)
 
     def set_pick_cursor(self, enabled: bool) -> None:
@@ -448,6 +451,12 @@ class PatternPlot:
         axes.set_ylim(0.0, ylim_top)
         axes.set_xlabel("2θ (°)", color=INK_SECONDARY)
         self._set_degree_ticks(axes, xlim)
+        # ...and keep them right afterwards. Every zoom/pan path (scroll,
+        # Ctrl+/-, the nav toolbar, _zoom_x) calls set_xlim DIRECTLY and never
+        # re-runs draw_pattern, so a step computed only here would be stale the
+        # moment the user zoomed - the labels would stay 5 deg apart on a
+        # 3-degree view. `xlim_changed` catches all of them at once.
+        self._connect_tick_refresh(axes)
         axes.yaxis.set_visible(bool(project.axes_yvisible))
         if not project.axes_yvisible:
             axes.spines["left"].set_visible(False)
@@ -483,6 +492,28 @@ class PatternPlot:
 
     # Label steps tried in order; the first whose labels fit is used.
     _LABEL_STEPS = (1, 2, 5, 10, 20)
+
+    def _connect_tick_refresh(self, axes) -> None:
+        """(Re)subscribe to x-range changes so the labelled step follows a zoom.
+
+        Re-subscribed on every draw because `axes.clear()` drops the callback
+        registry along with the artists.
+        """
+        cid = getattr(self, "_xlim_cid", None)
+        if cid is not None:
+            try:
+                axes.callbacks.disconnect(cid)
+            except Exception:  # noqa: BLE001 - a stale cid is not worth raising
+                pass
+        self._xlim_cid = axes.callbacks.connect(
+            "xlim_changed", self._on_xlim_changed)
+
+    def _on_canvas_resize(self, _event) -> None:
+        self._set_degree_ticks(self.axes, self.axes.get_xlim())
+
+    def _on_xlim_changed(self, axes) -> None:
+        # Only the locators change here, so this cannot re-trigger itself.
+        self._set_degree_ticks(axes, axes.get_xlim())
 
     def _set_degree_ticks(self, axes, xlim) -> None:
         """A tick every degree on the 2-theta axis.

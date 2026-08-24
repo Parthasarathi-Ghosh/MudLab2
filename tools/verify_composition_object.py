@@ -295,6 +295,19 @@ def check_menu():
         check("menu: Remove sits in the Composition menu",
               remove in window.ui.menuComposition.actions())
 
+    # AUDIT 2026-08-23: the state must be right FROM LOAD, not only once the
+    # menu has been opened. _sync_composition_menu ran on aboutToShow alone, so
+    # a freshly loaded project with no composition still offered an ENABLED
+    # Remove - wrong the moment anything but the menu reaches the action.
+    fresh = MainWindow()
+    fresh._set_project(load_mud(PATH))
+    check("menu: Remove is disabled at load, before the menu is opened",
+          fresh.project.composition is not None
+          or not fresh.ui.actionRemoveComposition.isEnabled())
+    check("menu: Edit reads correctly at load",
+          ("edit" if fresh.project.composition is not None else "enter")
+          in fresh.ui.actionEditComposition.text().lower())
+
     # Remove is only offered when there is something to remove, and the Edit
     # entry reads as Enter until then.
     window.project.set_composition(None)

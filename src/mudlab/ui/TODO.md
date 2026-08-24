@@ -781,6 +781,50 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] AUDIT of 3af0586..b7851f4 (2026-08-23) - splash, plot axes/index,
+  composition export, Composition menu, exporters, Show Structure, Peaks.
+  **5 findings, all real, all FIXED.** Two were user-visible misbehaviour, one
+  was a false claim I had made to the user, two were state-timing slips.
+  (1) A PICK COULD OUTLIVE ITS DIALOG. Reopening Peaks from the toolbar while it
+  was hidden for a Sample pick closed that dialog but left its pick ARMED. The
+  next plot click ran the dead dialog's callback and `_step_back` SHOWED THE
+  CLOSED WINDOW: two Peaks dialogs on screen, and the sampled position written
+  into the one the user could not see. `closeEvent` now cancels the pick it
+  armed, and `_step_back` refuses while `_closing`.
+  (2) THE PER-DEGREE TICK CLAIM WAS FALSE. I told the user "zoom in and the
+  labels resolve to every degree". They did not: the step was computed only
+  inside `draw_pattern`, and EVERY zoom path (scroll, Ctrl+/-, the nav toolbar,
+  `_zoom_x`) calls `set_xlim` directly and never redraws. A 3-degree view kept
+  5-degree labels. Worse, THE HARNESS CHECK WAS VACUOUS - it called
+  `_set_degree_ticks` by hand, proving only that the helper works. Now hooked to
+  the axes' `xlim_changed` (catches every zoom/pan path at once) and to the
+  canvas `resize_event` (a wider window fits more labels), and the harness
+  drives `set_xlim` instead of the helper. LESSON: a check that calls the thing
+  it is verifying, rather than the path the app takes, verifies nothing.
+  (3) THE STRUCTURE DIAGRAM WENT STALE. The window is modeless precisely so it
+  can be read while the component is edited - but it did not follow the editor:
+  switching component left it showing the previous one with nothing on screen to
+  say so, which is the one failure a reference window must not have. It now
+  re-points on selection and refreshes on every accepted edit (via `_notify`,
+  the single funnel), and a CLOSED diagram is not resurrected by an edit.
+  (4) The Composition menu was only synced on `aboutToShow`, so a freshly loaded
+  project with no composition still offered an ENABLED Remove. Synced at load
+  and on `composition_changed` as well.
+  (5) After Find peaks, the list re-selected `len-1`, which after the new sort
+  is simply the highest-position peak rather than anything just detected. It now
+  selects the first NEW peak.
+  AUDITED CLEAN: the exporters do not mutate the live project (raw_properties
+  byte-identical, composition and goniometer intact) and two consecutive exports
+  are identical; the old-app export still loads under the old interpreter; the
+  splash, the composition plot export and the in-use deletion work found nothing.
+  TEST ARTIFACT worth remembering: `figure.set_size_inches()` does NOT emit
+  matplotlib's `resize_event` - only a real Qt canvas resize does, so verify
+  resize behaviour with `canvas.resize()`, not `set_size_inches`.
+  Regressions added: verify_plot_axes_index 29 (was 27, and the zoom check now
+  means something), verify_peaks_dialog 42 (was 37),
+  verify_structure_diagram 39 (was 36), verify_composition_object 243.
+  Full suite 75/75.
+
 - [x] Peaks dialog: renamed, steps aside, and stays sorted (2026-08-23, item #9).
   (a) RENAMED to **Peaks** - window title, the toolbar button, its tooltip, the
   specimens context menu, the first column header ("Peak"), and the default

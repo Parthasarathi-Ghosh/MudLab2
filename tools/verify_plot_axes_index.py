@@ -148,12 +148,37 @@ def main():
           axes.xaxis.get_minor_ticks()[0].tick1line.get_markersize()
           < axes.xaxis.get_major_ticks()[0].tick1line.get_markersize())
 
-    # A zoomed-in span must resolve to a labelled tick PER DEGREE.
-    plot.axes.set_xlim(20.0, 28.0)
-    plot._set_degree_ticks(plot.axes, (20.0, 28.0))
+    # A zoomed-in span must resolve to a labelled tick PER DEGREE - and it must
+    # do so through the path the APP takes.
+    #
+    # AUDIT 2026-08-23: this check used to call `_set_degree_ticks` by hand,
+    # which proved only that the helper works. Every real zoom (scroll, Ctrl+/-,
+    # the nav toolbar, _zoom_x) calls set_xlim DIRECTLY and never re-runs
+    # draw_pattern, so the labels actually stayed 5 deg apart on a 3-degree
+    # view. Driving set_xlim is what makes this check mean anything.
+    before = plot.axes.xaxis.get_major_locator()()
+    before_step = before[1] - before[0]
+    plot.axes.set_xlim(20.0, 28.0)          # NO manual helper call
     zoom_major = plot.axes.xaxis.get_major_locator()()
     zsteps = {round(b - a, 6) for a, b in zip(zoom_major, zoom_major[1:])}
-    check("ticks: an 8-degree span labels every degree", zsteps == {1.0})
+    check("ticks: zooming (set_xlim alone) re-labels every degree",
+          zsteps == {1.0} and before_step != 1.0)
+    # ...and coming back out widens them again, so it tracks rather than
+    # latching once.
+    plot.axes.set_xlim(*plot._home_xlim)
+    out_major = plot.axes.xaxis.get_major_locator()()
+    out_step = out_major[1] - out_major[0]
+    check("ticks: zooming back out widens the labels again",
+          out_step > 1.0)
+    # A canvas resize must retune it too - a wider window fits more labels.
+    plot.canvas.show()
+    app.processEvents()
+    narrow = plot.axes.xaxis.get_major_locator()()
+    plot.canvas.resize(2400, 700)
+    app.processEvents()
+    wide = plot.axes.xaxis.get_major_locator()()
+    check("ticks: a wider canvas fits a denser label step",
+          len(wide) > len(narrow))
 
     # -------------------------------------------------- (c) text in the index
     plot2 = PatternPlot(SPECIMENS, PROJECT)

@@ -1195,7 +1195,8 @@ The 2θ axis carries a **tick every degree**. The short marks are the individual
 degrees; the longer, numbered ones are spaced as widely as they need to be for
 the numbers to stay legible at the current window width — every 5° on a full
 4–70° scan, for instance. **Zoom in and the numbers close up**, until on a span
-of a few degrees every degree is labelled.
+of a few degrees every degree is labelled; zoom back out and they spread again.
+Widening the window has the same effect, since more labels then fit.
 
 ### The index (top right)
 
