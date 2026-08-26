@@ -781,6 +781,71 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] 1.0.1 + CI: the portable build carries its own runtime, and is built on a
+  runner (2026-08-26). A user reported 1.0.0 failing to start with
+  `ImportError: cannot import name 'ft2font' from partially initialized module
+  'matplotlib'` - which is what PyInstaller reports when a compiled extension
+  cannot be LOADED, not a circular import.
+  DIAGNOSIS, by elimination rather than guesswork: the published asset was
+  downloaded, extracted to the same kind of path and LAUNCHED here, so the
+  package was not corrupt. Parsing the PE import tables showed `ft2font.pyd`
+  needs the UCRT + VCRUNTIME140(_1) + python314 - all present or OS-provided -
+  but that **`MSVCP140.dll` was not at the bundle root**, only inside
+  `PySide6/` and `shiboken6/`. Eight bundled Qt plugin DLLs need it, including
+  `platforms/qwindows.dll`, without which Qt cannot open a window at all. It
+  resolved on every dev machine from System32, because the VC++ Redistributable
+  is installed there. PyInstaller treats that runtime as a system library and
+  leaves it out.
+  FIX: `MudLab.spec` forces MSVCP140 / MSVCP140_1 / MSVCP140_2 / VCRUNTIME140 /
+  VCRUNTIME140_1 / CONCRT140 to the bundle root, taken from PySide6's own
+  redistributable copies. New `tools/verify_bundle_dependencies.py` walks the
+  PE imports of every bundled binary and fails if anything needs a library that
+  is not inside the package; `package.cmd` runs it as step 3/6. Validated
+  against the BROKEN 1.0.0 bundle (fails on exactly that one check) and the new
+  one (6/6).
+  TWO FALSE-ALARM ROUNDS while writing that check, both caught before trusting
+  it: the first demanded every dependency sit in the importer's own directory
+  or the root, flagging a dozen Qt plugins and numpy's private copies that
+  resolve fine at runtime; the second lacked `icuuc`/`imagehlp` in the OS
+  allowlist (both verified present in System32 - Windows has shipped ICU since
+  Win10 1703). Same lesson as the `.cmp` incident: a check that cries wolf gets
+  ignored, which is how 1.0.0 shipped.
+  VERSION BUMPED rather than replacing 1.0.0 - the splash, About and File
+  Properties all report it, so reusing the number would make every future
+  "I'm on 1.0.0" report ambiguous. 1.0.0 is now marked pre-release with its
+  asset deleted and notes pointing at 1.0.1.
+  CI (ported from the old app's build-installer.yml, adapted - this is a
+  PyInstaller onedir bundle, not Inno Setup, and the vendored `python\` tree is
+  gitignored so the runner installs the pinned requirements):
+  `.github/workflows/build-portable.yml`, on a `v*` tag or manually. Also adds
+  `tools/run_all.py`, the suite runner the repo never had.
+  BE HONEST ABOUT WHAT CI BUYS: `windows-latest` ships Visual Studio Build
+  Tools, so it has the VC++ runtime too and 1.0.0 would have built and passed
+  there as well. CI buys reproducibility and provenance; the dependency audit
+  buys correctness. The workflow says so in its own header.
+  MEASURED what CI can cover, by hiding the `.mud` fixtures and running the
+  suite as a runner sees it: **36 passed, 41 skipped, 0 failed** - better than
+  the 15 I predicted, because many harnesses build from the shipped catalog
+  rather than needing a project. Harnesses with nothing to test exit 2 (SKIP),
+  so the workflow is green and still catches a harness that cannot import.
+  THE BUG THAT ONLY RUNNING IT FOUND: the first two runs died at package.cmd
+  step 1/6 with a bare "The system cannot find the path specified." On the
+  runner `where python` resolves **this repository's own `python.cmd`** first,
+  because cmd searches the working directory before PATH - and that launcher
+  runs the vendored `python\python.exe`, which a runner does not have.
+  Reproducing the fallback in isolation locally showed it resolving correctly,
+  which is exactly why guessing would never have found it: the shadowing needs
+  this repo as the working directory. `package.cmd` now falls back to
+  `python.exe` (naming the extension skips the .cmd) and honours
+  `MUDLAB_PYTHON`, which the workflow sets explicitly. The third run then
+  failed on my own diagnostic step, which still called bare `python` - the
+  PowerShell steps were unaffected because PowerShell does not search the
+  working directory. Every cmd step now names `python.exe`.
+  Verified end to end: workflow run 32950453141 succeeded, uploaded
+  MudLab-1.0.1-win64-portable (106 MB), and the self-contained audit passed
+  6/6 ON THE RUNNER. Local `package.cmd` still uses the vendored interpreter.
+  Full suite 77/77.
+
 - [x] RELEASE 1.0.0 - first public release, portable Windows build (2026-08-23).
   Version 0.2.0 -> **1.0.0** in the two places that carry it
   (`src/mudlab/__init__.py` is the source of truth, `pyproject.toml` mirrors it)
