@@ -1,4 +1,9 @@
-# MudLab 1.0.0 — portable build for Windows
+# MudLab — portable build for Windows
+
+<!-- Deliberately no version number here: this file is bundled into every
+     release, and a hardcoded one goes stale silently. It shipped inside
+     1.0.1 still saying 1.0.0. The version is on the splash, in Help >
+     About, and in the .exe's File Properties. -->
 
 X-ray diffraction analysis of disordered layered minerals.
 

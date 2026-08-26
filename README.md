@@ -1,6 +1,6 @@
 # MudLab
 
-**Version 1.0.1** - X-ray diffraction analysis of disordered layered minerals.
+**Version 1.0.2** - X-ray diffraction analysis of disordered layered minerals.
 
 Windows desktop application built with PySide6 (Qt 6), NumPy, SciPy, and
 Matplotlib. Working folder is `MudLab2` while the legacy MudLab is still

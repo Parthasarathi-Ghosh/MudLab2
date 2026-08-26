@@ -88,6 +88,13 @@ def main():
           'copy /Y "LICENSE"' in package)
     check("package: it bundles a README for users",
           "README-PORTABLE.md" in package)
+    # The bundled README shipped inside 1.0.1 still saying "MudLab 1.0.0".
+    # A version hardcoded in a file that goes into every release goes stale
+    # silently, so it must not name one at all.
+    portable = _read("README-PORTABLE.md")
+    stale = re.findall(r"\d+\.\d+\.\d+", portable)
+    check("package: the bundled README names no version (it would go stale)"
+          + ("" if not stale else " -> found %s" % stale), not stale)
     check("package: the tester-only readme is gone",
           not os.path.exists(os.path.join(_REPO, "README-TESTERS.md")))
 

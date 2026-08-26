@@ -10,8 +10,8 @@
 # becomes (1, 0, 0, 0).
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 1, 0),
-    prodvers=(1, 0, 1, 0),
+    filevers=(1, 0, 2, 0),
+    prodvers=(1, 0, 2, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -28,13 +28,13 @@ VSVersionInfo(
             StringStruct("CompanyName", "Parthasarathi Ghosh"),
             StringStruct("FileDescription",
                          "MudLab - X-ray diffraction analysis of disordered layered minerals"),
-            StringStruct("FileVersion", "1.0.1"),
+            StringStruct("FileVersion", "1.0.2"),
             StringStruct("InternalName", "MudLab"),
             StringStruct("LegalCopyright",
                          "Copyright (c) 2013 Mathijs Dumon; (c) 2026 Parthasarathi Ghosh. BSD 3-Clause."),
             StringStruct("OriginalFilename", "MudLab.exe"),
             StringStruct("ProductName", "MudLab"),
-            StringStruct("ProductVersion", "1.0.1"),
+            StringStruct("ProductVersion", "1.0.2"),
           ],
         )
       ]
