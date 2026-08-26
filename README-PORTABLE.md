@@ -20,12 +20,29 @@ in any bug report.
 
 - **Windows SmartScreen** may say *"Windows protected your PC / unknown
   publisher"*. This build is not code-signed. Choose **More info → Run anyway**.
-- **Antivirus**: a packaged Python application is occasionally flagged as a
-  false positive. If yours quarantines it, restore it or add an exclusion for
-  the folder.
+- **Antivirus**: a packaged Python application is sometimes flagged as a false
+  positive. **This has actually happened** — Quick Heal flagged one of
+  MudLab's files (`ft2font…pyd`, part of the graph library) as `Trojan.Agent`
+  and removed it.
 
 Neither warning means anything is wrong with the file; both are what Windows
-says about any unsigned application from a small publisher.
+and antivirus software say about any unsigned application from a small
+publisher.
+
+### "MudLab could not load …" on startup
+
+If MudLab shows a message saying it could not load part of the program, your
+antivirus has almost certainly quarantined a file. To fix it:
+
+1. Open your antivirus and find its **quarantine** (Quick Heal:
+   *More → Settings → View Quarantine Files*).
+2. Select the MudLab file it took and choose **Restore**.
+3. Add the whole `MudLab` folder to the antivirus **exclusions**, so it is not
+   removed again.
+4. Start MudLab again.
+
+While you are there, **Submit for analysis** helps: it tells the vendor the
+detection was wrong, so the next update stops flagging it for everyone.
 
 ## What it does
 

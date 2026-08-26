@@ -7,9 +7,60 @@ from PySide6.QtWidgets import QApplication, QStyleFactory
 
 from mudlab import APP_NAME, ORG_NAME, __version__
 from mudlab.qt_utils import install_enter_policy
-from mudlab.main_window import MainWindow
 from mudlab.resources import app_icon
 from mudlab.splash import show_splash, _MIN_VISIBLE_MS
+
+# NB `mudlab.main_window` is imported inside main(), not here - see
+# _load_main_window(). It is the import that pulls in matplotlib, numpy and
+# scipy, and therefore the one that fails if a bundled file has gone missing.
+
+
+def _load_main_window():
+    """Import MainWindow, turning a missing bundled file into an explanation.
+
+    ANTIVIRUS QUARANTINE IS THE COMMON CAUSE. MudLab is not code-signed, and
+    packaged Python applications are periodically flagged by mistake - Quick
+    Heal quarantined matplotlib's `ft2font` extension as `Trojan.Agent` on a
+    user's machine (2026-08-26), which left the file simply absent. Python then
+    reports
+
+        cannot import name 'ft2font' from partially initialized module
+        'matplotlib' (most likely due to a circular import)
+
+    and the parenthetical is actively misleading: there is no circular import,
+    the file is gone. A user cannot be expected to translate that. So the
+    traceback is replaced with what actually happened and what to do about it.
+    """
+    try:
+        from mudlab.main_window import MainWindow
+        return MainWindow
+    except ImportError as exc:
+        from PySide6.QtWidgets import QMessageBox
+
+        missing = getattr(exc, "name", None) or "a required component"
+        app = QApplication.instance() or QApplication([])
+        app.setApplicationName(APP_NAME)
+        box = QMessageBox()
+        box.setIcon(QMessageBox.Icon.Critical)
+        box.setWindowTitle("%s cannot start" % APP_NAME)
+        box.setText(
+            "%s could not load <b>%s</b>, which is part of the program."
+            % (APP_NAME, missing))
+        box.setInformativeText(
+            "This is nearly always antivirus software: %s is not "
+            "code-signed, and packaged Python applications are sometimes "
+            "flagged by mistake, which removes the file.<br><br>"
+            "<b>To fix it:</b><br>"
+            "1. Open your antivirus and look at its quarantine or vault.<br>"
+            "2. <b>Restore</b> any file it took from the %s folder.<br>"
+            "3. Add the %s folder to its exclusions, so it is not taken "
+            "again.<br>"
+            "4. Start %s again.<br><br>"
+            "If nothing is quarantined, unzip the download again and keep the "
+            "whole folder together." % (APP_NAME, APP_NAME, APP_NAME, APP_NAME))
+        box.setDetailedText("%s: %s" % (type(exc).__name__, exc))
+        box.exec()
+        raise SystemExit(1)
 
 
 def create_app(argv: list[str] | None = None) -> QApplication:
@@ -94,6 +145,7 @@ def main() -> int:
     # holds for its full five seconds, and only THEN does the main window
     # appear. The window is built during the wait rather than after it, so the
     # five seconds are the splash's, not added to the startup.
+    MainWindow = _load_main_window()
     splash, started = show_splash()
     # One message, not the old app's three: its "Initializing ..." /
     # "Loading matplotlib ..." / "Loading icons ..." spanned work that in

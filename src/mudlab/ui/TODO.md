@@ -781,6 +781,35 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Antivirus quarantine: the app now explains itself (2026-08-26).
+  THE 1.0.0/1.0.1 CRASH WAS NOT THE RUNTIME GAP. A user's Quick Heal
+  quarantined matplotlib's `ft2font.cp314-win_amd64.pyd` as `Trojan.Agent` -
+  a false positive - so the file was simply absent, and Python reported
+  `cannot import name 'ft2font' … (most likely due to a circular import)`.
+  Restoring it fixed the machine. The MSVCP140 gap fixed in 1.0.1 was a real
+  latent defect (it would have bitten any machine without the VC++
+  redistributable) but it was NOT this user's cause - worth recording, because
+  the two produce an IDENTICAL error message and it would be easy to
+  mis-attribute the next report.
+  WHAT CHANGED: `__main__._load_main_window` defers the heavy import (it is the
+  one that pulls matplotlib/numpy/scipy) and turns an ImportError into a dialog
+  naming the missing file and the remedy - open the quarantine, Restore, add an
+  exclusion, restart - with the raw error kept in the details. The old
+  behaviour was a traceback whose parenthetical ("circular import") is actively
+  misleading: there is no circular import, the file is gone.
+  ALSO: UPX is now pinned OFF in the spec. PyInstaller compresses whenever
+  `upx.exe` is on PATH, which would make the artifact depend on what happens to
+  be installed on the build machine - and UPX-packed binaries are among the
+  strongest antivirus false-positive triggers. Neither this machine nor the CI
+  runner has UPX today; pinning it means a build never silently changes if one
+  does.
+  NOT FIXED BY CODE, because it cannot be: the durable answer is a code-signing
+  certificate, and submitting the false positive to the vendor. Both are the
+  user's call.
+  verify_startup_guard.py 11/11 (drives the import failing exactly as it failed
+  for the user, and asserts the message names the file, the cause, the remedy
+  and the exclusion).
+
 - [x] 1.0.1 + CI: the portable build carries its own runtime, and is built on a
   runner (2026-08-26). A user reported 1.0.0 failing to start with
   `ImportError: cannot import name 'ft2font' from partially initialized module

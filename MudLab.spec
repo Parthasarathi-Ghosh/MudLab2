@@ -70,12 +70,22 @@ a = Analysis(
     noarchive=False,
 )
 
+# UPX is OFF, explicitly. PyInstaller compresses with UPX whenever upx.exe
+# happens to be on PATH, which makes the artifact depend on what is installed
+# on the build machine - and UPX-packed binaries are among the strongest
+# triggers for antivirus false positives, which this project has already been
+# bitten by (Quick Heal quarantined matplotlib's ft2font .pyd as Trojan.Agent
+# on a user's machine, 2026-08-26). Neither this machine nor the CI runner has
+# UPX today; saying so here means a build never silently changes if one does.
+_UPX = False
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
+    upx=_UPX,
     name="MudLab",
     console=False,
     # Force UTF-8 mode (PEP 540) inside the frozen app, matching the dev launchers.
@@ -91,5 +101,6 @@ coll = COLLECT(
     exe,
     a.binaries,
     a.datas,
+    upx=_UPX,
     name="MudLab",
 )
