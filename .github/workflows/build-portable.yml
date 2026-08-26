@@ -1,0 +1,101 @@
+name: Build portable Windows package
+
+# Ported from the original MudLab's build-installer.yml, adapted to MudLab2:
+# this app is a PyInstaller onedir bundle, not an Inno Setup installer, and it
+# has no vendored interpreter in the repository (the local `python\` tree is
+# gitignored, ~1 GB), so CI installs the pinned dependencies instead.
+#
+# WHY BUILD HERE AT ALL. 1.0.0 was zipped on a development machine and shipped
+# a hidden dependency on a Microsoft runtime that only that machine had. A
+# runner builds from the tagged commit on a clean box, with nothing of the
+# developer's environment in it - the artifact is reproducible and traceable to
+# a commit rather than to somebody's working copy.
+#
+# WHAT THIS WOULD *NOT* HAVE CAUGHT, stated plainly: `windows-latest` ships
+# Visual Studio Build Tools, so it has the VC++ runtime too and 1.0.0 would
+# have built and passed here as well. The thing that actually prevents that bug
+# is `tools/verify_bundle_dependencies.py`, which package.cmd runs as step 3/6
+# and which fails the build if any bundled binary needs a library that is not
+# inside the package. CI buys reproducibility; the audit buys correctness.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Must match the interpreter the package is built with locally
+          # (3.14.6): the compiled extensions carry a cp314 tag.
+          python-version: '3.14'
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Verify release metadata
+        # The version lives in three files that nothing keeps in step, and the
+        # licence has to ship inside the package. Cheap, and it fails fast.
+        run: python tools/verify_release_metadata.py
+
+      - name: Run the verification suite
+        # MOSTLY SKIPS HERE, on purpose. Nearly every harness needs a real
+        # project to work on, and the `.mud` fixtures are the user's own data:
+        # gitignored, never pushed. Those harnesses exit 2 (SKIP) rather than
+        # fail. What this run still catches is a harness that cannot even
+        # import - a broken module, a bad rename - which is worth the minute.
+        # Real coverage comes from running this locally, where the fixtures are.
+        run: python tools/run_all.py
+
+      - name: Build the portable package
+        # package.cmd does the whole job: clean PyInstaller build, frozen
+        # self-test, the self-contained-bundle audit, README + LICENSE, zip.
+        # It falls back to `python` on PATH when the vendored tree is absent.
+        shell: cmd
+        run: package.cmd
+
+      - name: Name the artifact
+        id: pkg
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Filter 'MudLab-*-win64-portable.zip' |
+                 Select-Object -First 1
+          if (-not $zip) { throw 'package.cmd produced no zip' }
+          "zip=$($zip.Name)" >> $env:GITHUB_OUTPUT
+          "version=$($zip.Name -replace '^MudLab-|-win64-portable\.zip$','')" >> $env:GITHUB_OUTPUT
+          "Built $($zip.Name) ({0:N1} MB)" -f ($zip.Length / 1MB)
+
+      - name: Upload the package as a build artifact
+        # Kept even for a plain workflow_dispatch run, so a build can be
+        # downloaded and tried without tagging or publishing anything.
+        uses: actions/upload-artifact@v4
+        with:
+          name: MudLab-${{ steps.pkg.outputs.version }}-win64-portable
+          path: MudLab-*-win64-portable.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish the GitHub Release
+        # Only when a v* tag was pushed. To require a human click before it goes
+        # public, add `draft: true` here - the artifact upload above means the
+        # build is still downloadable either way.
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MudLab-*-win64-portable.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
