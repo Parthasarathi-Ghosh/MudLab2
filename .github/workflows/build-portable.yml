@@ -61,24 +61,26 @@ jobs:
         # Real coverage comes from running this locally, where the fixtures are.
         run: python tools/run_all.py
 
-      - name: Diagnose the build environment
-        # package.cmd failed here on the first run with a bare
-        # "The system cannot find the path specified.", which is an OS-level
-        # path error, not a Python one. This prints the facts that decide which
-        # interpreter package.cmd picks.
+      - name: Show which interpreter will build
+        # Kept after it earned its place: the first run failed here because
+        # `where python` resolves this repository's own python.cmd launcher
+        # BEFORE the interpreter on PATH (cmd searches the current directory
+        # first), and that launcher runs the vendored runtime, which a runner
+        # does not have. One line of output makes that visible immediately.
         shell: cmd
         run: |
-          echo cwd: %CD%
           where python
-          if exist "python\python.exe" (echo VENDORED python\python.exe EXISTS) else (echo no vendored python - fallback should engage)
-          if exist "python" (echo a 'python' directory IS present) else (echo no 'python' directory)
-          python -c "import sys, PyInstaller; print(sys.executable); print('PyInstaller', PyInstaller.__version__)"
+          python -c "import sys, PyInstaller; print('building with', sys.executable, '| PyInstaller', PyInstaller.__version__)"
 
       - name: Build the portable package
         # package.cmd does the whole job: clean PyInstaller build, frozen
         # self-test, the self-contained-bundle audit, README + LICENSE, zip.
         # It falls back to `python` on PATH when the vendored tree is absent.
         shell: cmd
+        # MUDLAB_PYTHON pins the interpreter explicitly rather than relying on
+        # name resolution - see the comment in package.cmd.
+        env:
+          MUDLAB_PYTHON: ${{ env.pythonLocation }}\python.exe
         run: package.cmd
 
       - name: Name the artifact

@@ -6,8 +6,21 @@ REM Run from the repo root:  package.cmd
 setlocal enableextensions
 cd /d "%~dp0"
 
+REM Which interpreter builds the package.
+REM
+REM MUDLAB_PYTHON overrides everything (CI sets it); otherwise the vendored
+REM runtime; otherwise whatever is on PATH.
+REM
+REM THE FALLBACK SAYS python.exe, NOT python, AND THAT MATTERS. cmd searches
+REM the CURRENT DIRECTORY before PATH, and this repository contains a
+REM convenience launcher called python.cmd which runs the VENDORED
+REM python\python.exe. On a machine without that vendored tree - a CI runner -
+REM falling back to the bare name "python" therefore re-entered python.cmd,
+REM which failed with a bare "The system cannot find the path specified."
+REM Naming the extension skips the .cmd and reaches the real interpreter.
 set "PY=python\python.exe"
-if not exist "%PY%" set "PY=python"
+if defined MUDLAB_PYTHON set "PY=%MUDLAB_PYTHON%"
+if not exist "%PY%" set "PY=python.exe"
 
 echo.
 echo === [1/6] Clean PyInstaller build ===
