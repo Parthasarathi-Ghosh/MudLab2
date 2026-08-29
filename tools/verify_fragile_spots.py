@@ -64,8 +64,19 @@ def main():
           find_closest(1.0, []) is None)
     check("find_closest: still finds the nearest when there IS one",
           find_closest(2.9, [(1.0, 5), (3.0, 7)]) == (3.0, 7))
-    check("find_closest: an empty peak list no longer breaks scoring",
-          score_minerals([], []) == [])
+    # VACUOUS BEFORE: this passed an empty MINERALS list too, so the loop that
+    # reaches find_closest never ran. Scoring an empty pattern against the real
+    # library is the case that used to crash - first with IndexError, then,
+    # after find_closest answered None, with TypeError one line further down.
+    check("scoring: an empty peak list against REAL minerals returns nothing",
+          score_minerals([], load_mineral_references()) == [])
+    # d-spacings here are ANGSTROM, matching the reference library - quartz's
+    # 3.343 / 4.255 lines. (My first attempt used nm and matched nothing,
+    # which is a unit mistake in the test, not a defect in the code.)
+    check("scoring: ...and real quartz peaks still score",
+          any(name.startswith("Quartz") for name, _a, _p, _m, _s
+              in score_minerals([(3.34347, 100.0), (4.25499, 16.0)],
+                                load_mineral_references())))
 
     # --------------------------------------------------- 2. the flat divide
     x = np.linspace(5.0, 45.0, 400)

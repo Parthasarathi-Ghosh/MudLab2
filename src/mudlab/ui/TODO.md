@@ -781,6 +781,33 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] AUDIT of the fragile-spot fixes (2026-08-26) - 2 findings, both in my
+  OWN fixes from the commit before.
+  (1) THE CRASH ONLY MOVED. `find_closest` answering None instead of raising
+  IndexError did not make `score_minerals` safe: line 363 unpacks the result,
+  so an empty peak list against a REAL mineral library went from IndexError to
+  `TypeError: cannot unpack non-iterable NoneType`. And my harness check passed
+  it - because it called `score_minerals([], [])` with an empty MINERALS list
+  too, so the loop that reaches find_closest never ran. VACUOUS, the same
+  failure as the per-degree zoom check earlier. `score_minerals` now returns []
+  for an empty pattern (nothing can match nothing), and the check scores a real
+  empty pattern against the real library, plus quartz's 3.343/4.255 lines to
+  prove scoring still works. (My first version of that positive check used nm
+  and matched nothing - the library is in ANGSTROM; a unit mistake in the test,
+  not the code.)
+  (2) THE THRESHOLD GUARD CHANGED A VALUE. Returning nan when the slope is zero
+  equals the old result only when the intercept is zero too; for a nonzero
+  intercept the division yields +/-inf, so substituting nan was a real - if
+  exotic - numerical change to a routine validated against the old app. Replaced
+  with `np.errstate(divide=..., invalid=...)`, which keeps the result
+  BIT-IDENTICAL and drops only the warnings. That is what the fix should have
+  been: the complaint was noise, so the fix should touch only noise.
+  AUDITED CLEAN: the mineral loader (228 entries, all with their own
+  abbreviation), Muscovite (builds and computes a finite non-zero pattern, max
+  570), and the wavelength validation (gates the EDITOR only - a file already
+  containing 1.544 still loads, so no existing project is rejected).
+  verify_fragile_spots.py 20/20. Full suite 81/81.
+
 - [x] The fragile spots, worked through (2026-08-26). Five open items; four of
   the listed "behaviour gaps" turned out to be ALREADY CLOSED - the doc had gone
   stale - so they were verified and struck rather than re-fixed.

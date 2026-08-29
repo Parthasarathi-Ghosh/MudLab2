@@ -207,15 +207,19 @@ def get_best_threshold(data_x, data_y, max_threshold=None, steps=None, status_di
         x = deltas[:ln]
         y = num_peaks[:ln]
         slope, intercept, R, _, _ = stats.linregress(x, y)
-        # A FLAT region gives slope 0 (and R = nan), and the old code divided
-        # by it - 32 "invalid value encountered in scalar divide" warnings on
-        # stderr for a single Detect Peaks run over featureless data. The
-        # numerical answer is unchanged: nan fails the |R| >= 0.98 test that
-        # follows exactly as it did before, so the search still terminates the
-        # same way. Only the noise is gone.
-        if not slope:
-            return R, float("nan")
-        return R, -intercept / slope
+        # A FLAT region gives slope 0, and dividing by it produced 32
+        # "invalid value encountered in scalar divide" warnings on stderr for a
+        # single Detect Peaks run over featureless data.
+        #
+        # The warning is SUPPRESSED rather than the division replaced. An
+        # earlier version returned nan when the slope was zero, which is the
+        # same answer only when the intercept is zero too: for a nonzero
+        # intercept the division yields +/-inf, and substituting nan would have
+        # been a real - if exotic - numerical change to a routine that is
+        # validated against the old app's output. errstate keeps the result
+        # bit-identical and drops only the noise.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return R, -intercept / slope
 
     if length > 2:
         deltas, num_peaks = calculate_npeaks_for(data_x, data_y, max_threshold, steps)
@@ -352,6 +356,13 @@ def score_minerals(peak_list, minerals):
     standard error - e.g. quartz, matched on its 4.26/3.34 A lines, vanished.
     """
     max_pos_dev = 0.01  # fraction
+    # NOTHING can match nothing. Without this the loop reaches find_closest
+    # with an empty list: it used to raise IndexError there, and making
+    # find_closest answer None merely moved the failure one line down to the
+    # unpacking. An empty pattern scores nothing - that is the answer, not an
+    # error - and every call site already had to remember to check.
+    if not len(peak_list):
+        return []
     min_peaks_needed = max(1, min(2, len(peak_list)))
     scores = []
     for mineral, abbreviation, mpeaks in minerals:
