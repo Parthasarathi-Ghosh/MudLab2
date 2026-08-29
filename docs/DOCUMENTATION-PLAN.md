@@ -81,7 +81,7 @@ so.
 - **#3** ← `notes/Architecture`, `notes/File Formats`, `notes/CIF Import`,
   `how-to/project-file-format`, `how-to/file-formats`,
   `docs/calculation-flow-atom-type-change.md`, this repo's `dev-notes.md`, plus
-  the 82 `tools/verify_*.py` docstrings, which are the closest thing we have to
+  the `tools/verify_*.py` docstrings (83 of them), which are the closest thing we have to
   a spec of intended behaviour
 
 **Caution when collating from the old app.** Those documents describe the *GTK*
@@ -116,15 +116,19 @@ debugging at 2am.
 **2026-08-29** — Track created. Deliverable #1 drafted end to end
 (`docs/getting-started.md`): the full path from importing a scan to saving
 results, with every menu path and button label verified against the running UI.
+The in-app viewer was built at the same time, so F1 now opens it.
 
 Next actions, in order:
 
 1. **Review pass on #1 by the user.** It is a first draft; the shape is there,
    the wording will want tightening.
-2. **Wire `Help → Manual` (F1).** It is currently a **dead action** — the
-   `QAction` exists in `ui_main_window.py` with an F1 shortcut and no handler in
-   any source file. It should open #1. Small change; worth doing before the next
-   release, since "the manual is missing" is the release blocker.
+2. ~~Wire `Help → Manual` (F1).~~ **Done.** `manual_dialog.py` renders the
+   bundled Markdown in-app; F1 opens the walkthrough, links to sibling
+   documents work with history, Contents entries scroll, and `MudLab.spec`
+   bundles `docs` so the frozen build carries its own manual.
+   `tools/verify_manual.py` pins it, including that **every internal link in
+   every shipped document resolves** — so a renamed heading can no longer
+   silently break its own table of contents.
 3. **Screenshots for #1** — deliberately none yet. They date fast and the UI is
    still moving. Revisit once #1's text is settled.
 4. Then start #2 from `notes/XRD Diffraction Calculation` + `notes/Refinement`.

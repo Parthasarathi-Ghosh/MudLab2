@@ -62,7 +62,13 @@ a = Analysis(
     # Keep `datas` free of tools/sample_projects/*.mud. Those are test-only
     # fixtures that must never ship in a release (see .gitattributes
     # export-ignore); no app code imports them.
-    datas=[("src/mudlab/data", "mudlab/data")],
+    # `docs` carries the in-app manual (Help -> Manual, F1). manual_dialog
+    # looks beside the package first, which is where this mapping puts it, so
+    # the frozen build never reaches outside itself for documentation.
+    datas=[
+        ("src/mudlab/data", "mudlab/data"),
+        ("docs", "mudlab/docs"),
+    ],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],

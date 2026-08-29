@@ -74,7 +74,7 @@ step and point count, and any instrument details the format recorded.
 
 **Goniometer** — this is the one to check before anything else.
 
-> ### Check the wavelength first
+> **Check the wavelength first.**
 >
 > **Peak positions depend on the wavelength.** MudLab converts between angle and
 > d-spacing using the wavelength on this tab, so if it is wrong, every d-spacing

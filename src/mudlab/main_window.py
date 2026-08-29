@@ -52,6 +52,7 @@ from mudlab.line_dialogs import (
     SmoothDataDialog,
     StripPeakDialog,
 )
+from mudlab.manual_dialog import ManualDialog
 from mudlab.models import Project, Specimen
 from mudlab.plot_controller import PatternPlot
 from mudlab.qt_utils import fixed_font, in_use_message
@@ -126,9 +127,11 @@ class MainWindow(QMainWindow):
         self._edit_atom_types_dialog: EditAtomTypesDialog | None = None
         self._edit_mixtures_dialog: EditMixturesDialog | None = None
         self._edit_markers_dialog: EditMarkersDialog | None = None
+        self._manual_dialog: ManualDialog | None = None
 
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
+        self.ui.actionManual.triggered.connect(self._show_manual)
         self.ui.actionNewProject.triggered.connect(self._new_project)
         self.ui.actionOpenProject.triggered.connect(self._open_project)
         self.ui.actionSaveProject.triggered.connect(self._save_project)
@@ -1414,3 +1417,13 @@ class MainWindow(QMainWindow):
 
     def _show_about(self) -> None:
         AboutDialog(self).exec()
+
+    def _show_manual(self) -> None:
+        """Help -> Manual (F1). Modeless, and kept alive between openings so
+        the reader comes back to the page they left rather than to the top."""
+        if self._manual_dialog is None:
+            self._manual_dialog = ManualDialog(self)
+        dialog = self._manual_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
