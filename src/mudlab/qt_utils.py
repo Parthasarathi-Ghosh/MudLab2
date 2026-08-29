@@ -188,7 +188,7 @@ def in_use_message(name: str, kind: str, usage, subjects: int = 1) -> str:
 
 #: Preferred fixed-pitch faces, best first. Consolas ships with Windows 10+ and
 #: is far more legible than Courier New at small sizes.
-_FIXED_FACES = ("Consolas", "Cascadia Mono", "Consolas", "Courier New")
+_FIXED_FACES = ("Consolas", "Cascadia Mono", "Courier New")
 
 
 def fixed_font(point_size: int | None = None):

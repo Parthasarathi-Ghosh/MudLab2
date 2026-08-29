@@ -130,6 +130,27 @@ def main():
     check("keeps: the user's NAME survives", phase.name == "renamed by the user")
     check("keeps: the user's COLOUR survives", phase.display_color == "#ff00ff")
 
+    # ------------------------------------------- AUDIT 2026-08-26: shape first
+    # The first version zipped the component lists and copied what lined up, so
+    # a phase whose shape had diverged from its stated default was reset in
+    # PART and still reported success. A mismatch means the mapping is wrong.
+    project_b = load_mud(PATH)
+    odd = _resettable(project_b)
+    before_sigma = odd.sigma_star
+    odd.sigma_star = 6.66
+    odd.components.append(odd.components[0])      # shape no longer matches
+    check("shape: a component-count mismatch REFUSES the reset",
+          reset_to_default(project_b, odd) is False)
+    check("shape: ...and changes nothing (still the tampered value)",
+          abs(odd.sigma_star - 6.66) < 1e-9)
+
+    # And a failure inside the copy must not be swallowed while reporting
+    # success - the validation happens before anything is mutated.
+    import mudlab.default_state as _ds
+    source = open(_ds.__file__, encoding="utf-8").read()
+    check("shape: no blanket 'except Exception' hiding a partial reset",
+          "except Exception:  # noqa: BLE001 - a reset must not die" not in source)
+
     # ------------------------------------------------- inheritance is intact
     project2 = load_mud(PATH)
     child = _resettable(project2)

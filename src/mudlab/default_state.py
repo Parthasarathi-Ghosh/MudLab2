@@ -450,28 +450,38 @@ def reset_to_default(project, phase) -> bool:
     atom_type_map = _resolution_map(project)
     fresh = Phase.from_dict(source.to_dict(), atom_type_map)
 
+    # VALIDATE BEFORE MUTATING. The first version zipped the component lists
+    # and copied what lined up, so a phase whose shape had diverged from its
+    # stated default was reset in PART and still reported success - the worst
+    # of both. A mismatch means the mapping is wrong, not that some of it
+    # should be applied.
+    if len(fresh.components) != len(phase.components):
+        return False
+    live_probs = getattr(phase, "probabilities", None)
+    clean_probs = getattr(fresh, "probabilities", None)
+    probability_rows = None
+    if live_probs is not None and clean_probs is not None:
+        live_rows = live_probs.editable_params()
+        clean_rows = clean_probs.editable_params()
+        if len(live_rows) != len(clean_rows):
+            return False
+        probability_rows = list(zip(live_rows, clean_rows))
+
+    # ---- nothing above this line has changed the phase; everything below does
     phase.sigma_star = fresh.sigma_star
 
     # CSDS and PROBABILITIES are copied BY VALUE into the existing objects,
     # never replaced. `Phase.set_based_on` links this phase's probabilities
     # object to the parent's (`probabilities.set_based_on`), so swapping the
-    # object in would quietly sever the inheritance this reset is supposed to
-    # leave alone.
+    # object in would quietly sever the inheritance this reset leaves alone.
     live_csds, clean_csds = phase.CSDS, fresh.CSDS
     if live_csds is not None and clean_csds is not None:
         live_csds.average = clean_csds.average
     else:
         phase.CSDS = clean_csds
 
-    live_probs = getattr(phase, "probabilities", None)
-    clean_probs = getattr(fresh, "probabilities", None)
-    if live_probs is not None and clean_probs is not None:
-        try:
-            clean_rows = clean_probs.editable_params()
-            for row, clean_row in zip(live_probs.editable_params(), clean_rows):
-                row["set"](clean_row["get"]())
-        except Exception:  # noqa: BLE001 - a reset must not die on a model quirk
-            pass
+    for row, clean_row in probability_rows or ():
+        row["set"](clean_row["get"]())
 
     for live, clean in zip(phase.components, fresh.components):
         for attr in _COMPONENT_SCALARS:
@@ -486,9 +496,9 @@ def reset_to_default(project, phase) -> bool:
 
         atoms = {a.uuid: a for a in live.layer_atoms + live.interlayer_atoms}
         atoms[live.uuid] = live
-        for name_ in ("ucp_a", "ucp_b"):
-            target = getattr(live, name_, None)
-            plain = getattr(clean, name_, None)
+        for ucp_name in ("ucp_a", "ucp_b"):
+            target = getattr(live, ucp_name, None)
+            plain = getattr(clean, ucp_name, None)
             if target is None or plain is None:
                 continue
             target.value = plain.value
