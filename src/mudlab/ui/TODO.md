@@ -781,6 +781,33 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] The fragile spots, worked through (2026-08-26). Five open items; four of
+  the listed "behaviour gaps" turned out to be ALREADY CLOSED - the doc had gone
+  stale - so they were verified and struck rather than re-fixed.
+  FIXED: (1) `find_closest` raised IndexError on an empty array - every caller
+  guarded it so it never surfaced, but a helper that is safe only because of
+  what its callers remember is a trap for the next one; it answers None now.
+  (2) `get_best_threshold` divided by a zero slope on a flat region: 32
+  RuntimeWarnings per Detect Peaks run. Guarded WITHOUT changing the numerics -
+  nan still fails the |R| >= 0.98 test exactly as before, and a real pattern
+  still yields the same threshold (0.0068), which the harness pins.
+  (3) The mineral loader let a short header inherit the previous entry's
+  abbreviation. Only one shipped entry is short - Augite - and it inherited
+  "Aug" from the Augite above it, so it was RIGHT BY LUCK. Fixing the parser
+  alone would therefore have made the shipped data WORSE (a blank label), so
+  the data line was corrected too, built from its known-good sibling rather
+  than by counting columns - the first attempt miscounted and the assertion
+  caught it.
+  (4) Muscovite.cmp was bundled but never offered; now in the catalog (225
+  entries).
+  (5) The emission-spectrum editor took any number. `1.544` for `0.1544` is a
+  valid float and an impossible wavelength, and nothing downstream complained:
+  `get_2t_from_nm` clamps arcsin's argument, so reflections did not error, they
+  silently stopped appearing - a pattern quietly missing most of its peaks. The
+  editor now refuses anything outside 0.01-1.0 nm, and negative fractions, with
+  a message that names the units and the likely typo.
+  verify_fragile_spots.py 19/19. Full suite 81/81.
+
 - [x] Phase Reset - restore a phase's structure to its shipped default
   (2026-08-26, the user's item #6). Right-click a phase in Edit Phases ->
   **Reset to shipped default...**

@@ -80,6 +80,7 @@ _ALIASES = {
     "Ma  ": "Margarite.cmp",
     "L   ": "Leucophyllite.cmp",
     "Pa  ": "Paragonite.cmp",
+    "Mu  ": "Muscovite.cmp",
     "dS2w": "Di-Smectite/Di-Smectite - Ca 2WAT.cmp",
     "dS1w": "Di-Smectite/Di-Smectite - Ca 1WAT.cmp",
     "dS0w": "Di-Smectite/Di-Smectite - Ca Dehydr.cmp",
@@ -204,6 +205,10 @@ _CATALOG: list = [
     ("Margarite", [(dict(R=0, name="Margarite"), "Ma  ", {})]),
     ("Leucophyllite", [(dict(R=0, name="Leucophyllite"), "L   ", {})]),
     ("Paragonite", [(dict(R=0, name="Paragonite"), "Pa  ", {})]),
+    # Muscovite.cmp was bundled but never offered - faithful to the old
+    # app, which shipped the component and left it out of its own list.
+    # It is a perfectly good single non-expandable clay and costs a line.
+    ("Muscovite", [(dict(R=0, name="Muscovite"), "Mu  ", {})]),
     # Expandable smectites / vermiculites, 1-3 interstratified hydration states.
     *_smectite_family("Di-Smectite", _DI_SMECTITE),
     *_smectite_family("Tri-Smectite", _TRI_SMECTITE),

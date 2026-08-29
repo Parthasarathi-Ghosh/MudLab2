@@ -152,39 +152,38 @@ so whoever picks one up starts from facts rather than a search.
 Folded in from the memory audit notes ([[mudlab2-peakdetect-mineral-audit]],
 [[mudlab2-wld-editor-audit]], [[mudlab2-csv-gonio-audit]], [[mudlab2-default-catalog-audit]]).
 
-**Behavior gaps (candidate fixes):**
-- **Goniometer edits don't live-recompute the plot** — `goniometer.data_changed` has
-  NO listeners, so editing the emission spectrum, loading a stored setup, or changing
-  any goniometer field (radius, soller, …) updates + persists the model but the
-  calculated curve only refreshes on the next recompute (a phase/mixture/atom edit, a
-  refinement, or reload). Whole Goniometer-tab, pre-existing. Fix: bridge
-  `goniometer.data_changed` → specimen recompute/replot.
-- **`add_atom_type` emits no signal** — a concurrently-open Edit Atom Types list won't
-  refresh when a default phase adopts atom types (fix = one-line `atom_types_changed`
-  signal).
-- **`RefinementDialog` + non-modal `MatchMineralsDialog` need `WA_DeleteOnClose`** —
-  parented-`exec()`/`show()` accumulation, the same class the CompositionDialog cleanup
-  fixed.
-- **Applied-goniometer-setup name is transient** — shown on `lbl_applied_gonio` but not
-  persisted (old app stored it in `specimen.source`); forgotten when Edit Specimen is
-  reopened. Deliberate simplification (the widget has no specimen ref).
+**Behavior gaps — ALL CLOSED (verified 2026-08-26, the doc had gone stale):**
+- ~~Goniometer edits don't live-recompute~~ — bridged; `main_window` wires each
+  specimen's `goniometer.data_changed` to a debounced recompute.
+- ~~`add_atom_type` emits no signal~~ — `Project.atom_types_changed` exists and fires.
+- ~~`RefinementDialog` needs `WA_DeleteOnClose`~~ — set. (`MatchMineralsDialog`
+  deliberately does NOT have it: its owner keeps a reference and closes it later.)
+- ~~Applied-goniometer-setup name is transient~~ — persisted in `specimen.source`.
 
-**Polish (trivial / cosmetic):**
-- **Muscovite catalog entry** — `Muscovite.cmp` is bundled but not offered (faithful to
-  old app; trivial to add).
+**Polish — DONE 2026-08-26:**
+- ~~Muscovite catalog entry~~ — `Muscovite.cmp` was bundled but never offered
+  (faithful to the old app, which shipped the component and left it out of its own
+  list). Now offered; the catalog has 225 entries.
 
-**Faithful-but-fragile calc spots (ported as-is; don't "fix" without care):**
-- **`get_best_threshold` divide-by-zero** on a flat histogram region → a benign stderr
-  RuntimeWarning during Detect Peaks (its sibling `get_best_prominence` guards it; the
-  classic one never did). Converges fine on real data; the differential test matches
-  the old code exactly.
-- **Wavelength editor has no range validation** — a typo like `1.544` (missing leading
-  zero) drives `arcsin(...) > 1` (RuntimeWarning + a silently-ignored line, not a NaN
-  pattern); deleting all rows falls back to the 0.154056 default.
-- **`score_minerals([], …)` crashes** in `find_closest` (empty peak list); every call
-  site guards it, but the function itself is unsafe.
-- **Mineral loader stale abbreviation** — a `mineral_references.csv` header line 26–49
-  chars long keeps the previous entry's abbreviation (old parser's exact bug).
+**Faithful-but-fragile calc spots — ALL FIXED 2026-08-26** (`verify_fragile_spots.py`,
+19 checks). Each was a deliberate bug-for-bug port, left alone while the numerics were
+validated against goldens; the numerics are unchanged by these:
+- ~~`get_best_threshold` divide-by-zero~~ — a flat region gave a zero slope and 32
+  "invalid value encountered in scalar divide" warnings per run. Guarded; nan still
+  fails the `|R| >= 0.98` test exactly as before, so the search terminates identically
+  and a real pattern still yields the same threshold.
+- ~~Wavelength editor has no range validation~~ — `1.544` for `0.1544` is a valid float
+  and an impossible wavelength, and nothing complained downstream because
+  `get_2t_from_nm` clamps arcsin's argument: reflections silently stopped appearing.
+  The editor now refuses anything outside 0.01–1.0 nm, and negative fractions, with a
+  message that names the units.
+- ~~`score_minerals([], …)` crashes~~ — the unsafe one was `find_closest`, which raised
+  `IndexError` out of `zip(*array)` on an empty array. Every caller guarded it, so it
+  never surfaced; it now answers `None`.
+- ~~Mineral loader stale abbreviation~~ — a header too short to carry one kept the
+  PREVIOUS mineral's. One shipped entry was short (Augite, 31 chars) and inherited
+  "Aug" from the Augite above it — correct by luck. The parser now clears, and the data
+  line carries its own abbreviation.
 
 **Deployment:**
 - **Frozen-build bundling — VERIFIED 2026-08-01.** A PyInstaller onedir build

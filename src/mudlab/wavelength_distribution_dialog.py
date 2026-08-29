@@ -78,13 +78,47 @@ class WavelengthDistributionDialog(QDialog):
         try:
             value = float(item.text().strip())
         except ValueError:
-            # Revert the cell to the last valid value.
-            self._updating = True
-            item.setText("%g" % self._pairs[row][col])
-            self._updating = False
+            self._revert(item, row, col)
+            return
+        problem = self._out_of_range(col, value)
+        if problem is not None:
+            # A VALID NUMBER can still be impossible. The classic typo is a
+            # missing leading zero - 1.544 for 0.1544 nm - and nothing
+            # downstream complains: `get_2t_from_nm` clamps arcsin's argument
+            # to [-1, 1], so reflections do not error, they just silently stop
+            # appearing. A pattern quietly missing most of its peaks is far
+            # worse than a rejected cell.
+            self._revert(item, row, col)
+            QMessageBox.warning(self, "Emission spectrum", problem)
             return
         self._pairs[row][col] = value
         self._push()
+
+    #: Plausible X-ray wavelengths, in nm. Deliberately wide - Mo Ka is about
+    #: 0.071 and Cr Ka about 0.229 - so it rejects typos, not unusual sources.
+    _MIN_NM, _MAX_NM = 0.01, 1.0
+
+    def _out_of_range(self, col, value):
+        """Why `value` cannot go in column `col`, or None if it can."""
+        if col == 0:
+            if not (self._MIN_NM <= value <= self._MAX_NM):
+                return (
+                    "%g is not a usable wavelength.\n\n"
+                    "Wavelengths are in NANOMETRES and must be between %g and "
+                    "%g nm - copper Ka1 is 0.154056, molybdenum 0.0709.\n\n"
+                    "A value near 1.5 is the usual sign of a missing leading "
+                    "zero." % (value, self._MIN_NM, self._MAX_NM))
+        elif value < 0.0:
+            return ("A fraction cannot be negative.\n\n"
+                    "Fractions are relative weights; they are normalised, so "
+                    "they need not add to 1.")
+        return None
+
+    def _revert(self, item, row, col) -> None:
+        """Put the cell back to the last value that was accepted."""
+        self._updating = True
+        item.setText("%g" % self._pairs[row][col])
+        self._updating = False
 
     def _push(self) -> None:
         if self.goniometer is not None:

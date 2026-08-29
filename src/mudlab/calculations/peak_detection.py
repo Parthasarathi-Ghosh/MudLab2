@@ -28,7 +28,16 @@ _MINERALS_CSV = os.path.join(
 # Peak detection (billauer peakdet + scipy prominence)
 # ----------------------------------------------------------------------
 def find_closest(value, array, col=0):
-    """Find the element of `array` whose `col`-th entry is closest to `value`."""
+    """The element of `array` whose `col`-th entry is closest to `value`, or
+    None when there is nothing to choose from.
+
+    An empty `array` used to raise `IndexError` out of `zip(*array)` - every
+    caller happened to guard it, so the crash never surfaced, but a helper that
+    is only safe because of what its callers remember is a trap for the next
+    one. "Nothing is closest to x" is a real answer, and None says it.
+    """
+    if not len(array):
+        return None
     nparray = np.array(list(zip(*array))[col])
     idx = (np.abs(nparray - value)).argmin()
     return array[idx]
@@ -198,6 +207,14 @@ def get_best_threshold(data_x, data_y, max_threshold=None, steps=None, status_di
         x = deltas[:ln]
         y = num_peaks[:ln]
         slope, intercept, R, _, _ = stats.linregress(x, y)
+        # A FLAT region gives slope 0 (and R = nan), and the old code divided
+        # by it - 32 "invalid value encountered in scalar divide" warnings on
+        # stderr for a single Detect Peaks run over featureless data. The
+        # numerical answer is unchanged: nan fails the |R| >= 0.98 test that
+        # follows exactly as it did before, so the search still terminates the
+        # same way. Only the noise is gone.
+        if not slope:
+            return R, float("nan")
         return R, -intercept / slope
 
     if length > 2:
@@ -409,8 +426,14 @@ def load_mineral_references(path=None):
                 position_flag = True
                 if len(line) > 25:
                     mineral = line[:24].strip()
-                if len(line) > 49:
-                    abbreviation = line[49:].strip()
+                # A header too short to carry an abbreviation used to leave the
+                # PREVIOUS mineral's in place, so an entry silently inherited a
+                # label belonging to something else (the old parser's exact
+                # behaviour). Today exactly one shipped entry is short - Augite,
+                # which inherited "Aug" from the Augite above it and was right
+                # by luck. Clear it instead: a missing abbreviation is missing,
+                # not the last one seen.
+                abbreviation = line[49:].strip() if len(line) > 49 else ""
                 peaks = []
         # The old loader appended a mineral only when it hit the NEXT header, so
         # the final mineral (the file ends on numeric data) was silently
