@@ -1,13 +1,13 @@
 # MudLab2 — remaining & deferred work
 
-Snapshot as of 2026-08-23 (V1 in sync with origin @ `3af0586`). The GTK→Qt/PySide6
+Snapshot as of 2026-08-29 (V1 = main = origin @ `8a4684b`, v1.0.3 released). The GTK→Qt/PySide6
 port is far along: the analytics/calc
 engine is golden-validated, both major editors (Edit Phases, Edit Mixtures) are
 feature-complete, and the default-phase catalog now matches old MudLab/PyXRD (80
 entries, all R0–R3 models). This is the single canonical to-do — it folds in the
 memory audit notes; update it as items land.
 
-## Requested 2026-08-23 (user's list — pending, none started)
+## Requested 2026-08-23 (user's list — all done except #4)
 
 Recorded verbatim in intent; the notes under each are what the code says today,
 so whoever picks one up starts from facts rather than a search.
@@ -111,6 +111,39 @@ so whoever picks one up starts from facts rather than a search.
   exist; structure only, or fractions/scales too; and — since phases are SHARED
   across mixtures — confirmation that a reset necessarily applies everywhere
   that phase is used.
+
+## Public repo presentation (deferred 2026-08-29)
+
+Raised when asking whether the GitHub link can be given to users. **It can** —
+a full re-audit that day found no secrets, no email addresses, no local paths
+or usernames in tracked files, no `.mud` fixture anywhere in the history (not
+merely absent from HEAD), and none of the unpublished non-clay method work.
+These four are presentation only, and all are small.
+
+- **The repo has no description, homepage or topics.** The header beside the
+  name is empty, which is the first thing a visitor reads. `gh repo edit
+  --description ... --homepage ...` sets it.
+- **`README.md` opens with a developer note** — *"Working folder is `MudLab2`
+  while the legacy MudLab is still installed"* — and carries no download link
+  above the fold. A user landing on the repo root meets build instructions
+  before they meet the program.
+- **GitHub reports the licence as "Other"**, not BSD-3-Clause, so the sidebar
+  badge is unhelpful. `LICENSE` is genuine BSD 3-Clause; the two copyright
+  lines (Dumon 2013, Ghosh 2026) most likely defeat GitHub's detector. Worth
+  ten minutes only because a cautious institution notices.
+- **`docs/DOCUMENTATION-PLAN.md` carries local paths** (`c:\GitHub\MudLab\`,
+  `c:\GitHub\MudLab2\docs\`, lines 49 and 58). Harmless, just scruffy in a
+  public repo — make them repo-relative.
+
+**Until these are done, send users to the releases page, not the repo root:**
+`https://github.com/Parthasarathi-Ghosh/MudLab2/releases/latest` lands on the
+download and the notes. That remains the better link for users afterwards too.
+
+Two related points that are decisions, not defects, and are deliberately NOT
+listed as work: `docs/remaining-work.md` (this file) is a public 304-line
+to-do that a *user* may read as a list of faults; and `.claude/commands/docs.md`
+plus the `Co-Authored-By` trailers make the AI-assisted workflow visible, which
+matters only insofar as the planned paper has its own disclosure norms.
 
 ## Deferred by design (working, intentionally postponed)
 - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
