@@ -97,10 +97,38 @@ so whoever picks one up starts from facts rather than a search.
 
 **Deferred at the user's request (2026-08-23):**
 
-- **#4 CIF component import with c\* projection** — a real feature: project the
-  CIF's fractional atom positions onto c\* and bin them into layer/interlayer
-  atoms with `z` + `pn`. The existing `nonclay/structure.py` CIF reader gives a
-  3-D stick list, not this.
+- **#4 CIF component import with c\* projection** — **STAGE 1 DONE
+  2026-08-30, no UI yet.** `src/mudlab/file_parsers/cif_component.py` reads a
+  CIF, projects it along c\* and builds a Component; `verify_cif_component.py`
+  (42 checks) measures it against 73 published RRUFF/AMCSD clay structures the
+  user keeps outside the repo (`MUDLAB_CIF_CORPUS` points elsewhere; absent, it
+  skips with exit 2).
+
+  Settled, with evidence:
+
+  - Height above (001) is `z_fractional x d001` **exactly**, x and y
+    contributing nothing — so a boundary parallel to (001) is in the same place
+    in 3-D as after projecting. 3-D is still needed, but for **bonding**: the
+    hydroxyl test and the layer/interlayer split run on the structure before it
+    is collapsed, which is the only way to tell interlayer water from hydroxyl.
+  - Faithfulness: anion content preserved **73/73**, divisor 1 and 2 alike.
+    Against MudLab's own components: kaolinite r = 0.9994, illite 0.9537, talc
+    0.9530, chlorite 0.9347, every atom type resolving.
+  - Nothing is persisted that the old GTK app cannot read, so CIF provenance
+    has nowhere to live and none is invented.
+
+  **Next (stage 2): the review dialog.** Nothing should be committed to a phase
+  until the user has seen and can override the four things the projector has to
+  guess — O vs OH per row, the fold divisor, the layer/interlayer split, and
+  d001. Two known disagreements to surface there: chlorite's brucite sheet is
+  framework-bonded so it lands in *layer* where our shipped Chlorite puts it in
+  *interlayer*; and sepiolite is a channel mineral with no MudLab bucket, so it
+  should be refused rather than approximated. Treatment variants are stage 3
+  and should reuse component **linking** (inherit layer atoms, keep own d001 and
+  interlayer), which is how the shipped smectites already do air-dried → glycol
+  → heated. Note a CIF is NOT necessarily the air-dried state: the four
+  montmorillonite CIFs project to 0.97, 1.11, 1.22 and 1.22 nm, so the importer
+  must ask which state it represents.
 - ~~**#6 A Reset feature on Phase objects**~~ — **DONE 2026-08-26**: right-click
   a phase in Edit Phases → *Reset to shipped default*. Structure only; name,
   colour and inheritance kept; requires a stated default (Default Phases
