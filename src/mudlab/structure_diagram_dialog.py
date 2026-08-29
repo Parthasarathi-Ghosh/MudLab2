@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QFileDialog, QMessageBox, QWidget,
 )
 
+from mudlab.qt_utils import fixed_font
 from mudlab.component_diagram import build_structure_diagram
 from mudlab.ui.ui_structure_diagram import Ui_StructureDiagramDialog
 
@@ -35,8 +36,7 @@ class StructureDiagramDialog(QDialog):
 
         # The diagram aligns its columns with spaces, so it is only a diagram
         # in a fixed-pitch font.
-        self.ui.txt_diagram.setFont(
-            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.ui.txt_diagram.setFont(fixed_font())
 
         self.ui.buttonBox.rejected.connect(self.reject)
         self.ui.button_copy.clicked.connect(self._on_copy)

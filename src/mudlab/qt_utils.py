@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QColorDialog, QDialog, QDialogButtonBox, QPushButton,
 )
@@ -184,3 +184,38 @@ def in_use_message(name: str, kind: str, usage, subjects: int = 1) -> str:
            "are" if subjects > 1 else "is",
            where, them, where_from, freeing, them)
     )
+
+
+#: Preferred fixed-pitch faces, best first. Consolas ships with Windows 10+ and
+#: is far more legible than Courier New at small sizes.
+_FIXED_FACES = ("Consolas", "Cascadia Mono", "Consolas", "Courier New")
+
+
+def fixed_font(point_size: int | None = None):
+    """The font for anything whose columns must line up.
+
+    NAMED, not `QFontDatabase.systemFont(FixedFont)`. That call returned
+    **Courier New** here - the least legible monospace Windows ships - and what
+    it returns is a system setting, so two machines could render the structure
+    diagram and the refinement report differently. Consolas is a known
+    quantity, present on Windows 10+, and much easier to read at 9-10 pt.
+
+    These widgets align columns WITH SPACES (the structure diagram's `%-14s`
+    name fields and z-value columns; the refinement report's parameter table),
+    so the face must stay fixed-pitch. A proportional font - Calibri, Arial,
+    Segoe UI - would leave the text correct and the layout meaningless.
+    """
+    from PySide6.QtGui import QFontDatabase
+
+    available = set(QFontDatabase.families())
+    for family in _FIXED_FACES:
+        if family in available:
+            font = QFont(family)
+            break
+    else:  # nothing recognised - fall back to whatever the system calls fixed
+        font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+    font.setFixedPitch(True)
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    if point_size is not None:
+        font.setPointSize(point_size)
+    return font

@@ -781,6 +781,46 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Typography: one UI face, one chart face, a real monospace (2026-08-26).
+  AUDITED FIRST - the app makes exactly THREE font decisions and no `.ui` file
+  names a family (0 of them), so everything else inherits.
+  (1) UI: `Segoe UI 9pt` on the QApplication. Unchanged - it is the Windows UI
+  font and matches the OS.
+  (2) CHARTS were in DejaVu Sans, matplotlib's own bundled default, while every
+  widget was in Segoe UI: two typefaces in one window. `chart_style.
+  apply_chart_font()` now puts the UI font at the head of `font.sans-serif`,
+  keeping DejaVu LAST as the fallback (it ships inside matplotlib, so a chart
+  always draws). Called from `create_app` AND at module import - the explicit
+  call matters because `refinement_dialog` draws the convergence plot and does
+  NOT import chart_style, so relying on the import side effect would have left
+  that one plot alone in DejaVu. Found by checking every chart module, not by
+  assuming.
+  (3) MONOSPACE was `QFontDatabase.systemFont(FixedFont)`, which resolved to
+  **Courier New** - the least legible monospace Windows ships - and is a system
+  setting, so two machines could render the structure diagram differently. New
+  `qt_utils.fixed_font()` names **Consolas** (Windows 10+), keeps a monospace
+  fallback chain, and sets fixedPitch + the Monospace style hint. Used by the
+  structure diagram, the refinement report and the plot info label.
+  WHY THOSE THREE CANNOT BE CALIBRI OR ARIAL, which was the user's question:
+  they align columns WITH SPACES (`%-14s` name fields, z-value columns, rules
+  measured in characters). A proportional face leaves the text correct and the
+  layout meaningless.
+  GLYPHS VERIFIED, not assumed: theta, degree, middot, em dash, the box-drawing
+  rules, left arrow and ellipsis are all present in Segoe UI, Calibri, Arial,
+  Consolas and Courier New. The first probe used `QRawFont.supportsCharacter`
+  and reported EVERY font missing EVERY glyph including the degree sign -
+  obviously the probe, not the fonts; `QFontMetrics.inFont` gave the right
+  answer.
+  CORRECTION RECORDED: the user expected a Windows font to help with the
+  antivirus false positive. It cannot. What was quarantined is
+  `ft2font.cp314-win_amd64.pyd` - matplotlib's FreeType BINDING, a compiled C
+  extension, not a font. It rasterises whichever face is chosen and stays in the
+  bundle regardless. See [[mudlab2-antivirus-false-positive]].
+  verify_fonts.py: 15/15 under the real Windows plugin, 13/13 offscreen where
+  the resolution and glyph checks skip - THE OFFSCREEN PLATFORM HAS NO FONTS AT
+  ALL here, so QFontInfo comes back empty and inFont() reports everything
+  missing (the same trap as verify_splash). Full suite 79/79.
+
 - [x] Antivirus quarantine: the app now explains itself (2026-08-26).
   THE 1.0.0/1.0.1 CRASH WAS NOT THE RUNTIME GAP. A user's Quick Heal
   quarantined matplotlib's `ft2font.cp314-win_amd64.pyd` as `Trojan.Agent` -

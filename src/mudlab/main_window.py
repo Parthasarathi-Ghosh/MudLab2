@@ -54,7 +54,7 @@ from mudlab.line_dialogs import (
 )
 from mudlab.models import Project, Specimen
 from mudlab.plot_controller import PatternPlot
-from mudlab.qt_utils import in_use_message
+from mudlab.qt_utils import fixed_font, in_use_message
 from mudlab.specimen_dialogs import (
     SaveGraphSizeDialog,
     StatisticsDialog,
@@ -1374,7 +1374,7 @@ class MainWindow(QMainWindow):
         self.ui.statusBar.addPermanentWidget(self.status_progress)
 
         self.lbl_plot_info = QLabel()
-        self.lbl_plot_info.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.lbl_plot_info.setFont(fixed_font())
         self.ui.statusBar.addPermanentWidget(self.lbl_plot_info)
 
     # ------------------------------------------------------------------

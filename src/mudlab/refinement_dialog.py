@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from mudlab.qt_utils import fixed_font
 from mudlab.calculations.refinement import (
     BASINHOPPING_LOCAL_MAXFUN, REFINE_METHODS, refine_mixture,
 )
@@ -239,8 +240,7 @@ class RefinementDialog(QDialog):
         self._hand_edited: set = set()
         self._setup_progress_plot()
         # The report is fixed-pitch: it is a column-aligned text table.
-        self.ui.txt_report.setFont(
-            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.ui.txt_report.setFont(fixed_font())
         self.ui.lbl_param_warning.setStyleSheet(_WARNING_STYLE)
         self.ui.lbl_param_warning.setToolTip(_WARNING_TOOLTIP)
         self.ui.lbl_param_warning.setVisible(False)

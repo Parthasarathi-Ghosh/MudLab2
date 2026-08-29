@@ -6,6 +6,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QStyleFactory
 
 from mudlab import APP_NAME, ORG_NAME, __version__
+from mudlab.chart_style import UI_FONT, apply_chart_font
 from mudlab.qt_utils import install_enter_policy
 from mudlab.resources import app_icon
 from mudlab.splash import show_splash, _MIN_VISIBLE_MS
@@ -87,8 +88,11 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     # by accident of tab order (Add, and Refine). See qt_utils.install_enter_policy.
     install_enter_policy(app)
 
-    # Windows system UI font.
-    app.setFont(QFont("Segoe UI", 9))
+    # Windows system UI font...
+    app.setFont(QFont(UI_FONT, 9))
+    # ...and the same face in the charts, so a plot and the window around it
+    # are not set in two different typefaces.
+    apply_chart_font()
     return app
 
 
