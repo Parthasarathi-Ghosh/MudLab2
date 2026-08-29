@@ -61,7 +61,11 @@ detection was wrong, so the next update stops flagging it for everyone.
 - **Project → Export** writes a `.mud` the original GTK MudLab can open, or a
   `.pyxrd`. Both are lossy in ways the app tells you about at export time.
 
-The full manual is `docs/user-manual.md` in the source repository.
+## The manual
+
+Press **F1**, or **Help → Manual**. It opens inside MudLab and is included in
+this folder, so it works offline: a short walkthrough from importing a scan to
+saving a result, with the full reference a click away.
 
 ## Requirements
 
