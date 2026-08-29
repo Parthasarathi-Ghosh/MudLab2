@@ -168,24 +168,182 @@ def _is_declared_hydroxyl(label: str, type_symbol: str) -> bool:
             return True
     return False
 
+def _strip_comment(line: str) -> str:
+    """Drop a trailing ``#`` comment, but not a ``#`` inside a quoted value."""
+    out = []
+    quote = None
+    for char in line:
+        if quote:
+            out.append(char)
+            if char == quote:
+                quote = None
+        elif char in "\'\"":
+            quote = char
+            out.append(char)
+        elif char == "#":
+            break
+        else:
+            out.append(char)
+    return "".join(out)
+
+
+def _tokenise(line: str) -> list:
+    """Whitespace-separated CIF values, honouring quotes.
+
+    ``'Sodium Feldspar'`` is one value, not two.
+    """
+    tokens, current, quote = [], [], None
+    for char in line:
+        if quote:
+            if char == quote:
+                quote = None
+            else:
+                current.append(char)
+        elif char in "\'\"":
+            quote = char
+        elif char.isspace():
+            if current:
+                tokens.append("".join(current))
+                current = []
+        else:
+            current.append(char)
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
+#: Stands in for a semicolon-delimited text value, which is opaque to us but
+#: still occupies exactly one slot in a loop or after a tag.
+_TEXT_VALUE = "\x00text"
+
+
+def _blocks(text: str) -> list:
+    """Split CIF text into ``(name, lines)`` data blocks.
+
+    Three pieces of CIF lexical structure that line-by-line regexes get wrong,
+    and that the American Mineralogist guide documents explicitly:
+
+    * a **semicolon-delimited text value** may contain anything at all,
+      including lines that look like tags or atom rows. It is skipped whole
+      here, so ``_refine_special_details`` describing a constraint can mention
+      ``_cell_length_a`` without being read as one.
+    * a **comment** may sit on its own line inside a loop header - the guide's
+      own multiple-occupancy example annotates the tag list that way.
+    * a CIF may hold **several data blocks**, and the guide *requires* one per
+      refinement when a paper reports more than one structure. Merging their
+      atom sites would invent a structure that does not exist.
+    """
+    blocks = []
+    current = None
+    in_text = False
+    for raw in text.splitlines():
+        if in_text:
+            if raw.startswith(";"):
+                in_text = False
+            continue
+        if raw.startswith(";"):
+            in_text = True
+            if current is not None:
+                current.append(_TEXT_VALUE)
+            continue
+        line = _strip_comment(raw).strip()
+        if not line:
+            continue
+        if line.lower().startswith("data_"):
+            current = []
+            blocks.append((line[5:], current))
+            continue
+        if current is None:
+            current = []
+            blocks.append(("", current))
+        current.append(line)
+    return blocks
+
+
+def _parse_block(lines: list) -> tuple:
+    """``(scalars, loops)`` for one data block.
+
+    Loop bodies are read as a **token stream** chunked by the number of tags,
+    not as one row per line: CIF puts no such requirement on the layout, and a
+    long row wrapped across two lines is legal.
+    """
+    scalars, loops = {}, []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.lower() == "loop_":
+            index += 1
+            tags = []
+            while index < len(lines) and lines[index].startswith("_"):
+                tags.append(_tokenise(lines[index])[0].lower())
+                index += 1
+            values = []
+            while index < len(lines):
+                nxt = lines[index]
+                if nxt.startswith("_") or nxt.lower() in ("loop_",):
+                    break
+                if nxt == _TEXT_VALUE:
+                    values.append(_TEXT_VALUE)
+                else:
+                    values.extend(_tokenise(nxt))
+                index += 1
+            if tags:
+                width = len(tags)
+                rows = [values[start:start + width]
+                        for start in range(0, len(values) - width + 1, width)]
+                loops.append((tags, rows))
+            continue
+        if line.startswith("_"):
+            tokens = _tokenise(line)
+            tag = tokens[0].lower()
+            if len(tokens) > 1:
+                scalars[tag] = " ".join(tokens[1:])
+                index += 1
+                continue
+            # The guide prints tag and value on separate lines throughout.
+            if index + 1 < len(lines):
+                following = lines[index + 1]
+                if following == _TEXT_VALUE:
+                    scalars[tag] = ""
+                    index += 2
+                    continue
+                if not following.startswith("_") and following.lower() != "loop_":
+                    scalars[tag] = " ".join(_tokenise(following))
+                    index += 2
+                    continue
+            scalars[tag] = ""
+            index += 1
+            continue
+        index += 1
+    return scalars, loops
+
 
 def parse_cif(text: str) -> CifStructure:
     """Read the first data block that carries an atom-site loop.
 
-    Deliberately tolerant: real AMCSD/RRUFF files vary in tag order, quoting
-    and column count, and a structural importer that rejects a file over
-    cosmetics is useless. Raises ValueError only when something essential -
-    the cell or the atom sites - is genuinely absent.
-    """
-    def scalar(tag):
-        match = re.search(r"^%s\s+(\S+)" % re.escape(tag), text, re.M)
-        return _number(match.group(1)) if match else None
+    Deliberately tolerant about layout - real files vary in tag order, quoting
+    and column count, and an importer that rejects a structure over cosmetics
+    is useless - but strict about lexical structure, which is where a sloppy
+    reader silently invents data. See `_blocks`.
 
-    cell = {t: scalar("_cell_length_" + t) for t in ("a", "b", "c")}
-    for angle in ("alpha", "beta", "gamma"):
-        cell[angle] = scalar("_cell_angle_" + angle)
-        if cell[angle] is None:
-            cell[angle] = 90.0
+    Raises ValueError only when something essential is genuinely absent.
+    """
+    chosen = None
+    for _name, lines in _blocks(text):
+        scalars, loops = _parse_block(lines)
+        if any("_atom_site_fract_x" in tags for tags, _rows in loops):
+            chosen = (scalars, loops)
+            break
+    if chosen is None:
+        raise ValueError("CIF has no atom sites")
+    scalars, loops = chosen
+
+    cell = {}
+    for key in ("a", "b", "c"):
+        cell[key] = _number(scalars.get("_cell_length_" + key))
+    for key in ("alpha", "beta", "gamma"):
+        value = _number(scalars.get("_cell_angle_" + key))
+        cell[key] = 90.0 if value is None else value
     missing = [k for k in ("a", "b", "c") if not cell.get(k)]
     if missing:
         raise ValueError("CIF has no unit-cell length(s): %s" % ", ".join(missing))
@@ -193,42 +351,21 @@ def parse_cif(text: str) -> CifStructure:
     name = ""
     for tag in ("_chemical_name_mineral", "_chemical_name_common",
                 "_chemical_name_systematic"):
-        match = re.search(r"^%s\s+(.+)$" % re.escape(tag), text, re.M)
-        if match:
-            name = match.group(1).strip().strip("'\"")
-            if name and name != "?":
-                break
-            name = ""
+        candidate = (scalars.get(tag) or "").strip()
+        if candidate and candidate not in ("?", "."):
+            name = candidate
+            break
 
     sites, symmetry = [], []
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        if lines[index].strip() != "loop_":
-            index += 1
-            continue
-        cursor = index + 1
-        tags = []
-        while cursor < len(lines) and lines[cursor].strip().startswith("_"):
-            tags.append(lines[cursor].strip().split()[0])
-            cursor += 1
-        rows = []
-        while cursor < len(lines):
-            stripped = lines[cursor].strip()
-            if (not stripped or stripped == "loop_"
-                    or stripped.startswith(("_", "data_", "#", ";"))):
-                break
-            rows.append(stripped)
-            cursor += 1
-        index = cursor
-
+    for tags, rows in loops:
         if any("symop" in t or "equiv_pos" in t for t in tags):
+            column = next((n for n, t in enumerate(tags)
+                           if "symop" in t or "equiv_pos" in t), 0)
             for row in rows:
-                match = re.search(
-                    r"([-+xyz0-9/.]+\s*,\s*[-+xyz0-9/.]+\s*,\s*[-+xyz0-9/.]+)",
-                    row.replace("'", " ").replace('"', " "))
-                if match:
-                    symmetry.append([p.strip() for p in match.group(1).split(",")])
+                if column < len(row):
+                    parts = [p.strip() for p in row[column].split(",")]
+                    if len(parts) == 3:
+                        symmetry.append(parts)
         elif "_atom_site_fract_x" in tags:
             column = {tag: n for n, tag in enumerate(tags)}
             ix = column["_atom_site_fract_x"]
@@ -238,18 +375,17 @@ def parse_cif(text: str) -> CifStructure:
             itype = column.get("_atom_site_type_symbol")
             iocc = column.get("_atom_site_occupancy")
             for row in rows:
-                token = row.split()
-                if len(token) < len(tags):
-                    continue
-                label = token[ilabel] if ilabel is not None else ""
-                type_symbol = token[itype] if itype is not None else ""
+                label = row[ilabel] if ilabel is not None and ilabel < len(row) else ""
+                type_symbol = row[itype] if itype is not None and itype < len(row) else ""
                 element = element_of(type_symbol) or element_of(label)
                 if element is None:
                     continue
-                x, y, z = (_number(token[i]) for i in (ix, iy, iz))
+                x, y, z = (_number(row[i]) if i < len(row) else None
+                           for i in (ix, iy, iz))
                 if None in (x, y, z):
                     continue
-                occupancy = _number(token[iocc]) if iocc is not None else 1.0
+                occupancy = (_number(row[iocc])
+                             if iocc is not None and iocc < len(row) else 1.0)
                 if occupancy is None:
                     occupancy = 1.0
                 if occupancy <= 0.0:

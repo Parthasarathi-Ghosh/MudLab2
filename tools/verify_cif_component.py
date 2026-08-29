@@ -121,6 +121,116 @@ def synthetic_cif():
     ] + rows) + "\n"
 
 
+def syntax_checks():
+    """Lexical structure the American Mineralogist CIF Guide documents.
+
+    The RRUFF/AMCSD corpus exercises none of these, so all 73 files passed
+    while the reader was still wrong about three of them - a corpus proves
+    what it contains and nothing else.
+    """
+    cell = ("_cell_length_a 5.2000\n_cell_length_b 9.0000\n"
+            "_cell_length_c 10.0000\n_cell_angle_alpha 90.0\n"
+            "_cell_angle_beta 100.0\n_cell_angle_gamma 90.0\n")
+    tags = ("loop_\n_atom_site_label\n_atom_site_type_symbol\n"
+            "_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\n"
+            "_atom_site_occupancy\n")
+    rows = ("Si1 Si 0.0000 0.0000 0.0500 1.0\n"
+            "O1 O 0.1000 0.2000 0.1200 1.0\n"
+            "Al1 Al 0.2000 0.4000 0.2000 1.0\n"
+            "O2 O 0.3000 0.6000 0.2800 1.0\n")
+
+    def sites_of(text):
+        return cc.parse_cif(text).sites
+
+    check("syntax: the plain form AMCSD writes",
+          len(sites_of("data_t\n" + cell + tags + rows)) == 4)
+
+    # Section 4 of the guide prints every tag with its value on the NEXT line.
+    stacked = "".join("%s\n%s\n" % tuple(line.split(None, 1))
+                      for line in cell.strip().splitlines())
+    check("syntax: a value on the line after its tag",
+          len(sites_of("data_t\n" + stacked + tags + rows)) == 4)
+
+    # The guide's own multiple-occupancy example annotates the tag list.
+    commented = ("loop_\n_atom_site_label\n# this is the site name\n"
+                 "_atom_site_type_symbol\n_atom_site_fract_x\n"
+                 "_atom_site_fract_y\n_atom_site_fract_z\n"
+                 "# the occupancy of this element on this site\n"
+                 "_atom_site_occupancy\n")
+    check("syntax: comment lines inside a loop header",
+          len(sites_of("data_t\n" + cell + commented + rows)) == 4)
+
+    # A semicolon text value may contain anything, including lines that look
+    # like tags or atom rows - _refine_special_details routinely does.
+    poisoned = ("data_t\n_refine_special_details\n;\n"
+                "_cell_length_a 999.0\n"
+                "Zz9 Zz 0.9 0.9 0.9 1.0\n;\n" + cell + tags + rows)
+    structure = cc.parse_cif(poisoned)
+    check("syntax: a semicolon text block is not read as data (a = %.3f)"
+          % structure.a,
+          abs(structure.a - 5.2) < 1e-6 and len(structure.sites) == 4)
+
+    # The guide REQUIRES one data block per refinement in a multi-structure
+    # CIF; merging their atom sites would invent a structure that never was.
+    two = ("data_first\n" + cell + tags + rows +
+           "\ndata_second\n_cell_length_a 7.7\n_cell_length_b 7.7\n"
+           "_cell_length_c 7.7\n_cell_angle_alpha 90\n_cell_angle_beta 90\n"
+           "_cell_angle_gamma 90\n" + tags +
+           "Fe9 Fe 0.5 0.5 0.5 1.0\nO9 O 0.6 0.6 0.6 1.0\n")
+    structure = cc.parse_cif(two)
+    check("syntax: only the FIRST data block is used (%d sites, a = %.3f)"
+          % (len(structure.sites), structure.a),
+          len(structure.sites) == 4 and abs(structure.a - 5.2) < 1e-6)
+
+    # Section 6.4: one site, two elements, identical coordinates.
+    split = (tags + "T1S Si 0.0 0.0 0.05 0.5\nT1A Al 0.0 0.0 0.05 0.5\n"
+             "O1 O 0.1 0.2 0.12 1.0\nO2 O 0.3 0.6 0.28 1.0\n")
+    structure = cc.parse_cif("data_t\n" + cell + split)
+    elements = sorted(s.element for s in structure.sites)
+    check("syntax: a split site keeps both elements %s" % elements,
+          elements == ["Al", "O", "O", "Si"])
+
+    check("syntax: a trailing # comment on a data row",
+          len(sites_of("data_t\n" + cell + tags +
+                       "Si1 Si 0.0 0.0 0.05 1.0 # the tetrahedral site\n"
+                       "O1 O 0.1 0.2 0.12 1.0\nAl1 Al 0.2 0.4 0.2 1.0\n"
+                       "O2 O 0.3 0.6 0.28 1.0\n")) == 4)
+
+    named = cc.parse_cif("data_t\n_chemical_name_mineral 'Sodium Feldspar'\n"
+                         + cell + tags + rows)
+    check("syntax: a quoted value keeps its spaces (%r)" % named.name,
+          named.name == "Sodium Feldspar")
+
+    # esd's are mandatory in an AmMin CIF, so every measured number carries one.
+    with_esd = ("data_t\n_cell_length_a 5.2000(19)\n_cell_length_b 9.0000(5)\n"
+                "_cell_length_c 10.0000(8)\n_cell_angle_alpha 90\n"
+                "_cell_angle_beta 100.00(7)\n_cell_angle_gamma 90\n" + tags +
+                "Si1 Si 0.0000(2) 0.0000(2) 0.0500(3) 1.0\n"
+                "O1 O 0.1000(2) 0.2000(2) 0.1200(3) 1.0\n"
+                "Al1 Al 0.2000(2) 0.4000(2) 0.2000(3) 1.0\n"
+                "O2 O 0.3000(2) 0.6000(2) 0.2800(3) 1.0\n")
+    structure = cc.parse_cif(with_esd)
+    check("syntax: standard uncertainties are stripped everywhere (a = %.4f)"
+          % structure.a,
+          abs(structure.a - 5.2) < 1e-9 and len(structure.sites) == 4
+          and abs(structure.sites[0].z - 0.05) < 1e-9)
+
+    # A vacancy is not an atom.
+    vacant = ("data_t\n" + cell + tags +
+              "Si1 Si 0.0 0.0 0.05 1.0\nO1 O 0.1 0.2 0.12 1.0\n"
+              "Mg9 Mg 0.5 0.5 0.5 0.0\nO2 O 0.3 0.6 0.28 1.0\n")
+    check("syntax: a zero-occupancy site is skipped",
+          len(cc.parse_cif(vacant).sites) == 3)
+
+    # Both the deprecated and the current symmetry tag must be honoured.
+    for tag in ("_symmetry_equiv_pos_as_xyz", "_space_group_symop_operation_xyz"):
+        text = ("data_t\n" + cell + "loop_\n" + tag + "\n"
+                "'x,y,z'\n'-x,-y,-z'\n" + tags + rows)
+        structure = cc.parse_cif(text)
+        check("syntax: %s is read (%d operations)" % (tag, len(structure.symmetry)),
+              len(structure.symmetry) == 2)
+
+
 def geometry_checks():
     """The projection identity, on a deliberately triclinic cell."""
     text = synthetic_cif().replace("_cell_angle_alpha 90.0",
@@ -274,6 +384,7 @@ def main():
     print("=" * 72)
     print("CIF -> Component projection")
     print("=" * 72)
+    syntax_checks()
     geometry_checks()
     fold_checks()
     component_checks()
