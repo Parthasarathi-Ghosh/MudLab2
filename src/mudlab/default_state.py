@@ -369,3 +369,147 @@ def unmapped_phases(project) -> list:
     return [phase for phase in structural_phases(project)
             if phase.uuid not in mapping
             or resolve_default_phase(project, mapping[phase.uuid]) is None]
+
+
+# ---------------------------------------------------------------------------
+# Reset a phase to the state it was shipped in
+# ---------------------------------------------------------------------------
+
+#: Phase-level values a reset restores. NAME and DISPLAY_COLOR are deliberately
+#: absent: they are labels the user chose, not structure. `based_on` is absent
+#: too - see reset_to_default.
+_PHASE_STRUCTURE = ("sigma_star", "CSDS", "probabilities")
+
+#: Component-level values a reset restores. `linked_with` is absent for the
+#: same reason as `based_on`; `name` because a renamed component is still that
+#: component.
+_COMPONENT_SCALARS = ("d001", "default_c", "delta_c")
+
+
+def can_reset(project, phase) -> tuple:
+    """``(possible, reason)`` for resetting `phase` to its shipped default.
+
+    A phase can only be reset if the project SAYS what it started as. That
+    mapping is recorded automatically when a phase is added from the catalog,
+    and can be stated by hand in the Default Phases dialog - which is the only
+    route for a project created before the mapping existed, where nothing was
+    captured and the phases have since been refined. Guessing a default by name
+    at reset time is exactly the wrong moment to guess.
+    """
+    if getattr(phase, "type", None) != "Phase":
+        return False, "Only a structural phase has a shipped default."
+    name = (getattr(project, "default_phase_map", None) or {}).get(phase.uuid)
+    if not name:
+        return False, ("This phase has no stated default. Use "
+                       "Composition \u2192 Default phases to say which "
+                       "default it started as, then Reset becomes available.")
+    if resolve_default_phase(project, name) is None:
+        return False, ("Its stated default %r is not available any more - the "
+                       "import it came from is gone." % name)
+    return True, name
+
+
+def reset_to_default(project, phase) -> bool:
+    """Restore `phase`'s own STRUCTURE from the default it started as.
+
+    WHAT IS RESTORED: sigma*, the CSDS distribution, the stacking
+    probabilities, and per component d001 / default c / delta c, the unit-cell
+    properties, the atoms and the atom relations.
+
+    WHAT IS NOT, and why:
+
+    * **name and display colour** - labels the user chose. Renaming a phase
+      back, or repainting its curve, is not what "reset the structure" means.
+    * **`based_on` and `linked_with`** - the shipped default has neither, so
+      applying it literally would DISMANTLE the inheritance graph. Severing is
+      destructive enough that the app has snapshot-on-detach to soften it; a
+      reset should not do it silently. The links are left exactly as they are.
+    * **fractions, scales, background shifts** - those belong to the mixture,
+      not the phase.
+
+    NOTE the phase is ONE OBJECT shared by every mixture cell that uses it
+    (verified: three cells of `308 r1.mud` hold the same Illite object), so a
+    reset necessarily applies everywhere it is used. There is no per-mixture
+    reset without duplicating the phase. Callers recompute.
+
+    A phase that INHERITS may look unchanged afterwards: its own values are
+    restored, but an inherit flag means the editor still reads through to the
+    parent. That is correct, and the UI says so before confirming.
+    """
+    possible, name = can_reset(project, phase)
+    if not possible:
+        return False
+    source = resolve_default_phase(project, name)
+    if source is None:
+        return False
+
+    # Work on a detached rebuild: `source` may be a live custom-default phase,
+    # and nothing of it may end up shared with the phase being reset.
+    from mudlab.models.phase import Phase
+
+    atom_type_map = _resolution_map(project)
+    fresh = Phase.from_dict(source.to_dict(), atom_type_map)
+
+    phase.sigma_star = fresh.sigma_star
+
+    # CSDS and PROBABILITIES are copied BY VALUE into the existing objects,
+    # never replaced. `Phase.set_based_on` links this phase's probabilities
+    # object to the parent's (`probabilities.set_based_on`), so swapping the
+    # object in would quietly sever the inheritance this reset is supposed to
+    # leave alone.
+    live_csds, clean_csds = phase.CSDS, fresh.CSDS
+    if live_csds is not None and clean_csds is not None:
+        live_csds.average = clean_csds.average
+    else:
+        phase.CSDS = clean_csds
+
+    live_probs = getattr(phase, "probabilities", None)
+    clean_probs = getattr(fresh, "probabilities", None)
+    if live_probs is not None and clean_probs is not None:
+        try:
+            clean_rows = clean_probs.editable_params()
+            for row, clean_row in zip(live_probs.editable_params(), clean_rows):
+                row["set"](clean_row["get"]())
+        except Exception:  # noqa: BLE001 - a reset must not die on a model quirk
+            pass
+
+    for live, clean in zip(phase.components, fresh.components):
+        for attr in _COMPONENT_SCALARS:
+            if hasattr(clean, attr):
+                setattr(live, attr, getattr(clean, attr))
+
+        # Atoms first: the unit-cell properties may DERIVE from an atom, and
+        # that reference has to point at an atom the live component now owns.
+        live.layer_atoms = list(clean.layer_atoms)
+        live.interlayer_atoms = list(clean.interlayer_atoms)
+        live.atom_relations = list(clean.atom_relations)
+
+        atoms = {a.uuid: a for a in live.layer_atoms + live.interlayer_atoms}
+        atoms[live.uuid] = live
+        for name_ in ("ucp_a", "ucp_b"):
+            target = getattr(live, name_, None)
+            plain = getattr(clean, name_, None)
+            if target is None or plain is None:
+                continue
+            target.value = plain.value
+            target.enabled = plain.enabled
+            target.factor = plain.factor
+            target.constant = plain.constant
+            # NOT `target.prop = plain.prop` - that is a live (object, attr)
+            # pair pointing into the throwaway rebuild. Re-resolve the stored
+            # [uuid, attr] against the atoms this component now holds.
+            target.prop = None
+            target._prop_ref = getattr(plain, "_prop_ref", None)
+            target.resolve_prop(atoms)
+        live.update_ucp_values()
+        live.apply_atom_relations()
+
+    # The mapping now points at what the phase actually is again. A baseline the
+    # user had stored is superseded - that is what "reset" means here.
+    _remember_defaults(project, {phase.uuid: name})
+    return True
+
+
+def mixtures_using(project, phase) -> list:
+    """Mixtures that would be recalculated by resetting `phase`."""
+    return [m for m, _cells in project.phase_usage(phase)]

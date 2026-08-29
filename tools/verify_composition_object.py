@@ -930,10 +930,19 @@ def check_baseline_ui():
 
     menu = dialog._phase_menu()
     entries = [a.text() for a in menu.actions() if a.text()]
+    # The menu gained "Reset to shipped default..." (2026-08-26), so this
+    # checks for the baseline entry rather than pinning the whole menu - the
+    # old `entries == ["Set as baseline"]` broke on a legitimate addition.
+    baseline = [a for a in menu.actions() if a.text() == "Set as baseline"]
     check("baseline UI: the phase list offers it on right-click",
-          entries == ["Set as baseline"])
+          len(baseline) == 1)
     check("baseline UI: the list action is enabled for a structural phase",
-          all(a.isEnabled() for a in menu.actions() if a.text()))
+          baseline and baseline[0].isEnabled())
+    # Reset is present but DISABLED here: this project states no defaults, and
+    # guessing one at reset time would restore the wrong structure.
+    reset = [a for a in menu.actions() if a.text().startswith("Reset")]
+    check("baseline UI: Reset is offered too, disabled without a stated default",
+          len(reset) == 1 and not reset[0].isEnabled())
 
 
 

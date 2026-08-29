@@ -101,7 +101,11 @@ so whoever picks one up starts from facts rather than a search.
   CIF's fractional atom positions onto c\* and bin them into layer/interlayer
   atoms with `z` + `pn`. The existing `nonclay/structure.py` CIF reader gives a
   3-D stick list, not this.
-- **#6 A Reset feature on Phase objects** — feasible and mostly already built on
+- ~~**#6 A Reset feature on Phase objects**~~ — **DONE 2026-08-26**: right-click
+  a phase in Edit Phases → *Reset to shipped default*. Structure only; name,
+  colour and inheritance kept; requires a stated default (Default Phases
+  dialog). verify_phase_reset.py 27/27.
+- *(superseded)* feasible and mostly already built on
   `default_state`'s captured defaults. THREE QUESTIONS FOR THE USER FIRST:
   does Reset restore the shipped default or the user's own baseline when both
   exist; structure only, or fractions/scales too; and — since phases are SHARED

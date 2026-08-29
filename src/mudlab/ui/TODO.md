@@ -781,6 +781,53 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   and left alone. Guarded by brute force: Return AND Enter on every enabled
   widget in each editor pane (170 in Edit Phases, 24 in Edit Mixtures) must add
   nothing. Harness 214.
+- [x] Phase Reset - restore a phase's structure to its shipped default
+  (2026-08-26, the user's item #6). Right-click a phase in Edit Phases ->
+  **Reset to shipped default...**
+  SCOPE, as decided: sigma*, the CSDS distribution, the stacking probabilities,
+  and per component d001 / default c / delta c, the unit-cell properties, atoms
+  and atom relations. **Structure only.**
+  DELIBERATELY KEPT: the phase's NAME and DISPLAY COLOUR (labels the user
+  chose), and `based_on` / `linked_with`. The shipped default has neither link,
+  so applying it literally would DISMANTLE the inheritance graph - severing is
+  destructive enough that the app has snapshot-on-detach to soften it, and a
+  reset must not do it silently. Mixture fractions / scales / backgrounds are
+  untouched: they belong to the mixture.
+  THE GATE: reset needs a STATED default. `capture_catalog_defaults` records
+  one automatically when a phase is added from the catalog, but EVERY PHASE IN
+  EVERY EXISTING PROJECT has none - measured: 0 of 6 in `308 r1.mud`. Those
+  phases have since been refined, so auto-capturing now would freeze the
+  refined state as "the default", which is worse than useless. Reset stays
+  greyed with a tooltip pointing at Composition -> Default phases, where
+  `suggest_default_phase_map` already proposes matches by name (3 of 6 in that
+  fixture; the treatment-triple phases are stated by hand).
+  NO SEPARATE BASELINE OBJECT WAS ADDED. `capture_catalog_defaults` stores only
+  a uuid->name MAPPING and rebuilds from the catalog on demand, which is
+  already "a baseline captured at load" without a copy that could drift. Reset
+  rebuilds from that mapping and re-points it at the shipped entry, superseding
+  any user baseline - which is what reset means here.
+  TWO HAZARDS CAUGHT BEFORE SHIPPING, both now pinned by the harness:
+  (1) `phase.probabilities` holds a `set_based_on` link to the parent's
+  probabilities object. Replacing the OBJECT would sever inheritance - exactly
+  what the design forbids - so values are copied INTO the existing object via
+  `editable_params()`. Same reasoning for CSDS.
+  (2) A unit-cell property can DERIVE from an atom, and `prop` is a live
+  `(object, attr)` pair. Copying it from the rebuild would have pointed the live
+  phase at a throwaway object; the stored `[uuid, attr]` is re-resolved against
+  the atoms the component now holds, AFTER the atoms are transferred.
+  SHARED, which was the user's question: a Phase is ONE OBJECT referenced by
+  every mixture cell that uses it - verified, three cells of `308 r1.mud` hold
+  the same Illite object - so a reset necessarily applies everywhere and there
+  is no per-mixture reset without duplicating the phase. The confirmation names
+  the mixtures that will recompute, says what is NOT touched, warns there is no
+  undo, and notes when an inheriting phase may look unchanged because it still
+  reads through its parent.
+  verify_phase_reset.py 27/27. verify_composition_object updated: it pinned the
+  context menu as EXACTLY `["Set as baseline"]` and asserted every action was
+  enabled, so a legitimate addition broke it - it now checks for the entry it
+  cares about and that Reset is present but correctly disabled. Full suite
+  80/80.
+
 - [x] Typography: one UI face, one chart face, a real monospace (2026-08-26).
   AUDITED FIRST - the app makes exactly THREE font decisions and no `.ui` file
   names a family (0 of them), so everything else inherits.

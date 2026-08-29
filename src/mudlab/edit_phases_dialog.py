@@ -18,7 +18,8 @@ from mudlab.edit_nonclay_phase_widget import EditNonClayPhaseWidget
 from mudlab.edit_phase_widget import EditPhaseWidget
 from mudlab.edit_raw_pattern_phase_widget import EditRawPatternPhaseWidget
 from mudlab.default_state import (
-    capture_catalog_defaults, capture_imported_defaults, set_as_baseline,
+    can_reset, capture_catalog_defaults, capture_imported_defaults,
+    mixtures_using, reset_to_default, set_as_baseline,
 )
 from mudlab.file_parsers.default_catalog import add_catalog_entry_to_project
 from mudlab.file_parsers.phs_phases import PHS_FILTERS, load_phs, save_phs
@@ -189,7 +190,80 @@ class EditPhasesDialog(ObjectStoreDialog):
             "Record this phase's current state as what it is compared against "
             "in the Composition view.")
         action.triggered.connect(self._on_set_baseline_from_list)
+
+        menu.addSeparator()
+        reset = menu.addAction("Reset to shipped default...")
+        possible, why = (False, "")
+        if phase is not None and self.project is not None:
+            possible, why = can_reset(self.project, phase)
+        reset.setEnabled(bool(possible))
+        reset.setToolTip(
+            ("Restore this phase's structure to the %r default it started as. "
+             "Its name, colour and inheritance are left alone." % why)
+            if possible else (why or "No shipped default for this phase."))
+        reset.triggered.connect(self._on_reset_to_default)
         return menu
+
+    def _on_reset_to_default(self) -> None:
+        """Put a phase's structure back to the default it started as.
+
+        Destructive and not undoable, so it confirms first - and the
+        confirmation says what is NOT touched, because "reset" invites the fear
+        that everything goes. It also names the mixtures that will recompute:
+        a phase is ONE object shared by every cell that uses it, so this is
+        never a single-mixture change.
+        """
+        phase = self._selected_phase()
+        if phase is None or self.project is None:
+            return
+        possible, why = can_reset(self.project, phase)
+        if not possible:
+            QMessageBox.information(self, "Reset phase", why)
+            return
+
+        affected = mixtures_using(self.project, phase)
+        where = ("\n\nThese mixtures will be recalculated:\n%s"
+                 % "\n".join("  \u2022 %s" % (m.name or "mixture")
+                              for m in affected)) if affected else ""
+        inheriting = getattr(phase, "based_on", None) is not None
+        note = ("\n\nNote: this phase inherits from %r, so values it reads "
+                "through will still come from there and may look unchanged."
+                % getattr(phase.based_on, "name", "another phase")
+                if inheriting else "")
+        if QMessageBox.question(
+            self, "Reset phase",
+            "Restore %s to the structure of the shipped default %r?\n\n"
+            "This replaces sigma*, the CSDS distribution, the stacking "
+            "probabilities, and each component's cell parameters, atoms and "
+            "relations.\n\n"
+            "Its NAME, COLOUR and any inheritance or component links are kept. "
+            "Mixture fractions, scales and backgrounds are not touched.\n\n"
+            "This cannot be undone.%s%s"
+            % (phase.name or "this phase", why, where, note),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+
+        if not reset_to_default(self.project, phase):
+            QMessageBox.warning(
+                self, "Reset phase",
+                "The default could not be rebuilt, so nothing was changed.")
+            return
+        self.project.calculate()
+        self._sync_selected_row_from_phase(phase)
+        # Re-bind the editor so it shows the restored values rather than the
+        # ones it was displaying a moment ago.
+        self._on_phase_selected(self.ui.edit_objects_treeview.currentIndex())
+
+    def _sync_selected_row_from_phase(self, phase) -> None:
+        """Refresh the list row for `phase` after its values changed."""
+        if phase in self._phases:
+            row = self._phases.index(phase)
+            values = self._phase_row_values(phase)
+            for column, value in enumerate(values):
+                item = self.objects_model.item(row, column)
+                if item is not None:
+                    item.setText(str(value))
 
     def _selected_phase(self):
         rows = self.ui.edit_objects_treeview.selectionModel().selectedRows(0)
