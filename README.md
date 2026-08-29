@@ -21,6 +21,18 @@ fails the build if any bundled binary needs a library that is not inside the
 package; that is what keeps "portable" true on a machine with no Microsoft
 runtime installed. `tools/run_all.py` runs the whole verification suite.
 
+**Before tagging, write `docs/release-notes/<version>.md`** - just the "New in
+x.y.z" section. The workflow wraps it in `.github/release-notes-template.md`
+(download and unzip, the manual, the antivirus rescue, requirements, licence)
+and publishes the result, so the release is complete the moment it appears
+instead of needing a hand-written body afterwards. `verify_release_notes.py`
+fails until the file for the current version exists, which is the reminder.
+Preview what will be published with:
+
+```
+python tools/build_release_notes.py --version <version>
+```
+
 Licensed BSD 3-Clause - see `LICENSE`. MudLab descends from PyXRD / MudLab by
 Mathijs Dumon, whose copyright notice travels with every binary release.
 
