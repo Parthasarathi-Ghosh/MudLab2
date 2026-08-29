@@ -80,7 +80,7 @@ class Ui_GoniometerWidget(object):
 
         self.steps_spn_btn1 = QSpinBox(self.grpGeneral)
         self.steps_spn_btn1.setObjectName(u"steps_spn_btn1")
-        self.steps_spn_btn1.setMaximum(10000)
+        self.steps_spn_btn1.setMaximum(1000000)
         self.steps_spn_btn1.setValue(2500)
 
         self.generalForm.setWidget(3, QFormLayout.ItemRole.FieldRole, self.steps_spn_btn1)

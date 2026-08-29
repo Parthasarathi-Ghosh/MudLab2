@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 from mudlab.models.properties import Prop
@@ -79,6 +80,47 @@ class Goniometer(QObject):
         # An edited distribution can no longer be saved verbatim.
         self.raw_properties.pop("wavelength_distribution", None)
         self.data_changed.emit()
+
+    def seed_range_from_data(self, x) -> bool:
+        """Set the calculation range from a scan that has just been imported:
+        `min_2theta` / `max_2theta` from the data's extremes and `steps` from
+        its point count. Answers whether anything was set.
+
+        The old app did this for every import (`create_gon_file` ->
+        `reset_from_file`), but only from the range a vendor parser *declared*,
+        so a plain `.xy` fell back to the 3-45 deg / 2500-step model default and
+        the goniometer then described a scan that was never taken. Reading the
+        parsed axis instead works for every format we can open.
+
+        This is a DEFAULT, not a decision: `apply_setup` resets every modelled
+        parameter, so a goniometer setup applied afterwards overwrites all
+        three. Seeding only settles what an untouched goniometer says.
+
+        For a specimen that HAS experimental data these three fields do not
+        reach the numerics - `calculate_specimen_pattern` grids the calculated
+        pattern on the experimental axis whenever there is one - so this fixes
+        the goniometer reports, what a data-less recalculation would use, and
+        what the .mud / .pyxrd exporters write.
+        """
+        x = np.asarray(x, dtype=float).ravel()
+        x = x[np.isfinite(x)]
+        if x.size < 2:
+            return False
+        low, high = float(np.min(x)), float(np.max(x))
+        # A zero-width range is exactly what makes `D8 ECO Lynxeye XE.gon`
+        # calculate an empty pattern; never create one here from a constant
+        # axis.
+        if not high > low:
+            return False
+        self.blockSignals(True)
+        try:
+            self.min_2theta = low
+            self.max_2theta = high
+            self.steps = int(x.size)
+        finally:
+            self.blockSignals(False)
+        self.data_changed.emit()
+        return True
 
     # ------------------------------------------------------------------
     # Effective Soller values (0 when the slit is disabled)

@@ -1005,9 +1005,14 @@ class MainWindow(QMainWindow):
             # provides it, apply its wavelength to the specimen's goniometer.
             metadata = parse_pattern_metadata(path)
             specimen.source = build_source_string(path, x, metadata)
-            ka1 = metadata.get("wavelength_ka1")
-            if ka1 and specimen.goniometer is not None:
-                specimen.goniometer.set_wavelength_distribution([(ka1, 1.0)])
+            if specimen.goniometer is not None:
+                # Seed the calculation range from the scan, as the old app did
+                # (create_gon_file -> reset_from_file). A goniometer setup
+                # applied later resets all of it - this only fixes the default.
+                specimen.goniometer.seed_range_from_data(x)
+                ka1 = metadata.get("wavelength_ka1")
+                if ka1:
+                    specimen.goniometer.set_wavelength_distribution([(ka1, 1.0)])
             self.project.add_specimen(specimen)
             imported.append(specimen)
 

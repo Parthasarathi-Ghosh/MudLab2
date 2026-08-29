@@ -833,9 +833,14 @@ best guess at the file, so usually you can just confirm.
 
 After importing, the specimen's **Source** box (Edit Specimen → *General* tab)
 describes where the pattern came from: the **file name** and its **2θ range,
-step and point count** (for any format). When the file records instrument
-details, those are listed too, and the file's Kα₁ **wavelength is applied to the
-specimen's goniometer** automatically:
+step and point count** (for any format).
+
+The scan also seeds the specimen's goniometer: its **minimal 2θ**, **maximal
+2θ** and **2θ steps** are set from the pattern that was just read, so an
+untouched goniometer describes the measurement you actually imported rather
+than the 3–45° / 2500-step default. When the file records instrument details,
+those are listed in the Source box too, and the file's Kα₁ **wavelength is
+applied to the goniometer** automatically:
 
 - **PANalytical `.xrdml`** — wavelength, count time, sample name, scan date,
   goniometer radius.
@@ -845,8 +850,15 @@ specimen's goniometer** automatically:
   date, goniometer radius.
 - **Bruker `.raw`** — count time (and, for the older RAW1 files, the wavelength).
 
-Rigaku `.raw` and plain-text files contribute only the file name and 2θ range;
-set the rest of the goniometer yourself if needed.
+Rigaku `.raw` and plain-text files record no instrument details, so beyond the
+2θ range and step count they leave the goniometer at its defaults — including
+the wavelength, which stays at Cu Kα₁ (0.154056 nm). If you measured on a
+different tube, set it yourself on the Goniometer tab.
+
+Everything the import seeds is a **starting point**. Applying a stored setup
+from the **Load setup** drop-down (see [Stored setups](#stored-setups-load--store))
+replaces *every* goniometer value, the 2θ range and step count included — so
+an instrument setup you apply afterwards always wins.
 
 ---
 
