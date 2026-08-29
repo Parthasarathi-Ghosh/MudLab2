@@ -126,6 +126,16 @@ def _selftest() -> int:
         return len(load_conversion_table()) > 0
     probe("composition table (composition_conversion.csv)", _composition)
 
+    def _manual():
+        # The in-app manual is bundled separately from data/ (see MudLab.spec),
+        # so it needs its own probe: a release that lost it would otherwise
+        # only fail when a user pressed F1.
+        import os
+
+        from mudlab.manual_dialog import HOME_DOCUMENT, docs_dir
+        return os.path.isfile(os.path.join(docs_dir(), HOME_DOCUMENT))
+    probe("in-app manual (docs/%s)" % "getting-started.md", _manual)
+
     def _catalog():
         from mudlab.file_parsers.default_catalog import (
             build_catalog_entry_by_name, default_catalog_entries)

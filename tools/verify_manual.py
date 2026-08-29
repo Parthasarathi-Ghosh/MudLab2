@@ -235,10 +235,59 @@ def main():  # noqa: C901 - a checklist
         QMessageBox.warning = real_warning
 
     # --------------------------------------- 5. the frozen build ships them
+    #
+    # ...and ships ONLY them. `docs/` also holds development material - the
+    # remaining-work list, the documentation plan, dev notes - which is of no
+    # use to a user and reads like an accident when found in a release. The
+    # rule is "every document reachable by a link from the manual, and nothing
+    # else", checked in both directions so that adding a page to the manual
+    # fails here until it is bundled, and bundling an internal note fails too.
     with open(os.path.join(_REPO, "MudLab.spec"), encoding="utf-8") as handle:
         spec = handle.read()
-    check("MudLab.spec bundles docs beside the package",
-          '("docs", "mudlab/docs")' in spec)
+    bundled = set(re.findall(r'\("docs/([^"]+)",\s*"mudlab/docs"\)', spec))
+    check("MudLab.spec bundles the manual beside the package (%d files)"
+          % len(bundled), bool(bundled))
+    check("...and not the whole docs tree",
+          '("docs", "mudlab/docs")' not in spec)
+
+    reachable, queue = set(), [HOME_DOCUMENT]
+    while queue:
+        name = queue.pop()
+        if name in reachable or not os.path.isfile(os.path.join(docs, name)):
+            continue
+        reachable.add(name)
+        with open(os.path.join(docs, name), encoding="utf-8") as handle:
+            body = handle.read()
+        for target in re.findall(r"\]\(([^)#]+)", body):
+            target = target.strip()
+            if target.endswith(".md"):
+                queue.append(target)
+    check("every document the manual can reach is bundled%s"
+          % ("" if reachable <= bundled else " -> missing %s"
+             % sorted(reachable - bundled)), reachable <= bundled)
+    check("no development-only document is shipped%s"
+          % ("" if bundled <= reachable else " -> %s" % sorted(bundled - reachable)),
+          bundled <= reachable)
+
+    # --------------------------------------------- 6. it cannot hang the app
+    #
+    # Everything the manual does is synchronous on the GUI thread: parsing the
+    # Markdown, laying it out, restyling the quotes, and the block walk behind
+    # a Contents click. All of it is linear in document size, and the budget
+    # below is ~100x the measured cost of the largest shipped document, so it
+    # fails on a change of ALGORITHM rather than on a slow machine.
+    import time
+
+    dialog = ManualDialog()
+    worst = 0.0
+    for name in sorted(reachable):
+        start = time.perf_counter()
+        dialog.show_document(name)
+        dialog._scroll_to("no-such-heading-full-scan")
+        worst = max(worst, time.perf_counter() - start)
+    dialog.close()
+    check("the slowest document loads well inside a frame budget (%.0f ms)"
+          % (worst * 1000), worst < 1.0)
 
     check("heading_slug follows GitHub's rules",
           heading_slug("3. Check the specimen's settings")

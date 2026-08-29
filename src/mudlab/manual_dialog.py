@@ -98,6 +98,17 @@ class ManualDialog(QDialog):
         Answers whether the document was found."""
         path = os.path.join(self._docs, name)
         if not os.path.isfile(path):
+            # Say so IN the window as well as in the box. Warning alone leaves
+            # a blank viewer behind, which reads as "the manual is empty"
+            # rather than "the manual is missing" - and this is reachable from
+            # the constructor, so that blank window would be the first thing
+            # the reader sees.
+            self.ui.browser.setMarkdown(
+                "## The manual could not be found\n\n"
+                "MudLab looked for `%s` in:\n\n    %s\n\n"
+                "The documentation is normally installed alongside the "
+                "program. Reinstalling should restore it.\n" % (name, self._docs)
+            )
             QMessageBox.warning(
                 self, "Manual",
                 "The documentation file could not be found:\n\n%s\n\n"

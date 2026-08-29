@@ -62,12 +62,21 @@ a = Analysis(
     # Keep `datas` free of tools/sample_projects/*.mud. Those are test-only
     # fixtures that must never ship in a release (see .gitattributes
     # export-ignore); no app code imports them.
-    # `docs` carries the in-app manual (Help -> Manual, F1). manual_dialog
-    # looks beside the package first, which is where this mapping puts it, so
-    # the frozen build never reaches outside itself for documentation.
+    # The in-app manual (Help -> Manual, F1). manual_dialog looks beside the
+    # package first, which is where this maps them, so the frozen build never
+    # reaches outside itself for documentation.
+    #
+    # Bundle the USER-FACING documents ONLY, one by one, not the whole `docs`
+    # tree: it also holds development material - the remaining-work list, the
+    # documentation plan, dev notes - which is of no use to a user and reads
+    # like an accident when found in a release. The rule these two satisfy is
+    # "every document reachable by a link from the manual, and nothing else";
+    # tools/verify_manual.py enforces it in both directions, so a new page
+    # linked from the manual fails the suite until it is added here.
     datas=[
         ("src/mudlab/data", "mudlab/data"),
-        ("docs", "mudlab/docs"),
+        ("docs/getting-started.md", "mudlab/docs"),
+        ("docs/user-manual.md", "mudlab/docs"),
     ],
     hiddenimports=[],
     hookspath=[],
