@@ -580,6 +580,23 @@ class Row:
 _SHEET_GAP_NM = 0.02
 
 
+def is_tetrahedral(name: str) -> bool:
+    """Whether an atom row is a tetrahedral silicon site.
+
+    Matching the literal string "Si" is not enough: a projected profile writes
+    that, but hand-authored components do not. The shipped Kaolinite splits one
+    sheet into "Si1" and "Si2", Serpentine writes " Si" with a leading space,
+    and Chlorite uses MudLab's mixed-layer convention "DiSi" / "TriSi". All are
+    silicon; comparing strings counted none of them and left a 1:1 clay
+    unclassifiable.
+    """
+    word = re.match(r"[A-Za-z]+", (name or "").strip())
+    if not word:
+        return False
+    text = word.group(0)
+    return text == "Si" or text.endswith("Si")
+
+
 def layer_type(rows: list) -> tuple:
     """``(description, tetrahedral sheet count)`` for a projected layer.
 
@@ -594,7 +611,8 @@ def layer_type(rows: list) -> tuple:
     not swell, so anything sitting in its interlayer is a misclassification,
     and treatment variants are meaningless for it.
     """
-    heights = sorted(r.z_nm for r in rows if not r.interlayer and r.name == "Si")
+    heights = sorted(r.z_nm for r in rows
+                     if not r.interlayer and is_tetrahedral(r.name))
     sheets = []
     for height in heights:
         if not sheets or height - sheets[-1] > _SHEET_GAP_NM:

@@ -202,7 +202,69 @@ class EditPhasesDialog(ObjectStoreDialog):
              "Its name, colour and inheritance are left alone." % why)
             if possible else (why or "No shipped default for this phase."))
         reset.triggered.connect(self._on_reset_to_default)
+
+        variants = menu.addAction("Create treatment states...")
+        can, why = (False, "")
+        if phase is not None and self.project is not None:
+            from mudlab.treatment_variants import can_derive
+
+            can, why = can_derive(phase)
+        variants.setEnabled(bool(can))
+        variants.setToolTip(
+            "Build the glycolated and heated phases from this one. They share "
+            "its layer by link, so refining the layer refines all three."
+            if can else (why or "Not a single-component 2:1 clay."))
+        variants.triggered.connect(self._on_create_treatment_states)
         return menu
+
+    def _on_create_treatment_states(self) -> None:
+        """Derive the glycolated and heated phases from the selected one.
+
+        A CIF is one structure in one state, and the treated states a clay
+        workflow needs are not published for the same sample - so they are
+        built from the air-dried one, which works because a treatment changes
+        the gallery and not the layer.
+        """
+        phase = self._selected_phase()
+        if phase is None or self.project is None:
+            return
+        from mudlab.treatment_states_dialog import TreatmentStatesDialog
+        from mudlab.treatment_variants import can_derive, derive
+
+        possible, why = can_derive(phase)
+        if not possible:
+            QMessageBox.information(self, "Create treatment states", why)
+            return
+
+        dialog = TreatmentStatesDialog(self, phase=phase)
+        if not dialog.exec():
+            return
+        try:
+            atom_types = self.project.atom_types or []
+            table = {}
+            for atom_type in atom_types:
+                table[atom_type.uuid] = atom_type
+                table[atom_type.name] = atom_type
+            created = derive(self.project, phase, dialog.family(),
+                             dialog.base_state(), table)
+        except ValueError as error:
+            QMessageBox.warning(self, "Create treatment states", str(error))
+            return
+        if not created:
+            QMessageBox.warning(
+                self, "Create treatment states",
+                "No shipped states were found for %r, so nothing could be "
+                "derived." % dialog.family())
+            return
+        for made in created:
+            self._phases.append(made)
+            self.add_object_row(*self._phase_row_values(made))
+        QMessageBox.information(
+            self, "Create treatment states",
+            "Created %s.\n\nEach shares %r's layer by link, so refining the "
+            "layer refines all three. Assign them to the glycolated and heated "
+            "specimens in Edit Mixtures."
+            % (" and ".join(repr(p.name) for p in created), phase.name))
 
     def _on_reset_to_default(self) -> None:
         """Put a phase's structure back to the default it started as.
