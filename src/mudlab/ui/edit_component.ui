@@ -35,6 +35,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="btn_import_cif">
+         <property name="toolTip">
+          <string>Build the selected component from a crystallographic CIF, projected along c*. The projection is shown for review before anything is replaced.</string>
+         </property>
+         <property name="text">
+          <string>Import CIF…</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+         <property name="default">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_export_component">
          <property name="toolTip">
           <string>Export the selected component to a .cmp file.</string>

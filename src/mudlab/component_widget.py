@@ -39,6 +39,9 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 from mudlab.atom_list_widget import AtomListWidget
 from mudlab.contents_widget import AtomContentsWidget
 from mudlab.file_parsers.cmp_components import CMP_FILTERS, load_cmp, save_cmp
+
+#: Crystallographic structure files the component importer accepts.
+CIF_FILTERS = "Crystallographic files (*.cif);;All files (*.*)"
 from mudlab.inheritance_detach import ask_detach_choice
 from mudlab.models.atom_relations import AtomContents, AtomRatio
 from mudlab.ratio_widget import AtomRatioWidget
@@ -88,6 +91,7 @@ class EditComponentWidget(QWidget):
 
         self.ui.cmb_component.currentIndexChanged.connect(self._on_component_selected)
         self.ui.btn_import_component.clicked.connect(self._on_import_component)
+        self.ui.btn_import_cif.clicked.connect(self._on_import_cif)
         self.ui.btn_export_component.clicked.connect(self._on_export_component)
         self.ui.btn_show_structure.clicked.connect(self._on_show_structure)
         # AUTODEFAULT: Qt hands autoDefault to every QPushButton with a QDialog
@@ -493,6 +497,56 @@ class EditComponentWidget(QWidget):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _on_import_cif(self) -> None:
+        """Replace the selected component with one projected from a CIF.
+
+        The projection is REVIEWED first: it has to guess how many layers the
+        published cell stacks, which oxygens are hydroxyls and where the layer
+        ends, and measurement over 73 published structures says each of those
+        can be wrong. Nothing is replaced unless the dialog is accepted.
+        """
+        idx = self.ui.cmb_component.currentIndex()
+        if self._component is None or not (0 <= idx < len(self._components)):
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import component from CIF", "", CIF_FILTERS
+        )
+        if not path:
+            return
+
+        from mudlab.cif_import_dialog import CifImportDialog
+
+        dialog = CifImportDialog(self, path=path,
+                                 atom_type_map=self._atom_type_map())
+        if dialog.component is None and dialog._structure is None:
+            return                       # unreadable or unsupported; it said so
+        if not dialog.exec() or dialog.component is None:
+            return
+
+        # Atom types the CIF needed and the project lacked are added here, not
+        # inside the dialog, because the project owns them - a component whose
+        # types are missing contributes nothing and says nothing.
+        for atom_type in dialog.added_atom_types:
+            if atom_type not in self._atom_types:
+                self._atom_types.append(atom_type)
+
+        new = dialog.component
+        self._components[idx] = new
+        self._updating = True
+        try:
+            self.ui.cmb_component.setItemText(
+                idx, new.name or "Component %d" % (idx + 1))
+        finally:
+            self._updating = False
+        self._bind_one(idx)
+        if dialog.added_atom_types:
+            QMessageBox.information(
+                self, "Import CIF",
+                "Imported. These atom types were added to the project so the "
+                "component actually scatters:\n\n%s"
+                % ", ".join(a.name for a in dialog.added_atom_types))
+        self._notify()
 
     def _on_import_component(self) -> None:
         """Replace the selected component with one imported from a .cmp (the

@@ -50,6 +50,12 @@ class Ui_EditComponentWidget(object):
 
         self.componentSelectRow.addWidget(self.btn_import_component)
 
+        self.btn_import_cif = QPushButton(EditComponentWidget)
+        self.btn_import_cif.setObjectName(u"btn_import_cif")
+        self.btn_import_cif.setAutoDefault(False)
+
+        self.componentSelectRow.addWidget(self.btn_import_cif)
+
         self.btn_export_component = QPushButton(EditComponentWidget)
         self.btn_export_component.setObjectName(u"btn_export_component")
 
@@ -290,6 +296,7 @@ class Ui_EditComponentWidget(object):
 
         self.retranslateUi(EditComponentWidget)
 
+        self.btn_import_cif.setDefault(False)
         self.btn_show_structure.setDefault(False)
 
 
@@ -302,6 +309,10 @@ class Ui_EditComponentWidget(object):
         self.btn_import_component.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Replace the selected component with one imported from a .cmp file.", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_import_component.setText(QCoreApplication.translate("EditComponentWidget", u"Import\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_import_cif.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Build the selected component from a crystallographic CIF, projected along c*. The projection is shown for review before anything is replaced.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_import_cif.setText(QCoreApplication.translate("EditComponentWidget", u"Import CIF\u2026", None))
 #if QT_CONFIG(tooltip)
         self.btn_export_component.setToolTip(QCoreApplication.translate("EditComponentWidget", u"Export the selected component to a .cmp file.", None))
 #endif // QT_CONFIG(tooltip)
