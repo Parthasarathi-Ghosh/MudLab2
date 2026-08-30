@@ -57,16 +57,26 @@ def check(label, ok):
 
 
 def write_cif(name: str, mineral: str = "Synthetic", layers: int = 1,
-              interlayer: bool = True) -> str:
-    """A minimal 2:1 clay: two tetrahedral sheets, an octahedral sheet with
-    hydroxyls, and optionally an interlayer cation. `layers` stacks it."""
-    sites = [
-        ("O1", "O", 0.00), ("Si1", "Si", 0.06), ("O2", "O", 0.23),
-        ("Oh1", "O", 0.24), ("Al1", "Al", 0.34), ("Oh2", "O", 0.44),
-        ("O3", "O", 0.45), ("Si2", "Si", 0.61), ("O4", "O", 0.67),
-    ]
-    if interlayer:
+              interlayer: bool = True, sheets: int = 2,
+              space_group: str = "", operators: tuple = ()) -> str:
+    """A minimal clay cell. `sheets` picks 2:1 (two tetrahedral sheets) or 1:1
+    (one); `layers` stacks the whole thing; `operators` adds a symmetry loop."""
+    if sheets == 1:
+        sites = [
+            ("O1", "O", 0.00), ("Si1", "Si", 0.06), ("O2", "O", 0.23),
+            ("Oh1", "O", 0.24), ("Al1", "Al", 0.34), ("Oh2", "O", 0.44),
+        ]
+    else:
+        sites = [
+            ("O1", "O", 0.00), ("Si1", "Si", 0.06), ("O2", "O", 0.23),
+            ("Oh1", "O", 0.24), ("Al1", "Al", 0.34), ("Oh2", "O", 0.44),
+            ("O3", "O", 0.45), ("Si2", "Si", 0.61), ("O4", "O", 0.67),
+        ]
+    if interlayer and sheets != 1:
         sites.append(("K1", "K", 0.84))
+    elif interlayer and sheets == 1:
+        # a trace guest of the kind that exposed a real misclassification
+        sites.append(("Ca1", "Ca", 0.88))
     rows = []
     for copy in range(layers):
         offset = copy / float(layers)
@@ -74,9 +84,14 @@ def write_cif(name: str, mineral: str = "Synthetic", layers: int = 1,
             rows.append("%s_%d %s %.4f %.4f %.4f 1.0"
                         % (label, copy, element,
                            0.05 * index, 0.11 * index, z / layers + offset))
-    text = "\n".join([
-        "data_synthetic",
-        "_chemical_name_mineral '%s'" % mineral,
+    head = ["data_synthetic", "_chemical_name_mineral '%s'" % mineral]
+    if space_group:
+        head.append("_symmetry_space_group_name_H-M '%s'" % space_group)
+    symmetry = []
+    if operators:
+        symmetry = ["loop_", "_space_group_symop_operation_xyz"]
+        symmetry += ["'%s'" % op for op in operators]
+    text = "\n".join(head + [
         "_cell_length_a 5.2000",
         "_cell_length_b 9.0000",
         "_cell_length_c %.4f" % (10.0 * layers),
@@ -90,7 +105,7 @@ def write_cif(name: str, mineral: str = "Synthetic", layers: int = 1,
         "_atom_site_fract_y",
         "_atom_site_fract_z",
         "_atom_site_occupancy",
-    ] + rows) + "\n"
+    ] + rows + symmetry) + "\n"
     path = os.path.join(SCRATCH, name)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
@@ -199,6 +214,67 @@ def main():  # noqa: C901 - a checklist
               "rows" in dialog.ui.lbl_totals.text()
               and "OH" in dialog.ui.lbl_totals.text())
 
+        # ---------------------------------------- layer type, naming, symmetry
+        from mudlab.file_parsers import cif_component as cc
+
+        one_to_one = write_cif("kaol.cif", mineral="Kaolinite", sheets=1)
+        thin = CifImportDialog(None, path=one_to_one, atom_type_map=types)
+        check("a one-sheet profile is called 1:1 (%s)" % thin._report.layer_type,
+              thin._report.layer_type == "1:1")
+        check("...and the dialog says a 1:1 clay has no interlayer",
+              "no interlayer" in thin.ui.lbl_layer_type.text())
+        check("a two-sheet profile is called 2:1 (%s)" % dialog._report.layer_type,
+              dialog._report.layer_type == "2:1")
+
+        # A 1:1 clay with something in its interlayer is a misclassification, and
+        # the projector caught a real one this way (trace Ca inside a kaolinite
+        # layer, put in the interlayer at 1.2% occupancy).
+        guested = write_cif("kaol_guest.cif", mineral="Kaolinite", sheets=1,
+                            interlayer=True)
+        flagged = CifImportDialog(None, path=guested, atom_type_map=types)
+        check("...and a 1:1 clay with interlayer rows is flagged",
+              any("1:1" in w and "interlayer" in w
+                  for w in flagged._report.warnings))
+
+        check("the proposed name distinguishes the structure, not just the mineral "
+              "(%r)" % thin.ui.edit_name.text(),
+              thin.ui.edit_name.text().startswith("Kaolinite")
+              and thin.ui.edit_name.text() != "Kaolinite")
+        renamed = CifImportDialog(None, path=one_to_one, atom_type_map=dict(types))
+        renamed.ui.edit_name.setText("My illite")
+        renamed._on_accept()
+        check("...and the name the user types is what the component gets (%r)"
+              % (renamed.component and renamed.component.name),
+              renamed.component is not None and renamed.component.name == "My illite")
+
+        # Water is its own scatterer; hydroxyl is not a substitute for it.
+        check("water maps to the H2O type, not to hydroxyl (%s)"
+              % cc.ATOM_TYPE_BY_ELEMENT["H2O"],
+              cc.ATOM_TYPE_BY_ELEMENT["H2O"] == "H2O")
+        from mudlab.file_parsers.atom_type_library import atom_type_library_map
+        library = atom_type_library_map()
+        check("...and H2O and OH1- really are different scatterers",
+              abs(library["H2O"].weight - library["OH1-"].weight) > 0.5)
+
+        # Without symmetry operators a cell cannot be expanded; say so rather than
+        # inventing operators from a space-group name.
+        plain = write_cif("nosym.cif", mineral="Talc", sheets=2)
+        check("a CIF with no operator loop is read as P1 and SAYS so",
+              any("P1" in w for w in
+                  CifImportDialog(None, path=plain,
+                                  atom_type_map=types)._report.warnings))
+        named = write_cif("nosym_named.cif", mineral="Talc", sheets=2,
+                          space_group="C 1 2/m 1")
+        warnings = CifImportDialog(None, path=named,
+                                   atom_type_map=types)._report.warnings
+        check("...naming the space group it could not use",
+              any("C 1 2/m 1" in w for w in warnings))
+        withops = write_cif("withsym.cif", mineral="Talc", sheets=2,
+                            operators=("x,y,z", "-x,-y,-z"))
+        check("...and a CIF that HAS operators is not warned about",
+              not any("P1" in w for w in
+                      CifImportDialog(None, path=withops,
+                                      atom_type_map=types)._report.warnings))
         # ------------------------------------------------ refusals
         warned.clear()
         sepiolite = write_cif("sep.cif", mineral="Sepiolite")

@@ -17,9 +17,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication, QDialog,
     QDialogButtonBox, QDoubleSpinBox, QGridLayout, QGroupBox,
-    QHBoxLayout, QHeaderView, QLabel, QPushButton,
-    QSizePolicy, QSpacerItem, QSpinBox, QTableView,
-    QVBoxLayout, QWidget)
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QSpinBox,
+    QTableView, QVBoxLayout, QWidget)
 
 class Ui_CifImportDialog(object):
     def setupUi(self, CifImportDialog):
@@ -35,31 +35,56 @@ class Ui_CifImportDialog(object):
 
         self.rootLayout.addWidget(self.lbl_source)
 
+        self.nameRow = QHBoxLayout()
+        self.nameRow.setObjectName(u"nameRow")
+        self.lbl_name_caption = QLabel(CifImportDialog)
+        self.lbl_name_caption.setObjectName(u"lbl_name_caption")
+
+        self.nameRow.addWidget(self.lbl_name_caption)
+
+        self.edit_name = QLineEdit(CifImportDialog)
+        self.edit_name.setObjectName(u"edit_name")
+
+        self.nameRow.addWidget(self.edit_name)
+
+
+        self.rootLayout.addLayout(self.nameRow)
+
         self.grpDecisions = QGroupBox(CifImportDialog)
         self.grpDecisions.setObjectName(u"grpDecisions")
         self.decisionLayout = QGridLayout(self.grpDecisions)
         self.decisionLayout.setObjectName(u"decisionLayout")
+        self.lbl_type_caption = QLabel(self.grpDecisions)
+        self.lbl_type_caption.setObjectName(u"lbl_type_caption")
+
+        self.decisionLayout.addWidget(self.lbl_type_caption, 0, 0, 1, 1)
+
+        self.lbl_layer_type = QLabel(self.grpDecisions)
+        self.lbl_layer_type.setObjectName(u"lbl_layer_type")
+
+        self.decisionLayout.addWidget(self.lbl_layer_type, 0, 1, 1, 2)
+
         self.lbl_divisor_caption = QLabel(self.grpDecisions)
         self.lbl_divisor_caption.setObjectName(u"lbl_divisor_caption")
 
-        self.decisionLayout.addWidget(self.lbl_divisor_caption, 0, 0, 1, 1)
+        self.decisionLayout.addWidget(self.lbl_divisor_caption, 1, 0, 1, 1)
 
         self.spin_divisor = QSpinBox(self.grpDecisions)
         self.spin_divisor.setObjectName(u"spin_divisor")
         self.spin_divisor.setMinimum(1)
         self.spin_divisor.setMaximum(8)
 
-        self.decisionLayout.addWidget(self.spin_divisor, 0, 1, 1, 1)
+        self.decisionLayout.addWidget(self.spin_divisor, 1, 1, 1, 1)
 
         self.lbl_divisor_note = QLabel(self.grpDecisions)
         self.lbl_divisor_note.setObjectName(u"lbl_divisor_note")
 
-        self.decisionLayout.addWidget(self.lbl_divisor_note, 0, 2, 1, 1)
+        self.decisionLayout.addWidget(self.lbl_divisor_note, 1, 2, 1, 1)
 
         self.lbl_d001_caption = QLabel(self.grpDecisions)
         self.lbl_d001_caption.setObjectName(u"lbl_d001_caption")
 
-        self.decisionLayout.addWidget(self.lbl_d001_caption, 1, 0, 1, 1)
+        self.decisionLayout.addWidget(self.lbl_d001_caption, 2, 0, 1, 1)
 
         self.spin_d001 = QDoubleSpinBox(self.grpDecisions)
         self.spin_d001.setObjectName(u"spin_d001")
@@ -68,18 +93,18 @@ class Ui_CifImportDialog(object):
         self.spin_d001.setMaximum(10.000000000000000)
         self.spin_d001.setSingleStep(0.010000000000000)
 
-        self.decisionLayout.addWidget(self.spin_d001, 1, 1, 1, 1)
+        self.decisionLayout.addWidget(self.spin_d001, 2, 1, 1, 1)
 
         self.lbl_cell = QLabel(self.grpDecisions)
         self.lbl_cell.setObjectName(u"lbl_cell")
 
-        self.decisionLayout.addWidget(self.lbl_cell, 1, 2, 1, 1)
+        self.decisionLayout.addWidget(self.lbl_cell, 2, 2, 1, 1)
 
         self.lbl_warning = QLabel(self.grpDecisions)
         self.lbl_warning.setObjectName(u"lbl_warning")
         self.lbl_warning.setWordWrap(True)
 
-        self.decisionLayout.addWidget(self.lbl_warning, 2, 0, 1, 3)
+        self.decisionLayout.addWidget(self.lbl_warning, 3, 0, 1, 3)
 
 
         self.rootLayout.addWidget(self.grpDecisions)
@@ -143,7 +168,13 @@ class Ui_CifImportDialog(object):
     def retranslateUi(self, CifImportDialog):
         CifImportDialog.setWindowTitle(QCoreApplication.translate("CifImportDialog", u"Import component from CIF", None))
         self.lbl_source.setText(QCoreApplication.translate("CifImportDialog", u"No file loaded.", None))
+        self.lbl_name_caption.setText(QCoreApplication.translate("CifImportDialog", u"Component name", None))
+#if QT_CONFIG(tooltip)
+        self.edit_name.setToolTip(QCoreApplication.translate("CifImportDialog", u"Proposed from the mineral name and the file, because a mineral name alone does not say which published structure this is. It is also the only field that travels with the component, so it is the only place its source can be recorded.", None))
+#endif // QT_CONFIG(tooltip)
         self.grpDecisions.setTitle(QCoreApplication.translate("CifImportDialog", u"1. What the projection had to decide", None))
+        self.lbl_type_caption.setText(QCoreApplication.translate("CifImportDialog", u"Layer type", None))
+        self.lbl_layer_type.setText("")
         self.lbl_divisor_caption.setText(QCoreApplication.translate("CifImportDialog", u"Layers stacked in the published cell", None))
 #if QT_CONFIG(tooltip)
         self.spin_divisor.setToolTip(QCoreApplication.translate("CifImportDialog", u"How many identical layers the published cell stacks along c. Detected automatically; change it if the basal spacing below is a multiple of what you expect.", None))

@@ -35,6 +35,7 @@ can show it and let the user override it. None of it is silently authoritative.
 from __future__ import annotations
 
 import math
+import os
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -89,6 +90,9 @@ class CifStructure:
     gamma: float
     sites: list = field(default_factory=list)
     symmetry: list = field(default_factory=list)
+    #: The space group the file NAMES, when it names one. Kept only to explain
+    #: an empty `symmetry` - see `project`, which warns rather than guessing.
+    space_group: str = ""
 
     @property
     def d001(self) -> float:
@@ -348,6 +352,14 @@ def parse_cif(text: str) -> CifStructure:
     if missing:
         raise ValueError("CIF has no unit-cell length(s): %s" % ", ".join(missing))
 
+    space_group = ""
+    for tag in ("_symmetry_space_group_name_h-m", "_space_group_name_h-m_alt",
+                "_symmetry_space_group_name_hall"):
+        candidate = (scalars.get(tag) or "").strip()
+        if candidate and candidate not in ("?", "."):
+            space_group = candidate
+            break
+
     name = ""
     for tag in ("_chemical_name_mineral", "_chemical_name_common",
                 "_chemical_name_systematic"):
@@ -400,6 +412,7 @@ def parse_cif(text: str) -> CifStructure:
     if not sites:
         raise ValueError("CIF has no atom sites")
     return CifStructure(name=name, sites=sites, symmetry=symmetry,
+                        space_group=space_group,
                         **{k: float(v) for k, v in cell.items()})
 
 
@@ -544,7 +557,11 @@ ATOM_TYPE_BY_ELEMENT = {
     "Mn": "Mn2+", "Li": "Li1+", "Ni": "Ni2+", "Cr": "Cr2+", "Zn": "Zn2+",
     "O": "O1-", "OH": "OH1-", "F": "F1-",
     "K": "K1+", "Na": "Na1+", "Ca": "Ca2+", "Cs": "Cs1+", "Rb": "Rb1+",
-    "Ba": "Ba2+", "Sr": "Sr2+", "H2O": "OH1-",
+    "Ba": "Ba2+", "Sr": "Sr2+",
+    # Interlayer water is its OWN scatterer, as MudLab's shipped smectites
+    # already have it - mapping it to hydroxyl understates the molecule by a
+    # whole hydrogen (17.007 against 18.015) and mis-states its scattering.
+    "H2O": "H2O",
 }
 
 
@@ -556,6 +573,51 @@ class Row:
     z_nm: float
     pn: float
     interlayer: bool
+
+
+#: How far apart two tetrahedral rows must be, in nm, to count as separate
+#: sheets. Refinements split a sheet across a few hundredths of a nanometre.
+_SHEET_GAP_NM = 0.02
+
+
+def layer_type(rows: list) -> tuple:
+    """``(description, tetrahedral sheet count)`` for a projected layer.
+
+    One tetrahedral sheet is a 1:1 clay (kaolinite, serpentine); two is a 2:1
+    (illite, smectite, talc, vermiculite, chlorite). Counting them on the
+    profile separates the corpus cleanly - kaolinite 5/5 and lizardite 22/22 as
+    1:1; illite 7/7, talc 3/3, montmorillonite 4/4 as 2:1 - which is worth more
+    than asking the user cold, because "does it have an interlayer?" is an
+    ambiguous question and this is not.
+
+    It matters beyond labelling: a 1:1 clay has no interlayer to fill and does
+    not swell, so anything sitting in its interlayer is a misclassification,
+    and treatment variants are meaningless for it.
+    """
+    heights = sorted(r.z_nm for r in rows if not r.interlayer and r.name == "Si")
+    sheets = []
+    for height in heights:
+        if not sheets or height - sheets[-1] > _SHEET_GAP_NM:
+            sheets.append(height)
+    return {1: "1:1", 2: "2:1"}.get(len(sheets), ""), len(sheets)
+
+
+def suggest_name(structure: "CifStructure", path: str) -> str:
+    """A component name that says WHICH published structure this is.
+
+    Every CIF in the reference corpus names its mineral, but nine of them are
+    called "Chlorite" and twenty-two "Lizardite" - import three and they are
+    indistinguishable. The file name carries the database id that tells them
+    apart, and since the old GTK app rejects any key it does not know, the
+    component NAME is the only field that can carry provenance at all.
+    """
+    stem = os.path.splitext(os.path.basename(path or ""))[0]
+    mineral = (structure.name or "").strip()
+    if not mineral:
+        return stem or "Imported component"
+    tail = re.sub(re.escape(mineral), " ", stem, flags=re.IGNORECASE)
+    tail = re.sub(r"[_\s]+", " ", tail).strip(" -_")
+    return ("%s %s" % (mineral, tail)).strip() if tail else mineral
 
 
 @dataclass
@@ -570,6 +632,8 @@ class ProjectionReport:
     origin_fraction: float = 0.0
     layer_rows: int = 0
     interlayer_rows: int = 0
+    layer_type: str = ""
+    tetrahedral_sheets: int = 0
     hydroxyl_pn: float = 0.0
     water_pn: float = 0.0
     warnings: list = field(default_factory=list)
@@ -747,6 +811,7 @@ def project(structure: CifStructure, divisor: "int | None" = None) -> tuple:
 
     report.layer_rows = sum(1 for r in rows if not r.interlayer)
     report.interlayer_rows = sum(1 for r in rows if r.interlayer)
+    report.layer_type, report.tetrahedral_sheets = layer_type(rows)
     report.hydroxyl_pn = sum(r.pn for r in rows if r.name == "OH")
     report.water_pn = sum(r.pn for r in rows if r.name == "H2O")
     if not rows:
@@ -755,6 +820,24 @@ def project(structure: CifStructure, divisor: "int | None" = None) -> tuple:
         report.warnings.append("The basal spacing came out as zero.")
     if not report.layer_rows:
         report.warnings.append("Nothing was classified as layer.")
+    if not structure.symmetry:
+        # Expanding a cell needs its symmetry operators. Guessing them from a
+        # space-group NAME would mean shipping the operator sets for 230
+        # groups and their settings, and getting that subtly wrong is worse
+        # than not doing it: the structure would look right while carrying the
+        # wrong multiplicities, and every `pn` - and so the composition - would
+        # be wrong with nothing on screen to say so. Say what was assumed.
+        report.warnings.append(
+            "This file lists no symmetry operators%s, so it was read as P1. "
+            "If the published cell is not P1, atoms are missing and every "
+            "amount is too low."
+            % (" (it names %s)" % structure.space_group
+               if structure.space_group else ""))
+    if report.layer_type == "1:1" and report.interlayer_rows:
+        report.warnings.append(
+            "One tetrahedral sheet means a 1:1 clay, which has no interlayer - "
+            "check the Sheet column for the %d row(s) placed there."
+            % report.interlayer_rows)
     return rows, report
 
 
@@ -848,7 +931,7 @@ def component_from_cif(path: str, atom_type_map: dict,
     with open(path, "r", encoding="utf-8", errors="ignore") as handle:
         structure = parse_cif(handle.read())
     rows, report = project(structure, divisor=divisor)
-    data = component_dict(rows, report, name=name)
+    data = component_dict(rows, report, name=name or suggest_name(structure, path))
     component = Component.from_dict(data, atom_type_map)
     component.set_linked_with(None)
 

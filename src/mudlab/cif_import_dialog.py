@@ -116,6 +116,10 @@ class CifImportDialog(QDialog):
         # first columns to their content and give the remainder to Sheet.
         header = self.ui.tbl_rows.horizontalHeader()
         header.setStretchLastSection(True)
+        # The last column is stretched, so a centred header would float away
+        # from the values beneath it.
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft
+                                   | Qt.AlignmentFlag.AlignVCenter)
         for column in (COL_NAME, COL_KIND, COL_Z, COL_PN):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         # Numeric fields do not need half the dialog.
@@ -158,12 +162,19 @@ class CifImportDialog(QDialog):
 
         self.ui.lbl_source.setText(
             "<b>%s</b> — %s, cell a %.4f b %.4f c %.4f nm, "
-            "α %.2f β %.2f γ %.2f°"
+            "α %.2f β %.2f γ %.2f°%s"
             % (self._structure.name or os.path.basename(path),
                os.path.basename(path),
                self._structure.a / 10.0, self._structure.b / 10.0,
                self._structure.c / 10.0, self._structure.alpha,
-               self._structure.beta, self._structure.gamma))
+               self._structure.beta, self._structure.gamma,
+               ", %s" % self._structure.space_group
+               if self._structure.space_group else ""))
+        # The mineral name alone does not say WHICH published structure this
+        # is - nine files in the reference corpus are called "Chlorite". The
+        # file identifies it, and since the name is the only field that
+        # travels with a component, it is the only place the source can live.
+        self.ui.edit_name.setText(cc.suggest_name(self._structure, path))
         self._reproject()
         return True
 
@@ -185,6 +196,7 @@ class CifImportDialog(QDialog):
             self.ui.lbl_divisor_note.setText(
                 "one layer per cell" if self._report.repeat_divisor == 1
                 else "cell folded to one of %d layers" % self._report.repeat_divisor)
+            self.ui.lbl_layer_type.setText(_layer_type_text(self._report))
             self._fill_table()
         finally:
             self._updating = False
@@ -282,8 +294,10 @@ class CifImportDialog(QDialog):
 
         report = self._report
         report.d001_nm = self.ui.spin_d001.value()
+        chosen = self.ui.edit_name.text().strip()
         data = cc.component_dict(self._rows, report,
-                                 name=report.name or "Imported component")
+                                 name=chosen or report.name
+                                 or "Imported component")
 
         missing = sorted({r.atom_type_name for r in self._rows
                           if r.atom_type_name not in self._atom_type_map})
@@ -315,6 +329,18 @@ class CifImportDialog(QDialog):
             self._atom_type_map[source.uuid] = source
             added.append(source)
         return added
+
+
+def _layer_type_text(report) -> str:
+    """How to describe the layer the projection found."""
+    if report.layer_type == "1:1":
+        return ("1:1 — one tetrahedral sheet. A 1:1 clay has no interlayer "
+                "to fill and does not swell.")
+    if report.layer_type == "2:1":
+        return ("2:1 — two tetrahedral sheets, so an interlayer is expected.")
+    return ("not a phyllosilicate profile — %d tetrahedral sheets found. "
+            "Check the fold and the Sheet column before accepting."
+            % report.tetrahedral_sheets)
 
 
 def _as_float(text):

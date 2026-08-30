@@ -28,19 +28,51 @@
     </widget>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="nameRow">
+     <item>
+      <widget class="QLabel" name="lbl_name_caption">
+       <property name="text">
+        <string>Component name</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edit_name">
+       <property name="toolTip">
+        <string>Proposed from the mineral name and the file, because a mineral name alone does not say which published structure this is. It is also the only field that travels with the component, so it is the only place its source can be recorded.</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QGroupBox" name="grpDecisions">
      <property name="title">
       <string>1. What the projection had to decide</string>
      </property>
      <layout class="QGridLayout" name="decisionLayout">
       <item row="0" column="0">
+       <widget class="QLabel" name="lbl_type_caption">
+        <property name="text">
+         <string>Layer type</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" colspan="2">
+       <widget class="QLabel" name="lbl_layer_type">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
        <widget class="QLabel" name="lbl_divisor_caption">
         <property name="text">
          <string>Layers stacked in the published cell</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
+      <item row="1" column="1">
        <widget class="QSpinBox" name="spin_divisor">
         <property name="toolTip">
          <string>How many identical layers the published cell stacks along c. Detected automatically; change it if the basal spacing below is a multiple of what you expect.</string>
@@ -53,21 +85,21 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
+      <item row="1" column="2">
        <widget class="QLabel" name="lbl_divisor_note">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
+      <item row="2" column="0">
        <widget class="QLabel" name="lbl_d001_caption">
         <property name="text">
          <string>Basal spacing d001</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
+      <item row="2" column="1">
        <widget class="QDoubleSpinBox" name="spin_d001">
         <property name="toolTip">
          <string>The repeat distance of one layer, taken from the cell. Editing it rescales nothing: it states what this component's repeat is.</string>
@@ -89,14 +121,14 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="2">
+      <item row="2" column="2">
        <widget class="QLabel" name="lbl_cell">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="3">
+      <item row="3" column="0" colspan="3">
        <widget class="QLabel" name="lbl_warning">
         <property name="text">
          <string/>
