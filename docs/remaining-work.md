@@ -1,6 +1,6 @@
 # MudLab2 — remaining & deferred work
 
-Snapshot as of 2026-08-29 (V1 = main = origin @ `8a4684b`, v1.0.3 released). The GTK→Qt/PySide6
+Snapshot as of 2026-08-30 (V1 = main = origin @ `32d9128`, v1.0.3 released). The GTK→Qt/PySide6
 port is far along: the analytics/calc
 engine is golden-validated, both major editors (Edit Phases, Edit Mixtures) are
 feature-complete, and the default-phase catalog now matches old MudLab/PyXRD (80
@@ -117,18 +117,36 @@ so whoever picks one up starts from facts rather than a search.
   - Nothing is persisted that the old GTK app cannot read, so CIF provenance
     has nowhere to live and none is invented.
 
-  **Next (stage 2): the review dialog.** Nothing should be committed to a phase
-  until the user has seen and can override the four things the projector has to
-  guess — O vs OH per row, the fold divisor, the layer/interlayer split, and
-  d001. Two known disagreements to surface there: chlorite's brucite sheet is
-  framework-bonded so it lands in *layer* where our shipped Chlorite puts it in
-  *interlayer*; and sepiolite is a channel mineral with no MudLab bucket, so it
-  should be refused rather than approximated. Treatment variants are stage 3
-  and should reuse component **linking** (inherit layer atoms, keep own d001 and
-  interlayer), which is how the shipped smectites already do air-dried → glycol
-  → heated. Note a CIF is NOT necessarily the air-dried state: the four
-  montmorillonite CIFs project to 0.97, 1.11, 1.22 and 1.22 nm, so the importer
-  must ask which state it represents.
+  **Stage 2 DONE 2026-08-30.** `Edit Phases` -> component pane -> **Import
+  CIF...** opens a review dialog; nothing replaces a component until it is
+  accepted. All four things the projector guesses are shown and can be
+  corrected (O/OH/H2O per row, the fold divisor, the layer/interlayer Sheet,
+  d001), atom types the project lacks are named and added on accept, and
+  sepiolite/palygorskite are refused as channel minerals MudLab cannot model.
+  `verify_cif_import_dialog.py`, 42 checks, corpus-free.
+
+  **Stage 3 DONE 2026-08-30.** `Edit Phases` -> right-click a phase ->
+  **Create treatment states...** derives the `-EG` and `-350` phases, sharing
+  the layer by link so refining it refines the series. **The method, the
+  science behind it and its assumptions are written up in
+  [`treatment-states-method.md`](treatment-states-method.md)** - read that
+  before changing it. `verify_treatment_states.py`, 33 checks.
+
+  **Still open on #4:**
+
+  - **Space-group-name-only CIFs** read as P1 and under-expand. Warned, not
+    fixed; fixing it means a vetted operator table (the corpus uses about a
+    dozen groups: `C 1 2/m 1`, `P 3 1 m`, `P n c n`, `C 1`, `C 1 c 1`, ...).
+    Generating operators from a name is worse than not doing it - the
+    structure would look right while every amount was too low.
+  - **The element of a row cannot be corrected in the review dialog.** Kind
+    (O/OH/H2O) and Sheet are editable; the Atom column is not. Agreed policy
+    is that ambiguity goes to the user, so a misread cation should be
+    correctable too. Small addition, not yet made.
+  - **No user-manual entry** for either new action.
+  - The treatment derivation's own gaps - interstratification above all - are
+    listed in the method write-up, not here.
+
 - ~~**#6 A Reset feature on Phase objects**~~ — **DONE 2026-08-26**: right-click
   a phase in Edit Phases → *Reset to shipped default*. Structure only; name,
   colour and inheritance kept; requires a stated default (Default Phases
