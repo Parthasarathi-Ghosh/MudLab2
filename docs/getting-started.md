@@ -198,6 +198,13 @@ A default phase arrives complete and ready to fit. You can edit anything about
 it — its components, atoms, stacking probabilities and crystallite size
 distribution — but for a first pass you do not need to.
 
+> If you have a published crystal structure of your own, a component can also
+> be built from a `.cif` file, and the glycolated and heated states of a 2:1
+> clay can be derived from it. Both are described under
+> [Building a component from a CIF](user-manual.md#building-a-component-from-a-cif)
+> in the manual — they are not part of the short path, and the shipped catalog
+> covers the common clays.
+
 ---
 
 ## 8. Build a mixture

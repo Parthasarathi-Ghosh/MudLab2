@@ -16,7 +16,7 @@ resumes without re-deriving anything.
 
 | # | Document | File | Audience | Status |
 |---|---|---|---|---|
-| 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft in progress** |
+| 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft done, awaiting review** |
 | 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | Slow track |
 | 3 | **Technical reference** — for bug-fixing and future development | `docs/technical-reference.md` | Whoever maintains this next (including us, later) | Slow track |
 
@@ -113,24 +113,45 @@ debugging at 2am.
 
 ## Where we stopped
 
-**2026-08-29** — Track created. Deliverable #1 drafted end to end
-(`docs/getting-started.md`): the full path from importing a scan to saving
-results, with every menu path and button label verified against the running UI.
-The in-app viewer was built at the same time, so F1 now opens it.
+**2026-08-30** — Caught the manual up with the CIF-import feature, which
+shipped after this plan was written and was documented nowhere user-facing.
+`user-manual.md` gains two sections, placed with the other component material
+and verified label by label against the running widgets:
+
+- **Building a component from a CIF** — the Import CIF… button, the review
+  window's three parts, the Kind/Sheet columns and why those two are the ones
+  worth checking, atom types added on accept, sepiolite refused, and the P1
+  caveat for a file with no symmetry operators.
+- **Treatment states: air-dried, glycolated, heated** — what the derivation
+  creates, the two questions it asks and why neither can be computed, what it
+  refuses, and the assumptions that change how the result should be read (a
+  reference gallery, not a measurement; -350 is a 350 °C model, not 550 °C;
+  every shipped family is the Ca form).
+
+`getting-started.md` gains **one pointer, not a step** — the shipped catalog
+covers the common clays, so CIF import is not on the short path.
+
+One constraint worth remembering: **`treatment-states-method.md` is NOT
+bundled**, so the manual must not link to it or the link is dead in the frozen
+app. `verify_manual.py` enforces that ("every document the manual can reach is
+bundled"), so the user-facing assumptions are stated inline instead. Anything
+new the manual links to must be added to `MudLab.spec`.
+
+Earlier: track created 2026-08-29, deliverable #1 drafted end to end, and the
+in-app viewer built so F1 opens it.
 
 Next actions, in order:
 
-1. **Review pass on #1 by the user.** It is a first draft; the shape is there,
-   the wording will want tightening.
-2. ~~Wire `Help → Manual` (F1).~~ **Done.** `manual_dialog.py` renders the
-   bundled Markdown in-app; F1 opens the walkthrough, links to sibling
-   documents work with history, Contents entries scroll, and `MudLab.spec`
-   bundles `docs` so the frozen build carries its own manual.
-   `tools/verify_manual.py` pins it, including that **every internal link in
-   every shipped document resolves** — so a renamed heading can no longer
-   silently break its own table of contents.
-3. **Screenshots for #1** — deliberately none yet. They date fast and the UI is
-   still moving. Revisit once #1's text is settled.
-4. Then start #2 from `notes/XRD Diffraction Calculation` + `notes/Refinement`.
+1. **Review pass on #1 by the user.** Still a first draft; the shape is there,
+   the wording will want tightening. Unchanged since it was written.
+2. **Screenshots for #1** — still deliberately none. The UI moved again this
+   week (Import CIF…, Create treatment states…), which is the argument for
+   waiting.
+3. **Start #2, `how-it-works.md`**, from `notes/XRD Diffraction Calculation`
+   and `notes/Refinement` in the old app. Remember its rule: prose, no code and
+   **no variable or function names**. `docs/treatment-states-method.md` is a
+   good model for the register, though it is a developer document and names
+   files freely, which #2 must not.
+4. #3, `technical-reference.md`, after that.
 
 **Not started:** #2, #3.

@@ -8,6 +8,8 @@ Guide to using the MudLab2 GUI. This manual grows as features are added.
 - [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
 - [Component linking and inheritance](#component-linking-and-inheritance)
+- [Building a component from a CIF](#building-a-component-from-a-cif)
+- [Treatment states: air-dried, glycolated, heated](#treatment-states-air-dried-glycolated-heated)
 - [Atom relations (substitutions and contents)](#atom-relations-substitutions-and-contents)
 - [Mixtures: assigning phases to slots](#mixtures-assigning-phases-to-slots)
 - [Measured (XRF) composition](#measured-xrf-composition)
@@ -284,6 +286,144 @@ clipboard and **Save as text…** writes it to a `.txt` file.
 > from each atom type's **scattering** ion, not its formal valence. A stock
 > kaolinite reads −4.000 for that reason alone, refined or not. Treat the number
 > as a relative check between your own edits, not as a verdict on the mineral.
+
+## Building a component from a CIF
+
+A published crystal structure can be turned into a component directly.
+**Edit Phases → Components tab → Import CIF…** reads a `.cif` file, projects
+its three-dimensional structure onto the c\* axis, and offers the result as a
+replacement for the selected component.
+
+The projection is genuinely lossy, and deliberately so: a CIF holds full
+crystallographic coordinates, while a MudLab component holds a one-dimensional
+profile — atom rows with a height and an amount, split into layer and
+interlayer. Everything the projection has to *decide* is shown for review
+before anything is replaced.
+
+### The review window
+
+**Nothing changes until you press OK.** The window has three parts.
+
+**Component name.** Proposed from the mineral name and the file. The mineral
+name alone is often not enough to tell two structures apart — a library of clay
+CIFs can hold a dozen files all called *Chlorite* — so the file's identifier is
+appended: *Chlorite 0004284*. Edit it freely; this name is the only thing that
+travels with the component to say where it came from.
+
+**1. What the projection had to decide.**
+
+- **Layer type** — *1:1* or *2:1*, worked out from how many tetrahedral sheets
+  the projected layer contains. A 1:1 clay (kaolinite, serpentine) has no
+  interlayer to fill and does not swell; a 2:1 clay does. If a 1:1 structure
+  comes out with something in its interlayer, the warning line says so, because
+  that is a sign the split went wrong.
+- **Layers stacked in the published cell** — many published cells contain two
+  identical layers stacked along c. MudLab folds them to one. Change this if
+  the basal spacing below is a multiple of what you expect; the projection
+  re-runs immediately.
+- **Basal spacing d001** — taken from the cell. Editable.
+- A **warning line** appears beneath when something needs attention: a 1:1 clay
+  with interlayer rows, atom types the project is about to gain, or a file that
+  declares no symmetry operators.
+
+**2. Projected atoms.** One row per level of the profile:
+
+| Column | Meaning |
+|---|---|
+| **Atom** | the element, from the CIF |
+| **Kind** | for oxygen rows only: **O**, **OH** or **H2O** |
+| **z (nm)** | height above the bottom of the layer |
+| **pn** | how many of that atom the cell contains |
+| **Sheet** | **Layer** or **Interlayer** |
+
+**Kind** and **Sheet** are the two the projection is most likely to get wrong,
+and both are drop-downs. A hydroxyl and a water molecule are told apart by
+which cations the oxygen is bonded to in the original structure — a judgement
+that a marginal case can fail. Kind selects the scattering factor, so it
+changes the calculated pattern; it does not affect the reported oxide
+composition, which is computed from the cations.
+
+**Reset to proposal** discards your edits and returns to what the projection
+first offered.
+
+### Atom types are added for you
+
+A structure often needs an element the project has never used — importing a
+montmorillonite into a project built from illite needs magnesium and lithium.
+Those are named in the warning line before you accept and added on OK. Without
+them the rows would resolve to nothing and contribute nothing to the calculated
+pattern, silently, so this is not left to chance.
+
+### What it will not import
+
+**Sepiolite and palygorskite are refused.** They are channel (fibrous)
+minerals, not basal-repeat clays; MudLab models a layer and an interlayer and
+has nowhere to put channel guests, so an import would produce something that
+looks like a clay and is not one.
+
+> **A CIF with no symmetry operators is read as P1.** Most published files
+> list their operators explicitly, and the import uses them. A file that names
+> only a space group cannot be expanded — MudLab says so in the warning line
+> rather than guessing, and if the true cell is not P1 the structure is missing
+> atoms and every amount is too low. Treat such an import with suspicion.
+
+Everything the import produces is a **starting point for refinement**, not a
+measurement of your sample.
+
+---
+
+## Treatment states: air-dried, glycolated, heated
+
+Clay identification depends on how a mineral responds to treatment — smectite
+expands under ethylene glycol and collapses on heating, vermiculite behaves
+differently again, illite and kaolinite do neither. Modelling that needs one
+phase per treatment, assigned to the matching specimen in a mixture.
+
+A published structure gives you only one of them. **Edit Phases → right-click a
+phase → Create treatment states…** builds the other two.
+
+### What it creates
+
+Two new phases, named after the original: **-EG** (glycolated) and **-350**
+(heated). Each is *based on* the original phase, and its component is *linked*
+to the original's component, inheriting the layer, the cell and delta c while
+keeping its own basal spacing and interlayer.
+
+That linking is the point. **Refine the layer once and all three states follow**
+— which is what makes a treatment series a model of one mineral rather than
+three unrelated phases. Assign them to your glycolated and heated specimens in
+Edit Mixtures.
+
+### The two questions it asks
+
+- **Gallery from** — *Di-Smectite*, *Tri-Smectite* or *Di-Vermiculite*. The new
+  states borrow their interlayer from one of MudLab's shipped families. Whether
+  a 2:1 clay is a smectite or a vermiculite is a matter of layer charge, which
+  a single refined structure does not reveal, so this cannot be worked out from
+  the file.
+- **This phase is** — which state the phase is already in. A published
+  structure is usually air-dried, but not reliably: real montmorillonite
+  structures span dehydrated to one water layer.
+
+### What it will not do
+
+- **1:1 clays.** Kaolinite and serpentine have no interlayer gallery, do not
+  swell, and have no glycolated state to derive.
+- **Chlorite-like structures.** A chlorite is 2:1 but its interlayer is a
+  continuous hydroxide sheet rather than exchangeable guests — it does not
+  swell either, and MudLab recognises it by the octahedral cations sitting in
+  the interlayer.
+- **Multi-component phases.** A mixed-layer phase has no single layer to share.
+
+> **Read the derived states as models, not measurements.** They wear a
+> *reference* gallery taken from a shipped clay, not your specimen's, and they
+> assume the treatment leaves the layer unchanged. That holds well for glycol
+> and for moderate heating — but at 550 °C a clay dehydroxylates and the layer
+> genuinely changes, so treat **-350** as a 350 °C model and not a 550 °C one.
+> Every shipped family is the calcium form; a sodium- or potassium-saturated
+> clay swells differently.
+
+---
 
 ## Atom relations (substitutions and contents)
 
