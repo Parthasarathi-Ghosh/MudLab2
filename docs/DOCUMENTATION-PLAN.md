@@ -17,7 +17,7 @@ resumes without re-deriving anything.
 | # | Document | File | Audience | Status |
 |---|---|---|---|---|
 | 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft done, awaiting review** |
-| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batches A–D written**; E and F queued |
+| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **COMPLETE** — all six batches written |
 | 3 | **Technical reference** — for bug-fixing and future development | `docs/technical-reference.md` | Whoever maintains this next (including us, later) | Slow track |
 
 ### How these relate to what already exists
@@ -150,8 +150,8 @@ topical.
 | B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (a FIVE-term Gaussian expansion, not the four the old note claims); thermal motion; the layer structure factor; occupancy and substitution; the gallery stretching while the layer stays rigid; spacing disorder as distinct from size broadening | **DONE 2026-08-30** |
 | C | **Stacking** — the heart of the app (**DONE 2026-08-30**) | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | done |
 | D | **From a layer to a pattern** — the instrument (**DONE 2026-08-30**) | Lorentz and polarisation factors; preferred orientation and the sigma-star parameter; Soller slits; fixed against automatic divergence slits and what converting between them assumes; sample length and beam overflow; absorption; the emission spectrum and why the wavelength decides every d-spacing | not started |
-| E | **From a pattern to an answer** — fitting | The specimen: scale and background; the mixture as a grid of phases against specimens; what Optimize adjusts and what Refine adjusts, and why they are different problems; residuals (Rp, Rwp, goodness of fit) and what each rewards; refinement methods and their assumptions; why a good fit is not proof | not started |
-| F | **Identification and chemistry** | Peak detection — the threshold method and the prominence method; Bragg's law and d-spacings; mineral matching, how candidates are scored, and why the wavelength must be right first; oxide composition from a structural model and what it can and cannot say; pattern corrections (background, smoothing, shift, trimming) and what each costs the data | not started |
+| E | **From a pattern to an answer** — fitting (**DONE 2026-08-30**) | The specimen: scale and background; the mixture as a grid of phases against specimens; what Optimize adjusts and what Refine adjusts, and why they are different problems; residuals (Rp, Rwp, goodness of fit) and what each rewards; refinement methods and their assumptions; why a good fit is not proof | not started |
+| F | **Identification and chemistry** (**DONE 2026-08-30**) | Peak detection — the threshold method and the prominence method; Bragg's law and d-spacings; mineral matching, how candidates are scored, and why the wavelength must be right first; oxide composition from a structural model and what it can and cannot say; pattern corrections (background, smoothing, shift, trimming) and what each costs the data | not started |
 
 Six batches, each a sitting. **A, B and C are the ones that carry the app's
 distinctive science**; D, E and F are more widely documented elsewhere and can
@@ -219,11 +219,10 @@ Next actions, in order:
 2. **Screenshots for #1** — still deliberately none. The UI moved again this
    week (Import CIF…, Create treatment states…), which is the argument for
    waiting.
-3. **Write #2 batch by batch** — the batch plan is above. **Batches A to D
-   are written**; `how-it-works.md` is bundled in `MudLab.spec` and linked from
-   both the manual and the walkthrough, so the plumbing is done and later
-   batches only add sections. **Next: batch E, from a pattern to an answer** —
-   optimize against refine, residuals, and why a good fit is not proof.
+3. **Write #2 batch by batch** — the batch plan is above. **All six batches are
+   written** and `how-it-works.md` is bundled and linked. Deliverable #2 is
+   COMPLETE as planned; what remains for it is a review pass and whatever new
+   features add.
 4. #3, `technical-reference.md`, after that.
 
 **2026-08-30, later:** deferred the review pass and the screenshots at the

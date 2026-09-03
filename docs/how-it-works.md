@@ -8,8 +8,7 @@ what the program is doing on your behalf — and, just as often, what it is
 taking on trust. For how to drive the program, see the
 [walkthrough](getting-started.md) and the [manual](user-manual.md).
 
-It is written in batches as the program grows. Sections marked *(to come)* are
-planned but not yet written.
+It grows as the program does.
 
 **Contents**
 
@@ -47,8 +46,19 @@ planned but not yet written.
   - [Beam overflow](#beam-overflow)
   - [Absorption and a specimen that is not infinitely thick](#absorption-and-a-specimen-that-is-not-infinitely-thick)
   - [The emission spectrum](#the-emission-spectrum)
-- *From a pattern to an answer (to come)*
-- *Identification and chemistry (to come)*
+- [From a pattern to an answer](#from-a-pattern-to-an-answer)
+  - [The specimen: scale and background](#the-specimen-scale-and-background)
+  - [The mixture](#the-mixture)
+  - [Two different problems: Optimize and Refine](#two-different-problems-optimize-and-refine)
+  - [Residuals](#residuals)
+  - [Search methods, and what they assume](#search-methods-and-what-they-assume)
+  - [Why a good fit is not proof](#why-a-good-fit-is-not-proof)
+- [Identification and chemistry](#identification-and-chemistry)
+  - [Finding peaks](#finding-peaks)
+  - [From an angle to a spacing](#from-an-angle-to-a-spacing)
+  - [Matching minerals](#matching-minerals)
+  - [Oxide composition](#oxide-composition)
+  - [Preparing a pattern, and what each step costs](#preparing-a-pattern-and-what-each-step-costs)
 
 ---
 
@@ -768,5 +778,245 @@ merely distort a fit but changes which mineral you appear to have.
 
 ---
 
-*Batches on fitting and on identification are planned; see the documentation
-plan in the repository.*
+## From a pattern to an answer
+
+Everything up to here computes a pattern from a model. Analysis runs the other
+way: given a measured pattern, find the model. This section is about how that
+search is posed, what it optimises, and what a converged answer does and does
+not establish.
+
+### The specimen: scale and background
+
+A calculated pattern is on an arbitrary intensity scale. Before it can be
+compared with a measurement it needs two per-specimen numbers: a **scale**
+multiplying the whole curve, and a **background shift** added to it.
+
+Neither is physics. They exist because a diffractometer's counts depend on
+exposure, on the amount of sample, and on scattering that no phase in the model
+accounts for. They are nuisance parameters — necessary, but carrying no
+information about the mineral.
+
+### The mixture
+
+A mixture is a grid: **phases down, specimens across**. Each cell says which
+form of that phase applies to that specimen, which is how a treatment series is
+expressed — the smectite row holds the air-dried form in one column and the
+glycolated form in the next.
+
+Alongside the grid sit the numbers being solved for: a **fraction** per phase,
+and a scale and background per specimen. The fractions are the answer a
+quantitative analysis wants.
+
+### Two different problems: Optimize and Refine
+
+These are easy to confuse and are not two strengths of the same thing.
+
+**Optimize** solves for the fractions, scales and background shifts, holding
+every structure fixed. It is a well-conditioned problem: those quantities enter
+the calculated pattern almost linearly, the search space is small, and it is
+fast enough to run whenever anything changes.
+
+**Refine** solves for the *structural* parameters — orientation, crystallite
+thickness, stacking probabilities, layer spacings, atom substitutions. These
+enter the pattern through the whole calculation, so every trial value means
+recomputing each phase from its atoms up.
+
+The important part is how they relate: **Refine contains Optimize.** Every trial
+set of structural parameters is scored by first optimising the fractions,
+scales and backgrounds for it, and then measuring the residual. Anything else
+would be unfair — a structure should not be judged on a scale factor that
+happens to be stale.
+
+That nesting is also why refinement is expensive, and why the advice to refine
+few parameters at a time is not fussiness. Each additional structural parameter
+adds a dimension to the outer search, and every point in that search costs a
+full recalculation plus an inner fit.
+
+### Residuals
+
+The fit is scored by how far the calculated pattern is from the measured one.
+Several conventional measures are available:
+
+- **Rp**, the pattern R-factor: the summed absolute difference as a percentage
+  of the summed observed intensity. Simple, and dominated by the strongest
+  reflections.
+- **Rwp**, weighted: each point weighted by the reciprocal of its observed
+  intensity, so weak reflections count for relatively more. Closer to what a
+  statistician would want, and less forgiving.
+- A **derivative** variant, comparing the slopes of the two patterns rather
+  than their values, which is sensitive to peak position and shape and largely
+  blind to a smooth background error.
+- **R²**, familiar from regression, reported alongside the others rather than
+  used for fitting.
+- **Goodness of fit**, the square root of the reduced chi-squared. Unlike the
+  R-factors it has an absolute meaning: a value of one says the differences
+  between calculated and measured are no larger than the counting noise in the
+  measurement itself, which is as good as a fit can honestly get. A value well
+  below one means the data have been smoothed, or the model has more freedom
+  than the data can support.
+
+MudLab drives its fitting with Rp. It is worth knowing which measure you are
+reading, because they disagree: a model that gets the strong 001 right and the
+weak high orders wrong scores well on Rp and much less well on Rwp.
+
+**Excluded regions** are honoured throughout. A 2θ range you have excluded —
+because of a contaminant peak, or the sample holder — is left out of the
+residual entirely, rather than being fitted badly.
+
+### Search methods, and what they assume
+
+Two are offered.
+
+**A local method** starts from the current values and walks downhill. It is
+fast and it converges, but it finds the nearest minimum, not the best one. If
+your starting model is roughly right, this is what you want.
+
+**A global method** repeats a local search from many restarts, keeping the best
+result. It can escape a local minimum, and it costs what it sounds like it
+costs: its "iterations" are complete restarts, so a small-sounding number is a
+large amount of work.
+
+Both respect the minimum and maximum you set on each parameter, and those
+bounds are part of the model. A bound is a statement that values outside it are
+physically implausible — not a hint. A parameter that finishes hard against one
+is telling you something: either the bound is wrong, or the model is.
+
+### Why a good fit is not proof
+
+A converged refinement with a low residual establishes that *a* set of
+parameters reproduces your data. It does not establish that they are the right
+ones, for three separate reasons.
+
+**The problem is under-determined.** A basal series contains a limited number
+of reflections. Give the search more parameters than the data can distinguish
+and it will fit the noise, comfortably and convincingly.
+
+**Different physics can look alike.** Crystallite thickness, spacing disorder
+and an absent absorption correction all damp high-order reflections. A fit will
+happily trade one against another, and the residual cannot tell you which was
+real.
+
+**Nothing in the search knows any chemistry.** Refinement moves numbers inside
+their bounds; it has no idea whether the result is a mineral. It can produce a
+negative site occupancy, an impossible aluminium-for-silicon substitution, or a
+layer whose charge does not balance — and report an excellent residual.
+
+MudLab therefore checks the *converged* model against physical constraints and
+reports what it finds: occupancies that have gone out of range or negative,
+tetrahedral aluminium beyond the limit set by Loewenstein's rule that two
+aluminium tetrahedra may not share an oxygen, and layer charge that fails to
+cancel against the interlayer. These checks change nothing — they read the
+solution you kept, and say whether it is a possible mineral.
+
+Treat them as the first question to ask of a good fit, and treat agreement with
+an independent measurement — a chemical analysis, a known standard — as worth
+more than any further reduction in the residual.
+
+---
+
+## Identification and chemistry
+
+The rest of the program does not fit anything. It helps you decide what to
+model in the first place, reports what the model implies chemically, and lets
+you clean up a measurement before either.
+
+### Finding peaks
+
+Two detection methods are offered, and they fail differently.
+
+**A threshold method** walks a level down through the pattern and counts what
+rises above it. The difficulty is choosing the level: too high and weak
+reflections are missed, too low and noise becomes peaks. MudLab helps by
+plotting how the number of detected peaks varies with the threshold — a real
+peak population shows up as a plateau, a stretch where lowering the threshold
+finds nothing new, and choosing a value there is far better founded than
+guessing.
+
+**A prominence method** asks how far a candidate stands above the higher of the
+two saddles flanking it, rather than how high it is absolutely. This is more
+robust on a sloping background, where a genuine small peak on a rise can sit
+below a threshold that a noise spike on a shoulder clears.
+
+Both accept a minimum separation, which stops one broad reflection being
+reported as several.
+
+### From an angle to a spacing
+
+A peak's position is converted to a d-spacing by Bragg's law. The wavelength
+used is the specimen's, and this is the point in the program where getting it
+wrong does the most damage — not a distorted fit, but a different mineral. A
+quartz pattern measured with cobalt radiation and read as copper yields
+spacings that match a different mineral altogether, with no sign that anything
+is amiss.
+
+### Matching minerals
+
+Candidate minerals are scored against a reference library of powder patterns.
+For each mineral, its strongest lines are matched to the nearest observed peak
+within a small tolerance, and the score rewards two things: how closely the
+positions agree, and how well the *relative intensities* correlate.
+
+The intensity term is deliberately scale-invariant — it compares the shape of
+the intensity pattern rather than its absolute values, since a reference
+library and your specimen have no common scale.
+
+Two cautions belong with any such list. A high score means the observed peaks
+are consistent with that mineral, not that the mineral is present: many
+minerals share reflections, and a partial match to a common one is easy. And
+the scoring only sees the peaks you gave it, so a missed peak cannot count
+against a candidate. The overlay of a candidate's reference lines on your own
+pattern is the check that matters — a good score with lines that visibly miss
+is not a match.
+
+### Oxide composition
+
+A structural model implies a chemistry: every atom row carries an amount, and
+every atom type an atomic weight. Summing those, converting each cation to its
+usual reporting oxide and normalising to a hundred per cent gives an analysis
+directly comparable with an X-ray fluorescence result.
+
+Three things are worth knowing about that number.
+
+It is computed from the **cations only** — silicon, aluminium, iron, calcium,
+magnesium, sodium, potassium. Oxygen and hydroxyl are implied by the oxide
+formulas rather than counted, so labelling an oxygen as a hydroxyl changes the
+calculated pattern but not the reported composition.
+
+It reflects the **model**, not the specimen. If a phase's occupancies are the
+shipped defaults, the composition reported is the default's, however well the
+pattern fits.
+
+And it is a **weighted average over the phases**, so it depends on the fitted
+fractions. A composition that disagrees badly with a measured analysis is
+therefore evidence about the whole model — the phases chosen, their
+proportions, or their chemistry — and one of the few independent checks
+available on a diffraction result.
+
+### Preparing a pattern, and what each step costs
+
+Several operations modify a measured pattern. All are destructive, and each
+trades something away.
+
+**Background removal** subtracts a linear ramp, a constant, or another measured
+pattern. The risk is that a clay's own diffuse scattering — which is signal —
+gets removed with the background, particularly at low angle where mixed-layer
+minerals put their most diagnostic intensity.
+
+**Smoothing** reduces noise by averaging neighbouring points. It also broadens
+peaks and flattens weak ones, and a broadened peak will be fitted with a
+crystallite thickness that is not the specimen's. Comparing against the
+original before accepting is the whole point of the preview.
+
+**Shifting** corrects a systematic angular offset — a displaced sample surface,
+or a mis-zeroed goniometer — by aligning a known reflection from an internal
+standard. Applied without such a standard it is a guess, and it moves every
+d-spacing you subsequently derive.
+
+**Trimming** discards data outside a range. It is the least harmful, since it
+removes rather than alters — but it is still permanent, and a range trimmed
+away cannot be reconsidered.
+
+The general rule is to record what was done and prefer excluding a bad region
+to correcting it. An **exclusion range** tells the fit to ignore a stretch of
+the pattern without changing the data, which is almost always the better
+instrument.
