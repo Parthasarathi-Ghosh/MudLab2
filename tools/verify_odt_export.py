@@ -8,10 +8,23 @@ of contents comes out empty. For a reference document whose whole shape is its
 headings, that is most of the value gone - so the ODT is written here instead,
 from the Markdown source, with no dependency beyond the standard library.
 
-Two format details are easy to get wrong and fatal when you do, and both are
-pinned below: the `mimetype` entry must be FIRST in the archive and STORED
-uncompressed, and a heading must be a heading ELEMENT carrying an outline
-level rather than a paragraph in a heading style.
+Three format details are easy to get wrong and fatal when you do, and all three
+are pinned below: the `mimetype` entry must be FIRST in the archive and STORED
+uncompressed; a heading must be a heading ELEMENT carrying an outline level
+rather than a paragraph in a heading style; and no hyperlink may name a target
+without a scheme.
+
+That last one cost a shipped release of the feature. A scheme-less
+`xlink:href` is a reference to a part INSIDE the ODT package, so a link like
+"user-manual.md" names a part that does not exist and Word refuses the whole
+document - "Word found unreadable content", then "the file appears to be
+corrupted". Every one of the four shipped pages links to a sibling that way, so
+every one of them failed. Well-formed XML and a valid ZIP say nothing about
+this, which is why the check below is on the href values themselves.
+
+The finding came from driving Word over COM against a bisection of the source.
+That is not repeatable in CI, so what is asserted here is the mechanical rule
+Word was enforcing, and the shipped documents are held to it too.
 
 Run head-less with the bundled interpreter from the repo root:
 
@@ -33,8 +46,14 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, "src"))
 
 from mudlab.file_parsers.odt_export import (  # noqa: E402
-    markdown_to_content, write_odt,
+    heading_slug, markdown_to_content, write_odt,
 )
+
+#: Every hyperlink target in an exported document, as written.
+HREF = re.compile(r'xlink:href="([^"]*)"')
+#: A target a reader resolves for itself: it has a scheme, or it points within
+#: this same document. Anything else is a reference into the ODT package.
+RESOLVABLE = re.compile(r"^(#|//|[A-Za-z][A-Za-z0-9+.\-]*:)")
 
 results: list[tuple[str, bool]] = []
 SCRATCH = tempfile.mkdtemp(prefix="odt-")
@@ -180,6 +199,75 @@ def main():  # noqa: C901 - a checklist
     check("a wrapped paragraph is joined, not broken in two",
           "Some prose that wraps across two source lines." in content)
 
+    # ------------------------------------------------- hyperlink targets
+    #
+    # THE failure that made every exported document unreadable in Word. A
+    # scheme-less target names a part inside the package; the package has no
+    # such part, and the reader rejects the document rather than the link.
+    linked = markdown_to_content(
+        "# A heading\n\n"
+        "Sibling [the manual](user-manual.md), dotted [x](./x.md), "
+        "parent [y](../y.md), deep [z](sub/z.md#frag), "
+        "anchor [back](#a-heading), web [w](https://example.invalid/p), "
+        "mail [m](mailto:a@example.invalid).\n"
+    )
+    targets = HREF.findall(linked)
+    check("no exported link names a target inside the package %s" % targets,
+          all(RESOLVABLE.match(t) for t in targets))
+    check("...so the four relative forms are not linked at all",
+          not any(t.endswith(".md") or "/" in t.rstrip("/")
+                  for t in targets if not t.startswith("http")))
+    check("...while the web and mail targets are kept",
+          "https://example.invalid/p" in targets
+          and "mailto:a@example.invalid" in targets)
+    check("...and the fragment, which points within this same document",
+          "#a-heading" in targets)
+    # Dropping the link must not drop what it said.
+    for label in ("the manual", "parent", "deep", "dotted"):
+        check("...a dropped link keeps its text (%r)" % label, label in linked)
+
+    # ------------------------------------------------------ bookmarks
+    #
+    # A fragment is only useful if something answers to it. These are what the
+    # document's own Contents list lands on.
+    marks = re.findall(r'<text:bookmark text:name="([^"]*)"/>', linked)
+    check("a heading carries a bookmark named by its slug %s" % marks,
+          marks == ["a-heading"])
+    check("...by the same rule the viewer scrolls by",
+          heading_slug("A heading") == "a-heading")
+    repeated = re.findall(
+        r'<text:bookmark text:name="([^"]*)"/>',
+        markdown_to_content("# Same\n\ntext\n\n# Same\n\nmore\n"))
+    check("...and a repeated heading is not bookmarked twice %s" % repeated,
+          repeated == ["same"])
+
+    # ----------------------------------------------------- fenced code
+    fenced = markdown_to_content(
+        "Before.\n\n```\nfirst    line\n  indented\n- not a bullet\n```\n\nAfter.\n")
+    check("a fenced block becomes preformatted paragraphs (%d)"
+          % fenced.count("Preformatted_20_Text"),
+          fenced.count("Preformatted_20_Text") == 3)
+    check("...with nothing inside it read as markup",
+          "<text:list " not in fenced and "- not a bullet" in fenced)
+    # ODF collapses runs of spaces exactly as HTML does, so an ASCII diagram
+    # loses its shape without these.
+    check("...and its indentation preserved as text:s",
+          '<text:s text:c="3"/>' in fenced and '<text:s text:c="2"/>' in fenced)
+    check("...and the fence markers themselves do not appear",
+          "```" not in fenced)
+    check("...while the surrounding text is untouched",
+          "Before." in fenced and "After." in fenced)
+
+    # ------------------------------------------------------ table names
+    two = markdown_to_content(
+        "| A |\n|---|\n| 1 |\n\ntext\n\n| A |\n|---|\n| 1 |\n")
+    names = re.findall(r'table:name="([^"]*)"', two)
+    check("two identical tables still get distinct names %s" % names,
+          len(names) == 2 and len(set(names)) == 2)
+    check("...deterministically, so two exports of a page agree",
+          re.findall(r'table:name="([^"]*)"', markdown_to_content(
+              "| A |\n|---|\n| 1 |\n\ntext\n\n| A |\n|---|\n| 1 |\n")) == names)
+
     # -------------------------------------------------------- XML safety
     risky = write_odt("# A & B < C\n\nText with <angle> & ampersand.\n",
                       os.path.join(SCRATCH, "escapes.odt"))
@@ -219,6 +307,21 @@ def main():  # noqa: C901 - a checklist
             ok = False
         check("shipped: %s exports every heading (%d of %d) as valid XML"
               % (name, found, expected), ok and found == expected)
+
+        # This is the one that was failing in the field. Each of these pages
+        # links to a sibling page, and every such link made the whole file
+        # unreadable in Word.
+        stray = [t for t in HREF.findall(body) if not RESOLVABLE.match(t)]
+        check("shipped: %s names no target inside the package%s"
+              % (name, (" " + str(stray)) if stray else ""), not stray)
+        # A Contents entry pointing at a heading that no longer exists is a
+        # dead link in the ODT and in the viewer alike.
+        anchors = {t[1:] for t in HREF.findall(body) if t.startswith("#")}
+        bookmarks = set(re.findall(r'<text:bookmark text:name="([^"]*)"/>', body))
+        missing = sorted(anchors - bookmarks)
+        check("shipped: %s resolves all %d of its own anchors%s"
+              % (name, len(anchors), (" missing " + str(missing)) if missing else ""),
+              not missing)
 
     # A page that is only a contents list would be a sign the body was lost.
     check("the exported science document is substantial (%d bytes)"

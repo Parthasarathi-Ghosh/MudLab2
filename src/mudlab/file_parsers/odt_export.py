@@ -11,7 +11,7 @@ levels, real lists, real tables. The file then behaves like a document someone
 authored — navigable, and able to generate its own contents.
 
 No dependency is needed. An ODT is a ZIP of XML parts, and the parts this needs
-are small. Two details of the format are easy to get wrong and fatal when you
+are small. Three details of the format are easy to get wrong and fatal when you
 do:
 
 * the ``mimetype`` entry must come **first** in the archive and be **stored
@@ -20,11 +20,16 @@ do:
 * a heading must be a ``text:h`` element with an outline level. A paragraph
   wearing a heading's style is not a heading, which is exactly the trap Qt's
   own writer falls into.
+* a hyperlink target with no scheme is resolved **against the package**, not
+  against the folder the file came from. ``xlink:href="how-it-works.md"`` names
+  a part inside the ODT; there is no such part, and Word rejects the entire
+  document as corrupt rather than ignoring one link. Every shipped page links
+  to its siblings that way, so this is not an edge case — see ``_link``.
 
 The Markdown understood here is the subset the shipped documentation actually
 uses — headings, paragraphs, bullet and numbered lists, tables, block quotes,
-horizontal rules, bold, italic, inline code and links. Anything else degrades
-to plain text rather than failing.
+fenced code, horizontal rules, bold, italic, inline code and links. Anything
+else degrades to plain text rather than failing.
 """
 
 from __future__ import annotations
@@ -70,6 +75,12 @@ _STYLES = """<?xml version="1.0" encoding="UTF-8"?>
    <style:paragraph-properties fo:margin-left="1cm" fo:margin-right="1cm"
        fo:margin-top="0.2cm" fo:margin-bottom="0.2cm"/>
    <style:text-properties fo:font-style="italic"/>
+  </style:style>
+  <style:style style:name="Preformatted_20_Text" style:display-name="Preformatted Text"
+      style:family="paragraph" style:parent-style-name="Standard">
+   <style:paragraph-properties fo:margin-left="0.5cm" fo:margin-top="0cm"
+       fo:margin-bottom="0cm"/>
+   <style:text-properties style:font-name="Consolas" fo:font-size="10pt"/>
   </style:style>
   <style:style style:name="Table_20_Contents" style:display-name="Table Contents"
       style:family="paragraph" style:parent-style-name="Standard"/>
@@ -140,12 +151,57 @@ def _escape(text: str) -> str:
     return text
 
 
+def heading_slug(text: str) -> str:
+    """GitHub's anchor for a heading, so a Contents list written for GitHub
+    also works here: lower-cased, punctuation dropped, spaces to hyphens.
+
+    Each space becomes its own hyphen - GitHub does NOT collapse runs. Dropping
+    punctuation leaves the spaces that surrounded it, so "(Load / Store)" ends
+    up "load--store" with two. Collapsing here instead would make the viewer
+    disagree with GitHub about exactly the headings that contain punctuation,
+    and those links would be dead in one place and live in the other.
+
+    It lives here, rather than beside the viewer that scrolls by it, because
+    the exporter needs the same rule to name its bookmarks: two spellings of an
+    anchor would send a reader to different places in the two renderings.
+    """
+    slug = text.strip().lower()
+    slug = re.sub(r"[^\w\s-]", "", slug, flags=re.UNICODE)
+    return re.sub(r"\s", "-", slug)
+
+
 _INLINE = re.compile(
     r"\*\*(?P<bold>.+?)\*\*"
     r"|(?<!\*)\*(?P<italic>[^*]+)\*(?!\*)"
     r"|`(?P<code>[^`]+)`"
     r"|\[(?P<label>[^\]]+)\]\((?P<href>[^)]+)\)"
 )
+
+#: "https:", "mailto:", "file:" - a target with a scheme is an address the
+#: reader's own system knows how to resolve.
+_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _link(href: str, label: str) -> str:
+    """A hyperlink, or just its text when the target cannot survive the export.
+
+    A scheme-less target is a reference INTO the package, and Word refuses to
+    open a document naming a part the package does not contain: the whole file,
+    not the one link, is reported as corrupt and unreadable. Every shipped page
+    links to its siblings this way ("user-manual.md"), so it must be handled
+    rather than warned about.
+
+    Such a link would be dead in any case, because the exported file travels
+    away from the folder its siblings live in. Keeping the label still names
+    the document the reader is being pointed at. Fragments ("#stacking") refer
+    within this same document and are kept - `_heading` writes the bookmarks
+    they land on.
+    """
+    href = href.strip()
+    if href.startswith("#") or href.startswith("//") or _SCHEME.match(href):
+        return ('<text:a xlink:type="simple" xlink:href="%s">%s</text:a>'
+                % (_escape(href), label))
+    return label
 
 
 def _inline(text: str) -> str:
@@ -164,34 +220,66 @@ def _inline(text: str) -> str:
             out.append('<text:span text:style-name="Code">%s</text:span>'
                        % _escape(match.group("code")))
         else:
-            href = match.group("href").strip()
-            out.append('<text:a xlink:type="simple" xlink:href="%s">%s</text:a>'
-                       % (_escape(href), _inline(match.group("label"))))
+            out.append(_link(match.group("href"), _inline(match.group("label"))))
         position = match.end()
     out.append(_escape(text[position:]))
     return "".join(out)
+
+
+def _plain(text: str) -> str:
+    """A heading's text with its markup removed, for naming its bookmark."""
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    return text.replace("**", "").replace("*", "").replace("`", "")
 
 
 def _paragraph(text: str, style: str = "Standard") -> str:
     return '<text:p text:style-name="%s">%s</text:p>' % (style, _inline(text))
 
 
-def _heading(text: str, level: int) -> str:
+def _heading(text: str, level: int, seen: set) -> str:
     """A REAL heading: the element, with its outline level.
 
     This is the whole point of the module. A paragraph in a heading style looks
     identical and is invisible to a navigator or an automatic contents list.
+
+    It also carries a bookmark named after the heading, which is what the
+    document's own Contents links land on. A slug already used gets none: two
+    bookmarks of one name would be a broken document, and a repeated anchor
+    resolves to the first occurrence in the viewer too.
     """
+    slug = heading_slug(_plain(text))
+    mark = ""
+    if slug and slug not in seen:
+        seen.add(slug)
+        mark = '<text:bookmark text:name="%s"/>' % slug
     return ('<text:h text:style-name="Heading_20_%d" text:outline-level="%d">'
-            '%s</text:h>' % (level, level, _inline(text)))
+            '%s%s</text:h>' % (level, level, mark, _inline(text)))
 
 
-def _table(rows: list) -> str:
+def _spaces(match) -> str:
+    """A run of spaces, kept.
+
+    ODF collapses runs of spaces exactly as HTML does, so an indented code
+    block or an ASCII diagram loses its shape unless the repeats are written
+    out as text:s elements.
+    """
+    count = len(match.group(0))
+    if match.start() == 0:
+        return "<text:s/>" if count == 1 else '<text:s text:c="%d"/>' % count
+    return " " if count == 1 else ' <text:s text:c="%d"/>' % (count - 1)
+
+
+def _preformatted(line: str) -> str:
+    return '<text:p text:style-name="Preformatted_20_Text">%s</text:p>' % (
+        re.sub(r" +", _spaces, _escape(line.expandtabs(4))))
+
+
+def _table(rows: list, number: int) -> str:
     """An ODF table from Markdown pipe rows; the first row is the header."""
     if not rows:
         return ""
     columns = max(len(r) for r in rows)
-    out = ['<table:table table:name="Table%d">' % (abs(hash(str(rows))) % 9999)]
+    out = ['<table:table table:name="Table%d">' % number]
     out.append('<table:table-column table:number-columns-repeated="%d"/>' % columns)
     for index, row in enumerate(rows):
         style = "Table_20_Heading" if index == 0 else "Table_20_Contents"
@@ -219,6 +307,8 @@ def markdown_to_content(text: str) -> str:
     lines = text.splitlines()
     index = 0
     paragraph: list = []
+    tables = 0
+    slugs: set = set()
 
     # Open list levels, innermost last, as (indent, kind). A nested list in ODF
     # lives INSIDE its parent's list item, so the parent item cannot be closed
@@ -267,12 +357,27 @@ def markdown_to_content(text: str) -> str:
             index += 1
             continue
 
+        # A fenced block comes first: everything inside it is literal, and a
+        # diagram in one is full of characters that would otherwise be read as
+        # list markers, quotes or rules.
+        fence = re.match(r"^(```|~~~)", line)
+        if fence:
+            flush()
+            close_list()
+            marker = fence.group(1)
+            index += 1
+            while index < len(lines) and not lines[index].strip().startswith(marker):
+                body.append(_preformatted(lines[index]))
+                index += 1
+            index += 1          # the closing fence, or the end of the document
+            continue
+
         heading = re.match(r"^(#{1,6})\s+(.*)$", line)
         if heading:
             flush()
             close_list()
             body.append(_heading(heading.group(2).strip(),
-                                 len(heading.group(1))))
+                                 len(heading.group(1)), slugs))
             index += 1
             continue
 
@@ -302,7 +407,8 @@ def markdown_to_content(text: str) -> str:
                 if not _is_separator(candidate):
                     rows.append(_split_row(candidate))
                 index += 1
-            body.append(_table(rows))
+            tables += 1
+            body.append(_table(rows, tables))
             continue
 
         item = re.match(r"^([-*]|\d+\.)\s+(.*)$", line)

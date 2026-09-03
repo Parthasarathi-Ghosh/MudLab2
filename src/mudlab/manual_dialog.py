@@ -32,6 +32,10 @@ from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from mudlab.qt_utils import clear_auto_default
 from mudlab.ui.ui_manual import Ui_ManualDialog
+# The anchor rule is shared with the exporter deliberately: the viewer scrolls
+# to a heading by this slug and the ODT's bookmarks are named by it, so a
+# second spelling would send the same link to two different places.
+from mudlab.file_parsers.odt_export import heading_slug  # noqa: F401
 
 # Printing lives in a separate Qt module. It is imported at module scope so the
 # frozen build's dependency analysis sees it - nothing else in the program uses
@@ -73,21 +77,6 @@ def docs_dir() -> str:
     if os.path.isdir(packaged):
         return packaged
     return os.path.normpath(os.path.join(here, os.pardir, os.pardir, "docs"))
-
-
-def heading_slug(text: str) -> str:
-    """GitHub's anchor for a heading, so a Contents list written for GitHub
-    also works here: lower-cased, punctuation dropped, spaces to hyphens.
-
-    Each space becomes its own hyphen - GitHub does NOT collapse runs. Dropping
-    punctuation leaves the spaces that surrounded it, so "(Load / Store)" ends
-    up "load--store" with two. Collapsing here instead would make the viewer
-    disagree with GitHub about exactly the headings that contain punctuation,
-    and those links would be dead in one place and live in the other.
-    """
-    slug = text.strip().lower()
-    slug = re.sub(r"[^\w\s-]", "", slug, flags=re.UNICODE)
-    return re.sub(r"\s", "-", slug)
 
 
 class ManualDialog(QDialog):
