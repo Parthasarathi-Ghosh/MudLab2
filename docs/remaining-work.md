@@ -127,9 +127,10 @@ so whoever picks one up starts from facts rather than a search.
 
   **Stage 3 DONE 2026-08-30.** `Edit Phases` -> right-click a phase ->
   **Create treatment states...** derives the `-EG` and `-350` phases, sharing
-  the layer by link so refining it refines the series. **The method, the
-  science behind it and its assumptions are written up in
-  [`treatment-states-method.md`](treatment-states-method.md)** - read that
+  the layer by link so refining it refines the series. **The method, the science behind BOTH stages - the projection and the
+  derivation - the crystallography they rest on, and their assumptions are
+  written up in
+  [`cif-import-and-treatment-method.md`](cif-import-and-treatment-method.md)** - read that
   before changing it. `verify_treatment_states.py`, 33 checks.
 
   **Still open on #4:**

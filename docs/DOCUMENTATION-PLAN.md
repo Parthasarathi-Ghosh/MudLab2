@@ -134,7 +134,8 @@ Cromer-Mann sum, the log-normal — and so are the names of published methods an
 their authors. Identifiers are not: a reader should not be able to tell what
 language the program is written in.
 
-`docs/treatment-states-method.md` is a good model for the *register* — the
+`docs/cif-import-and-treatment-method.md` is a good model for the
+*register* — the
 level of care about assumptions — but it is a developer document that names
 files and functions freely, and #2 must not.
 
@@ -169,7 +170,8 @@ best summary of the theory and should be re-expressed, not copied:
   feed A and B.
 - **`notes/Markers and Peak Detection.md`**, **`notes/Oxide Composition.md`** —
   feed F.
-- This repo's `docs/treatment-states-method.md` — feeds A (treatment response)
+- This repo's `docs/cif-import-and-treatment-method.md` — feeds A (treatment
+  response) and B (the projection)
   and is already written in the right spirit.
 - The calculation modules themselves carry unusually full docstrings, several
   naming their sources (Drits & Tchoubar 1990, Plançon 2001, Cromer-Mann).
@@ -203,7 +205,7 @@ and verified label by label against the running widgets:
 `getting-started.md` gains **one pointer, not a step** — the shipped catalog
 covers the common clays, so CIF import is not on the short path.
 
-One constraint worth remembering: **`treatment-states-method.md` is NOT
+One constraint worth remembering: **`cif-import-and-treatment-method.md` is NOT
 bundled**, so the manual must not link to it or the link is dead in the frozen
 app. `verify_manual.py` enforces that ("every document the manual can reach is
 bundled"), so the user-facing assumptions are stated inline instead. Anything
