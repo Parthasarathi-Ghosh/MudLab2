@@ -22,7 +22,14 @@ planned but not yet written.
   - [Basal spacing](#basal-spacing)
   - [Why one dimension is enough](#why-one-dimension-is-enough)
   - [Treatment: making a clay declare itself](#treatment-making-a-clay-declare-itself)
-- *From atoms to a layer (to come)*
+- [From atoms to a layer](#from-atoms-to-a-layer)
+  - [The coordinate everything is a function of](#the-coordinate-everything-is-a-function-of)
+  - [What one atom scatters](#what-one-atom-scatters)
+  - [Thermal motion](#thermal-motion)
+  - [Adding the atoms up](#adding-the-atoms-up)
+  - [Occupancy and substitution](#occupancy-and-substitution)
+  - [The gallery stretches; the layer does not](#the-gallery-stretches-the-layer-does-not)
+  - [Disorder in the spacing itself](#disorder-in-the-spacing-itself)
 - *Stacking (to come)*
 - *From a layer to a pattern (to come)*
 - *From a pattern to an answer (to come)*
@@ -242,5 +249,176 @@ refinement rather than a result.
 
 ---
 
-*Batches on atoms and scattering, stacking, instrument corrections, fitting,
-and identification are planned; see the documentation plan in the repository.*
+## From atoms to a layer
+
+Batch A described what a clay is. This section describes how MudLab turns that
+description into scattered X-rays: what each atom contributes, how the
+contributions combine into a layer, and which of the numbers you can edit
+actually move the answer.
+
+### The coordinate everything is a function of
+
+Diffraction quantities are not naturally functions of angle. They are functions
+of
+
+> 2 sin θ / λ
+
+which has units of inverse length and is the length of the scattering vector —
+how far into reciprocal space a given reflection sits. Every quantity in this
+section is computed against that coordinate rather than against 2θ.
+
+Two consequences follow, and both matter in practice.
+
+First, the same structure measured with a different X-ray wavelength produces
+the *same* curve in this coordinate and a *different* curve in angle. That is
+why a wavelength error is not a small distortion but a wholesale rescaling of
+the pattern.
+
+Second, scattering falls away as this coordinate grows. Low-angle reflections
+are strong and sharp; high-angle ones are weak. For clay work this is
+convenient — the basal reflections that carry the diagnosis sit at low angle,
+where the signal is.
+
+### What one atom scatters
+
+An atom's ability to scatter X-rays is not a single number. It falls off as the
+scattering vector grows, because the electron cloud has a size comparable to
+the X-ray wavelength and the waves scattered from its near and far sides
+increasingly cancel.
+
+That falloff is tabulated, for every element and common ionisation state, as a
+sum of Gaussians plus a constant:
+
+> *f* = *c* + Σ *aᵢ* exp( − *bᵢ* *s*² ),  where *s* = sin θ / λ
+
+MudLab uses a **five-term** expansion — five paired coefficients plus the
+constant, taken from the standard crystallographic tabulations and shipped with
+the program for a few hundred species. You do not enter these; you choose an
+atom *type*, and the type carries them.
+
+This is why choosing the right species matters and choosing the right *element*
+is not enough. The tabulations distinguish neutral atoms from ions, and a clay
+model uses the ionised forms, because a silicon that has given up electrons
+scatters measurably differently from a neutral one.
+
+It is also why **hydroxyl is a species in its own right** rather than an oxygen
+with a hydrogen beside it. Hydrogen scatters X-rays so weakly that modelling it
+as a separate atom would be pointless; instead the oxygen-plus-hydrogen pair is
+tabulated as one scatterer with its own coefficients. Getting this wrong is not
+catastrophic but is not negligible either: mislabelling a clay's hydroxyls as
+plain oxygens shifts individual intensities by several per cent and the
+strongest basal reflection by a few per cent.
+
+### Thermal motion
+
+Atoms are not at rest. They vibrate about their sites, and the vibration blurs
+the electron density, which weakens scattering more at high angle than at low —
+the same geometry as the falloff above, for a different reason.
+
+The correction is a single exponential in *s*², controlled by one number per
+atom type, the **temperature factor** (conventionally *B*, in Å²):
+
+> *f* → *f* · exp( − *B* *s*² )
+
+A larger value means a more loosely held atom and a faster falloff. In clay
+work these are rarely refined; the shipped types carry sensible values, and the
+correction matters mainly because omitting it entirely would leave the
+calculated pattern too strong at high angle.
+
+### Adding the atoms up
+
+A layer's scattering is the **sum of its atoms' contributions, each carrying a
+phase set by its height**. For a one-dimensional profile the phase of an atom
+at height *z* is
+
+> exp( 2π i *z* · (2 sin θ / λ) )
+
+and the layer's structure factor is the sum over every atom of its scattering
+power, times how many of that atom the cell contains, times that phase.
+
+Three things are worth drawing out of that expression.
+
+**Only height enters.** As batch A explained, an atom's lateral position does
+not affect a basal reflection. The sum is over heights and amounts; nothing
+else about the atom's position is used.
+
+**Interference does the work.** The sum is over complex numbers, so atoms at
+different heights can reinforce or cancel. This is why the *relative* positions
+of the sheets within a layer control which basal orders are strong and which
+are nearly absent — and why an error of a few hundredths of a nanometre in one
+atom's height can change the pattern more than a large error in its amount.
+
+**Amount is as important as identity.** An atom's contribution scales linearly
+with how many of it the cell holds. This is the quantity that partial site
+occupancy and cation substitution change, and it is where refinement usually
+has most of its freedom.
+
+### Occupancy and substitution
+
+Real clays do not have clean formulas. A single octahedral site may be occupied
+by aluminium in one unit cell and by magnesium or iron in the next, and what
+diffraction sees is the *average*: a site with fractional amounts of several
+species.
+
+MudLab represents this directly — each atom row carries an amount that need not
+be a whole number — and then lets you tie amounts together instead of typing
+them independently. Two kinds of tie are available:
+
+- a **substitution** between two species sharing a site, expressed as the
+  fraction of the site taken by the first, with the second taking the
+  remainder. The total occupancy of the site stays fixed while the ratio
+  varies.
+- a **content** rule, which scales a whole set of atoms by one shared value —
+  useful when a treatment or a compositional variable moves several amounts
+  together.
+
+Both are ordinary refinable quantities. The reason to prefer them over typing
+amounts by hand is not convenience but constraint: a substitution *cannot*
+produce a site that is more than full, whereas two independently refined
+amounts can, and a refinement given that freedom will sometimes take it.
+
+Because amounts feed the oxide composition as well as the pattern, a
+substitution refined against diffraction data also moves the chemistry the
+program reports. That is a feature — the two should agree — but it means an
+implausible refined composition is evidence that the structural model, not just
+the fit, needs attention.
+
+### The gallery stretches; the layer does not
+
+A component records the basal spacing it was built with as well as the spacing
+it currently has. When those differ — because the clay has swollen, or because
+refinement has moved the spacing — the atoms do **not** all move in proportion.
+
+The layer is treated as rigid and the gallery as elastic. Atoms below the
+layer/interlayer boundary keep their heights exactly; atoms above it are
+rescaled so that they move with the expanding or contracting gallery. A
+smectite swelling from one water layer to two therefore lifts its interlayer
+water and its exchangeable cation, and leaves its silicate sandwich untouched.
+
+This is the same physical claim that lets treatment states be derived from an
+air-dried structure, and it is applied here every time a pattern is computed,
+not only when states are built.
+
+### Disorder in the spacing itself
+
+Real stacks are not perfectly periodic even when the layers are identical: the
+distance from one layer to the next varies slightly. That variation blurs the
+higher-order basal reflections while leaving the first order almost untouched,
+because a small spread in spacing is a small fraction of a large *d* but a
+large fraction of a small one.
+
+MudLab models it with one number per component — a spread in the basal spacing
+— which enters as a Gaussian damping that grows with the square of the
+scattering vector. The effect looks like a temperature factor applied to the
+whole layer rather than to one atom, and it is often the difference between a
+calculated pattern whose high orders are too strong and one that matches.
+
+It is worth distinguishing this from crystallite size, which is treated in the
+next batch. Both weaken high-order reflections, but they are different physics:
+spacing disorder is variation *within* a stack, while size broadening comes
+from the stack being finite. A model can need both.
+
+---
+
+*Batches on stacking, instrument corrections, fitting, and identification are
+planned; see the documentation plan in the repository.*

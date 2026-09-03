@@ -17,7 +17,7 @@ resumes without re-deriving anything.
 | # | Document | File | Audience | Status |
 |---|---|---|---|---|
 | 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft done, awaiting review** |
-| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batch A written**; B–F queued |
+| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batches A and B written**; C–F queued |
 | 3 | **Technical reference** — for bug-fixing and future development | `docs/technical-reference.md` | Whoever maintains this next (including us, later) | Slow track |
 
 ### How these relate to what already exists
@@ -147,7 +147,7 @@ topical.
 | # | Batch | Entries | Status |
 |---|---|---|---|
 | A | **The material** | What a clay layer is (1:1, 2:1, 2:1:1); di- and trioctahedral sheets; the interlayer and its occupants; layer charge and why it separates smectite from vermiculite from illite; basal spacing; why a one-dimensional profile along the c\* direction is enough; treatment response | **DONE 2026-08-30** |
-| B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (Cromer-Mann); thermal motion (Debye-Waller); the structure factor of a layer; why hydroxyl scatters differently from oxygen; site occupancy and substitution | not started |
+| B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (a FIVE-term Gaussian expansion, not the four the old note claims); thermal motion; the layer structure factor; occupancy and substitution; the gallery stretching while the layer stays rigid; spacing disorder as distinct from size broadening | **DONE 2026-08-30** |
 | C | **Stacking** — the heart of the app | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | not started |
 | D | **From a layer to a pattern** — the instrument | Lorentz and polarisation factors; preferred orientation and the sigma-star parameter; Soller slits; fixed against automatic divergence slits and what converting between them assumes; sample length and beam overflow; absorption; the emission spectrum and why the wavelength decides every d-spacing | not started |
 | E | **From a pattern to an answer** — fitting | The specimen: scale and background; the mixture as a grid of phases against specimens; what Optimize adjusts and what Refine adjusts, and why they are different problems; residuals (Rp, Rwp, goodness of fit) and what each rewards; refinement methods and their assumptions; why a good fit is not proof | not started |
@@ -219,10 +219,11 @@ Next actions, in order:
 2. **Screenshots for #1** — still deliberately none. The UI moved again this
    week (Import CIF…, Create treatment states…), which is the argument for
    waiting.
-3. **Write #2 batch by batch** — the batch plan is above. **Batch A is
-   written**; `how-it-works.md` is bundled in `MudLab.spec` and linked from
+3. **Write #2 batch by batch** — the batch plan is above. **Batches A and B
+   are written**; `how-it-works.md` is bundled in `MudLab.spec` and linked from
    both the manual and the walkthrough, so the plumbing is done and later
-   batches only add sections. **Next: batch B, from atoms to a layer.**
+   batches only add sections. **Next: batch C, stacking** — the app's
+   distinctive science, and the largest of the six.
 4. #3, `technical-reference.md`, after that.
 
 **2026-08-30, later:** deferred the review pass and the screenshots at the
@@ -232,5 +233,13 @@ interlayer, layer charge (and why it is invisible to diffraction, which is why
 the program asks rather than guesses), basal spacing with Bragg, why a
 one-dimensional profile along c* loses nothing that basal analysis uses, and
 the treatment sequence with the limits of its assumptions.
+
+**Batch B** followed: the reciprocal-space coordinate, atomic scattering
+factors, thermal motion, how atom contributions combine into a layer,
+occupancy and substitution, and two things the old notes do not cover — that
+the gallery is rescaled while the layer stays rigid whenever the spacing
+changes, and that spacing disorder damps high orders by a different mechanism
+from crystallite size. Reading the code corrected the old note on one point:
+the scattering-factor expansion has **five** Gaussian terms, not four.
 
 **Not started:** #2, #3.
