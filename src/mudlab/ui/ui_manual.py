@@ -48,6 +48,18 @@ class Ui_ManualDialog(object):
 
         self.buttonRow.addWidget(self.btn_contents)
 
+        self.btn_print = QPushButton(ManualDialog)
+        self.btn_print.setObjectName(u"btn_print")
+        self.btn_print.setAutoDefault(False)
+
+        self.buttonRow.addWidget(self.btn_print)
+
+        self.btn_export = QPushButton(ManualDialog)
+        self.btn_export.setObjectName(u"btn_export")
+        self.btn_export.setAutoDefault(False)
+
+        self.buttonRow.addWidget(self.btn_export)
+
         self.buttonSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.buttonRow.addItem(self.buttonSpacer)
@@ -66,6 +78,8 @@ class Ui_ManualDialog(object):
 
         self.btn_back.setDefault(False)
         self.btn_contents.setDefault(False)
+        self.btn_print.setDefault(False)
+        self.btn_export.setDefault(False)
         self.btn_close.setDefault(False)
 
 
@@ -82,6 +96,14 @@ class Ui_ManualDialog(object):
         self.btn_contents.setToolTip(QCoreApplication.translate("ManualDialog", u"Return to the start of the walkthrough", None))
 #endif // QT_CONFIG(tooltip)
         self.btn_contents.setText(QCoreApplication.translate("ManualDialog", u"Contents", None))
+#if QT_CONFIG(tooltip)
+        self.btn_print.setToolTip(QCoreApplication.translate("ManualDialog", u"Print this page, or save it as PDF from the print dialog.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_print.setText(QCoreApplication.translate("ManualDialog", u"Print\u2026", None))
+#if QT_CONFIG(tooltip)
+        self.btn_export.setToolTip(QCoreApplication.translate("ManualDialog", u"Save this page as an editable document (ODT), a web page, Markdown or plain text.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_export.setText(QCoreApplication.translate("ManualDialog", u"Export\u2026", None))
         self.btn_close.setText(QCoreApplication.translate("ManualDialog", u"Close", None))
     # retranslateUi
 

@@ -52,7 +52,9 @@ from mudlab.line_dialogs import (
     SmoothDataDialog,
     StripPeakDialog,
 )
-from mudlab.manual_dialog import ManualDialog
+from mudlab.manual_dialog import (
+    HOME_DOCUMENT, SCIENCE_DOCUMENT, ManualDialog,
+)
 from mudlab.models import Project, Specimen
 from mudlab.plot_controller import PatternPlot
 from mudlab.qt_utils import fixed_font, in_use_message
@@ -132,6 +134,7 @@ class MainWindow(QMainWindow):
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionAbout.triggered.connect(self._show_about)
         self.ui.actionManual.triggered.connect(self._show_manual)
+        self.ui.actionHowItWorks.triggered.connect(self._show_how_it_works)
         self.ui.actionNewProject.triggered.connect(self._new_project)
         self.ui.actionOpenProject.triggered.connect(self._open_project)
         self.ui.actionSaveProject.triggered.connect(self._save_project)
@@ -1418,12 +1421,26 @@ class MainWindow(QMainWindow):
     def _show_about(self) -> None:
         AboutDialog(self).exec()
 
-    def _show_manual(self) -> None:
-        """Help -> Manual (F1). Modeless, and kept alive between openings so
-        the reader comes back to the page they left rather than to the top."""
+    def _show_manual(self, document: str = "") -> None:
+        """Open the manual viewer on `document` (the walkthrough by default).
+
+        A Help entry must show what its label says, so each one opens its own
+        page rather than whatever was last read - otherwise "Manual" would open
+        the science document simply because that was opened more recently.
+        Reloading is skipped when the page is ALREADY the one asked for, which
+        keeps the reader's place when they merely bring the window back.
+        """
         if self._manual_dialog is None:
             self._manual_dialog = ManualDialog(self)
         dialog = self._manual_dialog
+        wanted = document or HOME_DOCUMENT
+        if dialog.ui.browser.source().fileName() != wanted:
+            dialog.show_document(wanted)
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _show_how_it_works(self) -> None:
+        """Help -> How MudLab Works (Shift+F1): the same viewer, opened on the
+        science rather than on the walkthrough."""
+        self._show_manual(SCIENCE_DOCUMENT)

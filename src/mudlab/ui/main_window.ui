@@ -147,6 +147,7 @@
      <string>&amp;Help</string>
     </property>
     <addaction name="actionManual"/>
+    <addaction name="actionHowItWorks"/>
     <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuProject"/>
@@ -508,6 +509,20 @@
    </property>
    <property name="shortcut">
     <string>F1</string>
+   </property>
+  </action>
+  <action name="actionHowItWorks">
+   <property name="icon">
+    <iconset theme="help-contents"/>
+   </property>
+   <property name="text">
+    <string>&amp;How MudLab Works</string>
+   </property>
+   <property name="toolTip">
+    <string>The science behind what MudLab computes: clay structures, stacking, the instrument corrections, and what a fit does and does not prove.</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+F1</string>
    </property>
   </action>
   <action name="actionAbout">

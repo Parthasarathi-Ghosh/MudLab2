@@ -36,7 +36,8 @@ from PySide6.QtGui import QDesktopServices  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from mudlab.manual_dialog import (  # noqa: E402
-    HOME_DOCUMENT, ManualDialog, docs_dir, heading_slug,
+    EXPORT_FORMATS, HOME_DOCUMENT, PRINTING_AVAILABLE, SCIENCE_DOCUMENT,
+    ManualDialog, docs_dir, heading_slug,
 )
 
 app = QApplication.instance() or QApplication([])
@@ -300,6 +301,83 @@ def main():  # noqa: C901 - a checklist
         span = (max(landed) - min(landed)) / max(1, bar.maximum())
         check("...spread across the document rather than bunched at the end "
               "(%.0f%% of the scroll range)" % (100 * span), span > 0.6)
+
+        # --------------------------------- 5. opening the science directly
+        window.ui.actionHowItWorks.trigger()
+        app.processEvents()
+        check("Help -> How MudLab Works opens the science document (%s)"
+              % dialog.ui.browser.source().fileName(),
+              dialog.ui.browser.source().fileName() == SCIENCE_DOCUMENT)
+        check("...on its own shortcut (%s)"
+              % window.ui.actionHowItWorks.shortcut().toString(),
+              window.ui.actionHowItWorks.shortcut().toString() == "Shift+F1")
+        check("...reusing the one viewer rather than opening a second",
+              window._manual_dialog is dialog)
+        window.ui.actionManual.trigger()
+        app.processEvents()
+        check("...and Help -> Manual still opens the walkthrough",
+              dialog.ui.browser.source().fileName() == HOME_DOCUMENT)
+
+        # ------------------------------------------- 6. print and export
+        check("the viewer offers printing and exporting",
+              dialog.ui.btn_print.text().startswith("Print")
+              and dialog.ui.btn_export.text().startswith("Export"))
+        check("...without claiming autoDefault",
+              not dialog.ui.btn_print.autoDefault()
+              and not dialog.ui.btn_export.autoDefault())
+        check("printing is available in this build", PRINTING_AVAILABLE)
+        check("...and the print button follows that",
+              dialog.ui.btn_print.isEnabled() == PRINTING_AVAILABLE)
+
+        # QtPrintSupport is the only Qt module the program uses for one
+        # feature, and it was absent from the v1.0.3 bundle because nothing
+        # imported it. A release that loses it again would fail only when
+        # someone pressed Print.
+        with open(os.path.join(_REPO, "MudLab.spec"), encoding="utf-8") as handle:
+            spec = handle.read()
+        check("the frozen build is told to ship QtPrintSupport",
+              "PySide6.QtPrintSupport" in spec)
+
+        # Export must produce real files, not empty ones. ODF is the format
+        # that matters - it is the editable one - and it is a ZIP package, so
+        # a truncated write is easy to detect.
+        import tempfile
+        import zipfile
+
+        from PySide6.QtGui import QTextDocumentWriter
+
+        dialog.show_document(SCIENCE_DOCUMENT)
+        app.processEvents()
+        scratch = tempfile.mkdtemp(prefix="manual-export-")
+        written = []
+        for label, extension, fmt in EXPORT_FORMATS:
+            target = os.path.join(scratch, "page" + extension)
+            writer = QTextDocumentWriter(target)
+            writer.setFormat(fmt)
+            ok = writer.write(dialog.ui.browser.document())
+            size = os.path.getsize(target) if os.path.isfile(target) else 0
+            written.append((extension, ok, size))
+        check("every offered export format writes a non-empty file %s"
+              % [(e, s) for e, _o, s in written],
+              all(ok and size > 500 for _e, ok, size in written))
+
+        odt = os.path.join(scratch, "page.odt")
+        check("...and the ODT is a real Open Document package",
+              zipfile.is_zipfile(odt)
+              and "content.xml" in zipfile.ZipFile(odt).namelist())
+        with zipfile.ZipFile(odt) as package:
+            body = package.read("content.xml").decode("utf-8", "ignore")
+        check("...carrying the document's actual text",
+              "Reichweite" in body and "Loewenstein" in body)
+        # Qt writes ODF headings as STYLED PARAGRAPHS, not as `text:h`
+        # elements: the export looks right but carries no heading structure,
+        # so a word processor's navigator and automatic contents will not see
+        # them. Checking for `text:h` would be testing something Qt does not
+        # do. What can be asserted is that the styling and the lists survive,
+        # rather than the whole document arriving as flat text.
+        check("...with its styling and lists preserved (%d styles, %d lists)"
+              % (body.count("style:style"), body.count("<text:list ")),
+              body.count("style:style") > 10 and body.count("<text:list ") > 3)
 
         window._dirty = False
         dialog.close()

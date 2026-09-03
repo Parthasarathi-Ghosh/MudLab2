@@ -26,14 +26,38 @@ import re
 from PySide6.QtCore import QUrl, Qt
 from PySide6.QtGui import (
     QColor, QDesktopServices, QTextBlockFormat, QTextCursor, QTextDocument,
+    QTextDocumentWriter,
 )
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from mudlab.qt_utils import clear_auto_default
 from mudlab.ui.ui_manual import Ui_ManualDialog
 
+# Printing lives in a separate Qt module. It is imported at module scope so the
+# frozen build's dependency analysis sees it - nothing else in the program uses
+# it, and it was absent from the v1.0.3 bundle for exactly that reason. Guarded
+# all the same: a missing module must disable one button, not break the manual.
+try:
+    from PySide6.QtPrintSupport import QPrintDialog, QPrinter
+    PRINTING_AVAILABLE = True
+except ImportError:                                   # pragma: no cover
+    QPrintDialog = QPrinter = None
+    PRINTING_AVAILABLE = False
+
+#: What a page can be saved as. ODF is the editable one - Word and LibreOffice
+#: both open it - and every format here is written by Qt itself, so exporting
+#: needs nothing installed beyond what the program already ships.
+EXPORT_FORMATS = (
+    ("Open Document Text (*.odt)", ".odt", b"ODF"),
+    ("Web page (*.html)", ".html", b"HTML"),
+    ("Markdown (*.md)", ".md", b"markdown"),
+    ("Plain text (*.txt)", ".txt", b"plaintext"),
+)
+
 #: The document Help -> Manual opens on.
 HOME_DOCUMENT = "getting-started.md"
+#: The document Help -> How MudLab Works opens on.
+SCIENCE_DOCUMENT = "how-it-works.md"
 
 
 def docs_dir() -> str:
@@ -86,6 +110,13 @@ class ManualDialog(QDialog):
 
         self.ui.btn_back.clicked.connect(self._go_back)
         self.ui.btn_contents.clicked.connect(lambda: self.show_document(HOME_DOCUMENT))
+        self.ui.btn_print.clicked.connect(self._print)
+        self.ui.btn_print.setEnabled(PRINTING_AVAILABLE)
+        if not PRINTING_AVAILABLE:
+            self.ui.btn_print.setToolTip(
+                "Printing is unavailable in this build. Export the page "
+                "instead and print it from another program.")
+        self.ui.btn_export.clicked.connect(self._export)
         self.ui.btn_close.clicked.connect(self.close)
         self.ui.browser.backwardAvailable.connect(self.ui.btn_back.setEnabled)
         self.ui.btn_back.setEnabled(False)
@@ -227,6 +258,75 @@ class ManualDialog(QDialog):
                 bar.setValue(bar.value() + rect.top())
                 return
             block = block.next()
+
+    # ------------------------------------------------------------------
+    # Taking the page away with you
+    # ------------------------------------------------------------------
+    def _print(self) -> None:
+        """Print the page that is open.
+
+        The print dialog's own "Print to PDF" is the PDF route, so there is no
+        separate PDF export: one dialog, and the platform decides what it can
+        offer.
+        """
+        if not PRINTING_AVAILABLE:
+            return
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setDocName(self._document_title())
+        dialog = QPrintDialog(printer, self)
+        dialog.setWindowTitle("Print %s" % self._document_title())
+        if dialog.exec():
+            self.ui.browser.document().print_(printer)
+
+    def _export(self) -> None:
+        """Save the page as a document.
+
+        Written by Qt's own document writer, so ODT, HTML, Markdown and plain
+        text all work with nothing installed beyond the program itself. ODT is
+        offered first because it is the one that opens in a word processor and
+        can be edited.
+        """
+        filters = ";;".join(label for label, _ext, _fmt in EXPORT_FORMATS)
+        suggested = os.path.join(
+            os.path.expanduser("~"),
+            "%s%s" % (self._document_stem(), EXPORT_FORMATS[0][1]))
+        path, chosen = QFileDialog.getSaveFileName(
+            self, "Export %s" % self._document_title(), suggested, filters)
+        if not path:
+            return
+
+        fmt = EXPORT_FORMATS[0][2]
+        extension = EXPORT_FORMATS[0][1]
+        for label, ext, code in EXPORT_FORMATS:
+            if label == chosen:
+                fmt, extension = code, ext
+                break
+        if not os.path.splitext(path)[1]:
+            path += extension
+
+        writer = QTextDocumentWriter(path)
+        writer.setFormat(fmt)
+        if not writer.write(self.ui.browser.document()):
+            QMessageBox.warning(
+                self, "Export",
+                "The document could not be written to:\n\n%s" % path)
+            return
+        QMessageBox.information(
+            self, "Export", "Saved:\n\n%s" % path)
+
+    def _document_stem(self) -> str:
+        name = self.ui.browser.source().fileName() or HOME_DOCUMENT
+        return os.path.splitext(name)[0]
+
+    def _document_title(self) -> str:
+        """The page's own first heading, which is a better name than its
+        filename for a print header or a save dialog."""
+        block = self.ui.browser.document().begin()
+        while block.isValid():
+            if block.blockFormat().headingLevel() == 1 and block.text().strip():
+                return block.text().strip()
+            block = block.next()
+        return self._document_stem()
 
     def _go_back(self) -> None:
         self.ui.browser.backward()

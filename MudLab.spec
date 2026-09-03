@@ -79,7 +79,12 @@ a = Analysis(
         ("docs/user-manual.md", "mudlab/docs"),
         ("docs/how-it-works.md", "mudlab/docs"),
     ],
-    hiddenimports=[],
+    # Printing the in-app manual is the ONLY use of QtPrintSupport, and a Qt
+    # module nothing else touches is easy to leave out: it was absent from the
+    # v1.0.3 bundle. manual_dialog imports it at module scope so the analysis
+    # can see it; naming it here as well means a refactor that moves that
+    # import cannot silently drop printing from the release.
+    hiddenimports=["PySide6.QtPrintSupport"],
     hookspath=[],
     runtime_hooks=[],
     excludes=["tkinter"],
