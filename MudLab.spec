@@ -77,6 +77,7 @@ a = Analysis(
         ("src/mudlab/data", "mudlab/data"),
         ("docs/getting-started.md", "mudlab/docs"),
         ("docs/user-manual.md", "mudlab/docs"),
+        ("docs/how-it-works.md", "mudlab/docs"),
     ],
     hiddenimports=[],
     hookspath=[],

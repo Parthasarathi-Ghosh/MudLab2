@@ -2,6 +2,9 @@
 
 Guide to using the MudLab2 GUI. This manual grows as features are added.
 
+For the science behind what the program computes — what a clay layer is, how stacking is modelled, what the instrument corrections assume — see
+[How MudLab works](how-it-works.md).
+
 ## Contents
 
 - [Opening projects (including PyXRD files)](#opening-projects-including-pyxrd-files)

@@ -4,7 +4,8 @@ This is the short path through MudLab — from a raw diffractogram to a saved,
 quantified result. It covers the essential steps only, in the order you will
 actually do them.
 
-For the detail behind any step, see the [user manual](user-manual.md).
+For the detail behind any step, see the [user manual](user-manual.md); for
+the science behind what it computes, [How MudLab works](how-it-works.md).
 
 **Contents**
 

@@ -17,7 +17,7 @@ resumes without re-deriving anything.
 | # | Document | File | Audience | Status |
 |---|---|---|---|---|
 | 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft done, awaiting review** |
-| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | Slow track |
+| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batch A written**; B–F queued |
 | 3 | **Technical reference** — for bug-fixing and future development | `docs/technical-reference.md` | Whoever maintains this next (including us, later) | Slow track |
 
 ### How these relate to what already exists
@@ -146,7 +146,7 @@ topical.
 
 | # | Batch | Entries | Status |
 |---|---|---|---|
-| A | **The material** | What a clay layer is (1:1, 2:1, 2:1:1); di- and trioctahedral sheets; the interlayer and its occupants; layer charge and why it separates smectite from vermiculite from illite; basal spacing; why a one-dimensional profile along the c\* direction is enough | not started |
+| A | **The material** | What a clay layer is (1:1, 2:1, 2:1:1); di- and trioctahedral sheets; the interlayer and its occupants; layer charge and why it separates smectite from vermiculite from illite; basal spacing; why a one-dimensional profile along the c\* direction is enough; treatment response | **DONE 2026-08-30** |
 | B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (Cromer-Mann); thermal motion (Debye-Waller); the structure factor of a layer; why hydroxyl scatters differently from oxygen; site occupancy and substitution | not started |
 | C | **Stacking** — the heart of the app | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | not started |
 | D | **From a layer to a pattern** — the instrument | Lorentz and polarisation factors; preferred orientation and the sigma-star parameter; Soller slits; fixed against automatic divergence slits and what converting between them assumes; sample length and beam overflow; absorption; the emission spectrum and why the wavelength decides every d-spacing | not started |
@@ -219,13 +219,18 @@ Next actions, in order:
 2. **Screenshots for #1** — still deliberately none. The UI moved again this
    week (Import CIF…, Create treatment states…), which is the argument for
    waiting.
-3. **Write #2 batch by batch** — the batch plan is above. Start with **A (the
-   material)**, and bundle `how-it-works.md` in `MudLab.spec` plus link it from
-   the manual when that first batch lands, or `verify_manual.py` will fail.
+3. **Write #2 batch by batch** — the batch plan is above. **Batch A is
+   written**; `how-it-works.md` is bundled in `MudLab.spec` and linked from
+   both the manual and the walkthrough, so the plumbing is done and later
+   batches only add sections. **Next: batch B, from atoms to a layer.**
 4. #3, `technical-reference.md`, after that.
 
 **2026-08-30, later:** deferred the review pass and the screenshots at the
-user's request; planned #2 instead (see the batch plan above). Nothing of #2 is
-written yet.
+user's request; planned #2 as six batches (above) and wrote **batch A**. It
+covers the layer types, the two kinds of sheet, di/trioctahedral occupancy, the
+interlayer, layer charge (and why it is invisible to diffraction, which is why
+the program asks rather than guesses), basal spacing with Bragg, why a
+one-dimensional profile along c* loses nothing that basal analysis uses, and
+the treatment sequence with the limits of its assumptions.
 
 **Not started:** #2, #3.
