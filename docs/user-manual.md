@@ -7,6 +7,7 @@ For the science behind what the program computes — what a clay layer is, how s
 
 ## Contents
 
+- [Reading the documentation in MudLab](#reading-the-documentation-in-mudlab)
 - [Opening projects (including PyXRD files)](#opening-projects-including-pyxrd-files)
 - [Adding and removing phases](#adding-and-removing-phases)
 - [Phase inheritance ("based on")](#phase-inheritance-based-on)
@@ -22,6 +23,38 @@ For the science behind what the program computes — what a clay layer is, how s
 - [Peaks, peak detection, and mineral matching](#peaks-peak-detection-and-mineral-matching)
 - [The goniometer emission spectrum](#the-goniometer-emission-spectrum)
 - [Viewing the plot](#viewing-the-plot)
+
+---
+
+## Reading the documentation in MudLab
+
+All of this is available inside the program, offline.
+
+- **Help → Manual** (`F1`) opens the walkthrough.
+- **Help → How MudLab Works** (`Shift+F1`) opens the science: what a clay layer
+  is, how stacking is modelled, what the instrument corrections assume, and
+  what a fit does and does not prove.
+
+Both open the same viewer. Links work, **Back** retraces them, and **Contents**
+returns to the top of the walkthrough.
+
+### Printing and exporting a page
+
+**Print…** opens your system print dialog. If it offers *Print to PDF* — most
+do — that is also how you get a PDF.
+
+**Export…** saves the page you are reading:
+
+| Format | Good for |
+|---|---|
+| **Open Document Text** (`.odt`) | editing in LibreOffice or Word |
+| Web page (`.html`) | sharing or a browser |
+| Markdown (`.md`) | plain-text tools and version control |
+| Plain text (`.txt`) | quoting into an email or a report |
+
+The Open Document export carries **real headings**, so a word processor's
+navigator will list them and *Insert → Table of Contents* will build one.
+Nothing needs to be installed for any of these — MudLab writes them itself.
 
 ---
 

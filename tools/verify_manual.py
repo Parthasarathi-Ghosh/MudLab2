@@ -81,6 +81,10 @@ def main():  # noqa: C901 - a checklist
     warned = []
     real_warning = QMessageBox.warning
     QMessageBox.warning = staticmethod(lambda *a, **k: warned.append(a[2:3]))
+    # Export reports success with an information box. An unstubbed modal does
+    # not fail the harness - it HANGS it, waiting for a click that never comes.
+    real_information = QMessageBox.information
+    QMessageBox.information = staticmethod(lambda *a, **k: None)
     try:
         from mudlab.main_window import MainWindow
 
@@ -338,28 +342,33 @@ def main():  # noqa: C901 - a checklist
         check("the frozen build is told to ship QtPrintSupport",
               "PySide6.QtPrintSupport" in spec)
 
-        # Export must produce real files, not empty ones. ODF is the format
-        # that matters - it is the editable one - and it is a ZIP package, so
-        # a truncated write is easy to detect.
+        # Export must produce real files, and must go through the DIALOG so
+        # this tests what ships: ODT is written by the program's own writer
+        # (see verify_odt_export.py for its structure) and the rest by Qt, and
+        # a check that called the writers directly would miss a mis-wired
+        # dialog entirely.
         import tempfile
         import zipfile
 
-        from PySide6.QtGui import QTextDocumentWriter
+        from PySide6.QtWidgets import QFileDialog
 
         dialog.show_document(SCIENCE_DOCUMENT)
         app.processEvents()
         scratch = tempfile.mkdtemp(prefix="manual-export-")
+        real_save = QFileDialog.getSaveFileName
         written = []
-        for label, extension, fmt in EXPORT_FORMATS:
-            target = os.path.join(scratch, "page" + extension)
-            writer = QTextDocumentWriter(target)
-            writer.setFormat(fmt)
-            ok = writer.write(dialog.ui.browser.document())
-            size = os.path.getsize(target) if os.path.isfile(target) else 0
-            written.append((extension, ok, size))
-        check("every offered export format writes a non-empty file %s"
-              % [(e, s) for e, _o, s in written],
-              all(ok and size > 500 for _e, ok, size in written))
+        try:
+            for label, extension, _fmt in EXPORT_FORMATS:
+                target = os.path.join(scratch, "page" + extension)
+                QFileDialog.getSaveFileName = staticmethod(
+                    lambda *a, _t=target, _l=label, **k: (_t, _l))
+                dialog._export()
+                size = os.path.getsize(target) if os.path.isfile(target) else 0
+                written.append((extension, size))
+        finally:
+            QFileDialog.getSaveFileName = real_save
+        check("every offered export format writes a non-empty file %s" % written,
+              all(size > 500 for _e, size in written))
 
         odt = os.path.join(scratch, "page.odt")
         check("...and the ODT is a real Open Document package",
@@ -369,15 +378,10 @@ def main():  # noqa: C901 - a checklist
             body = package.read("content.xml").decode("utf-8", "ignore")
         check("...carrying the document's actual text",
               "Reichweite" in body and "Loewenstein" in body)
-        # Qt writes ODF headings as STYLED PARAGRAPHS, not as `text:h`
-        # elements: the export looks right but carries no heading structure,
-        # so a word processor's navigator and automatic contents will not see
-        # them. Checking for `text:h` would be testing something Qt does not
-        # do. What can be asserted is that the styling and the lists survive,
-        # rather than the whole document arriving as flat text.
-        check("...with its styling and lists preserved (%d styles, %d lists)"
-              % (body.count("style:style"), body.count("<text:list ")),
-              body.count("style:style") > 10 and body.count("<text:list ") > 3)
+        # The point of writing the ODT ourselves: Qt's export produces none of
+        # these, so the file navigates nowhere and builds an empty contents.
+        check("...and REAL headings, which Qt's own ODF export does not give "
+              "(%d)" % body.count("<text:h "), body.count("<text:h ") > 30)
 
         window._dirty = False
         dialog.close()
@@ -385,6 +389,7 @@ def main():  # noqa: C901 - a checklist
     finally:
         QMessageBox.question = real_question
         QMessageBox.warning = real_warning
+        QMessageBox.information = real_information
 
     # --------------------------------------- 5. the frozen build ships them
     #

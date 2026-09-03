@@ -44,11 +44,11 @@ except ImportError:                                   # pragma: no cover
     QPrintDialog = QPrinter = None
     PRINTING_AVAILABLE = False
 
-#: What a page can be saved as. ODF is the editable one - Word and LibreOffice
-#: both open it - and every format here is written by Qt itself, so exporting
-#: needs nothing installed beyond what the program already ships.
+#: What a page can be saved as. Nothing here needs anything installed: the ODT
+#: is written by this program (`file_parsers.odt_export`) and the rest by Qt.
+#: A format of None marks the one written here rather than by Qt.
 EXPORT_FORMATS = (
-    ("Open Document Text (*.odt)", ".odt", b"ODF"),
+    ("Open Document Text (*.odt)", ".odt", None),
     ("Web page (*.html)", ".html", b"HTML"),
     ("Markdown (*.md)", ".md", b"markdown"),
     ("Plain text (*.txt)", ".txt", b"plaintext"),
@@ -304,15 +304,39 @@ class ManualDialog(QDialog):
         if not os.path.splitext(path)[1]:
             path += extension
 
-        writer = QTextDocumentWriter(path)
-        writer.setFormat(fmt)
-        if not writer.write(self.ui.browser.document()):
+        try:
+            if fmt is None:
+                self._write_odt(path)
+            else:
+                writer = QTextDocumentWriter(path)
+                writer.setFormat(fmt)
+                if not writer.write(self.ui.browser.document()):
+                    raise OSError("the document writer refused the file")
+        except (OSError, ValueError) as error:
             QMessageBox.warning(
                 self, "Export",
-                "The document could not be written to:\n\n%s" % path)
+                "The document could not be written to:\n\n%s\n\n%s"
+                % (path, error))
             return
         QMessageBox.information(
             self, "Export", "Saved:\n\n%s" % path)
+
+    def _write_odt(self, path: str) -> None:
+        """Write the page as a STRUCTURED Open Document.
+
+        From the Markdown SOURCE rather than the rendered document, because the
+        structure lives in the source and Qt's own ODF export throws it away:
+        it writes every heading as a paragraph in a heading-like style, so the
+        file looks right, navigates nowhere, and generates an empty table of
+        contents. Reading the source back gives real headings with outline
+        levels, real lists and real tables.
+        """
+        from mudlab.file_parsers.odt_export import write_odt
+
+        source = os.path.join(
+            self._docs, self.ui.browser.source().fileName() or HOME_DOCUMENT)
+        with open(source, "r", encoding="utf-8") as handle:
+            write_odt(handle.read(), path)
 
     def _document_stem(self) -> str:
         name = self.ui.browser.source().fileName() or HOME_DOCUMENT
