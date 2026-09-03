@@ -38,7 +38,15 @@ planned but not yet written.
   - [How a stack becomes a pattern](#how-a-stack-becomes-a-pattern)
   - [Crystallite thickness](#crystallite-thickness)
   - [Putting phases on a common scale](#putting-phases-on-a-common-scale)
-- *From a layer to a pattern (to come)*
+- [From a layer to a pattern](#from-a-layer-to-a-pattern)
+  - [The Lorentz factor](#the-lorentz-factor)
+  - [Polarisation, and the monochromator](#polarisation-and-the-monochromator)
+  - [Preferred orientation](#preferred-orientation)
+  - [Soller slits](#soller-slits)
+  - [Divergence slits: fixed or automatic](#divergence-slits-fixed-or-automatic)
+  - [Beam overflow](#beam-overflow)
+  - [Absorption and a specimen that is not infinitely thick](#absorption-and-a-specimen-that-is-not-infinitely-thick)
+  - [The emission spectrum](#the-emission-spectrum)
 - *From a pattern to an answer (to come)*
 - *Identification and chemistry (to come)*
 
@@ -603,5 +611,162 @@ be quoted without saying what thickness was assumed.
 
 ---
 
-*Batches on instrument corrections, fitting, and identification are planned;
-see the documentation plan in the repository.*
+## From a layer to a pattern
+
+Everything so far describes the sample. What a diffractometer records is the
+sample seen through an instrument, and the instrument changes the *intensities*
+— not the positions — in ways that depend on angle. Getting these corrections
+right is what lets one number, the phase fraction, mean the same thing at 5°
+and at 40°.
+
+None of them is optional. Left out, they do not add noise; they tilt the whole
+pattern, and a fit will compensate by adjusting whatever it is allowed to
+adjust — usually the structure, which is the one thing that should not absorb
+an instrument error.
+
+### The Lorentz factor
+
+The Lorentz factor accounts for the fact that a reflection does not pass
+through the diffracting condition at the same rate at every angle. A crystallite
+sweeping through its Bragg angle spends longer in the diffracting position at
+low angles than at high ones, so low-angle reflections collect more counts for
+reasons that have nothing to do with the structure.
+
+In this geometry the correction goes as the reciprocal of the sine of the Bragg
+angle, which makes it large at low angle — exactly where the basal reflections
+that matter for clays sit.
+
+### Polarisation, and the monochromator
+
+X-rays from a tube are unpolarised, but scattering polarises them, and the
+scattered intensity depends on the angle through which the beam has been turned.
+The standard factor varies as one plus the square of the cosine of the
+scattering angle.
+
+A **monochromator** in the diffracted beam changes this. It is itself a crystal,
+so it scatters — and therefore polarises — a second time, and its own Bragg
+angle enters the correction. MudLab takes that angle as a goniometer setting;
+leaving it at zero describes an instrument with no monochromator.
+
+The two effects are conventionally combined into a single **Lorentz-polarisation
+factor**, which is how they are applied here.
+
+### Preferred orientation
+
+A clay mount is *made* to be non-random. Platy crystals are settled so that
+their layers lie parallel to the sample surface, because that is what makes the
+basal series strong enough to work with. The preparation is deliberately
+textured, and the calculation has to say how well.
+
+The measure is the spread of layer normals about the sample normal — a standard
+deviation, usually written σ\*, in degrees. A small value describes a well
+oriented mount; a large one describes something closer to a random powder. It
+enters through a term derived by Reynolds that combines this spread with the
+instrument's axial divergence, and its effect is strongly angle-dependent: poor
+orientation costs more at low angle than at high.
+
+It is worth being clear about what this parameter is not. It is a property of
+**your mount**, not of the mineral. Two aliquots of the same clay smeared and
+settled differently have different values. That makes it a legitimate thing to
+refine — but also a parameter that will happily absorb the effect of an
+instrument correction you have got wrong, which is a reason to set the
+instrument up honestly before refining it.
+
+### Soller slits
+
+Soller slits are stacks of thin parallel plates that limit how far the beam can
+diverge *along* the goniometer axis — the direction out of the diffraction
+plane. Without them, axial divergence broadens and skews low-angle reflections
+noticeably.
+
+MudLab takes the acceptance angle of the incident-side and diffracted-side
+slits, and they enter the same term as the preferred orientation, because the
+two effects are geometrically entangled: both describe how much of the sample's
+angular spread the detector actually sees. Setting them to zero describes an
+instrument without them, which is rarely what anyone has.
+
+### Divergence slits: fixed or automatic
+
+The divergence slit controls how wide the incident beam spreads *within* the
+diffraction plane, and it comes in two kinds. The distinction matters more than
+any other instrument setting.
+
+A **fixed** slit has a constant opening. The beam therefore illuminates a
+*longer* strip of sample at low angles and a shorter one at high angles, so the
+irradiated area shrinks as the scan proceeds.
+
+An **automatic** (or variable) slit opens as the angle increases, precisely so
+that the irradiated area stays constant. The two produce visibly different
+patterns from the same sample: relative to fixed slits, automatic slits
+multiply the intensity by the sine of the Bragg angle, which suppresses the low
+angles where the clay reflections are.
+
+MudLab can convert a measured pattern between the two conventions. That is
+useful — reference intensities and published data are not always collected the
+same way — but the conversion is exactly the multiplication above, applied to
+the data. It carries two consequences worth stating:
+
+- it assumes the pattern really was collected in the mode you say it was;
+- it leaves no record in the data itself, so converting twice applies the
+  factor twice, and nothing in the file will tell you.
+
+### Beam overflow
+
+With a fixed slit, the irradiated strip is longest at the lowest angles — and at
+some point it becomes longer than the sample. Beyond that point part of the
+beam falls off the end of the holder and is simply lost, so the measured
+intensity is too low, progressively, towards low angle.
+
+Whether this happens depends on the slit opening, the goniometer radius and the
+length of the sample, and MudLab uses all three. Below the angle at which the
+beam fits, the correction scales with the sine of the Bragg angle; above it,
+nothing is lost and the correction is one.
+
+This is a common and under-appreciated source of error in clay work, because it
+attacks exactly the low-angle region the analysis depends on. A 001 reflection
+measured with an overflowing beam is too weak, and a fit told nothing about it
+will explain the deficit with structure.
+
+### Absorption and a specimen that is not infinitely thick
+
+The standard treatment of a flat specimen assumes it is thick enough that the
+beam is completely absorbed within it. A clay film on a glass slide often is
+not.
+
+For a thin specimen the beam penetrates further at high angles relative to the
+path available, so a smaller fraction of it is used, and intensity falls away
+towards high angle. MudLab models this with the sample's mass absorption
+coefficient and its surface density — how much material per unit area is
+actually on the slide — and applies a correction that tends to one for a thick
+specimen and bites increasingly as the specimen gets thinner.
+
+The reason to know your surface density is that this correction and crystallite
+thickness both shape the high-angle envelope. If the absorption correction is
+absent or wrong, refinement will fit the shortfall with crystallite size, and
+report a thickness that is a property of your slide rather than of your clay.
+
+### The emission spectrum
+
+A laboratory X-ray tube does not emit one wavelength. A copper tube emits a
+strong Kα1 line, a Kα2 line at about half its intensity and slightly longer
+wavelength, and, unless a filter or monochromator removes it, some Kβ.
+
+Each line produces its own complete diffraction pattern, displaced in angle
+because the Bragg angle depends on wavelength, and what the detector records is
+their sum. At low angles the copies overlap almost exactly; at high angles the
+Kα1/Kα2 pair separates visibly into a doublet.
+
+MudLab models the tube as a **list of wavelengths with relative weights**, and
+computes the pattern as the weighted sum of the pattern each would produce. A
+single line with weight one describes an ideally monochromatic source, which is
+a reasonable simplification at low angles and a poor one further out.
+
+The dominant wavelength has a second role that reaches well beyond intensity: it
+converts every angle to a d-spacing. Get it wrong and the *positions* are wrong,
+not merely the intensities — which is the one instrument error that does not
+merely distort a fit but changes which mineral you appear to have.
+
+---
+
+*Batches on fitting and on identification are planned; see the documentation
+plan in the repository.*
