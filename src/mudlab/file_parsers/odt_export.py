@@ -91,6 +91,12 @@ _STYLES = """<?xml version="1.0" encoding="UTF-8"?>
    <style:paragraph-properties fo:margin-top="0.2cm" fo:margin-bottom="0.2cm"
        fo:border-bottom="0.06pt solid #808080"/>
   </style:style>
+  <text:list-style style:name="L_Bullet">
+%s
+  </text:list-style>
+  <text:list-style style:name="L_Number">
+%s
+  </text:list-style>
  </office:styles>
 </office:document-styles>
 """ % (
@@ -102,6 +108,26 @@ _STYLES = """<?xml version="1.0" encoding="UTF-8"?>
         '   <style:text-properties fo:font-size="%dpt"/>\n'
         '  </style:style>' % (n, n, n, size)
         for n, size in ((1, 20), (2, 16), (3, 13), (4, 12), (5, 11), (6, 11))
+    ),
+    # A list carries no bullet or number of its own: the LIST STYLE supplies
+    # them, per level. Without one, a reader falls back to its default and a
+    # numbered list comes out bulleted - the ordered/unordered distinction, and
+    # the indent that shows nesting, both vanish.
+    "\n".join(
+        '   <text:list-level-style-bullet text:level="%d" text:bullet-char="%s">\n'
+        '    <style:list-level-properties text:space-before="%.1fcm"'
+        ' text:min-label-width="0.5cm"/>\n'
+        "   </text:list-level-style-bullet>" % (level, char, 0.4 * level)
+        for level, char in ((1, "•"), (2, "◦"), (3, "▪"),
+                            (4, "•"), (5, "◦"))
+    ),
+    "\n".join(
+        '   <text:list-level-style-number text:level="%d" style:num-format="1"'
+        ' style:num-suffix=".">\n'
+        '    <style:list-level-properties text:space-before="%.1fcm"'
+        ' text:min-label-width="0.6cm"/>\n'
+        "   </text:list-level-style-number>" % (level, 0.4 * level)
+        for level in (1, 2, 3, 4, 5)
     ),
 )
 
@@ -192,19 +218,44 @@ def markdown_to_content(text: str) -> str:
     body = []
     lines = text.splitlines()
     index = 0
-    list_open = None          # "bullet" | "number" | None
     paragraph: list = []
+
+    # Open list levels, innermost last, as (indent, kind). A nested list in ODF
+    # lives INSIDE its parent's list item, so the parent item cannot be closed
+    # until the nested list is - which is why the item's closing tag is
+    # deferred rather than written with its paragraph.
+    levels: list = []
+    item_open = False
 
     def flush(style="Standard"):
         if paragraph:
             body.append(_paragraph(" ".join(paragraph).strip(), style))
             paragraph.clear()
 
+    def open_list(kind, indent):
+        nonlocal item_open
+        body.append('<text:list text:style-name="%s">'
+                    % ("L_Number" if kind == "number" else "L_Bullet"))
+        levels.append((indent, kind))
+        item_open = False
+
+    def close_item():
+        nonlocal item_open
+        if item_open:
+            body.append("</text:list-item>")
+            item_open = False
+
     def close_list():
-        nonlocal list_open
-        if list_open:
+        """Close every open level, innermost first."""
+        nonlocal item_open
+        while levels:
+            close_item()
             body.append("</text:list>")
-            list_open = None
+            levels.pop()
+            if levels:
+                # this list was nested inside a parent item; that item ends here
+                item_open = True
+                close_item()
 
     while index < len(lines):
         raw = lines[index]
@@ -258,10 +309,29 @@ def markdown_to_content(text: str) -> str:
         if item:
             flush()
             kind = "bullet" if item.group(1) in ("-", "*") else "number"
-            if list_open != kind:
-                close_list()
-                body.append("<text:list>")
-                list_open = kind
+            indent = len(raw) - len(raw.lstrip())
+
+            if not levels:
+                open_list(kind, indent)
+            elif indent > levels[-1][0]:
+                # deeper: the new list belongs inside the item just written,
+                # so that item stays open
+                open_list(kind, indent)
+            else:
+                # same level or shallower: unwind to the matching level
+                while len(levels) > 1 and indent < levels[-1][0]:
+                    close_item()
+                    body.append("</text:list>")
+                    levels.pop()
+                    item_open = True        # the parent item resumes...
+                    close_item()            # ...and ends here
+                close_item()
+                if levels[-1][1] != kind:
+                    # a bullet list following a numbered one at the same depth
+                    body.append("</text:list>")
+                    levels.pop()
+                    open_list(kind, indent)
+
             content = [item.group(2).strip()]
             index += 1
             while (index < len(lines) and lines[index].strip()
@@ -269,8 +339,10 @@ def markdown_to_content(text: str) -> str:
                    and lines[index].startswith((" ", "\t"))):
                 content.append(lines[index].strip())
                 index += 1
-            body.append("<text:list-item>%s</text:list-item>"
-                        % _paragraph(" ".join(content)))
+            # Left OPEN on purpose: a deeper item that follows nests inside
+            # this one, and only then can it be closed.
+            body.append("<text:list-item>%s" % _paragraph(" ".join(content)))
+            item_open = True
             continue
 
         close_list()

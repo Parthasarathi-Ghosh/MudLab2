@@ -103,6 +103,10 @@ class ManualDialog(QDialog):
         clear_auto_default(self)
 
         self._docs = docs_dir()
+        #: The document actually on screen, or empty when the page is an
+        #: error notice. Print and Export refuse in that state rather than
+        #: silently acting on a different document.
+        self._loaded = ""
         self.ui.browser.setSearchPaths([self._docs])
         self.ui.browser.setOpenLinks(False)
         self.ui.browser.setOpenExternalLinks(False)
@@ -147,12 +151,22 @@ class ManualDialog(QDialog):
                 "The documentation file could not be found:\n\n%s\n\n"
                 "It is normally installed alongside the program." % path,
             )
+            self._loaded = ""
+            self._sync_actions()
             return False
         self.ui.browser.setSource(
             QUrl(name), QTextDocument.ResourceType.MarkdownResource
         )
+        self._loaded = name
+        self._sync_actions()
         self._after_load(anchor)
         return True
+
+    def _sync_actions(self) -> None:
+        """Print and Export apply to a page; with none they are meaningless."""
+        available = bool(self._loaded)
+        self.ui.btn_print.setEnabled(available and PRINTING_AVAILABLE)
+        self.ui.btn_export.setEnabled(available)
 
     def _after_load(self, anchor: str = "") -> None:
         """Style and scroll a freshly loaded document."""
@@ -333,8 +347,7 @@ class ManualDialog(QDialog):
         """
         from mudlab.file_parsers.odt_export import write_odt
 
-        source = os.path.join(
-            self._docs, self.ui.browser.source().fileName() or HOME_DOCUMENT)
+        source = os.path.join(self._docs, self._loaded)
         with open(source, "r", encoding="utf-8") as handle:
             write_odt(handle.read(), path)
 
@@ -354,6 +367,10 @@ class ManualDialog(QDialog):
 
     def _go_back(self) -> None:
         self.ui.browser.backward()
+        # backward() bypasses show_document, so the recorded page must be
+        # taken from wherever the browser actually ended up.
+        self._loaded = self.ui.browser.source().fileName() or self._loaded
+        self._sync_actions()
         self._after_load()
 
     # ------------------------------------------------------------------

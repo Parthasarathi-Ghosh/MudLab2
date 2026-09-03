@@ -126,9 +126,36 @@ def main():  # noqa: C901 - a checklist
           "list", 'style:default-outline-level="1"' in styles)
 
     check("bullet and numbered lists become real lists (%d lists, %d items)"
-          % (content.count("<text:list>"), content.count("<text:list-item>")),
-          content.count("<text:list>") == 2
+          % (content.count("<text:list "), content.count("<text:list-item>")),
+          content.count("<text:list ") == 2
           and content.count("<text:list-item>") == 4)
+    # A list carries no bullet or number itself - the style supplies them - so
+    # without a style a numbered list renders as bullets and the distinction
+    # is silently lost.
+    check("...and each names a list style, so numbering survives",
+          'text:style-name="L_Bullet"' in content
+          and 'text:style-name="L_Number"' in content)
+    check("...with those styles actually defined",
+          'style:name="L_Bullet"' in styles
+          and "text:list-level-style-number" in styles)
+
+    # ODF nests a list INSIDE its parent's item. Emitting siblings instead
+    # keeps every word and loses the shape, which is the failure this whole
+    # module exists to avoid.
+    nested = markdown_to_content("- top\n  - inner\n    - deeper\n- next\n")
+    check("a nested list is nested, not flattened (%d lists)"
+          % nested.count("<text:list "), nested.count("<text:list ") == 3)
+    check("...inside its parent's item, as the format requires",
+          "</text:p><text:list " in nested)
+    check("...and every tag is balanced",
+          nested.count("<text:list ") == nested.count("</text:list>")
+          and nested.count("<text:list-item>") == nested.count("</text:list-item>"))
+    try:
+        minidom.parseString(nested.encode("utf-8"))
+        nested_ok = True
+    except Exception:  # noqa: BLE001
+        nested_ok = False
+    check("...leaving well-formed XML", nested_ok)
 
     check("the table becomes a real table",
           content.count("<table:table ") == 1

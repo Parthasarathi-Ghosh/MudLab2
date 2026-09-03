@@ -157,6 +157,21 @@ def main():  # noqa: C901 - a checklist
               opened == ["https://example.invalid/x"]
               and dialog.ui.browser.source().fileName() == HOME_DOCUMENT)
 
+        # Print and Export act on the page SHOWN. With an error notice up
+        # there is no page, and they used to fall back to the walkthrough -
+        # exporting a document the reader was not looking at, silently.
+        warned.clear()
+        dialog.show_document("definitely-not-here.md")
+        app.processEvents()
+        check("with no page loaded, Print and Export are disabled",
+              not dialog.ui.btn_export.isEnabled()
+              and not dialog.ui.btn_print.isEnabled())
+        dialog.show_document(SCIENCE_DOCUMENT)
+        app.processEvents()
+        check("...and they come back when a page loads again",
+              dialog.ui.btn_export.isEnabled())
+        warned.clear()
+
         # A missing document must explain itself, not raise.
         warned.clear()
         found = dialog.show_document("no-such-document.md")
