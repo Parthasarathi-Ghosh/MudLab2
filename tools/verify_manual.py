@@ -227,6 +227,80 @@ def main():  # noqa: C901 - a checklist
         check("block quotes are found and tinted (%d of %d)" % (tinted, quoted),
               quoted > 0 and tinted == quoted)
 
+
+        # ------------------------------- 4b. styling must not break layout
+        #
+        # The quote tinting edits the document, and editing between `setSource`
+        # and the document's FIRST layout leaves that layout permanently wrong:
+        # paragraphs lay out to zero height, so a long page renders as a run of
+        # bare headings with every character still present. `toPlainText` is no
+        # help - the text is all there - so this compares laid-out HEIGHT with
+        # the same document rendered without the styling pass.
+        #
+        # Two conditions are load-bearing and were both got wrong first time,
+        # producing a check that passed with the bug reintroduced: it must use
+        # a FRESH dialog (a reused one has a warm layout and does not collapse)
+        # and it must test EVERY bundled document, because the largest one
+        # happens not to show it.
+        from PySide6.QtGui import QTextDocument
+        from PySide6.QtWidgets import QTextBrowser
+
+        doc_files = [n for n in os.listdir(docs) if n.endswith('.md')]
+        collapsed = []
+        for name in sorted(doc_files):
+            fresh = ManualDialog()
+            fresh.resize(900, 780)
+            fresh.show()
+            app.processEvents()
+            fresh.show_document(name)
+            app.processEvents()
+            styled = fresh.ui.browser.document().documentLayout().documentSize().height()
+
+            plain = QTextBrowser()
+            plain.resize(fresh.ui.browser.width(), fresh.ui.browser.height())
+            plain.setSearchPaths([docs])
+            plain.show()      # an unshown widget never lays out, and reports 0
+            app.processEvents()
+            plain.setSource(QUrl(name), QTextDocument.ResourceType.MarkdownResource)
+            app.processEvents()
+            unstyled = plain.document().documentLayout().documentSize().height()
+
+            if unstyled <= 0 or styled < unstyled * 0.95:
+                collapsed.append("%s (%.0f of %.0f px)" % (name, styled, unstyled))
+            plain.deleteLater()
+            fresh.close()
+            fresh.deleteLater()
+        check("styling never collapses a document's layout%s"
+              % ("" if not collapsed else " -> %s" % collapsed), not collapsed)
+
+        # ...and the anchors must land where the headings are, not all at the
+        # bottom. A collapsed layout still "scrolls" - every position is simply
+        # the maximum - so checking that a click moves the view proves nothing.
+        longest = max(doc_files, key=lambda n: os.path.getsize(os.path.join(docs, n)))
+        dialog.show_document(longest)
+        app.processEvents()
+        with open(os.path.join(docs, longest), encoding="utf-8") as handle:
+            targets = re.findall(r"\]\(#([^)]+)\)", handle.read())
+        bar = dialog.ui.browser.verticalScrollBar()
+        landed = []
+        for target in targets:
+            bar.setValue(0)
+            app.processEvents()
+            dialog._scroll_to(target)
+            app.processEvents()
+            landed.append(bar.value())
+        distinct = len(set(landed))
+        check("contents entries land at distinct positions, not all at the "
+              "bottom (%d distinct of %d)" % (distinct, len(landed)),
+              len(landed) >= 8 and distinct >= len(landed) - 4)
+        # NOT monotonicity: a document may legitimately link backwards, and
+        # this manual does - a cross-reference in the component section points
+        # back at the atom-relations heading. What a collapsed layout destroys
+        # is the SPREAD, since every position becomes the maximum.
+        span = (max(landed) - min(landed)) / max(1, bar.maximum())
+        check("...spread across the document rather than bunched at the end "
+              "(%.0f%% of the scroll range)" % (100 * span), span > 0.6)
+
         window._dirty = False
         dialog.close()
         window.close()

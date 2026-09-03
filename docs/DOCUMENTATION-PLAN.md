@@ -17,7 +17,7 @@ resumes without re-deriving anything.
 | # | Document | File | Audience | Status |
 |---|---|---|---|---|
 | 1 | **Walkthrough** — the essential path through the UI, start to finish | `docs/getting-started.md` | A new user with a scan and no idea where to click | **Draft done, awaiting review** |
-| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batches A and B written**; C–F queued |
+| 2 | **How it works** — the algorithms in prose. No code, no variable names | `docs/how-it-works.md` | A clay scientist who wants to know what the numbers mean | **Batches A, B and C written**; D–F queued |
 | 3 | **Technical reference** — for bug-fixing and future development | `docs/technical-reference.md` | Whoever maintains this next (including us, later) | Slow track |
 
 ### How these relate to what already exists
@@ -148,7 +148,7 @@ topical.
 |---|---|---|---|
 | A | **The material** | What a clay layer is (1:1, 2:1, 2:1:1); di- and trioctahedral sheets; the interlayer and its occupants; layer charge and why it separates smectite from vermiculite from illite; basal spacing; why a one-dimensional profile along the c\* direction is enough; treatment response | **DONE 2026-08-30** |
 | B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (a FIVE-term Gaussian expansion, not the four the old note claims); thermal motion; the layer structure factor; occupancy and substitution; the gallery stretching while the layer stays rigid; spacing disorder as distinct from size broadening | **DONE 2026-08-30** |
-| C | **Stacking** — the heart of the app | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | not started |
+| C | **Stacking** — the heart of the app (**DONE 2026-08-30**) | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | done |
 | D | **From a layer to a pattern** — the instrument | Lorentz and polarisation factors; preferred orientation and the sigma-star parameter; Soller slits; fixed against automatic divergence slits and what converting between them assumes; sample length and beam overflow; absorption; the emission spectrum and why the wavelength decides every d-spacing | not started |
 | E | **From a pattern to an answer** — fitting | The specimen: scale and background; the mixture as a grid of phases against specimens; what Optimize adjusts and what Refine adjusts, and why they are different problems; residuals (Rp, Rwp, goodness of fit) and what each rewards; refinement methods and their assumptions; why a good fit is not proof | not started |
 | F | **Identification and chemistry** | Peak detection — the threshold method and the prominence method; Bragg's law and d-spacings; mineral matching, how candidates are scored, and why the wavelength must be right first; oxide composition from a structural model and what it can and cannot say; pattern corrections (background, smoothing, shift, trimming) and what each costs the data | not started |
@@ -219,11 +219,11 @@ Next actions, in order:
 2. **Screenshots for #1** — still deliberately none. The UI moved again this
    week (Import CIF…, Create treatment states…), which is the argument for
    waiting.
-3. **Write #2 batch by batch** — the batch plan is above. **Batches A and B
+3. **Write #2 batch by batch** — the batch plan is above. **Batches A, B and C
    are written**; `how-it-works.md` is bundled in `MudLab.spec` and linked from
    both the manual and the walkthrough, so the plumbing is done and later
-   batches only add sections. **Next: batch C, stacking** — the app's
-   distinctive science, and the largest of the six.
+   batches only add sections. **Next: batch D, from a layer to a pattern** —
+   the instrument corrections.
 4. #3, `technical-reference.md`, after that.
 
 **2026-08-30, later:** deferred the review pass and the screenshots at the
@@ -241,5 +241,24 @@ the gallery is rescaled while the layer stays rigid whenever the spacing
 changes, and that spacing disorder damps high orders by a different mechanism
 from crystallite size. Reading the code corrected the old note on one point:
 the scattering-factor expansion has **five** Gaussian terms, not four.
+
+**Batch C** covers the stacking model: interstratification and why it is not a
+mixture of two minerals, Reichweite as a claim about the mineral rather than a
+fitting knob, weights and junction probabilities with detailed balance, why a
+higher Reichweite *restricts* the possible compositions, how the matrix power
+carries both geometry and statistics so line broadening falls out of the
+statistics rather than a fitted peak shape, crystallite thickness as a coherent
+scattering domain, and the absolute scale that makes fitted fractions
+comparable between phases.
+
+**A real bug surfaced while checking batch C in the app**, and it had been
+shipping since the viewer was built: the quote-tinting pass edits the document
+between `setSource` and its first layout, which leaves the layout permanently
+collapsed — paragraphs at zero height, so a long page renders as a run of bare
+headings with all its text present, and every anchor past the middle scrolls to
+the bottom. Fixed by forcing the layout before editing. The first regression
+check written for it PASSED with the bug reintroduced (wrong document, reused
+dialog); the one that ships now fails on two documents when the fix is
+removed.
 
 **Not started:** #2, #3.

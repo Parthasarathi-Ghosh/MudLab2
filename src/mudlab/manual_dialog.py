@@ -24,7 +24,9 @@ import os
 import re
 
 from PySide6.QtCore import QUrl, Qt
-from PySide6.QtGui import QColor, QDesktopServices, QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QColor, QDesktopServices, QTextBlockFormat, QTextCursor, QTextDocument,
+)
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from mudlab.qt_utils import clear_auto_default
@@ -118,12 +120,16 @@ class ManualDialog(QDialog):
         self.ui.browser.setSource(
             QUrl(name), QTextDocument.ResourceType.MarkdownResource
         )
+        self._after_load(anchor)
+        return True
+
+    def _after_load(self, anchor: str = "") -> None:
+        """Style and scroll a freshly loaded document."""
         self._style_quotes()
         if anchor:
             self._scroll_to(anchor)
         else:
             self.ui.browser.verticalScrollBar().setValue(0)
-        return True
 
     def _style_quotes(self) -> None:
         """Give block quotes a tinted background.
@@ -134,17 +140,55 @@ class ManualDialog(QDialog):
         alone."""
         document = self.ui.browser.document()
         tint = QColor(self.palette().alternateBase().color())
+
+        # FORCE THE LAYOUT BEFORE TOUCHING THE DOCUMENT. Editing between
+        # `setSource` and the first layout leaves the layout wrong and it never
+        # recovers: paragraphs lay out to zero height, so a long document
+        # renders as a run of bare headings with all of its text present but
+        # unshown, and every anchor past the middle scrolls to the bottom
+        # because its position is read from the collapsed layout. Measured on
+        # this manual: 4354 px against the correct 6005 px. Asking the layout
+        # for its size completes it; `setTextWidth` invalidates it again and
+        # `adjustSize` only finishes part of it, so neither will do.
+        document.documentLayout().documentSize()
+
+        # SURVEY FIRST, THEN EDIT. Editing a document invalidates the block
+        # iterators walking it, so advancing one while applying formats reads
+        # and writes against stale blocks. The damage is not lost text - the
+        # characters all survive - but wrong formats land on the wrong blocks
+        # and paragraphs lay out to zero height, so a long document renders as
+        # a run of bare headings. It went unseen because the symptom only
+        # shows well down a document that is long enough to have one.
+        targets = []
         block = document.begin()
-        cursor = QTextCursor(document)
-        cursor.beginEditBlock()
         while block.isValid():
             fmt = block.blockFormat()
             if fmt.leftMargin() > 0 and not fmt.indent():
-                fmt.setBackground(tint)
-                cursor.setPosition(block.position())
-                cursor.setBlockFormat(fmt)
+                targets.append(block.blockNumber())
             block = block.next()
-        cursor.endEditBlock()
+        if not targets:
+            return
+
+        # MERGE the background in; do not re-apply the whole block format.
+        # Setting a block format REPLACES it, and a quote's paragraphs carry
+        # structure from the Markdown importer that does not survive the round
+        # trip - re-applying what looked like the same format collapsed much of
+        # the document to zero height. The text was all still there, which is
+        # why it took looking at a rendered page to notice.
+        tinted = QTextBlockFormat()
+        tinted.setBackground(tint)
+
+        cursor = QTextCursor(document)
+        cursor.beginEditBlock()
+        try:
+            for number in targets:
+                block = document.findBlockByNumber(number)
+                if not block.isValid():
+                    continue
+                cursor.setPosition(block.position())
+                cursor.mergeBlockFormat(tinted)
+        finally:
+            cursor.endEditBlock()
 
     # ------------------------------------------------------------------
     # Navigation
@@ -186,7 +230,7 @@ class ManualDialog(QDialog):
 
     def _go_back(self) -> None:
         self.ui.browser.backward()
-        self._style_quotes()
+        self._after_load()
 
     # ------------------------------------------------------------------
     def keyPressEvent(self, event) -> None:

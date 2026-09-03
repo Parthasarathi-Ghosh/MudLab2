@@ -30,7 +30,14 @@ planned but not yet written.
   - [Occupancy and substitution](#occupancy-and-substitution)
   - [The gallery stretches; the layer does not](#the-gallery-stretches-the-layer-does-not)
   - [Disorder in the spacing itself](#disorder-in-the-spacing-itself)
-- *Stacking (to come)*
+- [Stacking](#stacking)
+  - [Interstratification](#interstratification)
+  - [Reichweite: how much the stack remembers](#reichweite-how-much-the-stack-remembers)
+  - [Weights and junctions](#weights-and-junctions)
+  - [Why longer memory constrains composition](#why-longer-memory-constrains-composition)
+  - [How a stack becomes a pattern](#how-a-stack-becomes-a-pattern)
+  - [Crystallite thickness](#crystallite-thickness)
+  - [Putting phases on a common scale](#putting-phases-on-a-common-scale)
 - *From a layer to a pattern (to come)*
 - *From a pattern to an answer (to come)*
 - *Identification and chemistry (to come)*
@@ -420,5 +427,181 @@ from the stack being finite. A model can need both.
 
 ---
 
-*Batches on stacking, instrument corrections, fitting, and identification are
-planned; see the documentation plan in the repository.*
+## Stacking
+
+This is what MudLab is for. Calculating the pattern of a well-ordered mineral
+is standard crystallography; calculating the pattern of a stack whose layers
+are of *different kinds*, in an order that is partly random, is not. The
+methods here follow Drits and Tchoubar (1990) and Plançon (2001).
+
+### Interstratification
+
+A clay crystal need not be made of one kind of layer. Illite and smectite
+layers can alternate within a single stack; so can chlorite and smectite,
+kaolinite and smectite. Such a crystal is **interstratified** or *mixed-layer*,
+and it is extremely common — arguably the normal state of a diagenetic clay
+rather than a curiosity.
+
+It cannot be treated as a mixture of two minerals. A physical mixture of illite
+crystals and smectite crystals gives the sum of two patterns, each with its own
+sharp basal series. A crystal in which illite and smectite layers alternate
+gives *neither* series: it gives reflections at positions that belong to
+neither end member, shifted and broadened in ways that depend on the proportion
+of the two layers **and on how they are ordered**.
+
+That last point is what makes the problem interesting, and it is why the model
+needs more than a proportion.
+
+### Reichweite: how much the stack remembers
+
+**Reichweite** — German for "reach" — is the number of preceding layers that
+influence what the next layer will be. It is written R, and it is the single
+most important choice in setting up a mixed-layer model.
+
+- **R0** — no memory. Each layer is drawn independently, with probabilities
+  given by the overall composition. A stack that is 30% smectite has a 30%
+  chance of a smectite layer at every position, regardless of what came before.
+  This is *random* interstratification.
+- **R1** — the previous layer matters. The probability of a smectite layer
+  depends on whether the layer beneath it was illite or smectite. This is where
+  **ordering** enters: a tendency to alternate, or a tendency to cluster.
+- **R2, R3** — the previous two or three layers matter. Longer-range ordering,
+  used for highly ordered mixed-layer minerals.
+
+MudLab supports R0 for one to six components, R1 for two to four, R2 for two or
+three, and R3 for two. The limits are not arbitrary: the size of the model
+grows sharply with both, and beyond these the parameters cannot be determined
+from a basal series.
+
+R is a claim about the mineral, not a fitting knob. Choosing R1 when the
+material is randomly interstratified will let the fit improve — more parameters
+always do — while describing an order that is not there.
+
+### Weights and junctions
+
+Whatever the Reichweite, the stack is described by two things.
+
+**Weights** — what proportion of the layers are of each kind. For a
+two-component phase, one number: the fraction of layer type 1, with type 2
+taking the remainder. For more components, a chain of such fractions.
+
+**Junction probabilities** — given a layer of one kind, how likely is each kind
+to follow it. These form a square table: the entry in row *i*, column *j* is
+the probability that a layer of type *j* follows a layer of type *i*. Each row
+must sum to one, because *something* follows.
+
+For **R0** the table is degenerate: every row is the same, and equal to the
+weights. That is exactly what "no memory" means — the probability of what comes
+next does not depend on what came before.
+
+For **R1** the rows differ, and that difference *is* the ordering. Two numbers
+suffice for a two-component phase: the weight of the first layer type and one
+junction probability. The rest of the table follows from **detailed balance** —
+the requirement that, in a long stack, the number of type-1-followed-by-type-2
+junctions equals the number of type-2-followed-by-type-1 junctions. There is no
+other way for the proportions to stay constant through the crystal.
+
+Detailed balance is why you enter two numbers rather than four, and why a
+mixed-layer model has fewer free parameters than its table has entries.
+
+### Why longer memory constrains composition
+
+A consequence that surprises people: **a higher Reichweite restricts what
+compositions are possible at all.**
+
+With R1 and two components you may have any proportion. With R2, the model is
+only physical when the majority component is at least half the stack; with R3,
+at least two-thirds. MudLab enforces these as bounds on the parameter.
+
+The reason is combinatorial rather than chemical. Longer-range ordering means
+the minority layers must be kept apart — an R3 model describes a stack in which
+a minority layer's influence reaches three layers on — and there is simply not
+enough room to separate them if they are too numerous. Ask for a highly ordered
+stack that is half minority layers and you are asking for an arrangement that
+cannot be built.
+
+If a refinement pushes such a parameter against its bound, that is the model
+telling you the chosen Reichweite does not fit the composition, not that the
+bound is inconvenient.
+
+### How a stack becomes a pattern
+
+The calculation combines three things: what each layer type scatters, how the
+layers are proportioned and ordered, and how thick the crystals are.
+
+Start from a pair of layers. Two layers separated by *n* positions in the stack
+contribute to the diffracted intensity according to
+
+- the **structure factors** of the two layer types, multiplied together (one of
+  them conjugated, because interference between waves is what is being
+  computed);
+- the **phase difference** accumulated over the *n* layer spacings between
+  them;
+- the **probability** that a layer of the second kind actually sits *n*
+  positions after one of the first, which is the junction table raised to the
+  *n*-th power.
+
+Combining the phase factor and the junction table into a single matrix, and
+raising it to successive powers, gives the contribution of every separation at
+once. That matrix power is the heart of the method: **its *n*-th power carries
+both the geometry and the statistics of layers *n* apart.**
+
+The sum over separations is then weighted by how many such pairs exist. In a
+crystal of *m* layers there are *m* − *n* pairs separated by *n*, so a thin
+crystal has proportionally fewer widely separated pairs than a thick one — and
+this, rather than any explicit peak-shape function, is where **broadening comes
+from**. The reflections are narrow when the crystals are thick and broad when
+they are thin because the sum runs over more terms in the first case.
+
+Nothing in this is fitted to a peak shape. The line profile is a consequence of
+the stacking statistics and the crystal thickness, which is why the method can
+model a mixed-layer pattern that no sum of peak shapes would reproduce.
+
+### Crystallite thickness
+
+The number of layers stacked coherently is not one number but a **distribution**
+— some crystals are thin, some thick. MudLab models it as a **log-normal**
+distribution over the number of layers, which is the form found empirically for
+clays and is asymmetric in the right direction: a long tail towards thick
+crystals, a floor at one layer.
+
+The quantity being distributed is worth naming carefully. It is not the
+physical particle size but the **coherent scattering domain size** — the number
+of layers that scatter *in phase* with one another. A particle can be thicker
+than its coherent domain if a defect interrupts the phase relationship partway
+through, and it is the domain, not the particle, that sets the peak width.
+
+One simplification is worth knowing about. You supply a **mean** thickness, and
+the shape of the distribution follows from it by an empirical relationship
+rather than being specified independently. Clay crystallite distributions are
+observed to become relatively broader as they become thicker, and the model
+builds that in. The practical effect is that you refine one number and get a
+physically plausible distribution, rather than refining a width that the data
+cannot really constrain.
+
+Thickness and spacing disorder — the subject of the previous batch — both damp
+high-order reflections, and it is worth keeping them distinct. Thickness
+broadening comes from the stack being *finite*; spacing disorder comes from the
+repeat being *irregular*. A real clay usually has both.
+
+### Putting phases on a common scale
+
+A calculated phase pattern is finally divided by a quantity built from the
+phase's mean layer spacing, its mean unit-cell volume, its mean density and its
+mean crystallite thickness.
+
+This is what makes the fitted proportions mean something. Without it, two
+phases' intensities would depend on how heavy and how large their unit cells
+happen to be, and a fitted "fraction" would be a fraction of scattering power
+rather than of material. With it, the fractions the program reports are
+comparable between phases — which is the whole point of quantifying a mixture.
+
+It also explains an effect that otherwise looks like a bug: changing a phase's
+crystallite thickness changes its fitted fraction, because thickness enters
+this scale. The two are not independent, and a quantitative result should not
+be quoted without saying what thickness was assumed.
+
+---
+
+*Batches on instrument corrections, fitting, and identification are planned;
+see the documentation plan in the repository.*
