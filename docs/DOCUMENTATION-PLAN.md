@@ -111,6 +111,78 @@ debugging at 2am.
 
 ---
 
+---
+
+## Deliverable #2 — `how-it-works.md`: the batch plan
+
+*Planned 2026-08-30. Written in batches on purpose, so the session can leave
+for bug-fixing between any two of them without losing its place.*
+
+### What it is
+
+**A glossary of the science behind each feature**, not a linear textbook. Each
+entry names the thing, says what it means physically, states the assumptions
+the app makes about it, and describes the algorithm in prose. A clay scientist
+should finish an entry knowing what MudLab is computing and what it is taking
+on trust.
+
+### Its rule, restated because it is easy to slip
+
+**Prose. No code, and no variable or function names.** Name the physics and the
+method, not the implementation. Equations are welcome — Bragg's law, the
+Cromer-Mann sum, the log-normal — and so are the names of published methods and
+their authors. Identifiers are not: a reader should not be able to tell what
+language the program is written in.
+
+`docs/treatment-states-method.md` is a good model for the *register* — the
+level of care about assumptions — but it is a developer document that names
+files and functions freely, and #2 must not.
+
+### The batches
+
+Ordered along the physical chain, so each may lean on the previous one's
+vocabulary. Any batch can still be written out of order if a feature becomes
+topical.
+
+| # | Batch | Entries | Status |
+|---|---|---|---|
+| A | **The material** | What a clay layer is (1:1, 2:1, 2:1:1); di- and trioctahedral sheets; the interlayer and its occupants; layer charge and why it separates smectite from vermiculite from illite; basal spacing; why a one-dimensional profile along the c\* direction is enough | not started |
+| B | **From atoms to a layer** | The reciprocal-space coordinate; atomic scattering factors (Cromer-Mann); thermal motion (Debye-Waller); the structure factor of a layer; why hydroxyl scatters differently from oxygen; site occupancy and substitution | not started |
+| C | **Stacking** — the heart of the app | Mixed-layer clays and interstratification; Reichweite and what "R0/R1/R2/R3" claims about memory; junction probabilities and the weight/transition matrices; Markovian stacking and the recursive summation (Drits & Tchoubar 1990; Plançon 2001); crystallite thickness as a log-normal distribution and what a coherent scattering domain is | not started |
+| D | **From a layer to a pattern** — the instrument | Lorentz and polarisation factors; preferred orientation and the sigma-star parameter; Soller slits; fixed against automatic divergence slits and what converting between them assumes; sample length and beam overflow; absorption; the emission spectrum and why the wavelength decides every d-spacing | not started |
+| E | **From a pattern to an answer** — fitting | The specimen: scale and background; the mixture as a grid of phases against specimens; what Optimize adjusts and what Refine adjusts, and why they are different problems; residuals (Rp, Rwp, goodness of fit) and what each rewards; refinement methods and their assumptions; why a good fit is not proof | not started |
+| F | **Identification and chemistry** | Peak detection — the threshold method and the prominence method; Bragg's law and d-spacings; mineral matching, how candidates are scored, and why the wavelength must be right first; oxide composition from a structural model and what it can and cannot say; pattern corrections (background, smoothing, shift, trimming) and what each costs the data | not started |
+
+Six batches, each a sitting. **A, B and C are the ones that carry the app's
+distinctive science**; D, E and F are more widely documented elsewhere and can
+lean on references.
+
+### Where the material comes from
+
+The code is the authority on what is *implemented*; the old app's notes are the
+best summary of the theory and should be re-expressed, not copied:
+
+- **`C:\GitHub\MudLab\notes\XRD Diffraction Calculation.md`** — the whole
+  pipeline in one page, with the equations. Feeds B, C and D.
+- **`notes/Refinement.md`**, **`notes/Mixture Model.md`** — feed E.
+- **`notes/Phase and Component Model.md`**, **`notes/Atom Relations.md`** —
+  feed A and B.
+- **`notes/Markers and Peak Detection.md`**, **`notes/Oxide Composition.md`** —
+  feed F.
+- This repo's `docs/treatment-states-method.md` — feeds A (treatment response)
+  and is already written in the right spirit.
+- The calculation modules themselves carry unusually full docstrings, several
+  naming their sources (Drits & Tchoubar 1990, Plançon 2001, Cromer-Mann).
+
+### Bundling
+
+`how-it-works.md` is user-facing, so when the first batch lands it must be
+added to **`MudLab.spec`** and linked from the manual — `verify_manual.py`
+fails otherwise, by design ("every document the manual can reach is bundled").
+Do that with batch A, not at the end.
+
+---
+
 ## Where we stopped
 
 **2026-08-30** — Caught the manual up with the CIF-import feature, which
@@ -147,11 +219,13 @@ Next actions, in order:
 2. **Screenshots for #1** — still deliberately none. The UI moved again this
    week (Import CIF…, Create treatment states…), which is the argument for
    waiting.
-3. **Start #2, `how-it-works.md`**, from `notes/XRD Diffraction Calculation`
-   and `notes/Refinement` in the old app. Remember its rule: prose, no code and
-   **no variable or function names**. `docs/treatment-states-method.md` is a
-   good model for the register, though it is a developer document and names
-   files freely, which #2 must not.
+3. **Write #2 batch by batch** — the batch plan is above. Start with **A (the
+   material)**, and bundle `how-it-works.md` in `MudLab.spec` plus link it from
+   the manual when that first batch lands, or `verify_manual.py` will fail.
 4. #3, `technical-reference.md`, after that.
+
+**2026-08-30, later:** deferred the review pass and the screenshots at the
+user's request; planned #2 instead (see the batch plan above). Nothing of #2 is
+written yet.
 
 **Not started:** #2, #3.
