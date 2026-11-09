@@ -209,8 +209,19 @@ matters only insofar as the planned paper has its own disclosure norms.
   and recomputes on demand. Guarded by `tools/verify_phase_curves.py` and
   `tools/verify_show_phases_action.py`.)
 
+- **Match Minerals scoring — reviewed 2026-11-09 and deliberately KEPT.** How it
+  behaves (one-target scoring, the intensity factor, the two-match coin flip,
+  measured on 308 AD) is in [`dev-notes.md`](dev-notes.md) → *Mineral matching*.
+  Read that before proposing a new algorithm.
+
 ## Unported editors / dialogs (real remaining work)
-- *(none — the splash screen, the last item here, is now done; see Recently completed.)*
+- ~~**Match Minerals targets panel**~~ — **DONE 2026-11-09.** Found the same day:
+  the old app's in-dialog target editing (old MudLab `71807ac8`) had not been
+  ported, so matching ran against one peak. Now a checkable **Targets** dropdown
+  (tick/untick peaks, rescores at once, last target kept), target peaks
+  highlighted on the plot, and the plot **view-only** (zoom/pan only) while the
+  dialog is open. Details in [`dev-notes.md`](dev-notes.md) → *Mineral
+  matching*. verify_match_targets.py 49/49.
 
 ## Placeholder / stubbed features (visible but not fully wired)
 - **Exclusion-ranges import/export** in Edit Specimen — not ported.

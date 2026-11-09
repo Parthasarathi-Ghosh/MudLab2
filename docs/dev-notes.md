@@ -174,3 +174,167 @@ structures by loading the phase twice. Guarded by `verify_add_default_phase.py`.
   guardrail; there is no in-app `validate()`.
 - **`remove_mixture` staleness** — no recompute/clear/refresh; orphaned specimens
   keep a frozen calc + per-phase overlay forever.
+
+---
+
+## Mineral matching (Match Minerals)
+
+Reviewed 2026-11-09. The scoring was **deliberately left unchanged**; this records
+how it behaves so the analysis is not re-derived. Code: `score_minerals` in
+`calculations/peak_detection.py`, `match_minerals_dialog.py`, launched from the
+Peaks window (`edit_markers_dialog.py`). The scorer is not the old app's: commit
+`7160503` (2026-08-15) replaced the old regression, which dropped every two-line
+match with distinct intensities (quartz vanished) and ranked a sulfide first.
+
+### How the dialog gets its peaks
+
+1. The Peaks window's **Match minerals** button is enabled once a row is
+   selected (`_on_marker_selected`) and disabled only when the list reloads empty.
+2. It passes `targets = self._selected_markers() or list(self.specimen.markers)`.
+3. **The list is single-selection.** `object_store.ui` sets no `selectionMode`, so
+   the `QTreeView` default (`SingleSelection`) applies, and `_reload_markers`
+   always selects a row. In normal use the dialog therefore receives **one**
+   marker. Ctrl+click, Shift+click and Ctrl+A cannot add rows (verified by driving
+   the real dialog). The all-markers fallback is reachable only by Ctrl+clicking
+   the selected row to clear the selection: the button stays enabled, the
+   selection is empty, and every marker becomes a target.
+4. Inside the dialog the **Targets** dropdown changes the set (since
+   2026-11-09, below). `_compute_marker_peaks` runs at open and on every change
+   of targets, turning each target into `(d in Å, intensity)`:
+   - d = `marker.get_nm_position() * 10`, Bragg at `specimen.wavelength`, which
+     is `goniometer.wavelength`. A wrong wavelength means wrong d-spacings.
+   - intensity = `np.interp(marker.position, exp_x, exp_y)`: the raw experimental
+     pattern, background included. The calculated curve is never used, even for
+     a marker placed on it. Outside the scan `np.interp` returns the edge value.
+   - Hidden markers (`visible = False`) count like any other; a marker whose d
+     is not positive is skipped.
+5. Adding a mineral by hand scores that one mineral against the same peak list.
+
+**The targets panel (ported 2026-11-09).** Old MudLab `71807ac8` (2026-06-05,
+"multi-target Auto Match") opens with the selected marker and lets the target
+set grow and shrink inside the dialog; that had not been ported, so matching ran
+against one peak. It is now a **checkable dropdown** (`cmb_targets` in
+`box_targets`): every peak in 2θ order, ticked = target, "n of N peaks" as the
+closed box's placeholder. `_TickOnClick` turns a popup click (and Space) into a
+toggle and keeps the popup open; Enter toggles via `activated`. Every change
+rescores (the **Auto match** button is gone), the last target cannot be removed,
+new targets are appended (the scorer sees the same peak order as before), and
+Append labels writes onto the current targets. Rescoring keeps the selected
+mineral and hand-added rows (`_MANUAL_ROLE`); every row now carries its
+reference index and full line list, so a mineral previews the same lines from
+either list. The Peaks list itself stays single-selection by design.
+
+**While the dialog is open the plot is view-only** (user decision): zoom, pan,
+right-click reset and the toolbar work; picks, marker double-click and drag
+select do not. `MainWindow.set_plot_interaction_locked(locked, owner)` applies
+`PatternPlot.set_interaction_locked` and re-applies it to rebuilt plots; arming
+a position pick is refused meanwhile; `_open_edit_markers` raises Match Minerals
+instead of rebuilding Peaks (which would destroy it). The lock remembers its
+owner, because reopening defers the old dialog's deletion and its `destroyed`
+lands while the new dialog holds the lock. Target peaks are highlighted via the
+transient `Specimen.match_targets` (bold label on `MATCH_TARGET_COLOR`, heavier
+line), never saved. `MatchMineralsDialog._end_session`, reached from `done()` and
+`closeEvent`, clears preview + highlight and unlocks. Guard:
+`tools/verify_match_targets.py`.
+
+### With one target, where every session starts
+
+With a single observed peak, `min_peaks_needed` is 1, n is 1, and the intensity
+factor is the neutral 0.5. The score is `0.5 × position_factor`, at most 0.5. The
+ranking is by how close **one** d-spacing is, and intensities play no part.
+Measured on `308 r1.mud`, specimen 308 AD, one marker at 19.72° 2θ: 48 minerals
+listed, top Biotite-2M1 at 0.49608. **Everything below about the intensity factor
+applies once more peaks are ticked as targets.** On the kaolinite peak at 7.19 Å,
+for example, Kaolinite-1A ranks 2nd of 8 alone (0.364) and 1st once the 4.50 and
+3.58 Å peaks are ticked too (2.068).
+
+### How a score is computed
+
+`score = n × position_factor × intensity_factor`, per reference mineral; only
+scores above 0 are listed, best first, with no cutoff.
+
+1. Take the mineral's 15 lines with the **largest d** (lowest angle), not the
+   strongest.
+2. From the largest d down, take the nearest observed peak. It is a match if it
+   lies within 1% of the reference d and no earlier line has claimed it.
+3. At least 2 matches are needed (1 when only one peak was given).
+4. `position_factor = 1 − mean(|Δd|/d) / 0.01`: 1 for exact, 0 at the window edge.
+5. `intensity_factor` = Pearson r of the matched card intensities (0–100) against
+   the observed counts. Negative r becomes 0, which drops the mineral. It is the
+   neutral 0.5 when undefined: fewer than 2 matches, or all values on one side
+   equal.
+
+Consequences, measured on the shipped library (228 minerals):
+
+- **Unmatched lines cost nothing.** A strong card line with no observed peak does
+  not lower the score, so line-rich minerals collect chance matches in a crowded
+  pattern.
+- **n is not normalised.** It can reach 15 for a mineral with 15+ lines but only
+  2 for a two-line card. The median mineral has 22 lines; 83 have 15 or fewer.
+- **Lines are chosen by d, not strength.** For 9 minerals the strongest line
+  falls outside the 15 tested, for example Illite-2M2 (2.583 Å), Microcline,
+  intermed. (3.24 Å) and Bornite (1.93 Å). Lines below the scan's start still
+  take places among the 15.
+- **The window is 1% of d, so it widens with angle.** At Cu Kα₁ it is ±0.06° 2θ
+  at 14 Å, ±0.09° at 10 Å, ±0.27° at 3.34 Å and ±0.66° at 1.54 Å, regardless of
+  instrument or peak width.
+- **Assignment is greedy.** A larger-d line claims its nearest peak even when a
+  later line is closer to it; the later line then fails instead of trying its
+  next-nearest peak.
+
+### The intensity factor in practice
+
+Pearson r ignores scale and constant offset, which is what lets 0–100 card values
+be compared with counts. As a multiplier it can only lower a score. Measured with
+the real scorer on the quartz card, peaks at exact positions (position_factor = 1,
+so score = n × factor):
+
+| Case | n | Factor | Score |
+|---|---|---|---|
+| A. 7 lines, counts proportional to the card | 7 | 1.000 | 7.00 |
+| B. Same, plus a flat background of 2000 | 7 | 1.000 | 7.00 |
+| C. Same, background sloping 3000 → 1000 | 7 | 0.912 | 6.38 |
+| D. Only 4.26 and 3.34 Å, in the right order | 2 | 1.000 | 2.00 |
+| E. Only those two, 4.26 slightly taller (3000 vs 2900) | — | dropped | 0 |
+| F. 7 lines, 2.46 Å boosted by another phase (+4000) | 7 | 0.450 | 3.15 |
+| G. 7 lines, three weak lines each boosted (+2500) | 7 | 0.450 | 3.15 |
+| H. 7 lines, intensities scrambled | — | dropped | 0 |
+
+- A sloping background bends the straight line r looks for, and it is steepest
+  at low angles, where clay peaks sit (C).
+- Quartz's 3.34 Å line is 100 and every other is 16 or less, so r mostly asks
+  whether 3.34 is the tallest matched peak. One overlap that lifts another line
+  above it more than halves the score (F). That 0.45 is below the 0.5 a mineral
+  gets when its intensities cannot be judged at all.
+- A negative r discards every position match (H).
+- n can outweigh agreement: 10 matches at 0.3 score 3.0, beating 2 perfect
+  matches at 2.0.
+- On oriented clay mounts the basal 00l lines are far stronger than the
+  random-powder card values, so even the right clay can correlate poorly.
+
+### Two matches: only the order counts
+
+Two points always lie on a straight line, so with n = 2,
+`r = sign(ref₁ − ref₂) × sign(obs₁ − obs₂)`: +1 or −1, with the size of each
+difference cancelling out. A two-line mineral scores `2 × position_factor`, or
+`1 × position_factor` on an exact tie, or is dropped. With quartz's 4.26/3.34
+lines (card 16/100), observed 500/3000, 2999/3000 and 30/3000 all get factor 1,
+while 3000/2900 is dropped (case E).
+
+Measured on 308 AD with **all 12 markers** as targets: 45 minerals matched exactly two lines on
+position. 23 got +1, 20 were dropped and 2 tied (Pentlandite, Cobaltpentlandite),
+so 25 of the 62 listed minerals (40%) rest on two lines, including 2 of the top
+10. For unrelated intensities the order is a coin flip, so at n = 2 the factor
+carries almost no evidence yet has the largest possible effect. Examples:
+
+| Mineral | Card | Observed | Result |
+|---|---|---|---|
+| Andalusite | 82, 30 | 8, 11 | dropped: real evidence against it |
+| Andesine, low (DEL) | 70, 60 | 5, 34 | dropped, though the card barely separates the lines |
+| Anorthite, sod., ord. | 4, 7 | 5, 34 | full credit, though 7× observed against 1.75× on the card |
+
+Two is the minimum for a mineral to be listed at all, and minor minerals in a
+mixture often show only one or two lines above background, so this is where
+they fall. If this is ever revisited, the smallest changes are a neutral 0.5 at
+n = 2, or comparing the intensity ratio instead of the sign of the difference;
+only the two-line case would change.

@@ -427,7 +427,31 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
 - [x] Edit Markers window - edit_markers_dialog.py (object-store shell + find peaks / match minerals extra row); EditMarkersView
 - [x] Edit Marker fields - edit_marker.ui, edit_marker_widget.py (specimen/glade/edit_marker.glade)
 - [x] Detect peaks - find_peaks_dialog.ui, detect_peaks_dialog.py (threshold/prominence histogram + draggable cut-off; OK adds markers via Specimen.auto_add_peaks / calculations.peak_detection)
-- [x] Match minerals - match_minerals.ui, match_minerals_dialog.py (real mineral_references.csv + score_minerals; auto-match, manual add/remove, append labels; reference-peak preview overlay via Specimen.mineral_preview + PatternPlot magenta sticks, Specimen-range filter; verify_mineral_preview.py)
+- [x] Match minerals - match_minerals.ui, match_minerals_dialog.py (real mineral_references.csv + score_minerals; checkable Targets dropdown that rescores on every change, manual add/remove, append labels onto the current targets; reference-peak preview overlay via Specimen.mineral_preview + PatternPlot magenta sticks, Specimen-range filter; target highlight + view-only plot while open; verify_mineral_preview.py, verify_match_targets.py)
+- [x] Match Minerals multi-target redesign (2026-11-09) - the dialog scored
+  against whatever arrived at open, which in practice was ONE peak (the Peaks
+  list is single-selection), so the intensity term never took part. The old
+  app's in-dialog targets panel (old MudLab 71807ac8, 2026-06-05) had never been
+  ported. Now, per the user's choices: a CHECKABLE DROPDOWN `cmb_targets` (every
+  peak in 2theta order, tick = target, "n of N peaks" as the placeholder; a
+  `_TickOnClick` filter keeps the popup open and turns a click or Space into a
+  toggle, Enter toggles via `activated`); every change rescores, so the Auto
+  match button is gone and Append labels moved beside Close; the last target
+  cannot be removed; new targets are APPENDED so the scorer sees the old peak
+  order (sorting them broke an existing check, which is how that was caught).
+  Rescoring keeps the selected mineral and hand-added rows (`_MANUAL_ROLE`);
+  scoring runs per mineral so every row keeps its reference index and FULL line
+  list (the old top-15 preview quirk is gone). Target peaks are highlighted on
+  the plot (transient `Specimen.match_targets`, bold label on MATCH_TARGET_COLOR,
+  heavier line; never saved). The plot is VIEW-ONLY while the dialog is open
+  (user decision: zoom and pan only): `MainWindow.set_plot_interaction_locked`
+  -> `PatternPlot.set_interaction_locked`, re-applied on rebuild; position picks
+  are refused; `_open_edit_markers` raises Match Minerals instead of rebuilding
+  Peaks, which used to DESTROY the dialog on any marker double-click. The lock is
+  owner-tagged: reopening defers the old dialog's deletion, and an owner-blind
+  release on its `destroyed` unlocked the plot under the new one. Compact: 540x400
+  default, Abbr./Score sized to contents. verify_match_targets.py 49/49, each
+  behaviour proven by breaking it (8 mutations, all caught).
 
 ### Goniometer
 - [x] Wavelength distribution editor - wavelength_distribution.ui, wavelength_distribution_dialog.py (goniometer/glade/wavelength_distribution.glade); opened by the goniometer component's Edit emission spectrum button; editable (nm, fraction) table + Add/Remove + .wld import/export; Goniometer.set_wavelength_distribution persists edits; verify_wavelength_distribution.py

@@ -15,38 +15,43 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QDialog,
-    QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
-    QToolButton, QTreeView, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QComboBox,
+    QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView,
+    QLabel, QLineEdit, QPushButton, QSizePolicy,
+    QSpacerItem, QToolButton, QTreeView, QVBoxLayout,
+    QWidget)
 
 class Ui_MatchMineralsDialog(object):
     def setupUi(self, MatchMineralsDialog):
         if not MatchMineralsDialog.objectName():
             MatchMineralsDialog.setObjectName(u"MatchMineralsDialog")
-        MatchMineralsDialog.resize(640, 520)
+        MatchMineralsDialog.resize(540, 400)
         self.dialogLayout = QVBoxLayout(MatchMineralsDialog)
+        self.dialogLayout.setSpacing(6)
         self.dialogLayout.setObjectName(u"dialogLayout")
+        self.dialogLayout.setContentsMargins(8, 8, 8, 8)
         self.box_targets = QHBoxLayout()
         self.box_targets.setObjectName(u"box_targets")
+        self.lbl_targets = QLabel(MatchMineralsDialog)
+        self.lbl_targets.setObjectName(u"lbl_targets")
+
+        self.box_targets.addWidget(self.lbl_targets)
+
+        self.cmb_targets = QComboBox(MatchMineralsDialog)
+        self.cmb_targets.setObjectName(u"cmb_targets")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmb_targets.sizePolicy().hasHeightForWidth())
+        self.cmb_targets.setSizePolicy(sizePolicy)
+        self.cmb_targets.setMaxVisibleItems(16)
+
+        self.box_targets.addWidget(self.cmb_targets)
+
         self.chk_use_specimen_range = QCheckBox(MatchMineralsDialog)
         self.chk_use_specimen_range.setObjectName(u"chk_use_specimen_range")
 
         self.box_targets.addWidget(self.chk_use_specimen_range)
-
-        self.targetsSpacer = QSpacerItem(0, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.box_targets.addItem(self.targetsSpacer)
-
-        self.btn_auto_match = QPushButton(MatchMineralsDialog)
-        self.btn_auto_match.setObjectName(u"btn_auto_match")
-
-        self.box_targets.addWidget(self.btn_auto_match)
-
-        self.btn_apply = QPushButton(MatchMineralsDialog)
-        self.btn_apply.setObjectName(u"btn_apply")
-
-        self.box_targets.addWidget(self.btn_apply)
 
 
         self.dialogLayout.addLayout(self.box_targets)
@@ -119,23 +124,42 @@ class Ui_MatchMineralsDialog(object):
 
         self.dialogLayout.addLayout(self.listsRow)
 
+        self.bottomRow = QHBoxLayout()
+        self.bottomRow.setObjectName(u"bottomRow")
+        self.btn_apply = QPushButton(MatchMineralsDialog)
+        self.btn_apply.setObjectName(u"btn_apply")
+        self.btn_apply.setAutoDefault(False)
+
+        self.bottomRow.addWidget(self.btn_apply)
+
         self.buttonBox = QDialogButtonBox(MatchMineralsDialog)
         self.buttonBox.setObjectName(u"buttonBox")
         self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
 
-        self.dialogLayout.addWidget(self.buttonBox)
+        self.bottomRow.addWidget(self.buttonBox)
 
+
+        self.dialogLayout.addLayout(self.bottomRow)
+
+#if QT_CONFIG(shortcut)
+        self.lbl_targets.setBuddy(self.cmb_targets)
+#endif // QT_CONFIG(shortcut)
 
         self.retranslateUi(MatchMineralsDialog)
+
+        self.btn_apply.setDefault(False)
+
 
         QMetaObject.connectSlotsByName(MatchMineralsDialog)
     # setupUi
 
     def retranslateUi(self, MatchMineralsDialog):
         MatchMineralsDialog.setWindowTitle(QCoreApplication.translate("MatchMineralsDialog", u"Match minerals", None))
+        self.lbl_targets.setText(QCoreApplication.translate("MatchMineralsDialog", u"Targets", None))
+#if QT_CONFIG(tooltip)
+        self.cmb_targets.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"The peaks the minerals are scored against. Tick or untick peaks to change them; the scores update at once.", None))
+#endif // QT_CONFIG(tooltip)
         self.chk_use_specimen_range.setText(QCoreApplication.translate("MatchMineralsDialog", u"Specimen range", None))
-        self.btn_auto_match.setText(QCoreApplication.translate("MatchMineralsDialog", u"Auto match", None))
-        self.btn_apply.setText(QCoreApplication.translate("MatchMineralsDialog", u"Append labels", None))
         self.lbl_select.setText(QCoreApplication.translate("MatchMineralsDialog", u"Matched minerals:", None))
 #if QT_CONFIG(tooltip)
         self.btn_rtl.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"Add the selected mineral to the matches", None))
@@ -150,5 +174,9 @@ class Ui_MatchMineralsDialog(object):
 #if QT_CONFIG(tooltip)
         self.edit_search.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"Filter the list by mineral name or abbreviation.", None))
 #endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.btn_apply.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"Add the selected mineral's abbreviation to the label of every target peak.", None))
+#endif // QT_CONFIG(tooltip)
+        self.btn_apply.setText(QCoreApplication.translate("MatchMineralsDialog", u"Append labels", None))
     # retranslateUi
 

@@ -952,9 +952,11 @@ is amiss.
 ### Matching minerals
 
 Candidate minerals are scored against a reference library of powder patterns.
-For each mineral, its strongest lines are matched to the nearest observed peak
-within a small tolerance, and the score rewards two things: how closely the
-positions agree, and how well the *relative intensities* correlate.
+For each mineral, up to fifteen of its lines (those at the largest d-spacings,
+so the lowest angles) are matched to the nearest observed peak within a small
+tolerance, and the score rewards two things: how closely the positions agree,
+and how well the *relative intensities* correlate. Matched against a single
+peak, only the position can be judged.
 
 The intensity term is deliberately scale-invariant — it compares the shape of
 the intensity pattern rather than its absolute values, since a reference

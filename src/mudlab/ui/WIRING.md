@@ -1987,11 +1987,25 @@ drawn: the "offset" style's special Y-offset line.
   existing markers first.
 - **Match Minerals** (`match_minerals_dialog.py`, `match_minerals.ui`, old
   match_minerals.glade): NON-modal (old view kept it above the main
-  window so the plot stays interactive). All-minerals list (real
+  window so the plot stays visible). All-minerals list (real
   `data/mineral_references.csv`, 228 entries) <-> matched list with
-  transfer buttons; Auto match scores the references against the target
-  markers' peaks (`score_minerals`), Append labels writes the chosen
-  abbreviations onto the markers (emits `applied`, host list reloads).
+  transfer buttons. **Targets** (`cmb_targets`, 2026-11-09): a checkable
+  dropdown of every peak (2theta order, `_MARKER_ROLE`), ticked = target,
+  placeholder "n of N peaks" with `currentIndex` kept at -1; `_TickOnClick`
+  (event filter on the popup view + viewport) makes a click / Space toggle
+  and keeps the popup open, Enter toggles via `activated`. `toggle_target`
+  refuses the last target; every change -> `_targets_changed` -> rescore
+  (`_score_all`: `score_minerals` per mineral, so rows keep their index) +
+  highlight. `_rescore` keeps the selected mineral and `_MANUAL_ROLE` rows.
+  `specimen.visuals_changed` -> `_on_specimen_visuals_changed` refreshes the
+  dropdown and drops targets deleted elsewhere. Append labels writes the
+  chosen abbreviations onto the CURRENT targets (emits `applied`, host list
+  reloads). **While open:** `showEvent` calls the main window's
+  `set_plot_interaction_locked(True, owner=self)` (view-only plot, owner-tagged
+  lock) and the dialog keeps `specimen.match_targets` set through
+  `set_match_targets` (highlight, in-place redraw); `done()`/`closeEvent` ->
+  `_end_session` clears preview + highlight and unlocks. Guard:
+  `tools/verify_match_targets.py`.
   Button ids follow the old glade: `btn_rtl` = add (minerals -> matches),
   `btn_ltr` = remove. **Mineral-preview overlay:** selecting a row in either
   list (both selectionModels -> `_on_row_selected`) stamps the row's
@@ -2003,7 +2017,8 @@ drawn: the "offset" style's special Y-offset line.
   `specimen.mineral_preview` [(2theta, rel_intensity)] bubbles via
   `visuals_changed -> project -> _refresh_plots`, and `PatternPlot.draw_pattern`
   draws magenta sticks (`MINERAL_PREVIEW_COLOR`, height = rel/100 * displayed
-  peak height). `reject()` clears it. Never serialized. Guard:
+  peak height). Closing clears it (`_end_session`). Never serialized. Every
+  row carries the mineral's FULL line list, from either list. Guard:
   `tools/verify_mineral_preview.py`.
 
 ## Specimens context menu (old specimen_popup)

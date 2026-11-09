@@ -103,6 +103,9 @@ class Specimen(QObject):
         # Transient reference-mineral overlay: [(2theta, rel_intensity), ...] or
         # None (Match Minerals preview). Never serialized.
         self.mineral_preview = None
+        # Transient: the markers Match Minerals is scoring against, drawn
+        # highlighted while that dialog is open, or None. Never serialized.
+        self.match_targets = None
         # Per-phase calculated contributions: [(phase, intensity), ...] on the
         # calculated x-grid, set alongside the total by a mixture recompute (for
         # the per-phase plot overlay). Transient; never serialized.
@@ -211,6 +214,14 @@ class Specimen(QObject):
         rel_intensity)`` (or None / empty to clear) - and emit visuals_changed
         so the plot redraws. Transient (Match Minerals preview); never saved."""
         self.mineral_preview = list(peaks) if peaks else None
+        self.visuals_changed.emit()
+
+    def set_match_targets(self, markers) -> None:
+        """Set the markers drawn highlighted as Match Minerals targets (None or
+        empty to clear) and emit visuals_changed so the plot redraws. Transient;
+        never saved. The main window's set_match_targets is the cheap in-place
+        path; this one is for when no main window is present."""
+        self.match_targets = list(markers) if markers else None
         self.visuals_changed.emit()
 
     def auto_add_peaks(

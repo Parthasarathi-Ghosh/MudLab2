@@ -104,6 +104,10 @@ class MainWindow(QMainWindow):
         self._pending_pick = None
         self._pending_pick_cancel = None
         self._range_pick_callback = None
+        # Plots are view-only (zoom/pan only) while Match Minerals is open; kept
+        # here so a rebuilt plot is locked too. See set_plot_interaction_locked.
+        self._plot_interaction_locked = False
+        self._plot_lock_owner = None
 
         # Esc abandons an armed Sample pick. Without it a dialog that hides
         # itself for the pick (the Peaks dialog) could never be recovered if
@@ -537,6 +541,8 @@ class MainWindow(QMainWindow):
             if self._range_pick_callback is not None:
                 plot.set_range_select_enabled(True)
                 plot.set_pick_cursor(True)
+            # ...and with an open Match Minerals (view-only plot).
+            plot.set_interaction_locked(self._plot_interaction_locked)
             view = restore_views.get(plot.view_key)
             if view is not None:
                 plot.restore_view(view)
@@ -653,6 +659,15 @@ class MainWindow(QMainWindow):
         does - and without a cancel path an armed pick that is never clicked
         would strand that window with no way to bring it back.
         """
+        if self._plot_interaction_locked:
+            # The plot is view-only while Match Minerals is open, so the click
+            # this pick waits for could never arrive. Refuse, and tell the
+            # caller the same way an abandoned pick does.
+            self.ui.statusBar.showMessage(
+                "Close Match minerals to pick a point on the plot.", 5000)
+            if on_cancel is not None:
+                on_cancel()
+            return
         # Arming twice: the first caller must be told, or it waits forever.
         self._cancel_pending_pick()
         self._pending_pick = callback
@@ -745,6 +760,62 @@ class MainWindow(QMainWindow):
     def clear_mineral_preview(self, specimen) -> None:
         self.set_mineral_preview(specimen, None)
 
+    def set_match_targets(self, specimen, markers) -> None:
+        """Highlight `markers` as the Match Minerals targets on the plot(s)
+        showing `specimen`, redrawn IN PLACE like the mineral preview (no
+        rebuild, zoom kept). Transient: nothing is saved."""
+        specimen.match_targets = list(markers) if markers else None
+        for plot in self.pattern_plots:
+            if specimen in plot.specimens:
+                plot.refresh()
+
+    def clear_match_targets(self, specimen) -> None:
+        self.set_match_targets(specimen, None)
+
+    def set_plot_interaction_locked(self, locked: bool, owner=None) -> None:
+        """Make every plot view-only (zoom and pan only) while `owner` - the
+        Match Minerals dialog - is open, or interactive again.
+
+        A double-click on a peak would otherwise rebuild the Peaks window and
+        destroy Match Minerals with it, and a click could fire a position pick
+        behind its back. Locking cancels any armed pick (its owner is told), and
+        the lock is re-applied to plots rebuilt while it holds. If `owner` is
+        destroyed without unlocking, the lock is released anyway, so a crash in
+        the dialog can never leave the plot dead.
+
+        The lock remembers its owner, and only that owner releases it: reopening
+        Match Minerals closes the old dialog and defers its deletion, so the old
+        one's `destroyed` arrives while the NEW one holds the lock - an
+        owner-blind release there would unlock the plot under the new dialog."""
+        if locked:
+            self._cancel_pending_pick()
+            token = id(owner) if owner is not None else None
+            self._plot_lock_owner = token
+            if owner is not None:
+                owner.destroyed.connect(
+                    lambda *_a, t=token: self._release_plot_lock(t))
+        else:
+            holder = getattr(self, "_plot_lock_owner", None)
+            if owner is not None and holder not in (None, id(owner)):
+                return  # someone else holds the lock now
+            self._plot_lock_owner = None
+        self._apply_plot_lock(bool(locked))
+
+    def _release_plot_lock(self, token) -> None:
+        if self._plot_interaction_locked and getattr(
+                self, "_plot_lock_owner", None) == token:
+            self._plot_lock_owner = None
+            self._apply_plot_lock(False)
+
+    def _apply_plot_lock(self, locked: bool) -> None:
+        self._plot_interaction_locked = locked
+        for plot in self.pattern_plots:
+            plot.set_interaction_locked(locked)
+
+    @property
+    def plot_interaction_locked(self) -> bool:
+        return self._plot_interaction_locked
+
     def _start_sampling(self) -> None:
         # Old on_sample_point: the next click reports the data values.
         self.arm_position_pick(
@@ -775,6 +846,8 @@ class MainWindow(QMainWindow):
     def _on_marker_picked(self, marker) -> None:
         # Old ClickCatcher/show_marker: double-clicking a marker opens the
         # markers view with that marker selected.
+        if self._plot_interaction_locked:
+            return  # view-only plot (the plot already drops the pick)
         specimen = marker.specimen
         if specimen is None:
             return
@@ -1364,6 +1437,15 @@ class MainWindow(QMainWindow):
     def _open_edit_markers(self, specimen, marker=None) -> None:
         # Rebuilt each time so it targets the given specimen (old app reset
         # the markers view per specimen selection).
+        dialog = self._edit_markers_dialog
+        if dialog is not None and dialog.match_session_open():
+            # Rebuilding would close Match Minerals and lose its targets and
+            # matches. The plot is view-only meanwhile, so this is reached
+            # only from Edit markers in the menu / specimen tree.
+            dialog.raise_match_dialog()
+            self.ui.statusBar.showMessage(
+                "Close Match minerals before editing peaks.", 5000)
+            return
         if self._edit_markers_dialog is not None:
             self._edit_markers_dialog.close()
         self._edit_markers_dialog = EditMarkersDialog(self, specimen=specimen)

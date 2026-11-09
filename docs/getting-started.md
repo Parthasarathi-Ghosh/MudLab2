@@ -157,21 +157,25 @@ the position. Each peak also shows its position in both °2θ and nm.
 
 ## 6. Identify minerals from the peaks
 
-With peaks marked, press **Match minerals** in the Peaks dialog.
+Select a peak in the Peaks dialog (or double-click its label on the plot) and
+press **Match minerals**.
 
-MudLab converts each marked peak to a d-spacing (using the specimen's
-wavelength — see step 3) and compares it against a reference library of ICDD
-powder patterns. **Auto match** scores every mineral on how well its strongest
-reflections line up with yours, both in position and in relative intensity, and
-lists the best candidates.
+MudLab converts that peak to a d-spacing (using the specimen's wavelength — see
+step 3) and compares it against a reference library of ICDD powder patterns,
+scoring every mineral on how well its reflections (up to fifteen, from the
+lowest angle up) line up with your peaks, both in position and in relative
+intensity. One peak only tells position, so add more: tick further peaks in
+**Targets** — the scores update each time, and the target peaks are highlighted
+on the plot — until one candidate clearly explains them.
 
 - Select a candidate to see its reference lines drawn over your pattern. This
   is the check that matters — a good score with lines that visibly miss is not
-  a match.
+  a match. The plot can be zoomed and panned meanwhile, but not clicked.
 - Move minerals you accept into **Matched minerals** with the arrow buttons.
   Use **Search minerals…** to find one by name or abbreviation and add it by
   hand.
-- **Append labels** writes the accepted mineral names onto the peak labels.
+- **Append labels** writes the selected mineral's abbreviation onto the label
+  of every target peak.
 
 This step tells you *what to model*. It does not build the model — that is next.
 

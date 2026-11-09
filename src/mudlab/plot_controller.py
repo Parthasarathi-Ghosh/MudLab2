@@ -61,6 +61,10 @@ RESIDUAL_COLOR = "#7048a8"  # difference-curve violet (Rietveld convention)
 PREVIEW_COLOR = "#E8590C"  # live data-op preview (warm orange, over the original)
 MINERAL_PREVIEW_COLOR = "#D6336C"  # Match Minerals reference-peak sticks (magenta)
 SHIFT_REFERENCE_COLOR = "#1098AD"  # Shift dialog's fixed reference-position line (teal)
+# Match Minerals targets: a highlighter-yellow box behind the peak label (and a
+# heavier line), so the peak keeps its own colour but stands out as a target.
+MATCH_TARGET_COLOR = "#FFE066"
+MATCH_TARGET_LINEWIDTH = 2.4
 
 
 def _max_display_y(specimen: Specimen) -> float:
@@ -154,6 +158,11 @@ class PatternPlot:
         self._drag_highlight_lines: list = []
         self._home_xlim: tuple[float, float] | None = None
         self._home_ylim: tuple[float, float] | None = None
+        # While a dialog that must not be disturbed is open (Match Minerals),
+        # the plot is view-only: zoom and pan keep working, every click action
+        # (picks, marker double-click, drag-select) is ignored. See
+        # set_interaction_locked.
+        self._interaction_locked = False
         # Marker artist -> Marker, for double-click picking (old ClickCatcher).
         self._marker_artists: dict = {}
         self._last_pick_artist = None
@@ -697,6 +706,10 @@ class PatternPlot:
         style = marker.effective_style
         top = marker.effective_top
         top_offset = marker.effective_top_offset
+        # Match Minerals target (transient specimen.match_targets): same colour,
+        # heavier line and a highlighted, bold label. Identity, not equality.
+        targets = getattr(specimen, "match_targets", None) or ()
+        is_target = any(marker is t for t in targets)
 
         # Connector line (skipped for 'none'/'offset').
         line_style = self._MARKER_LINE_STYLES.get(style)
@@ -704,7 +717,8 @@ class PatternPlot:
             y1 = y_top if top == 1 else base_y + top_offset * unit
             line, = self.axes.plot(
                 [position, position], [base_y, y1],
-                color=color, linestyle=line_style, linewidth=1.0, zorder=8,
+                color=color, linestyle=line_style, zorder=8,
+                linewidth=MATCH_TARGET_LINEWIDTH if is_target else 1.0,
             )
             self._register_marker_artist(line, marker)
 
@@ -715,11 +729,19 @@ class PatternPlot:
                 y_text = y_top * 0.98 + marker.y_offset * unit
             else:
                 y_text = base_y + (top_offset + marker.y_offset) * unit
+            target_style = {}
+            if is_target:
+                target_style = dict(
+                    fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.25", facecolor=MATCH_TARGET_COLOR,
+                              edgecolor="none", alpha=0.95),
+                )
             label_artist = self.axes.text(
                 position + marker.x_offset, y_text, text,
                 rotation=90 - marker.effective_angle, rotation_mode="anchor",
                 ha=marker.effective_align, va="center",
                 color=color, clip_on=True, zorder=9, fontsize="small",
+                **target_style,
             )
             self._register_marker_artist(label_artist, marker)
 
@@ -760,8 +782,29 @@ class PatternPlot:
             artist.set_picker(True)
             self._marker_artists[artist] = marker
 
+    def set_interaction_locked(self, locked: bool) -> None:
+        """Make the plot view-only (True) or interactive again (False).
+
+        Locked, the plot still zooms and pans - mouse wheel (with Ctrl / Shift),
+        arrow keys, right-click reset and the navigation toolbar - but ignores
+        every click ACTION: position picks, marker double-click (which would
+        rebuild the Peaks window and with it destroy Match Minerals) and
+        drag-to-select. Hover feedback (crosshair, status bar) is unaffected."""
+        self._interaction_locked = bool(locked)
+        if locked:
+            self._last_pick_artist = None
+            self._last_pick_time = 0.0
+            if self.drag_start_x is not None:
+                self._end_drag_highlight()
+
+    @property
+    def interaction_locked(self) -> bool:
+        return self._interaction_locked
+
     def _on_pick(self, event) -> None:
         """Double-click a marker line/label to select it (old ClickCatcher)."""
+        if self._interaction_locked:
+            return
         marker = self._marker_artists.get(event.artist)
         if marker is None:
             return
@@ -972,6 +1015,12 @@ class PatternPlot:
             self.zoom_x(factor, center=event.xdata)
 
     def _on_button_press(self, event) -> None:
+        if self._interaction_locked:
+            # View-only: right-click still resets the zoom; left clicks do
+            # nothing (the navigation toolbar's pan/zoom handle their own).
+            if event.button == 3 and event.inaxes is self.axes:
+                self.reset_view()
+            return
         if event.button == 1 and event.inaxes is self.axes and not event.dblclick:
             if self._on_click is not None:
                 self._on_click(self, self._event_x(event))

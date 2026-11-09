@@ -59,6 +59,19 @@ class EditMarkersDialog(ObjectStoreDialog):
         self._closing = False
         self._reload_markers()
 
+    def match_session_open(self) -> bool:
+        """True while this window's Match Minerals dialog is up."""
+        dialog = self._match_dialog
+        try:
+            return dialog is not None and dialog.isVisible()
+        except RuntimeError:  # C++ object already gone
+            return False
+
+    def raise_match_dialog(self) -> None:
+        if self.match_session_open():
+            self._match_dialog.raise_()
+            self._match_dialog.activateWindow()
+
     def _close_match_dialog(self) -> None:
         """Close any open Match Minerals child (which clears its reference-peak
         overlay via reject) and drop it, so reopening / closing never leaves an
@@ -68,7 +81,9 @@ class EditMarkersDialog(ObjectStoreDialog):
         # window-X would make the next close() hit an already-deleted C++ object
         # (RuntimeError). The explicit deleteLater below is the accumulation fix.
         if self._match_dialog is not None:
-            self._match_dialog.close()  # -> reject clears the mineral preview
+            # -> done() ends the session: clears the mineral preview and the
+            # target highlight, and unlocks the plot.
+            self._match_dialog.close()
             self._match_dialog.deleteLater()
             self._match_dialog = None
 

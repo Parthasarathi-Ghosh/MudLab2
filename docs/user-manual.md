@@ -1263,25 +1263,49 @@ clear them (replace) or keep them (append).
 
 ### Match Minerals
 
-With a marker selected, **Match minerals** scores a built-in reference set (228
-minerals) against your markers' peak positions and tells you which minerals fit.
+Select a peak in the Peaks window (or double-click its label on the plot) and
+press **Match minerals**. MudLab scores a built-in reference set (228 minerals)
+against that peak — the **target** — and lists the minerals that fit. One peak
+can only be judged on its position, so the usual next step is to add more:
 
-- The **right** list is every reference mineral; the **left** list is the
-  matches, best first, with a score (higher = better fit).
-- **Auto match** re-scores against the current target markers. You can also pick
-  a mineral on the right and use the transfer buttons to add it to (or remove it
-  from) the matches by hand.
-- **Append labels** adds the selected matches' abbreviations to your markers'
-  labels (for example a quartz marker becomes `… , Qz`), so the identification
-  shows on the plot. Applying the same mineral twice does not duplicate it.
-- **Selecting a mineral** in either list draws its reflections on the main plot
-  as **magenta sticks** (positioned by 2θ, with height proportional to each
+1. **Targets**, at the top, says how many peaks are being matched (for example
+   *1 of 12 peaks*). Open it and **tick** the other peaks you think belong to
+   the same mineral; the selected mineral's reference lines on the plot show you
+   where to look. The list stays open while you tick, and the scores update
+   after every tick.
+2. **Untick** a peak to drop it. The last target cannot be unticked.
+3. Repeat until the result is convincing: a good candidate's lines sit on your
+   target peaks, and its score rises as you add peaks it explains.
+4. Select the mineral and press **Append labels**. Its abbreviation is added to
+   the label of **every target peak** (for example `0.719` becomes
+   `0.719, Kln`), so the identification shows on the plot. Applying the same
+   mineral twice does not duplicate it.
+
+While the dialog is open:
+
+- **The target peaks are highlighted** on the plot: bold labels on a yellow
+  background, and heavier lines.
+- **The plot is view-only.** You can zoom (mouse wheel; Ctrl+wheel for height),
+  pan (Shift+wheel or the arrow keys) and reset the view (right-click), but
+  clicks and double-clicks on the plot do nothing, so nothing can close the
+  dialog behind your back. Change the targets in the dropdown.
+- **The selected mineral stays selected** when the scores update, so its lines
+  stay on the plot while you add targets.
+
+The two lists:
+
+- The **left** list is the matches, best first, with a score (higher = better
+  fit). The **right** list is every reference mineral, with a search box; pick
+  one and use the transfer buttons to add it to (or remove it from) the matches
+  by hand. A mineral you add by hand stays in the list when the targets change.
+- **Selecting a mineral** in either list draws all its reflections on the main
+  plot as **magenta sticks** (positioned by 2θ, with height proportional to each
   reflection's relative intensity), so you can see at a glance whether they line
   up with your pattern. Tick **Specimen range** to show only the reflections
   that fall inside the scanned 2θ range.
 
-The dialog stays open alongside the plot so you can keep working; closing it
-removes the reference-peak overlay.
+Closing the dialog removes the highlight and the reference lines, makes the plot
+clickable again, and brings the Peaks window back.
 
 ---
 
