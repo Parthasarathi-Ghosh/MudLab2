@@ -452,6 +452,16 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   release on its `destroyed` unlocked the plot under the new one. Compact: 540x400
   default, Abbr./Score sized to contents. verify_match_targets.py 49/49, each
   behaviour proven by breaking it (8 mutations, all caught).
+- [x] Match Minerals PAIRING switch (2026-11-09) - `cmb_pairing` (Greedy |
+  One-to-one) beside Targets; the scorer's key rides on each item
+  (`currentData`), changing it rescores (selection and hand-added rows kept).
+  `score_minerals(pairing=)`: Greedy = the original loop moved verbatim into
+  `_pair_greedy`, proven bit-identical (92 peak lists / 3,731 rows before vs
+  after, and a frozen copy pinned in the harness); One-to-one =
+  `_pair_one_to_one`, a SciPy assignment that maximises matches then minimises
+  deviation (optimal vs brute force on 300 crowded random cases). Greedy stays
+  the default and is not remembered. verify_mineral_pairing.py 13/13 (4
+  mutations caught), verify_match_targets.py 56/56.
 
 ### Goniometer
 - [x] Wavelength distribution editor - wavelength_distribution.ui, wavelength_distribution_dialog.py (goniometer/glade/wavelength_distribution.glade); opened by the goniometer component's Edit emission spectrum button; editable (nm, fraction) table + Add/Remove + .wld import/export; Goniometer.set_wavelength_distribution persists edits; verify_wavelength_distribution.py

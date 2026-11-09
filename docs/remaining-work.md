@@ -212,7 +212,9 @@ matters only insofar as the planned paper has its own disclosure norms.
 - **Match Minerals scoring — reviewed 2026-11-09 and deliberately KEPT.** How it
   behaves (one-target scoring, the intensity factor, the two-match coin flip,
   measured on 308 AD) is in [`dev-notes.md`](dev-notes.md) → *Mineral matching*.
-  Read that before proposing a new algorithm.
+  Read that before proposing a new algorithm. A selectable **One-to-one**
+  pairing was added beside the original Greedy one (same day); **grouping close
+  reference lines before pairing** was considered and NOT started.
 
 ## Unported editors / dialogs (real remaining work)
 - ~~**Match Minerals targets panel**~~ — **DONE 2026-11-09.** Found the same day:

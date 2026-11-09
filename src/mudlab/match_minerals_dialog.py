@@ -15,8 +15,10 @@ only way to change the targets is here. "Append labels" writes the chosen
 mineral's abbreviation onto every CURRENT target.
 
 The reference minerals are scored against the target peaks with
-calculations.peak_detection.score_minerals - unchanged, one mineral at a time so
-each row keeps its reference index; the best matches list on the left, all
+calculations.peak_detection.score_minerals, one mineral at a time so each row
+keeps its reference index. **Pairing** chooses how each mineral's lines are
+paired with the peaks: Greedy (the original, default) or One-to-one (the best
+pairing); changing it rescores. The best matches list on the left, all
 references on the right, with transfer buttons between them.
 """
 
@@ -153,6 +155,25 @@ class MatchMineralsDialog(QDialog):
                          palette.color(QPalette.ColorRole.ButtonText))
         combo.setPalette(palette)
         self._targets_tooltip = combo.toolTip()
+
+        # --- Pairing: how each mineral's lines are paired with the peaks ---
+        # The scorer's key rides on each item, so the order of the items in
+        # the .ui is free. Greedy (the original) is the default.
+        pairing = self.ui.cmb_pairing
+        for row, (key, tip) in enumerate((
+            (pd.PAIRING_GREEDY,
+             "Greedy (the original): from the largest d-spacing down, each "
+             "reference line takes its nearest peak, if no earlier line took it. "
+             "A line whose nearest peak is taken gives up."),
+            (pd.PAIRING_ONE_TO_ONE,
+             "One-to-one: the pairing that matches the most reference lines to "
+             "different peaks, and of those the closest overall. Does not depend "
+             "on the order of the lines."),
+        )):
+            pairing.setItemData(row, key)
+            pairing.setItemData(row, tip, Qt.ItemDataRole.ToolTipRole)
+        pairing.setCurrentIndex(0)
+        pairing.currentIndexChanged.connect(lambda _i: self._rescore())
 
         # Selecting a mineral in either list draws its reflections on the main
         # plot as magenta sticks (the old mineral-preview overlay). "Specimen
@@ -315,8 +336,9 @@ class MatchMineralsDialog(QDialog):
         so even ties come out in the same order), but with each row's index
         kept, which the one-call form loses."""
         scored = []
+        pairing = self.pairing()
         for idx, mineral in enumerate(self._minerals):
-            result = pd.score_minerals(peaks, [mineral])
+            result = pd.score_minerals(peaks, [mineral], pairing=pairing)
             if result:
                 scored.append((idx, result[0][4]))
         scored.sort(key=lambda s: s[1], reverse=True)
@@ -325,8 +347,20 @@ class MatchMineralsDialog(QDialog):
     def _score_one(self, idx: int) -> float:
         if not self._marker_peaks:
             return 0.0
-        result = pd.score_minerals(self._marker_peaks, [self._minerals[idx]])
+        result = pd.score_minerals(self._marker_peaks, [self._minerals[idx]],
+                                   pairing=self.pairing())
         return result[0][4] if result else 0.0
+
+    def pairing(self) -> str:
+        """The scorer's pairing mode chosen in the Pairing box."""
+        return self.ui.cmb_pairing.currentData() or pd.PAIRING_GREEDY
+
+    def set_pairing(self, pairing: str) -> None:
+        """Choose a pairing mode (rescores, like picking it in the box)."""
+        index = self.ui.cmb_pairing.findData(pairing)
+        if index < 0:
+            raise ValueError("Unknown pairing %r" % (pairing,))
+        self.ui.cmb_pairing.setCurrentIndex(index)
 
     def _rescore(self) -> None:
         """Score the library against the current targets. Rows added by hand

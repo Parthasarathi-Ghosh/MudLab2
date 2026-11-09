@@ -341,6 +341,88 @@ def check_highlight_drawing():
     dlg.deleteLater()
 
 
+def card_specimen(prefix, k=8):
+    """Gaussians + a peak at each of a card's k strongest lines (2theta inside
+    5-80 deg at Cu), so the card's own lines are the targets."""
+    _name, _abbr, peaks = next(m for m in _MINERALS if m[0].startswith(prefix))
+    lines = []
+    for d, inten in sorted(peaks, key=lambda p: p[1], reverse=True):
+        if d / 10.0 > DEFAULT_WAVELENGTH / 2:
+            pos = get_2t_from_nm(d / 10.0, DEFAULT_WAVELENGTH)
+            if 5.0 < pos < 80.0:
+                lines.append((pos, inten))
+        if len(lines) >= k:
+            break
+    x = np.linspace(5.0, 80.0, 6000)
+    y = np.full_like(x, 2.0)
+    for pos, inten in lines:
+        y = y + inten * np.exp(-0.5 * ((x - pos) / 0.05) ** 2)
+    spec = Specimen(name="%s-synth" % prefix)
+    spec.set_experimental_pattern(x, y)
+    for n, (pos, _i) in enumerate(lines):
+        spec.add_marker(Marker(label="pk%d" % n, position=pos))
+    return spec
+
+
+def check_pairing_switch():
+    spec = card_specimen("Muscovite-2M1")
+    dlg = MatchMineralsDialog(specimen=spec, targets=list(spec.markers))
+
+    def expected(mode):
+        return [(n, a, round(s, 5)) for n, a, _mp, _pm, s
+                in pd.score_minerals(dlg._marker_peaks, _MINERALS, pairing=mode)]
+
+    def shown():
+        return [(n, a, round(s, 5)) for n, a, s in _rows(dlg)]
+
+    check("pairing: opens on Greedy", dlg.pairing() == pd.PAIRING_GREEDY
+          and dlg.ui.cmb_pairing.currentText() == "Greedy")
+    greedy_rows = shown()
+    check("pairing: Greedy rows == score_minerals(greedy)",
+          greedy_rows == expected(pd.PAIRING_GREEDY))
+
+    # Keep a mineral selected across the switch (one listed in both modes).
+    both = [n for n, _a, _s in greedy_rows][1:]
+    o2o_names = [n for n, _a, _s in expected(pd.PAIRING_ONE_TO_ONE)]
+    keep = next((n for n in both if n in o2o_names), None)
+    if keep is not None:
+        row = next(r for r, (n, _a, _s) in enumerate(greedy_rows) if n == keep)
+        dlg.ui.tv_matches.setCurrentIndex(dlg.matches_model.index(row, 0))
+
+    dlg.ui.cmb_pairing.setCurrentIndex(dlg.ui.cmb_pairing.findText("One-to-one"))
+    app.processEvents()
+    check("pairing: picking One-to-one rescores == score_minerals(one-to-one)",
+          dlg.pairing() == pd.PAIRING_ONE_TO_ONE
+          and shown() == expected(pd.PAIRING_ONE_TO_ONE))
+    check("pairing: the switch really changes this list (Muscovite-2M1 rises to 1st)",
+          shown() != greedy_rows and shown()[0][0].startswith("Muscovite-2M1"))
+    sel = dlg.ui.tv_matches.selectionModel().selectedRows()
+    check("pairing: the selected mineral stays selected across the switch",
+          keep is not None and sel
+          and dlg.matches_model.item(sel[0].row(), 0).text() == keep)
+
+    # A hand-added mineral is scored with the current pairing.
+    mus_idx = next(i for i, m in enumerate(_MINERALS) if m[0].startswith("Muscovite-2M1"))
+    dlg.matches_model.removeRows(0, dlg.matches_model.rowCount())
+    mrow = next(r for r in range(dlg.minerals_model.rowCount())
+                if dlg.minerals_model.item(r, 0).data(_INDEX_ROLE) == mus_idx)
+    dlg.ui.tv_minerals.setCurrentIndex(dlg.minerals_model.index(mrow, 0))
+    dlg._add_selected_match()
+    one = pd.score_minerals(dlg._marker_peaks, [_MINERALS[mus_idx]],
+                            pairing=pd.PAIRING_ONE_TO_ONE)
+    check("pairing: a hand-added mineral is scored with the current pairing",
+          dlg.matches_model.rowCount() == 1
+          and abs(float(dlg.matches_model.item(0, 2).text()) - one[0][4]) < 1e-4)
+
+    dlg.set_pairing(pd.PAIRING_GREEDY)
+    app.processEvents()
+    check("pairing: back to Greedy restores the original list exactly",
+          [r for r in shown() if r[0] != _MINERALS[mus_idx][0]]
+          == [r for r in greedy_rows if r[0] != _MINERALS[mus_idx][0]])
+    dlg.reject()
+    dlg.deleteLater()
+
+
 # ----------------------------------------------------------------------
 # The real app: view-only plot while the dialog is open
 # ----------------------------------------------------------------------
@@ -514,6 +596,7 @@ def main():
     check_apply_and_external_edits()
     check_enter_policy()
     check_highlight_drawing()
+    check_pairing_switch()
     path = _fixture()
     if path is None:
         print("No sample project with peaks: main-window checks skipped.")

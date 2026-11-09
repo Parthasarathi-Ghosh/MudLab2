@@ -329,15 +329,78 @@ def get_best_prominence(data_x, data_y, max_prominence=None, steps=None,
 # ----------------------------------------------------------------------
 # Mineral matching
 # ----------------------------------------------------------------------
-def score_minerals(peak_list, minerals):
+# How a mineral's reference lines are paired with the observed peaks. Each
+# mineral is paired on its own: the claim check below is between ONE mineral's
+# lines, never across minerals (a peak can count for several minerals).
+PAIRING_GREEDY = "greedy"
+PAIRING_ONE_TO_ONE = "one-to-one"
+PAIRINGS = (PAIRING_GREEDY, PAIRING_ONE_TO_ONE)
+
+
+def _pair_greedy(mpeaks, peak_list, max_pos_dev):
+    """The original pairing. From the largest d down, each reference line takes
+    its NEAREST observed peak if that lies within the window and no earlier line
+    has claimed it. A line whose nearest peak is taken gives up, even when
+    another free peak is inside the window; and an earlier (larger-d) line wins
+    a peak even when a later line is closer to it."""
+    p_matches = []
+    i_matches = []
+    already_matched = []
+    for mpos, mint in mpeaks:
+        epos, eint = find_closest(mpos, peak_list)
+        if abs(epos - mpos) / mpos <= max_pos_dev and epos not in already_matched:
+            p_matches.append([mpos, epos])
+            i_matches.append([mint, eint])
+            already_matched.append(epos)
+    return p_matches, i_matches
+
+
+def _pair_one_to_one(mpeaks, peak_list, max_pos_dev):
+    """The best one-to-one pairing: the most reference lines matched to distinct
+    observed peaks within the window, and among those pairings the one with the
+    least total relative deviation. Independent of the order of the lines.
+
+    Solved as an assignment problem (scipy's linear_sum_assignment) on the cost
+    |obs - ref| / ref / window for pairs inside the window. A pair outside it
+    costs more than all inside pairs put together, so the solver first
+    minimises how many such pairs it is forced into - i.e. maximises the number
+    of real matches - and only then the deviation; the outside pairs are then
+    dropped. Pairs come back in reference-line order, as the greedy ones do."""
+    from scipy.optimize import linear_sum_assignment
+
+    ref = np.array([float(p[0]) for p in mpeaks])
+    obs = np.array([float(p[0]) for p in peak_list])
+    if ref.size == 0 or obs.size == 0:
+        return [], []
+    dev = np.abs(obs[None, :] - ref[:, None]) / ref[:, None]
+    inside = dev <= max_pos_dev
+    if not inside.any():
+        return [], []
+    cost = np.where(inside, dev / max_pos_dev, float(ref.size + 1))
+    rows, cols = linear_sum_assignment(cost)
+    p_matches = []
+    i_matches = []
+    for r, c in zip(rows, cols):
+        if inside[r, c]:
+            p_matches.append([mpeaks[r][0], peak_list[c][0]])
+            i_matches.append([mpeaks[r][1], peak_list[c][1]])
+    return p_matches, i_matches
+
+
+def score_minerals(peak_list, minerals, pairing=PAIRING_GREEDY):
     """Score reference minerals against an observed peak list.
 
     ``peak_list`` - ``(position_in_angstrom, absolute_intensity)`` observed peaks.
     ``minerals`` - ``(name, abbreviation, peaks)`` where ``peaks`` is a list of
     ``(d_angstrom, relative_intensity)``.
+    ``pairing`` - how each mineral's lines are paired with the peaks:
+    ``PAIRING_GREEDY`` (the default and the original behaviour, see
+    ``_pair_greedy``) or ``PAIRING_ONE_TO_ONE`` (the best one-to-one pairing,
+    see ``_pair_one_to_one``). Only the pairing differs; the score below is the
+    same formula either way.
 
-    For each mineral, its (up to 15) largest-d reflections are matched to the
-    nearest observed peak within 1% of position; a mineral with at least the
+    For each mineral, its (up to 15) largest-d reflections are matched to
+    observed peaks within 1% of position; a mineral with at least the
     required number of matches is scored as
 
         score = (number of matches) * position_factor * intensity_factor
@@ -355,6 +418,10 @@ def score_minerals(peak_list, minerals):
     exactly two distinct-intensity matches via a NaN from a 2-point linregress
     standard error - e.g. quartz, matched on its 4.26/3.34 A lines, vanished.
     """
+    if pairing not in PAIRINGS:
+        raise ValueError("Unknown pairing %r (expected one of %s)."
+                         % (pairing, ", ".join(PAIRINGS)))
+    pair = _pair_greedy if pairing == PAIRING_GREEDY else _pair_one_to_one
     max_pos_dev = 0.01  # fraction
     # NOTHING can match nothing. Without this the loop reaches find_closest
     # with an empty list: it used to raise IndexError there, and making
@@ -367,15 +434,7 @@ def score_minerals(peak_list, minerals):
     scores = []
     for mineral, abbreviation, mpeaks in minerals:
         mpeaks = sorted(mpeaks, key=lambda peak: peak[0], reverse=True)[:15]
-        p_matches = []
-        i_matches = []
-        already_matched = []
-        for mpos, mint in mpeaks:
-            epos, eint = find_closest(mpos, peak_list)
-            if abs(epos - mpos) / mpos <= max_pos_dev and epos not in already_matched:
-                p_matches.append([mpos, epos])
-                i_matches.append([mint, eint])
-                already_matched.append(epos)
+        p_matches, i_matches = pair(mpeaks, peak_list, max_pos_dev)
 
         if len(p_matches) < min_peaks_needed:
             continue

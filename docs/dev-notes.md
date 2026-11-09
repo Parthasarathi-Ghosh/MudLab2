@@ -278,9 +278,35 @@ Consequences, measured on the shipped library (228 minerals):
 - **The window is 1% of d, so it widens with angle.** At Cu Kα₁ it is ±0.06° 2θ
   at 14 Å, ±0.09° at 10 Å, ±0.27° at 3.34 Å and ±0.66° at 1.54 Å, regardless of
   instrument or peak width.
-- **Assignment is greedy.** A larger-d line claims its nearest peak even when a
-  later line is closer to it; the later line then fails instead of trying its
-  next-nearest peak.
+- **Assignment is greedy by default.** A larger-d line claims its nearest peak
+  even when a later line is closer to it; the later line then fails instead of
+  trying its next-nearest peak. The claim check is per mineral only (the list
+  is reset for each mineral), so one peak can count for several minerals.
+  Since 2026-11-09 a **One-to-one** pairing is selectable; see below.
+
+### Pairing modes: Greedy and One-to-one
+
+`score_minerals(..., pairing=)` takes `PAIRING_GREEDY` (default; `_pair_greedy`
+is the original loop, proven bit-identical on 92 peak lists / 3,731 rows and
+pinned against a frozen copy in `tools/verify_mineral_pairing.py`) or
+`PAIRING_ONE_TO_ONE` (`_pair_one_to_one`: SciPy `linear_sum_assignment`, where an
+out-of-window pair costs more than all in-window pairs together, so it maximises
+matches and then minimises total relative deviation; checked optimal against
+brute force). Only the pairing differs; the score formula is shared. The dialog's
+**Pairing** box switches between them and rescores; Greedy is the default and is
+not remembered between sessions.
+
+Why it is an option rather than a replacement, measured on 28 real peak lists
+(308 AD's marked peaks plus auto-detected peaks on every sample project): the
+top match never changed and the top ten changed by at most two minerals, but
+single minerals can move a lot, in both directions — Muscovite-2M1 on 308 AD's
+50 detected peaks 1.78 → 3.22, Hornblende 0.73 → 0.26 (a better pairing can lower
+r). On its own eight strongest lines Muscovite-2M1 ranks 5th under Greedy (behind
+Illite-2M1) and 1st under One-to-one. Blocked lines are common (20 minerals on 12
+peaks) but One-to-one rescues few (3): usually no other peak is in reach because
+two card lines sit under one observed peak — 93 of 228 cards have two tested
+lines within 1%. That is the one-to-one rule's own limit; grouping close lines
+before pairing (summed intensity) would address it and was considered, not built.
 
 ### The intensity factor in practice
 

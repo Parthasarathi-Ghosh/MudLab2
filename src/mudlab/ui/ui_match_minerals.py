@@ -48,6 +48,19 @@ class Ui_MatchMineralsDialog(object):
 
         self.box_targets.addWidget(self.cmb_targets)
 
+        self.lbl_pairing = QLabel(MatchMineralsDialog)
+        self.lbl_pairing.setObjectName(u"lbl_pairing")
+
+        self.box_targets.addWidget(self.lbl_pairing)
+
+        self.cmb_pairing = QComboBox(MatchMineralsDialog)
+        self.cmb_pairing.addItem("")
+        self.cmb_pairing.addItem("")
+        self.cmb_pairing.setObjectName(u"cmb_pairing")
+        self.cmb_pairing.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+
+        self.box_targets.addWidget(self.cmb_pairing)
+
         self.chk_use_specimen_range = QCheckBox(MatchMineralsDialog)
         self.chk_use_specimen_range.setObjectName(u"chk_use_specimen_range")
 
@@ -143,6 +156,7 @@ class Ui_MatchMineralsDialog(object):
 
 #if QT_CONFIG(shortcut)
         self.lbl_targets.setBuddy(self.cmb_targets)
+        self.lbl_pairing.setBuddy(self.cmb_pairing)
 #endif // QT_CONFIG(shortcut)
 
         self.retranslateUi(MatchMineralsDialog)
@@ -158,6 +172,13 @@ class Ui_MatchMineralsDialog(object):
         self.lbl_targets.setText(QCoreApplication.translate("MatchMineralsDialog", u"Targets", None))
 #if QT_CONFIG(tooltip)
         self.cmb_targets.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"The peaks the minerals are scored against. Tick or untick peaks to change them; the scores update at once.", None))
+#endif // QT_CONFIG(tooltip)
+        self.lbl_pairing.setText(QCoreApplication.translate("MatchMineralsDialog", u"Pairing", None))
+        self.cmb_pairing.setItemText(0, QCoreApplication.translate("MatchMineralsDialog", u"Greedy", None))
+        self.cmb_pairing.setItemText(1, QCoreApplication.translate("MatchMineralsDialog", u"One-to-one", None))
+
+#if QT_CONFIG(tooltip)
+        self.cmb_pairing.setToolTip(QCoreApplication.translate("MatchMineralsDialog", u"How each mineral's reference lines are paired with the target peaks. The scores update at once.", None))
 #endif // QT_CONFIG(tooltip)
         self.chk_use_specimen_range.setText(QCoreApplication.translate("MatchMineralsDialog", u"Specimen range", None))
         self.lbl_select.setText(QCoreApplication.translate("MatchMineralsDialog", u"Matched minerals:", None))

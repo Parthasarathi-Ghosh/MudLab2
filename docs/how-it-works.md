@@ -953,10 +953,13 @@ is amiss.
 
 Candidate minerals are scored against a reference library of powder patterns.
 For each mineral, up to fifteen of its lines (those at the largest d-spacings,
-so the lowest angles) are matched to the nearest observed peak within a small
-tolerance, and the score rewards two things: how closely the positions agree,
-and how well the *relative intensities* correlate. Matched against a single
-peak, only the position can be judged.
+so the lowest angles) are matched to observed peaks within a small tolerance,
+and the score rewards two things: how closely the positions agree, and how well
+the *relative intensities* correlate. Matched against a single peak, only the
+position can be judged. How lines are paired with peaks is a choice: each line
+in turn may take its nearest peak (*Greedy*), or the pairing that matches the
+most lines to different peaks may be found (*One-to-one*). Each mineral is
+paired on its own, so one peak can support several candidates.
 
 The intensity term is deliberately scale-invariant — it compares the shape of
 the intensity pattern rather than its absolute values, since a reference

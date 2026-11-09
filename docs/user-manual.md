@@ -1281,6 +1281,23 @@ can only be judged on its position, so the usual next step is to add more:
    `0.719, Kln`), so the identification shows on the plot. Applying the same
    mineral twice does not duplicate it.
 
+**Pairing**, beside Targets, chooses how each mineral's reference lines are
+paired with your peaks before scoring. The scores update as soon as you change
+it.
+
+- **Greedy** (the default, and how MudLab has always scored): from the largest
+  d-spacing down, each reference line takes its nearest peak, unless an earlier
+  line already took it — in which case that line counts as unmatched, even if
+  another of your peaks was close enough.
+- **One-to-one**: MudLab finds the pairing that matches the most reference lines
+  to different peaks, and of those the closest one. The order of the lines does
+  not matter.
+
+The two usually agree on the best candidates. They differ when a mineral has
+several lines close together near your peaks; One-to-one then gives that mineral
+its fair count. Switching back and forth is a quick way to see whether a
+ranking depends on how lines were paired.
+
 While the dialog is open:
 
 - **The target peaks are highlighted** on the plot: bold labels on a yellow

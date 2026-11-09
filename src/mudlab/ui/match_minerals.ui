@@ -58,6 +58,36 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="lbl_pairing">
+       <property name="text">
+        <string>Pairing</string>
+       </property>
+       <property name="buddy">
+        <cstring>cmb_pairing</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cmb_pairing">
+       <property name="toolTip">
+        <string>How each mineral's reference lines are paired with the target peaks. The scores update at once.</string>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToContents</enum>
+       </property>
+       <item>
+        <property name="text">
+         <string>Greedy</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>One-to-one</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
       <widget class="QCheckBox" name="chk_use_specimen_range">
        <property name="text">
         <string>Specimen range</string>

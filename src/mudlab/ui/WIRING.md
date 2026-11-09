@@ -2004,8 +2004,12 @@ drawn: the "offset" style's special Y-offset line.
   `set_plot_interaction_locked(True, owner=self)` (view-only plot, owner-tagged
   lock) and the dialog keeps `specimen.match_targets` set through
   `set_match_targets` (highlight, in-place redraw); `done()`/`closeEvent` ->
-  `_end_session` clears preview + highlight and unlocks. Guard:
-  `tools/verify_match_targets.py`.
+  `_end_session` clears preview + highlight and unlocks. **Pairing**
+  (`cmb_pairing`): items carry `pd.PAIRING_GREEDY` / `pd.PAIRING_ONE_TO_ONE` as
+  item data (order in the .ui is free); `pairing()` reads it and `_score_all` /
+  `_score_one` pass it to `score_minerals`; `currentIndexChanged` -> `_rescore`.
+  Greedy is the default each time the dialog opens. Guards:
+  `tools/verify_match_targets.py`, `tools/verify_mineral_pairing.py`.
   Button ids follow the old glade: `btn_rtl` = add (minerals -> matches),
   `btn_ltr` = remove. **Mineral-preview overlay:** selecting a row in either
   list (both selectionModels -> `_on_row_selected`) stamps the row's
