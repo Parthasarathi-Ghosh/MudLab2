@@ -130,6 +130,13 @@ def main():
     check("spec: the .exe carries the version resource",
           'version="version_info.txt"' in spec)
     check("spec: the .exe carries the app icon", "mudlab.ico" in spec)
+    # The CI runner's OpenSSL (found on its PATH by PyInstaller's QtNetwork
+    # hook) and the UCRT shipped in every CI release until 1.1.0, unlicensed;
+    # collect_licenses.py refused them. The spec must keep dropping them.
+    check("spec: drops the OpenSSL and UCRT DLLs the build machine supplies",
+          "def _from_the_build_machine" in spec
+          and "a.binaries = [entry for entry in a.binaries" in spec
+          and "-x64" in spec and "api-ms-win-" in spec)
 
     # If a build is present, check the REAL thing rather than the recipe.
     built = os.path.join(_REPO, "dist", "MudLab")

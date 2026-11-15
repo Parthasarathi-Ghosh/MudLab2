@@ -4,6 +4,7 @@
 
 import glob
 import os
+import re
 import sys
 
 
@@ -90,6 +91,33 @@ a = Analysis(
     excludes=["tkinter"],
     noarchive=False,
 )
+
+
+def _from_the_build_machine(name):
+    """True for DLLs PyInstaller picks up from the BUILD MACHINE, not from
+    MudLab's dependencies, which must not ship.
+
+    Found 2026-11-15 by tools/collect_licenses.py, which refused them in the
+    first CI build of 1.1.0; every earlier CI release shipped them unnoticed,
+    and a local build never had them:
+
+    * OpenSSL as libssl-3-x64.dll / libcrypto-3-x64.dll. PyInstaller's QtNetwork
+      hook searches the PATH for them, because the PySide6 wheels expect OpenSSL
+      to come from the system, and the GitHub runner has an OpenSSL install on
+      its PATH. So a release carried whatever OpenSSL the runner happened to
+      have: no stated version, no licence in the package. MudLab makes no TLS
+      connection, so Qt never needs it. Python's own OpenSSL (libssl-3.dll,
+      libcrypto-3.dll, used by _ssl) has no "-x64" and is kept.
+    * The Universal C Runtime: ucrtbase.dll and the api-ms-win-* forwarders.
+      They are part of Windows 10 and later, which ignores app-local copies, and
+      tools/verify_bundle_dependencies.py already counts them as the system's.
+    """
+    lower = os.path.basename(name).lower()
+    return (re.fullmatch(r"lib(ssl|crypto)-\d+(_\d+)?-x64\.dll", lower) is not None
+            or lower == "ucrtbase.dll" or lower.startswith("api-ms-win-"))
+
+
+a.binaries = [entry for entry in a.binaries if not _from_the_build_machine(entry[0])]
 
 # UPX is OFF, explicitly. PyInstaller compresses with UPX whenever upx.exe
 # happens to be on PATH, which makes the artifact depend on what is installed
