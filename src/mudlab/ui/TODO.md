@@ -656,7 +656,10 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   QSettings). New **Help -> Structure Collection...** (`main_window.ui`
   actionStructureCollection) opens the folder. `.gitattributes`
   `structures/**/*.cif -text` keeps the published bytes.
-  verify_structure_collection.py 43/43 (9 deliberate breaks, all caught).
+  verify_structure_collection.py 55/55 (12 deliberate breaks, all caught),
+  including the 11 clays that have a MudLab component matching it; that check
+  replaced a talc with a pyrophyllite-size cell (Drits 2012 -> Perdikatsis &
+  Burzlaff 1981).
 - [ ] Structure Library dialog (phase 2 of the collection) - browse the
   collection and add a structure as a new clay or non-clay phase; needs
   `structure_library.ui`. Plan: docs/structure-collection-plan.md.

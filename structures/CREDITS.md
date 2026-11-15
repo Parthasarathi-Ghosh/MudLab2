@@ -35,9 +35,9 @@ each file is listed below. The terms of use are in README.md.
 
 ## 2:1 layers and micas
 
-- **Talc** — `Clays/Talc__AMCSD-0020723.cif`  
-  Drits V A; Guggenheim S; Zviagina B B; Kogure T (2012). Structures of the 2:1 layers of pyrophyllite and talc. *Clays and Clay Minerals* 60, 574-587. [AMCSD 0020723]  
-  _With H._
+- **Talc** — `Clays/Talc__AMCSD-0010839.cif`  
+  Perdikatsis B; Burzlaff H (1981). Strukturverfeinerung am Talk Mg3[(OH)2Si4O10]. *Zeitschrift fur Kristallographie* 156, 177-186. https://doi.org/10.1524/zkri.1981.156.3-4.177 [AMCSD 0010839]  
+  _With H. Chosen over Drits et al. 2012 (AMCSD 0020723), a re-averaging of the same Harford County talc whose record carries a pyrophyllite-size cell (b 8.92 Å, d001 9.19 Å)._
 - **Pyrophyllite** — `Clays/Pyrophyllite__AMCSD-0000823.cif`  
   Lee J H; Guggenheim S (1981). Single crystal X-ray refinement of pyrophyllite-1Tc. *American Mineralogist* 66, 350-357. [AMCSD 0000823]
 - **Illite-1M** — `Clays/Illite-1M__AMCSD-0005015.cif`  

@@ -196,12 +196,12 @@ matters only insofar as the planned paper has its own disclosure norms.
 
 Goal: ship a curated, cited set of published crystal structures — clays and the
 minerals that accompany them in clay XRD — separately from MudLab's reference
-clay components. The work lives OUTSIDE the repo until it is ready, in the
-maintainer's CIF workspace (a *Curated structure collection* folder: sources,
-the proposal, `curation-spec-v2.json`, and `curated/` with 65 CIFs,
-`MANIFEST.md` and `manifest.csv`). Sources: atomipy (COD / Avogadro2 data), the user's AMCSD clay
-corpus, and COD. Every structure carries its citation; COD is public domain,
-AMCSD requires citing the article.
+clay components. The 65 chosen CIFs are in the repository, in `structures/`,
+which is the master copy. The maintainer's CIF workspace keeps only the
+provenance: the source downloads, the curation proposal and the selection spec.
+Sources: atomipy (COD / Avogadro2 data), the user's AMCSD clay corpus, and COD.
+Every structure carries its citation; COD is public domain, AMCSD requires
+citing the article.
 
 - ~~**Reader bugs the set exposed**~~ — **FIXED 2026-11-15**
   (`file_parsers/cif_labels.py`, `verify_cif_labels.py` 28/28): water labels
@@ -215,7 +215,7 @@ AMCSD requires citing the article.
   are in `structures/` (Clays 18 / Non-clays 47, README, CREDITS, manifest),
   shipped as a visible `Structures` folder beside `MudLab.exe`; the CIF file
   dialogs open there; Help → Structure Collection… opens it;
-  `verify_structure_collection.py` 43/43. The repository copy is now the
+  `verify_structure_collection.py` 55/55. The repository copy is now the
   master; the maintainer's CIF workspace keeps only the provenance (sources,
   proposal, selection spec).
 - **Packaging, phase 2 — not started:** a Structure Library dialog that adds a
@@ -224,6 +224,20 @@ AMCSD requires citing the article.
 - **Chamosite regrouped:** Walker & Bish 1992 (IIb, c = 14.26 Å) is a
   chlorite; the curation had filed it under 1:1 minerals. Shipped under
   *Smectites, vermiculite, chlorite*.
+- ~~**Talc entry was wrong**~~ — **REPLACED 2026-11-15.** The first talc
+  shipped, Drits et al. 2012 (AMCSD 0020723), has talc atoms in a
+  pyrophyllite-size cell: b 8.923 Å, d001 9.19 Å, V 425.1 Å³, where talc has
+  b 9.17 Å, d001 9.35 Å and V about 454 Å³ (V 425.1–425.2 Å³ and d001 9.19 Å are
+  pyrophyllite's). Its 060 fell at 62.4° 2θ (Cu), the dioctahedral position,
+  and imported it matched MudLab's own talc component at r = 0.51. Its z
+  coordinates are those of Perdikatsis & Burzlaff 1981, the same Harford County
+  talc, so the 2012 record re-averages that structure; the paper could not be
+  read to say whether the paper or the database record carries the wrong cell.
+  Now shipped: Perdikatsis & Burzlaff 1981 (AMCSD 0010839; with H; b 9.173 Å,
+  d001 9.35 Å, 060 at 60.5°, r = 0.95). Rejected: Gatta et al. 2013 (measured at
+  20–223 K) and Gruner 1934 (no H, r = 0.72). The other 17 clays' b and d001 fit
+  their minerals. `verify_structure_collection.py` now holds the 11 clays that
+  have a MudLab component to that component (d001 within 0.01 nm, r ≥ 0.85).
 - **Glauconite left out** (user decision): every COD glauconite (Drits et al.
   2010) is an idealised all-Al model; a real Fe-bearing refinement is needed.
 - **Two-layer polytypes not folded automatically** (nacrite, muscovite-2M1,

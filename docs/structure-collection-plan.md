@@ -133,6 +133,13 @@ New `tools/verify_structure_collection.py`:
    last-picked folder afterwards (`QFileDialog.getOpenFileName` stubbed).
 7. The Help action exists and opens the folder (`openUrl` stubbed).
 8. `package.cmd` copies the folder before the self-test runs.
+9. Added after phase 1 was built: every clay MudLab has its own component for
+   (11 of the 18) imports, with the layer count its hint gives, to that
+   component's basal spacing within 0.01 nm and a correlating 00l pattern
+   (r ≥ 0.85). Reading a file says nothing about its cell. The first talc
+   shipped (Drits et al. 2012, AMCSD 0020723) read perfectly but had a
+   pyrophyllite-size cell, so it was replaced by Perdikatsis & Burzlaff 1981
+   (AMCSD 0010839).
 
 Also:
 

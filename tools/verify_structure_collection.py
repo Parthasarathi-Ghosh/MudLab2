@@ -14,7 +14,16 @@
 3. **MudLab can read them.** Every file parses in the clay reader with no site
    skipped, every clay projects, and every file gives reflections in the
    non-clay reader.
-4. **Users can find them.** The folder resolves in a source checkout and in a
+4. **They are the minerals they claim to be.** Reading a file proves nothing
+   about its cell: the first talc shipped (Drits et al. 2012, AMCSD 0020723)
+   read perfectly and carried a pyrophyllite-size cell, b 8.92 A and d001
+   9.19 A instead of 9.17 A and 9.35 A. So every clay that MudLab has its own
+   component for (11 of the 18) is imported the way a user would, with the
+   layer count its manifest hint gives, and must match that component: the
+   same basal spacing within 0.01 nm and a 00l pattern correlating at r >= 0.85.
+   Measured 2026-11-15, the shipped files give r 0.907-0.999 and spacings within
+   0.0065 nm; the 2012 talc gave r 0.51 and 0.0212 nm.
+5. **Users can find them.** The folder resolves in a source checkout and in a
    (simulated) frozen build; the four CIF file dialogs open in the right
    subfolder and then remember the user's folder; Help -> Structure
    Collection... opens the folder; package.cmd copies it before the self-test.
@@ -42,12 +51,20 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO, "src"))
 
+import numpy as np  # noqa: E402
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 
 from mudlab import structure_collection as sc  # noqa: E402
+from mudlab.calculations.goniometer import get_machine_correction_range  # noqa: E402
+from mudlab.calculations.specimen import calculate_phase_intensities  # noqa: E402
 from mudlab.file_parsers import cif_component as cc  # noqa: E402
+from mudlab.file_parsers.atom_type_library import atom_type_library_map  # noqa: E402
+from mudlab.file_parsers.default_catalog import (  # noqa: E402
+    build_catalog_entry_by_name,
+)
+from mudlab.models.goniometer import Goniometer  # noqa: E402
 from mudlab.nonclay.structure import reflections_from_cif  # noqa: E402
 
 ROOT = os.path.join(_REPO, "structures")
@@ -154,6 +171,75 @@ def check_readers():
           % (": " + ", ".join(unprojected) if unprojected else ""), not unprojected)
     check("non-clay reader gives reflections for all 65 at Cu Ka%s"
           % (": " + ", ".join(no_refl) if no_refl else ""), not no_refl)
+
+
+#: Shipped clay (manifest `mineral`) -> MudLab's own component of that mineral.
+#: The other seven clays have no counterpart: pyrophyllite, phlogopite and
+#: annite have no component, and the smectites' and vermiculite's basal
+#: spacing depends on hydration, so there is nothing fixed to compare with.
+COUNTERPARTS = {
+    "Kaolinite": "Kaolinite",
+    "Dickite": "Kaolinite",
+    "Nacrite": "Kaolinite",
+    "Lizardite-1T": "Serpentine",
+    "Illite-1M": "Illite",
+    "Illite-2M1": "Illite",
+    "Muscovite-2M1": "Muscovite",
+    "Paragonite-2M1": "Paragonite",
+    "Talc": "Talc",
+    "Clinochlore": "Chlorite",
+    "Chamosite": "Chlorite",
+}
+#: How close an imported clay must come to its counterpart.
+D001_TOLERANCE_NM = 0.01
+MIN_CORRELATION = 0.85
+
+
+def check_agreement():
+    """Each clay with a counterpart matches MudLab's own component of it."""
+    data = {r["mineral"]: r for r in rows() if r["kind"] == "clay"}
+    absent = sorted(set(COUNTERPARTS) - set(data))
+    check("every clay with a MudLab counterpart is in the manifest%s"
+          % (": missing " + ", ".join(absent) if absent else ""), not absent)
+
+    library = atom_type_library_map()
+    gonio = Goniometer()
+    gonio.min_2theta, gonio.max_2theta, gonio.steps = 2.0, 45.0, 4301
+    theta = np.radians(np.linspace(2.0, 45.0, 4301) * 0.5)
+    correction = get_machine_correction_range(gonio, theta)
+
+    def pattern(phase):
+        return calculate_phase_intensities(
+            theta, gonio.wavelength, gonio.wavelength_distribution,
+            gonio.soller1, gonio.soller2, gonio.mcr_2theta, correction, [phase])[0]
+
+    for mineral, reference_name in COUNTERPARTS.items():
+        row = data.get(mineral)
+        if row is None:
+            continue
+        # The manifest hints exactly the two-layer cells the importer does not
+        # fold; the hint tells the user to set 2, so the import does too.
+        divisor = 2 if row["hint"] else None
+        reference = build_catalog_entry_by_name(reference_name)[0]
+        want_d001 = reference.components[0].d001
+        expected = pattern(reference)
+        component, _report, missing = cc.component_from_cif(full(row), library,
+                                                            divisor=divisor)
+        phase = build_catalog_entry_by_name(reference_name)[0]
+        phase.components[0] = component
+        imported = pattern(phase)
+        if expected.max() > 0 and imported.max() > 0:
+            r = float(np.corrcoef(expected / expected.max(),
+                                  imported / imported.max())[0, 1])
+        else:
+            r = 0.0
+        ok = (not missing
+              and abs(component.d001 - want_d001) <= D001_TOLERANCE_NM
+              and r >= MIN_CORRELATION)
+        check("%s matches MudLab's %s component: d001 %.4f vs %.4f nm, r = %.3f%s"
+              % (mineral, reference_name, component.d001, want_d001, r,
+                 "" if not missing else ", unresolved atom types %s" % missing),
+              ok)
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +466,7 @@ def main() -> int:
     check_integrity()
     check_citations()
     check_readers()
+    check_agreement()
     check_resolver()
     check_dialog_start_folders()
     check_help_action()

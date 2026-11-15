@@ -14,9 +14,9 @@ structure collection (2026-11-15), run head-less.
    was silently taken as P1.
 
 Everything here is synthetic, so it runs anywhere (CI included). A last group
-re-reads real files: three from the shipped structure collection (in the repo,
-so they always run) and two from the user's AMCSD corpus, which is skipped -
-not failed - on a machine that does not have it.
+re-reads the five real files that exposed the bugs. All five ship in the
+structure collection (structures/), so they always run, and a missing one is a
+failure, not a skip.
 
 Run head-less with the bundled interpreter from the repo root:
 
@@ -47,8 +47,6 @@ def check(label, ok):
 
 _WK, _KNOWN = nst._load_wk()
 
-CORPUS = os.environ.get("MUDLAB_CIF_CORPUS",
-                        r"C:\GitHub\CIF builder\Clay structures\RRUFF AMCSD")
 # The shipped collection (structures/Clays, structures/Non-clays).
 CURATED = os.environ.get("MUDLAB_CURATED_STRUCTURES",
                          os.path.join(_REPO, "structures"))
@@ -205,22 +203,23 @@ def check_symmetry_columns():
 
 
 def check_real_files():
-    """The curated files that exposed the bugs, when present on this machine."""
+    """The real files that exposed the bugs, read from the shipped collection.
+
+    Vermiculite and sepiolite used to be read from the user's AMCSD corpus
+    outside the repo; the shipped copies are byte-identical (same sha256), so
+    nothing here depends on a file outside the repository any more.
+    """
     targets = [
-        ("vermiculite (Wat)", os.path.join(CORPUS, "Vermiculite__0020497.cif")),
-        ("sepiolite (Wat)", os.path.join(CORPUS, "Sepiolite__0004269.cif")),
+        ("vermiculite (Wat)", curated("Vermiculite__AMCSD-0020497.cif")),
+        ("sepiolite (Wat)", curated("Sepiolite__AMCSD-0004269.cif")),
         ("gypsum (symmetry ids)", curated("Gypsum__COD-2300259.cif")),
         ("jarosite (symmetry ids)", curated("Jarosite__COD-1557931.cif")),
         ("laumontite (deuterium)", curated("Laumontite__COD-9005147.cif")),
     ]
-    # The collection ships in the repo, so its files must be there; only the
-    # corpus may be absent.
-    for name, path in targets[2:]:
+    # The collection ships in the repo, so every file must be there.
+    for name, path in targets:
         check("shipped collection holds the %s file" % name, os.path.isfile(path))
     present = [(n, p) for n, p in targets if os.path.isfile(p)]
-    if not present:
-        print("Real files not found on this machine: real-file checks skipped.")
-        return
     for name, path in present:
         text = open(path, encoding="utf-8", errors="replace").read()
         _cell, sym, atoms = nst._parse_cif(text, _KNOWN)

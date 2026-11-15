@@ -431,6 +431,17 @@ all 18 clays, and computes reflections for all 65 with the non-clay reader.
 The two-layer polytypes listed under known gaps (nacrite, muscovite-2M1,
 paragonite-2M1) are in it; its manifest carries a hint for each.
 
+The harness also compares each clay that has a counterpart among MudLab's own
+components (11 of the 18: the kaolins, lizardite, the illites, the micas, talc
+and the chlorites) with that component, after import with the layer count its
+hint gives. The basal spacing must agree within 0.01 nm and the 00l pattern
+must correlate at r ≥ 0.85. The shipped files give r 0.907–0.999. This check
+exists because the first talc chosen, Drits et al. 2012 (AMCSD 0020723), read
+without fault but gave r = 0.51: its record carries a pyrophyllite-size cell
+(b 8.92 Å, d001 9.19 Å; talc has 9.17 Å and 9.35 Å). The collection ships
+Perdikatsis & Burzlaff 1981 (AMCSD 0010839) instead, the refinement that the
+2012 record re-averages.
+
 ### The oracle problem
 
 **Textbook mineral formulas are not a valid oracle**, and learning that cost a
@@ -646,4 +657,5 @@ are silicon.
 | `tools/verify_cif_component.py` | 42 | yes — skips with exit 2 without it |
 | `tools/verify_cif_import_dialog.py` | 42 | no |
 | `tools/verify_treatment_states.py` | 33 | no |
-| `tools/verify_cif_labels.py` | 28 | no (re-reads real files when present) |
+| `tools/verify_cif_labels.py` | 33 | no — its five real files ship in `structures/` |
+| `tools/verify_structure_collection.py` | 55 | no |
