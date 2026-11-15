@@ -75,7 +75,8 @@ jobs:
       - name: Build the portable package
         # package.cmd does the whole job: clean PyInstaller build, the
         # Structures folder, frozen self-test, the self-contained-bundle audit,
-        # README + LICENSE, zip.
+        # README + LICENSE + the third-party licences (tools/collect_licenses.py,
+        # which fails the build if anything bundled has no licence), zip.
         # It falls back to `python` on PATH when the vendored tree is absent.
         shell: cmd
         # MUDLAB_PYTHON pins the interpreter explicitly rather than relying on

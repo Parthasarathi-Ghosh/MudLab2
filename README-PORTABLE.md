@@ -85,5 +85,11 @@ Matplotlib are all inside the folder.
 ## Licence
 
 BSD 3-Clause. See `LICENSE`, which is included in this folder. MudLab descends
-from PyXRD / MudLab by Mathijs Dumon; that copyright notice travels with this
-release, as the licence requires.
+from PyXRD by Mathijs Dumon (BSD 2-Clause); that copyright notice travels with
+this release, as the licence requires.
+
+MudLab bundles third-party software: Python, Qt and Qt for Python (PySide6)
+under the GNU LGPL version 3, NumPy, SciPy, Matplotlib and others. Their
+licences are in the `licenses` folder; start with
+`licenses\THIRD-PARTY-NOTICES.txt`. The crystal structures in `Structures` are
+published data with their own terms (see `Structures\README.md`).

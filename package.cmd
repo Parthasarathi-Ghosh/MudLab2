@@ -56,11 +56,17 @@ REM audited instead. This gate is the reason 1.0.1 exists.
 if errorlevel 1 goto :err
 
 echo.
-echo === [5/7] Bundle the README and the licence ===
-REM The BSD-3 licence REQUIRES its notice to travel with a binary distribution,
-REM so LICENSE is part of the package, not just the repo.
+echo === [5/7] Bundle the README and the licences ===
+REM The BSD licences REQUIRE their notice to travel with a binary distribution,
+REM so LICENSE is part of the package, not just the repo. So do the licences of
+REM everything the build bundles (Python, Qt/PySide6 under the LGPL, NumPy,
+REM SciPy, Matplotlib, ...): collect_licenses.py writes them to a licenses
+REM folder, reading what is bundled from the build itself, and fails if any
+REM bundled module or DLL has no licence it can account for.
 copy /Y "README-PORTABLE.md" "dist\MudLab\README.md" >nul || goto :err
 copy /Y "LICENSE" "dist\MudLab\LICENSE" >nul || goto :err
+"%PY%" tools\collect_licenses.py --dist "dist\MudLab" --toc "build\MudLab\PYZ-00.toc"
+if errorlevel 1 goto :err
 
 echo.
 echo === [6/7] Read version ===

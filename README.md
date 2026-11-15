@@ -34,8 +34,12 @@ Preview what will be published with:
 python tools/build_release_notes.py --version <version>
 ```
 
-Licensed BSD 3-Clause - see `LICENSE`. MudLab descends from PyXRD / MudLab by
-Mathijs Dumon, whose copyright notice travels with every binary release.
+Licensed BSD 3-Clause - see `LICENSE`. MudLab descends from PyXRD by Mathijs
+Dumon (BSD 2-Clause), whose notice `LICENSE` reproduces and which travels with
+every binary release. A release also carries a `licenses` folder with the
+licences of the third-party software it bundles (written by
+`tools/collect_licenses.py`); the crystal structures in `structures/` are
+published data with their own terms.
 
 ## Self-contained environment
 

@@ -31,7 +31,7 @@ VSVersionInfo(
             StringStruct("FileVersion", "1.1.0"),
             StringStruct("InternalName", "MudLab"),
             StringStruct("LegalCopyright",
-                         "Copyright (c) 2013 Mathijs Dumon; (c) 2026 Parthasarathi Ghosh. BSD 3-Clause."),
+                         "Copyright (c) 2026 Parthasarathi Ghosh (BSD 3-Clause); PyXRD (c) 2013-2014 Mathijs Dumon (BSD 2-Clause)."),
             StringStruct("OriginalFilename", "MudLab.exe"),
             StringStruct("ProductName", "MudLab"),
             StringStruct("ProductVersion", "1.1.0"),

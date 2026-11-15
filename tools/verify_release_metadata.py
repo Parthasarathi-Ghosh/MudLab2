@@ -10,10 +10,17 @@ a long time.
 
 Also pinned:
 
-* **LICENSE exists and ships.** MudLab descends from PyXRD / MudLab (BSD
-  3-Clause, (c) 2013 Mathijs Dumon). Clause 2 REQUIRES that notice to be
-  reproduced in a BINARY distribution, so `package.cmd` must copy it into the
-  package - not merely leave it in the repo.
+* **LICENSE exists and ships.** MudLab is BSD 3-Clause and descends from
+  PyXRD, which is BSD 2-Clause, (c) 2013-2014 Mathijs Dumon. Both licences
+  REQUIRE their notice in a BINARY distribution, so `package.cmd` must copy it
+  into the package - not merely leave it in the repo. Until 1.1.0 LICENSE put
+  Dumon's copyright (as "2013") under MudLab's BSD 3-Clause, terms he never
+  used; PyXRD's own notice is now reproduced as PyXRD publishes it. LICENSE
+  also states that the crystal structures are third-party data it does not
+  cover, and points at the third-party licences folder.
+* **The third-party licences ship.** `package.cmd` runs
+  `tools/collect_licenses.py` before the zip (verify_third_party_licenses.py
+  tests the collector itself).
 * **No sample projects in the bundle.** `tools/sample_projects/*.mud` are the
   user's own data, test-only, and must never reach a release.
 
@@ -80,12 +87,30 @@ def main():
           and "Redistributions in binary form" in licence)
     check("licence: the UPSTREAM copyright is retained (clause 2 requires it)",
           "Mathijs Dumon" in licence)
+    check("licence: PyXRD's own notice is reproduced as published "
+          "(BSD 2-Clause, (c) 2013-2014)",
+          "Copyright (c) 2013-2014, Mathijs Dumon" in licence
+          and 'All rights reserved - BSD-2-Clause ("FreeBSD") License.' in licence)
+    mudlab_part = licence.split("\n====")[0]
+    check("licence: Dumon's copyright is not listed under MudLab's BSD 3-Clause",
+          "Dumon" not in mudlab_part and "Parthasarathi Ghosh" in mudlab_part)
+    check("licence: the crystal structures are excluded (third-party data)",
+          "Crystal structures" in licence and "not part of MudLab" in licence
+          and "AMCSD" in licence and "public domain" in licence)
+    check("licence: it points at the third-party licences folder",
+          "licenses" in licence and "THIRD-PARTY-NOTICES" in licence
+          and "LGPL" in licence)
     check("licence: the resource carries a copyright line",
           "LegalCopyright" in resource and "BSD" in resource)
+    check("licence: ...naming PyXRD's licence correctly",
+          "2013-2014 Mathijs Dumon (BSD 2-Clause)" in resource)
 
     package = _read("package.cmd")
     check("licence: package.cmd copies LICENSE into the bundle",
           'copy /Y "LICENSE"' in package)
+    collect_at = package.find("tools\\collect_licenses.py")
+    check("licence: package.cmd collects the third-party licences before the zip",
+          0 <= collect_at < package.find("Compress-Archive"))
     check("package: it bundles a README for users",
           "README-PORTABLE.md" in package)
     # The bundled README shipped inside 1.0.1 still saying "MudLab 1.0.0".

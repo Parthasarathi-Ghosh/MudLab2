@@ -1,6 +1,5 @@
 BSD 3-Clause License
 
-Copyright (c) 2013, Mathijs Dumon
 Copyright (c) 2026, Parthasarathi Ghosh
 All rights reserved.
 
@@ -29,8 +28,60 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
----
+================================================================================
+PyXRD
+================================================================================
 
-This software is based on PyXRD (https://github.com/mathijs-dumon/PyXRD),
-originally written by Mathijs Dumon, and has been substantially modified and
-extended as MudLab by Parthasarathi Ghosh.
+MudLab is based on PyXRD (https://github.com/mathijs-dumon/PyXRD), originally
+written by Mathijs Dumon, and has been substantially modified and extended as
+MudLab by Parthasarathi Ghosh. The parts of MudLab derived from PyXRD are also
+covered by PyXRD's licence, whose notice is reproduced below as PyXRD publishes
+it. That licence also places PyXRD's mvc module under the GNU LGPL 2; the mvc
+module is not part of MudLab.
+
+Copyright (c) 2013-2014, Mathijs Dumon
+
+All rights reserved - BSD-2-Clause ("FreeBSD") License.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+Crystal structures
+================================================================================
+
+The crystal structures in the structures folder (the Structures folder of a
+release) are published third-party data. They are not part of MudLab and
+neither licence above covers them. Structures from the Crystallography Open
+Database (COD) are in the public domain. Structures from the American
+Mineralogist Crystal Structure Database (AMCSD) may be used so long as proper
+attribution is given to the journal article. README.md and CREDITS.md in that
+folder give the terms and the article for every file.
+
+================================================================================
+Third-party software in the Windows release
+================================================================================
+
+The Windows release bundles Python, Qt for Python (PySide6) with the Qt
+libraries, NumPy, SciPy, Matplotlib and other libraries, each under its own
+licence. Qt and PySide6 are used under the GNU LGPL version 3. The notices and
+the licence texts are in the release's licenses folder, starting with
+licenses\THIRD-PARTY-NOTICES.txt.

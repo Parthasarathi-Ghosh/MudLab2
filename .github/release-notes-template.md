@@ -49,5 +49,9 @@ code-signed — choose **More info → Run anyway**.
 64-bit Windows 10 or later. Nothing else — Python, Qt, NumPy, SciPy and
 Matplotlib are all inside the folder.
 
-BSD 3-Clause. MudLab descends from PyXRD / MudLab by Mathijs Dumon; that
-copyright notice travels with this release, as the licence requires.
+BSD 3-Clause. MudLab descends from PyXRD by Mathijs Dumon (BSD 2-Clause); that
+copyright notice travels with this release, as the licence requires. The
+bundled third-party software (Python, Qt and PySide6 under the LGPL, NumPy,
+SciPy, Matplotlib and others) keeps its own licences, which are in the
+release's `licenses` folder. The crystal structures in `Structures` are
+published data with their own terms.
