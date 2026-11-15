@@ -29,8 +29,10 @@ Exit codes: 0 = all pass, 1 = a regression.
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata as md
 import importlib.util
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -82,8 +84,42 @@ def synthetic_build(root, modules, extra_files=()):
     return dist, toc
 
 
-BASE_MODULES = ["json", "mudlab.models", "pyimod02_importers", "pyparsing",
-                "six", "dateutil.parser", "PIL.Image", "matplotlib.pyplot"]
+#: Standard library, MudLab and PyInstaller's bootstrap: bundled, no entry.
+NO_ENTRY_MODULES = ["json", "mudlab.models", "pyimod02_importers"]
+
+
+def installed_dependencies():
+    """(modules, names): a top-level module and the distribution name for
+    MudLab's direct dependencies and each of Matplotlib's required packages,
+    AS INSTALLED HERE. CI resolves the transitive versions afresh (it got
+    python-dateutil 4, which no longer needs six, where the local runtime has
+    2.9 and six), so nothing beyond requirements.txt may be assumed."""
+    owners = md_packages()
+    by_dist: dict[str, set] = {}
+    for module, dists in owners.items():
+        for dist in dists:
+            by_dist.setdefault(cl._norm(dist), set()).add(module)
+    wanted = ["numpy", "scipy", "matplotlib"]
+    for requirement in md.requires("matplotlib") or []:
+        if "extra ==" not in requirement:
+            wanted.append(re.split(r"[\s;<>=!~\[(]", requirement, maxsplit=1)[0])
+    modules, names = [], []
+    for name in dict.fromkeys(cl._norm(w) for w in wanted):
+        found = sorted(m for m in by_dist.get(cl._norm(name), ()) if not m.startswith("_"))
+        if not found:
+            continue
+        exact = [m for m in found if cl._norm(m) == cl._norm(name)]
+        modules.append((exact or found)[0] + ".x")
+        names.append(md.distribution(name).metadata["Name"])
+    return modules, names
+
+
+def md_packages():
+    return md.packages_distributions()
+
+
+DEP_MODULES, DEP_NAMES = installed_dependencies()
+BASE_MODULES = NO_ENTRY_MODULES + DEP_MODULES
 
 
 def check_synthetic():
@@ -102,12 +138,11 @@ def check_synthetic():
               % ("" if not empty else " -> empty: %s" % empty), not empty)
         check("every folder is named in THIRD-PARTY-NOTICES.txt",
               all("Folder:  %s" % f in notices for f in folders))
-        wanted = ["Python", "Qt for Python", "numpy", "scipy", "matplotlib",
-                  "pillow", "pyparsing", "six", "python-dateutil"]
+        wanted = ["Python", "Qt for Python"] + DEP_NAMES
         missing = [w for w in wanted if w.lower() not in notices.lower()]
         check("the notices name every bundled component (%s)%s"
               % (", ".join(wanted), "" if not missing else " -> missing %s" % missing),
-              not missing)
+              not missing and len(DEP_NAMES) >= 6)
         stdlib_named = [w for w in ("json", "mudlab", "pyimod") if "\n%s " % w in notices]
         check("standard library, MudLab and PyInstaller's bootstrap get no entry",
               not stdlib_named)
