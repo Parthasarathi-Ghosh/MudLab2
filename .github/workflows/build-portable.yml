@@ -30,13 +30,17 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    # Every action below runs on Node 24 (checked 2026-11-15 in each version's
+    # action.yml: runs.using node24). The previous majors - checkout@v4,
+    # setup-python@v5, upload-artifact@v4, action-gh-release@v2 - ran on Node 20,
+    # which GitHub deprecated and now forces onto Node 24 with a warning.
 
     steps:
       - name: Check out the tagged commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           # Must match the interpreter the package is built with locally
           # (3.14.6): the compiled extensions carry a cp314 tag.
@@ -99,7 +103,7 @@ jobs:
       - name: Upload the package as a build artifact
         # Kept even for a plain workflow_dispatch run, so a build can be
         # downloaded and tried without tagging or publishing anything.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MudLab-${{ steps.pkg.outputs.version }}-win64-portable
           path: MudLab-*-win64-portable.zip
@@ -128,7 +132,7 @@ jobs:
         # public, add `draft: true` here - the artifact upload above means the
         # build is still downloadable either way.
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: MudLab ${{ steps.pkg.outputs.version }}
           body_path: RELEASE_NOTES.md
