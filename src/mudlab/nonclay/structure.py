@@ -21,6 +21,7 @@ import re
 
 import numpy as np
 
+from mudlab.file_parsers.cif_labels import label_element
 from mudlab.nonclay.references import reference_from_arrays
 
 _SCAT_CSV = os.path.join(
@@ -48,6 +49,11 @@ def _load_wk():
 
 
 def _element_of(token, known):
+    # Water ("Wat1", "H2O") and deuterium ("D1") labels first: "Wat" read as W
+    # computed water oxygens as TUNGSTEN. See file_parsers.cif_labels.
+    special = label_element(token)
+    if special is not None and special in known:
+        return special
     match = re.match(r"[A-Za-z]+", token.strip())
     if not match:
         return None

@@ -40,6 +40,8 @@ import re
 import uuid
 from dataclasses import dataclass, field
 
+from mudlab.file_parsers.cif_labels import MINERAL_TWO_LETTER, label_element
+
 #: Cations that sit in the octahedral sheet of a phyllosilicate.
 OCTAHEDRAL = frozenset(
     ("Al", "Mg", "Fe", "Li", "Mn", "Ti", "Ni", "Cr", "Zn", "Co", "V")
@@ -93,6 +95,9 @@ class CifStructure:
     #: The space group the file NAMES, when it names one. Kept only to explain
     #: an empty `symmetry` - see `project`, which warns rather than guessing.
     space_group: str = ""
+    #: Labels of atom sites whose element was not recognised, and so were left
+    #: out. `project` warns about them; they used to vanish without a word.
+    skipped: list = field(default_factory=list)
 
     @property
     def d001(self) -> float:
@@ -143,10 +148,14 @@ def element_of(token: str):
 
     Labels in real files look like ``SiT1``, ``Fe2+M``, ``O-H3``, ``AlM2`` -
     the element is the leading alphabetic run, longest match first so ``Si``
-    is not read as sulphur.
+    is not read as sulphur. Water (``Wat1``, ``H2O``) and deuterium (``D1``)
+    labels are recognised first - see `cif_labels`.
     """
     if not token:
         return None
+    special = label_element(token)
+    if special is not None:
+        return special
     text = str(token).strip()
     alpha = re.match(r"[A-Za-z]+", text)
     if not alpha:
@@ -155,6 +164,11 @@ def element_of(token: str):
     for symbol in _TWO_LETTER:
         if word[:2].capitalize() == symbol:
             return symbol
+    # A real two-letter element this importer does not handle (Pb, Ce, Sn,
+    # Os...) is unrecognised - not its first letter: "Pb1" used to be read as
+    # phosphorus. parse_cif records it as skipped and the review says so.
+    if len(word) >= 2 and word[:2].capitalize() in MINERAL_TWO_LETTER:
+        return None
     head = word[:1].upper()
     return head if head in _ELEMENTS else None
 
@@ -368,11 +382,17 @@ def parse_cif(text: str) -> CifStructure:
             name = candidate
             break
 
-    sites, symmetry = [], []
+    sites, symmetry, skipped = [], [], []
     for tags, rows in loops:
         if any("symop" in t or "equiv_pos" in t for t in tags):
-            column = next((n for n, t in enumerate(tags)
-                           if "symop" in t or "equiv_pos" in t), 0)
+            # The OPERATION column, not merely the first symmetry tag: COD files
+            # often open the loop with an id (`_space_group_symop_id`,
+            # `_symmetry_equiv_pos_site_id`), and reading that column found no
+            # operations at all, so the structure was silently taken as P1.
+            column = next((n for n, t in enumerate(tags) if t.endswith("_xyz")), None)
+            if column is None:
+                column = next((n for n, t in enumerate(tags)
+                               if "symop" in t or "equiv_pos" in t), 0)
             for row in rows:
                 if column < len(row):
                     parts = [p.strip() for p in row[column].split(",")]
@@ -391,6 +411,9 @@ def parse_cif(text: str) -> CifStructure:
                 type_symbol = row[itype] if itype is not None and itype < len(row) else ""
                 element = element_of(type_symbol) or element_of(label)
                 if element is None:
+                    # Kept out of the profile, but never silently: `project`
+                    # reports these so the review dialog can show them.
+                    skipped.append(label or type_symbol or "?")
                     continue
                 x, y, z = (_number(row[i]) if i < len(row) else None
                            for i in (ix, iy, iz))
@@ -410,9 +433,13 @@ def parse_cif(text: str) -> CifStructure:
                 ))
 
     if not sites:
+        if skipped:
+            raise ValueError(
+                "CIF has no atom sites of a recognised element (skipped: %s)"
+                % ", ".join(skipped[:8]))
         raise ValueError("CIF has no atom sites")
     return CifStructure(name=name, sites=sites, symmetry=symmetry,
-                        space_group=space_group,
+                        space_group=space_group, skipped=skipped,
                         **{k: float(v) for k, v in cell.items()})
 
 
@@ -851,6 +878,13 @@ def project(structure: CifStructure, divisor: "int | None" = None) -> tuple:
             "amount is too low."
             % (" (it names %s)" % structure.space_group
                if structure.space_group else ""))
+    if structure.skipped:
+        shown = ", ".join(structure.skipped[:6])
+        more = len(structure.skipped) - 6
+        report.warnings.append(
+            "%d atom site(s) were left out because their element was not "
+            "recognised: %s%s." % (len(structure.skipped), shown,
+                                   " and %d more" % more if more > 0 else ""))
     if report.layer_type == "1:1" and report.interlayer_rows:
         report.warnings.append(
             "One tetrahedral sheet means a 1:1 clay, which has no interlayer - "

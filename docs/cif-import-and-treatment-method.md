@@ -227,6 +227,24 @@ matters because labels are free-form: real files use `SiT1`, `Fe2+M`, `AlM2`,
 `O-H3`. An `O-H` label is also taken as a declaration that the oxygen is a
 hydroxyl — better evidence than any distance test can produce.
 
+The element is the leading letters, longest match first — with three
+exceptions, because reading the letters literally gets them wrong
+(`file_parsers/cif_labels.py`, shared with the non-clay reader):
+
+- **Water labels** `Wat1`, `WAT`, `H2O1` are oxygen. Read literally they are W
+  (tungsten) and H; until 2026-11 the importer dropped such sites without a
+  word, so an imported vermiculite lost its interlayer water, and the non-clay
+  reader computed them as tungsten.
+- **Deuterium labels** `D1`, `DZW1*1` are hydrogen — X-rays see the two
+  identically. (Real elements beginning with D — Db, Ds, Dy — are untouched.)
+- **A real two-letter element the importer does not handle** (Pb, Ce, Sn, Sb…)
+  is *unrecognised*, not its first letter: `Pb1` used to be read as phosphorus.
+  Synthetic elements are excluded from that test so `NH4` stays nitrogen, and
+  so is Ho, so `HO1` stays hydrogen.
+
+A site whose element is still not recognised is left out — and named in the
+review's warning line, never dropped silently.
+
 A site with zero occupancy is a declared vacancy and is not an atom.
 
 ### Symmetry expansion, and files without operators
@@ -235,6 +253,12 @@ Every operator is applied to every site and the results wrapped into the cell,
 duplicates dropped. A file with no operator loop is read as **P1** — and said
 so, in the report, because if the true cell is not P1 the structure is missing
 atoms and every amount is too low.
+
+The operators are read from the column whose tag ends in `_xyz`
+(`_space_group_symop_operation_xyz`, `_symmetry_equiv_pos_as_xyz`). COD commonly
+opens the loop with an id column (`_space_group_symop_id`,
+`_symmetry_equiv_pos_site_id`); until 2026-11 that column was read instead, no
+operators were found, and such a file was silently taken as P1.
 
 Generating operators from a space-group *name* is deliberately not attempted.
 It would mean shipping the operator sets for 230 groups with their settings and
@@ -572,6 +596,11 @@ are silicon.
   fix is a vetted operator table for the dozen groups clays actually use — the
   corpus needs `C 1 2/m 1`, `P 3 1 m`, `P n c n`, `C 1`, `C 1 c 1`, `P 63 c m`,
   `C -1`, `P 1`, `C 1 2 1`, `C 1 2/c 1`, `P -3 m 1`, `P 63` and `P 1 21/n 1`.
+- **Some two-layer polytypes are not folded automatically.** Measured on the
+  curated structure set (2026-11-15): nacrite projects to 1.435 nm and reads as
+  "2:1", and muscovite-2M1 and paragonite-2M1 to about 1.95 nm with no layer
+  type, where illite-2M1 folds correctly. The review dialog's *layers in the
+  cell* box corrects it; `detect_repeat` should.
 - **A row's element cannot be corrected** in the review dialog; Kind and Sheet
   can. Since the agreed policy is that ambiguity belongs to the user, a misread
   cation should be correctable too.
@@ -593,6 +622,7 @@ are silicon.
 | | |
 |---|---|
 | `src/mudlab/file_parsers/cif_component.py` | reader, symmetry, bonding, fold, projection, component |
+| `src/mudlab/file_parsers/cif_labels.py` | water / deuterium labels and element symbols, shared with the non-clay reader |
 | `src/mudlab/cif_import_dialog.py` | the review step |
 | `src/mudlab/component_widget.py` | *Import CIF…* in the component pane |
 | `src/mudlab/treatment_variants.py` | `can_derive`, `transplant_gallery`, `derive` |
@@ -604,3 +634,4 @@ are silicon.
 | `tools/verify_cif_component.py` | 42 | yes — skips with exit 2 without it |
 | `tools/verify_cif_import_dialog.py` | 42 | no |
 | `tools/verify_treatment_states.py` | 33 | no |
+| `tools/verify_cif_labels.py` | 28 | no (re-reads real files when present) |

@@ -645,6 +645,19 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   outer trial). Not essential; no checkbox needed.
 
 ### Other
+- [x] CIF reader fixes found by the curated structure set (2026-11-15) - testing
+  65 published CIFs with both readers exposed: water labels `Wat…` read as W
+  (TUNGSTEN) by the non-clay reader and dropped by the clay importer; deuterium
+  `D…` dropped; `H2O` read as H; unsupported two-letter elements read as their
+  first letter (`Pb1` -> P, `Ce1` -> C); symmetry loops opening with an id
+  column read from the id (0 operators, silently P1 - gypsum, jarosite,
+  tridymite); unrecognised sites dropped without a word. Shared
+  `file_parsers/cif_labels.py` (water -> O, deuterium -> H, the periodic table;
+  `NH4` stays N, `HO1` stays H, a tungstate's `W1` stays W); the importer reads
+  the `_xyz` column, records skipped sites on `CifStructure.skipped`, and
+  `project` names them in the review dialog's warning line.
+  verify_cif_labels.py 28/28 (22 of them fail on the old code); CIF / non-clay /
+  composition harnesses unchanged and green.
 - [x] Measured (XRF) composition object (2026-08-22) - NEW project-level feature,
   step 1 of 2. `models/composition.py` `Composition` (name / source / uuid /
   oxides) held as `Project.composition` (optional, ONE per project - a project

@@ -359,8 +359,10 @@ travels with the component to say where it came from.
   re-runs immediately.
 - **Basal spacing d001** — taken from the cell. Editable.
 - A **warning line** appears beneath when something needs attention: a 1:1 clay
-  with interlayer rows, atom types the project is about to gain, or a file that
-  declares no symmetry operators.
+  with interlayer rows, atom types the project is about to gain, a file that
+  declares no symmetry operators, or atom sites left out because their element
+  was not recognised (they are named). Water labelled `Wat` or `H2O` is read as
+  oxygen, and deuterium (`D1`) as hydrogen.
 
 **2. Projected atoms.** One row per level of the profile:
 

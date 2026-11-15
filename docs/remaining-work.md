@@ -192,6 +192,33 @@ to-do that a *user* may read as a list of faults; and `.claude/commands/docs.md`
 plus the `Co-Authored-By` trailers make the AI-assisted workflow visible, which
 matters only insofar as the planned paper has its own disclosure norms.
 
+## Curated structure collection (new feature, started 2026-11-15)
+
+Goal: ship a curated, cited set of published crystal structures — clays and the
+minerals that accompany them in clay XRD — separately from MudLab's reference
+clay components. The work lives OUTSIDE the repo until it is ready, in the
+maintainer's CIF workspace (a *Curated structure collection* folder: sources,
+the proposal, `curation-spec-v2.json`, and `curated/` with 65 CIFs,
+`MANIFEST.md` and `manifest.csv`). Sources: atomipy (COD / Avogadro2 data), the user's AMCSD clay
+corpus, and COD. Every structure carries its citation; COD is public domain,
+AMCSD requires citing the article.
+
+- ~~**Reader bugs the set exposed**~~ — **FIXED 2026-11-15**
+  (`file_parsers/cif_labels.py`, `verify_cif_labels.py` 28/28): water labels
+  `Wat…` read as tungsten by the non-clay reader and dropped by the clay
+  importer; deuterium labels dropped; unsupported two-letter elements read as
+  their first letter (`Pb1` → phosphorus); symmetry loops with an id column read
+  from the id, so the file was taken as P1; unrecognised sites dropped silently
+  (now named in the review's warning line).
+- **Not started: packaging** — where the set lives in the app, how it is
+  browsed (Import CIF…, Import Non-Clay), and the credits file it ships with.
+- **Glauconite left out** (user decision): every COD glauconite (Drits et al.
+  2010) is an idealised all-Al model; a real Fe-bearing refinement is needed.
+- **Two-layer polytypes not folded automatically** (nacrite, muscovite-2M1,
+  paragonite-2M1) — see the CIF method document's known gaps.
+- **The CIF tokenizer keeps no value for `;` multi-line text fields** (titles,
+  some journal names). Harmless to structures; it hides citation metadata.
+
 ## Deferred by design (working, intentionally postponed)
 - **Parameter-LANDSCAPE plot — NOT planned (decided 2026-08-01).** Its data source
   was the brute-force grid scan, which was intentionally removed (Basin Hopping
