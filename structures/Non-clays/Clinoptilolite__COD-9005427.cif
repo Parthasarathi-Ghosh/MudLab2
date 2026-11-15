@@ -1,0 +1,119 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-18 15:51:33 +0300 (Thu, 18 May 2023) $
+#$Revision: 283866 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/54/9005427.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9005427
+loop_
+_publ_author_name
+'Cappelletti, P.'
+'Langella, A.'
+'Cruciani, G.'
+_publ_section_title
+;
+ Crystal-chemistry and synchrotron Rietveld refinement
+ of two different clinoptilolites from volcanoclastites
+ of North-Western Sardinia
+ Sample: LAC1
+;
+_journal_name_full               'European Journal of Mineralogy'
+_journal_page_first              1051
+_journal_page_last               1060
+_journal_volume                  11
+_journal_year                    1999
+_chemical_compound_source        'volcanoclastites of North-Western Sardinia'
+_chemical_formula_sum
+'Ca0.86 H20.423 K0.64 Mg0.26 Na0.66 O49.42 Si18'
+_chemical_name_mineral           Clinoptilolite-Ca
+_space_group_IT_number           12
+_symmetry_space_group_name_Hall  '-C 2y'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 116.304
+_cell_angle_gamma                90
+_cell_formula_units_Z            2
+_cell_length_a                   17.6750
+_cell_length_b                   17.9572
+_cell_length_c                   7.4091
+_cell_volume                     2108.105
+_database_code_amcsd             0006812
+_exptl_crystal_density_diffrn    2.202
+_cod_original_formula_sum        'Na.66 Ca.86 K.64 Mg.26 Si18 O49.42 H20.423'
+_cod_database_code               9005427
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+Na1 0.13800 0.00000 0.69200 0.33000 0.05000 Na 0
+Ca2 0.04700 0.50000 0.19600 0.43000 0.07000 Ca 0
+K3 0.24200 0.50000 0.04100 0.32000 0.03000 K 0
+Mg4 0.00000 0.00000 0.50000 0.26000 0.06000 Mg 0
+Si1 0.17830 0.17040 0.09820 1.00000 0.01000 Si 0
+Si2 0.21190 0.41180 0.50600 1.00000 0.02000 Si 0
+Si3 0.20980 0.19140 0.71030 1.00000 0.02000 Si 0
+Si4 0.06860 0.29980 0.41920 1.00000 0.01000 Si 0
+Si5 0.00000 0.21850 0.00000 1.00000 0.01000 Si 0
+O1 0.19410 0.50000 0.45970 1.00000 0.02000 O 0
+O2 0.23160 0.12420 0.60190 1.00000 0.02000 O 0
+O3 0.18420 0.15750 0.88190 1.00000 0.03000 O 0
+O4 0.23230 0.10460 0.24930 1.00000 0.03000 O 0
+O5 0.00000 0.32750 0.50000 1.00000 0.03000 O 0
+O6 0.07850 0.15990 0.05990 1.00000 0.01000 O 0
+O7 0.12650 0.23420 0.55730 1.00000 0.03000 O 0
+O8 0.01140 0.27690 0.18300 1.00000 0.01000 O 0
+O9 0.21130 0.25260 0.18430 1.00000 0.02000 O 0
+O10 0.11690 0.37640 0.42140 1.00000 0.02000 O 0
+Wat1 0.32100 0.00000 0.07300 0.68000 0.12000 O 2
+Wat2 0.13100 0.00000 0.92600 0.30000 0.07000 O 2
+Wat3 0.08100 0.41400 0.96100 1.00000 0.11000 O 2
+Wat4 0.50000 0.00000 0.50000 1.00000 0.03000 O 2
+Wat5 0.01600 0.09600 0.41400 0.50000 0.07000 O 2
+Wat6 0.09100 0.00000 0.31600 0.50000 0.20000 O 2
+Wat7 0.08500 0.00000 0.70400 0.50000 0.12000 O 2
+Wat8 0.05100 0.00000 0.09900 0.49000 0.15000 O 2
+Wat9 0.14900 0.00000 0.62400 0.48000 0.17000 O 2
+Wat10 0.00800 0.00000 0.75300 0.26000 0.13000 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-18T11:39:18+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0006812

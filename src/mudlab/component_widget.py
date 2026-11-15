@@ -36,6 +36,7 @@ from typing import Callable
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from mudlab import structure_collection
 from mudlab.atom_list_widget import AtomListWidget
 from mudlab.contents_widget import AtomContentsWidget
 from mudlab.file_parsers.cmp_components import CMP_FILTERS, load_cmp, save_cmp
@@ -510,10 +511,13 @@ class EditComponentWidget(QWidget):
         if self._component is None or not (0 <= idx < len(self._components)):
             return
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import component from CIF", "", CIF_FILTERS
+            self, "Import component from CIF",
+            structure_collection.start_dir(structure_collection.IMPORT_CIF),
+            CIF_FILTERS,
         )
         if not path:
             return
+        structure_collection.remember(structure_collection.IMPORT_CIF, path)
 
         from mudlab.cif_import_dialog import CifImportDialog
 

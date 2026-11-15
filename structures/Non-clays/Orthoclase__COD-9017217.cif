@@ -1,0 +1,125 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-23 11:35:25 +0300 (Tue, 23 May 2023) $
+#$Revision: 283960 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/72/9017217.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9017217
+loop_
+_publ_author_name
+'Angel, R. J.'
+'Ross, N. L.'
+'Zhao, J.'
+'Sochalski-Kolbus L'
+'Kruger, H.'
+'Schmidt, B. C.'
+_publ_section_title
+;
+ Structural controls on the anisotropy of tetrahedral frameworks:
+ the example of monoclinic feldspars
+ Note: T = 293 K, Sample H003_RT
+;
+_journal_name_full               'European Journal of Mineralogy'
+_journal_page_first              597
+_journal_page_last               614
+_journal_volume                  25
+_journal_year                    2013
+_chemical_compound_source        Unknown
+_chemical_formula_sum            'Al K0.92 Na0.08 O8 Si3'
+_chemical_name_mineral           Orthoclase
+_space_group_IT_number           12
+_space_group_name_Hall           '-C 2y'
+_space_group_name_H-M_alt        'C 1 2/m 1'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 116.023
+_cell_angle_gamma                90
+_cell_formula_units_Z            4
+_cell_length_a                   8.5752
+_cell_length_b                   12.9860
+_cell_length_c                   7.2013
+_cell_volume                     720.619
+_database_code_amcsd             0020542
+_diffrn_ambient_temperature      293
+_exptl_crystal_density_diffrn    2.554
+_cod_data_source_file            inputs/fixed/downloads/08/08586.cif
+_cod_data_source_block           08586
+_cod_original_formula_sum        '(K.92 Na.08) (Si3 Al) O8'
+_cod_database_code               9017217
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+K 0.02290 0.03810 0.03230 0.00000 0.00930 0.00000
+Na 0.02290 0.03810 0.03230 0.00000 0.00930 0.00000
+SiT1 0.01600 0.01510 0.01370 -0.00226 0.00729 -0.00138
+AlT1A 0.01600 0.01510 0.01370 -0.00226 0.00729 -0.00138
+SiT2 0.01550 0.01360 0.01530 -0.00001 0.00667 0.00042
+AlT2A 0.01550 0.01360 0.01530 -0.00001 0.00667 0.00042
+OA1 0.02830 0.02280 0.02460 0.00000 0.01270 0.00000
+OA2 0.02590 0.01640 0.02650 0.00000 0.00520 0.00000
+OB 0.02650 0.03530 0.03040 -0.00200 0.01740 0.00250
+OC 0.02050 0.02170 0.02470 -0.00240 0.00850 -0.00280
+OD 0.02490 0.02430 0.01700 0.00110 0.00460 0.00110
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+K 0.28485 0.00000 0.13820 0.92000 0.03210 K 0
+Na 0.28485 0.00000 0.13820 0.08000 0.03210 Na 0
+SiT1 0.00927 0.18479 0.22406 0.62000 0.01464 Si 0
+AlT1A 0.00927 0.18479 0.22406 0.38000 0.01464 Al 0
+SiT2 0.70902 0.11769 0.34450 0.88000 0.01482 Si 0
+AlT2A 0.70902 0.11769 0.34450 0.12000 0.01482 Al 0
+OA1 0.00000 0.14606 0.00000 1.00000 0.02480 O 0
+OA2 0.63800 0.00000 0.28540 1.00000 0.02520 O 0
+OB 0.82683 0.14641 0.22780 1.00000 0.02890 O 0
+OC 0.03505 0.31152 0.25930 1.00000 0.02280 O 0
+OD 0.18076 0.12584 0.40681 1.00000 0.02370 O 0
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-23T09:20:23+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0020542

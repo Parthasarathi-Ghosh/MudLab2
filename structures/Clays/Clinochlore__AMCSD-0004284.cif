@@ -1,0 +1,67 @@
+data_global
+_chemical_name_mineral 'Chlorite'
+loop_
+_publ_author_name
+'Zanazzi P F'
+'Montagnoli M'
+'Nazzareni S'
+'Comodi P'
+_journal_name_full 'American Mineralogist'
+_journal_volume 92 
+_journal_year 2007
+_journal_page_first 655
+_journal_page_last 661
+_publ_section_title
+;
+ Structural effects of pressure on monoclinic chlorite: a single-crystal study
+ Sample: P = 0.0001 GPa
+;
+_database_code_amcsd 0004284
+_chemical_compound_source 'Alpe Raguzzolo, Val Malenco, Italy'
+_chemical_formula_sum 'Mg2.292 Fe.255 Al.865 Si1.588 O9 H4'
+_cell_length_a 5.3363
+_cell_length_b 9.240
+_cell_length_c 14.37
+_cell_angle_alpha 90
+_cell_angle_beta 96.93
+_cell_angle_gamma 90
+_cell_volume 703.371
+_exptl_crystal_density_diffrn      2.700
+_symmetry_space_group_name_H-M 'C 1 2/m 1'
+loop_
+_space_group_symop_operation_xyz
+  'x,y,z'
+  '1/2+x,1/2+y,z'
+  'x,-y,z'
+  '1/2+x,1/2-y,z'
+  '-x,y,-z'
+  '1/2-x,1/2+y,-z'
+  '-x,-y,-z'
+  '1/2-x,1/2-y,-z'
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+MgM1   0.00000   0.00000   0.00000   0.76400   0.00730
+FeM1   0.00000   0.00000   0.00000   0.08500   0.00730
+AlM1   0.00000   0.00000   0.00000   0.15100   0.00730
+MgM2   0.00000   0.33269   0.00000   0.76400   0.00740
+FeM2   0.00000   0.33269   0.00000   0.08500   0.00740
+AlM2   0.00000   0.33269   0.00000   0.15100   0.00740
+MgM3   0.00000   0.16654   0.50000   0.76400   0.00760
+FeM3   0.00000   0.16654   0.50000   0.08500   0.00760
+AlM3   0.00000   0.16654   0.50000   0.15100   0.00760
+MgM4   0.00000   0.50000   0.50000   0.76400   0.00640
+FeM4   0.00000   0.50000   0.50000   0.08500   0.00640
+AlM4   0.00000   0.50000   0.50000   0.15100   0.00640
+SiT   0.22844   0.16673   0.19152   0.79400   0.00740
+AlT   0.22844   0.16673   0.19152   0.20600   0.00740
+O1   0.19140   0.16660   0.07678   1.00000   0.00870
+O2   0.21000   0.00000   0.23280   1.00000   0.01630
+O3   0.50700   0.23440   0.23270   1.00000   0.01610
+O-H1   0.19010   0.50000   0.07340   1.00000   0.00990
+O-H2   0.15170   0.00000   0.43070   1.00000   0.01510
+O-H3   0.14070   0.33680   0.43040   1.00000   0.01600

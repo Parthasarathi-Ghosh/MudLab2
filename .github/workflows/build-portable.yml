@@ -14,7 +14,7 @@ name: Build portable Windows package
 # WHAT THIS WOULD *NOT* HAVE CAUGHT, stated plainly: `windows-latest` ships
 # Visual Studio Build Tools, so it has the VC++ runtime too and 1.0.0 would
 # have built and passed here as well. The thing that actually prevents that bug
-# is `tools/verify_bundle_dependencies.py`, which package.cmd runs as step 3/6
+# is `tools/verify_bundle_dependencies.py`, which package.cmd runs as step 4/7
 # and which fails the build if any bundled binary needs a library that is not
 # inside the package. CI buys reproducibility; the audit buys correctness.
 
@@ -73,8 +73,9 @@ jobs:
           python.exe -c "import sys, PyInstaller; print('building with', sys.executable, '| PyInstaller', PyInstaller.__version__)"
 
       - name: Build the portable package
-        # package.cmd does the whole job: clean PyInstaller build, frozen
-        # self-test, the self-contained-bundle audit, README + LICENSE, zip.
+        # package.cmd does the whole job: clean PyInstaller build, the
+        # Structures folder, frozen self-test, the self-contained-bundle audit,
+        # README + LICENSE, zip.
         # It falls back to `python` on PATH when the vendored tree is absent.
         shell: cmd
         # MUDLAB_PYTHON pins the interpreter explicitly rather than relying on

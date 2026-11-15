@@ -1,0 +1,106 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-18 15:51:33 +0300 (Thu, 18 May 2023) $
+#$Revision: 283866 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/96/9009661.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9009661
+loop_
+_publ_author_name
+'Gualtieri, A. F.'
+_publ_section_title
+;
+ Accuracy of XRPD QPA using the combined Rietveld-RIR method
+;
+_journal_name_full               'Journal of Applied Crystallography'
+_journal_page_first              267
+_journal_page_last               278
+_journal_paper_doi               10.1107/S002188989901643X
+_journal_volume                  33
+_journal_year                    2000
+_chemical_compound_source        'Keller, Nidda, Germany'
+_chemical_formula_sum            'Al3.48 Ca1.74 H70 O42.15 Si8.52'
+_chemical_name_mineral           Chabazite-Ca
+_space_group_IT_number           166
+_symmetry_space_group_name_Hall  '-P 3* 2'
+_symmetry_space_group_name_H-M   'R -3 m :R'
+_cell_angle_alpha                93.866
+_cell_angle_beta                 93.866
+_cell_angle_gamma                93.866
+_cell_formula_units_Z            1
+_cell_length_a                   9.39692
+_cell_length_b                   9.39692
+_cell_length_c                   9.39692
+_cell_volume                     823.834
+_database_code_amcsd             0012861
+_exptl_crystal_density_diffrn    2.314
+_cod_original_sg_symbol_H-M      'R -3 m'
+_cod_original_formula_sum        '(Si8.52 Al3.48) O42.15 Ca1.74 H70'
+_cod_database_code               9009661
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+-x,-z,-y
+-z,-x,-y
+y,x,z
+y,z,x
+-z,-y,-x
+-x,-y,-z
+x,z,y
+z,x,y
+-y,-x,-z
+-y,-z,-x
+z,y,x
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+Si 0.10480 0.32600 0.87020 0.71000 0.03500 Si 0
+Al 0.10480 0.32600 0.87020 0.29000 0.03500 Al 0
+O1 0.25670 0.74330 0.00000 1.00000 0.03300 O 0
+O2 0.14550 0.85450 0.50000 1.00000 0.03200 O 0
+O3 0.26190 0.26190 0.88440 1.00000 0.06900 O 0
+O4 0.01160 0.01160 0.31360 1.00000 0.06100 O 0
+Ca1 0.00000 0.00000 0.00000 0.10000 0.02200 Ca 0
+Ca2 0.19650 0.19650 0.19650 0.07000 0.08000 Ca 0
+Ca3 0.38440 0.38440 0.38440 0.03000 0.07100 Ca 0
+Ca4 0.61670 0.61670 0.19170 0.24000 0.08000 Ca 0
+Wat1 0.50000 0.50000 0.00000 0.85000 0.07000 O 2
+Wat2 0.26640 0.26640 0.53700 0.63000 0.19000 O 2
+Wat3 0.23370 0.38930 0.51160 0.46000 0.08000 O 2
+Wat4 0.37440 -0.37440 0.50000 0.43000 0.07000 O 2
+Wat5 0.58220 0.58220 0.49720 0.31000 0.08000 O 2
+Wat6 0.24370 0.24370 0.24370 0.93000 0.07000 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-18T11:40:35+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0012861

@@ -136,6 +136,45 @@ def _selftest() -> int:
         return os.path.isfile(os.path.join(docs_dir(), HOME_DOCUMENT))
     probe("in-app manual (docs/%s)" % "getting-started.md", _manual)
 
+    def _structures():
+        # The published-structure collection is copied beside the exe by
+        # package.cmd, not through the spec, so it needs its own probe: the
+        # three text files are there, every CIF the manifest lists is present
+        # and nothing else is, and one file from each subfolder reads. Both are
+        # read with the core CIF reader: the experimental mudlab.nonclay package
+        # must stay removable (tools/verify_nonclay.py, isolation check 1).
+        import csv
+        import glob
+        import os
+
+        from mudlab import structure_collection
+        from mudlab.file_parsers.cif_component import parse_cif
+
+        root = structure_collection.collection_dir()
+        if root is None:
+            return False
+        for name in ("README.md", "CREDITS.md", "manifest.csv"):
+            if not os.path.isfile(os.path.join(root, name)):
+                return False
+        with open(os.path.join(root, "manifest.csv"), encoding="utf-8",
+                  newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        listed = {os.path.normcase(os.path.join(root, *r["file"].split("/")))
+                  for r in rows}
+        on_disk = {os.path.normcase(p) for p in
+                   glob.glob(os.path.join(root, "*", "*.cif"))}
+        if not rows or listed != on_disk:
+            return False
+        for kind in ("clay", "non-clay"):
+            first = next(r for r in rows if r["kind"] == kind)
+            with open(os.path.join(root, *first["file"].split("/")),
+                      encoding="utf-8", errors="replace") as handle:
+                structure = parse_cif(handle.read())
+            if not structure.sites or structure.skipped:
+                return False
+        return True
+    probe("structure collection (Structures folder beside the exe)", _structures)
+
     def _catalog():
         from mudlab.file_parsers.default_catalog import (
             build_catalog_entry_by_name, default_catalog_entries)

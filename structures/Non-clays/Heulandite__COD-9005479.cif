@@ -1,0 +1,122 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-10 20:44:19 +0300 (Wed, 10 May 2023) $
+#$Revision: 283658 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/54/9005479.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9005479
+loop_
+_publ_author_name
+'Comodi, P.'
+'Gatta, G. D.'
+'Zanazzi, P. F.'
+_publ_section_title
+;
+ High-pressure structural behaviour of heulandite
+ Sample: P = .0001 GPa
+;
+_journal_name_full               'European Journal of Mineralogy'
+_journal_page_first              497
+_journal_page_last               505
+_journal_paper_doi               10.1127/0935-1221/2001/0013-0497
+_journal_volume                  13
+_journal_year                    2001
+_chemical_formula_sum
+'Al4.46 Ba0.015 Ca1.325 H26 K0.2 Na0.86 O49 Si13.54 Sr0.435'
+_chemical_name_mineral           Heulandite-Ca
+_space_group_IT_number           12
+_symmetry_space_group_name_Hall  '-C 2y'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 116.52
+_cell_angle_gamma                90
+_cell_formula_units_Z            2
+_cell_length_a                   17.729
+_cell_length_b                   17.909
+_cell_length_c                   7.433
+_cell_volume                     2111.715
+_database_code_amcsd             0006866
+_diffrn_ambient_pressure         100
+_exptl_crystal_density_diffrn    2.252
+_cod_original_formula_sum
+'Na.86 K.2 Ca1.325 Ba.015 Sr.435 (Al4.46 Si13.54) O49 H26'
+_cod_database_code               9005479
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+NaCS1 0.15230 0.00000 0.67350 0.43000 0.04500 Na 0
+KCS1 0.15230 0.00000 0.67350 0.10000 0.04500 K 0
+CaCS1 0.15230 0.00000 0.67350 0.16250 0.04500 Ca 0
+BaCS1 0.15230 0.00000 0.67350 0.00750 0.04500 Ba 0
+SrCS1 0.15230 0.00000 0.67350 0.21750 0.04500 Sr 0
+CaCS2 0.03980 0.50000 0.20240 0.50000 0.03300 Ca 0
+AlT1 0.17950 0.16980 0.09660 0.19200 0.01440 Al 0
+SiT1 0.17950 0.16980 0.09660 0.80800 0.01440 Si 0
+SiT2 0.21090 0.40980 0.49880 0.63700 0.01500 Si 0
+AlT2 0.21090 0.40980 0.49880 0.36300 0.01500 Al 0
+SiT3 0.20840 0.19030 0.71740 0.80100 0.01450 Si 0
+AlT3 0.20840 0.19030 0.71740 0.19900 0.01450 Al 0
+SiT4 0.06450 0.29780 0.41000 0.80600 0.01460 Si 0
+AlT4 0.06450 0.29780 0.41000 0.19400 0.01460 Al 0
+SiT5 0.00000 0.21260 0.00000 0.66600 0.01540 Si 0
+AlT5 0.00000 0.21260 0.00000 0.33400 0.01540 Al 0
+O1 0.19400 0.50000 0.45500 1.00000 0.02900 O 0
+O2 0.23170 0.11900 0.61430 1.00000 0.03100 O 0
+O3 0.18290 0.15330 0.88490 1.00000 0.02800 O 0
+O4 0.23880 0.10680 0.25670 1.00000 0.02700 O 0
+O5 0.00000 0.32520 0.50000 1.00000 0.03200 O 0
+O6 0.08210 0.15790 0.06420 1.00000 0.02300 O 0
+O7 0.12720 0.23490 0.54830 1.00000 0.03700 O 0
+O8 0.00840 0.26590 0.18410 1.00000 0.03000 O 0
+O9 0.21050 0.25400 0.17500 1.00000 0.02900 O 0
+O10 0.11480 0.37240 0.39620 1.00000 0.02600 O 0
+Wat1 0.22420 0.50000 -0.00900 1.00000 0.05200 O 2
+Wat2 0.08000 0.00000 0.88000 1.00000 0.10600 O 2
+Wat3 0.07730 0.41730 0.97000 1.00000 0.06500 O 2
+Wat4 0.00000 0.50000 0.50000 1.00000 0.07700 O 2
+Wat5 0.00000 0.09100 0.50000 1.00000 0.19000 O 2
+Wat6 0.09500 0.00000 0.28800 1.00000 0.12100 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9574 2023-05-10 09:00:05Z saulius
+;
+2023-05-10T18:50:06+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0006866

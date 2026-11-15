@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QFileDialog, QMessageBox, QWidget,
 )
 
+from mudlab import structure_collection
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
 from mudlab.csv_import_dialog import import_pattern
 from mudlab.nonclay_calibration import calibrate_fwhm, silicon_reflections
@@ -65,10 +66,13 @@ class CalibrateFwhmDialog(QDialog):
 
     def _on_load_standard(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Standard CIF", "", "CIF with atoms (*.cif)"
+            self, "Standard CIF",
+            structure_collection.start_dir(structure_collection.CALIBRATE_FWHM),
+            "CIF with atoms (*.cif)",
         )
         if not path:
             return
+        structure_collection.remember(structure_collection.CALIBRATE_FWHM, path)
         try:
             reflections, _ox = reflections_from_cif(
                 path, SimpleNamespace(wavelength=self._wavelength_nm)

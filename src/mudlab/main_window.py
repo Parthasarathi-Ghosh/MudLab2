@@ -12,8 +12,8 @@ import os
 
 import numpy as np
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFontDatabase, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QFontDatabase, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QStyleFactory,
 )
 
-from mudlab import APP_NAME
+from mudlab import APP_NAME, structure_collection
 from mudlab.about_dialog import AboutDialog
 from mudlab.calculations import get_nm_from_2t
 from mudlab.resources import app_icon
@@ -139,6 +139,8 @@ class MainWindow(QMainWindow):
         self.ui.actionAbout.triggered.connect(self._show_about)
         self.ui.actionManual.triggered.connect(self._show_manual)
         self.ui.actionHowItWorks.triggered.connect(self._show_how_it_works)
+        self.ui.actionStructureCollection.triggered.connect(
+            self._show_structure_collection)
         self.ui.actionNewProject.triggered.connect(self._new_project)
         self.ui.actionOpenProject.triggered.connect(self._open_project)
         self.ui.actionSaveProject.triggered.connect(self._save_project)
@@ -1526,3 +1528,18 @@ class MainWindow(QMainWindow):
         """Help -> How MudLab Works (Shift+F1): the same viewer, opened on the
         science rather than on the walkthrough."""
         self._show_manual(SCIENCE_DOCUMENT)
+
+    def _show_structure_collection(self) -> None:
+        """Help -> Structure Collection...: open the shipped folder of published
+        CIFs in the system file browser (README.md and CREDITS.md are in it)."""
+        folder = structure_collection.collection_dir()
+        if folder is None:
+            QMessageBox.information(
+                self, "Structure Collection",
+                "This installation has no structure collection. It ships as a "
+                "Structures folder beside MudLab.exe.")
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(folder)):
+            QMessageBox.information(
+                self, "Structure Collection",
+                "Could not open the folder. It is here:\n\n%s" % folder)

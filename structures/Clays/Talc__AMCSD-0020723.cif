@@ -1,0 +1,52 @@
+data_global
+_chemical_name_mineral 'Talc'
+loop_
+_publ_author_name
+'Drits V A'
+'Guggenheim S'
+'Zviagina B B'
+'Kogure T'
+_journal_name_full 'Clays and Clay Minerals'
+_journal_volume 60 
+_journal_year 2012
+_journal_page_first 574
+_journal_page_last 587
+_publ_section_title
+;
+ Structures of the 2:1 layers of pyrophyllite and talc
+ Note: structure is averaged to remove stacking disorder effects
+;
+_database_code_amcsd 0020723
+_chemical_compound_source 'Harford County, Maryland, USA'
+_chemical_formula_sum 'Mg3 Si4 O12 H2'
+_cell_length_a 5.1848
+_cell_length_b 8.9230
+_cell_length_c 9.19
+_cell_angle_alpha 90.69
+_cell_angle_beta 90.9
+_cell_angle_gamma 90
+_cell_volume 425.083
+_exptl_crystal_density_diffrn      2.963
+_symmetry_space_group_name_H-M 'C -1'
+loop_
+_space_group_symop_operation_xyz
+  'x,y,z'
+  '1/2+x,1/2+y,z'
+  '-x,-y,-z'
+  '1/2-x,1/2-y,-z'
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Mg1   0.00000   0.00000   0.00000
+Mg2   0.50000   0.16659   0.00000
+Si1   0.83367   0.16683   0.29100
+Si2   0.33367   0.33317   0.29100
+O1   0.33361   0.33303   0.11760
+O2   0.83361   0.16698   0.11760
+O-h1   0.33297   0.00000   0.11260
+Ob1   0.35160   0.50000   0.34810
+Ob2   0.57486   0.24099   0.34890
+Ob3   0.07485   0.25901   0.34890
+H   0.33302   0.00153   0.20300

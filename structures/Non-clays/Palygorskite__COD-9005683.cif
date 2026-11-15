@@ -1,0 +1,136 @@
+#------------------------------------------------------------------------------
+#$Date: 2024-08-07 20:09:39 +0300 (Wed, 07 Aug 2024) $
+#$Revision: 294031 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/56/9005683.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9005683
+loop_
+_publ_author_name
+'Guistetto, R.'
+'Chiari, G.'
+_publ_section_title
+;Crystal structure refinement of palygorskite from neutron powder diffraction
+ Mexico Note: Occupancies created to match reported formula
+;
+_journal_name_full               'European Journal of Mineralogy'
+_journal_page_first              521
+_journal_page_last               532
+_journal_paper_doi               10.1127/0935-1221/2004/0016-0521
+_journal_volume                  16
+_journal_year                    2004
+_chemical_compound_source
+'Lorenzo Pech mine, near Ticul, on the way to Chapab, Chiapas, Mexico'
+_chemical_formula_sum
+'Al0.82 D5 Fe0.12 H1.8 K0.02 Mg1.08 O15.5 Si3.96'
+_chemical_name_mineral           'Palygorskite (deuterated)'
+_space_group_IT_number           12
+_symmetry_space_group_name_Hall  '-C 2y'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 105.27
+_cell_angle_gamma                90
+_cell_formula_units_Z            4
+_cell_length_a                   13.337
+_cell_length_b                   17.879
+_cell_length_c                   5.264
+_cell_volume                     1210.898
+_database_code_amcsd             0007074
+_exptl_crystal_density_diffrn    2.342
+_cod_original_formula_sum        'Mg1.08 Al.82 Fe.12 K.02 Si3.96 O15.5 D5 H1.8'
+_cod_database_code               9005683
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+MgM2 0.00000 0.10100 0.50000 0.54000 0.21000 Mg 0
+AlM2 0.00000 0.10100 0.50000 0.39000 0.21000 Al 0
+FeM2 0.00000 0.10100 0.50000 0.06000 0.21000 Fe 0
+KM2 0.00000 0.10100 0.50000 0.01000 0.21000 K 0
+MgM3 0.00000 0.20100 0.00000 0.54000 0.21000 Mg 0
+AlM3 0.00000 0.20100 0.00000 0.39000 0.21000 Al 0
+FeM3 0.00000 0.20100 0.00000 0.06000 0.21000 Fe 0
+KM3 0.00000 0.20100 0.00000 0.01000 0.21000 K 0
+SiT1 0.19600 0.08890 0.15500 0.99000 0.38000 Si 0
+AlT1 0.19600 0.08890 0.15500 0.01000 0.38000 Al 0
+SiT2 0.21000 0.17720 0.64300 0.99000 0.38000 Si 0
+AlT2 0.21000 0.17720 0.64300 0.01000 0.38000 Al 0
+O-H 0.08300 0.00000 0.59000 1.00000 0.08800 O 1
+O1 0.08400 0.11300 0.19800 1.00000 0.08800 O 0
+O2 0.09400 0.18900 0.69100 1.00000 0.08800 O 0
+Wat1 0.08900 0.29900 0.05500 1.00000 0.08800 O 2
+O3 0.22200 0.00000 0.12300 1.00000 0.08800 O 0
+O4 0.25000 0.25000 0.50000 1.00000 0.08800 O 0
+O5 0.23700 0.10700 0.47100 1.00000 0.08800 O 0
+O6 0.23900 0.13700 0.93500 1.00000 0.08800 O 0
+OZW1 0.00000 0.29100 0.50000 0.50000 0.02600 O 0
+DZW1*1 0.98000 0.33000 0.36300 0.13000 0.02600 D 0
+DZW1*2 0.05100 0.31800 0.47000 0.37000 0.02600 D 0
+OZW2 0.96300 0.41700 0.22300 0.50000 0.02600 O 0
+DZW2*1 0.08200 0.45800 0.82000 0.13000 0.02600 D 0
+DZW2*2 0.02800 0.43900 0.19000 0.13000 0.02600 D 0
+DZW2*3 0.05500 0.36900 0.69000 0.37000 0.02600 D 0
+DZW2*4 0.94700 0.45300 0.32100 0.37000 0.02600 D 0
+OZW3 0.13400 0.50000 0.15000 1.00000 0.02600 O 0
+DZW3*1 0.18100 0.45500 0.17000 0.26000 0.02600 D 0
+DZW3*2 0.18000 0.50000 0.08100 0.74000 0.02600 D 0
+DZW3*3 0.09100 0.45800 0.07800 0.37000 0.02600 D 0
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-18T11:39:35+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+2
+;cod-tools version 3.10.1
+Id: cif_fix_AMCSD_atom_labels 10224 2024-08-07 11:09:31Z saulius
+;
+2024-08-07T19:39:29+03:00
+;Changed the following '_atom_site_label' values:
+the first duplicated label 'DZW1*'  converted to 'DZW1*1'
+duplicated label 'DZW1*' at index 22 converted to 'DZW1*2'
+the first duplicated label 'DZW2*'  converted to 'DZW2*1'
+duplicated label 'DZW2*' at index 25 converted to 'DZW2*2'
+duplicated label 'DZW2*' at index 26 converted to 'DZW2*3'
+duplicated label 'DZW2*' at index 27 converted to 'DZW2*4'
+the first duplicated label 'DZW3*'  converted to 'DZW3*1'
+duplicated label 'DZW3*' at index 30 converted to 'DZW3*2'
+duplicated label 'DZW3*' at index 31 converted to 'DZW3*3'
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0007074

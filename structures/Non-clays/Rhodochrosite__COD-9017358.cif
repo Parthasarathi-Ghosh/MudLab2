@@ -1,0 +1,121 @@
+#------------------------------------------------------------------------------
+#$Date: 2024-05-29 17:00:33 +0300 (Wed, 29 May 2024) $
+#$Revision: 292100 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/73/9017358.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9017358
+loop_
+_publ_author_name
+'Effenberger, H.'
+'Mereiter, K.'
+'Zemann, J.'
+_publ_section_title
+;
+ Crystal structure refinements of magnesite, calcite, rhodochrosite, siderite,
+ smithsonite, and dolomite, with discussion of some aspects of the
+ stereochemistry of calcite type carbonates
+;
+_journal_name_full               'Zeitschrift fur Kristallographie'
+_journal_page_first              233
+_journal_page_last               243
+_journal_volume                  156
+_journal_year                    1981
+_chemical_compound_source        'Alicante, Spain'
+_chemical_formula_sum            'C Fe0.06 Mg0.01 Mn0.93 O3'
+_chemical_name_mineral           Rhodochrosite
+_space_group_IT_number           167
+_space_group_name_Hall           '-R 3 2"c'
+_space_group_name_H-M_alt        'R -3 c :H'
+_symmetry_space_group_name_H-M   'R -3 c :H'
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                120
+_cell_length_a                   4.7682
+_cell_length_b                   4.7682
+_cell_length_c                   15.6354
+_cell_formula_units_Z            6
+_cell_volume                     307.857
+_database_code_amcsd             0020834
+_exptl_crystal_density_diffrn    3.712
+_cod_data_source_file            inputs/fixed/downloads/12/12909.cif
+_cod_data_source_block           12909
+_cod_original_sg_symbol_H-M      'R -3 c'
+_cod_original_formula_sum        '(Mn.93 Mg.01 Fe.06) C O3'
+_cod_database_code               9017358
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+2/3+x,1/3+y,1/3+z
+1/3+x,2/3+y,2/3+z
+x,x-y,1/2+z
+2/3+x,1/3+x-y,5/6+z
+1/3+x,2/3+x-y,1/6+z
+y,x,1/2-z
+2/3+y,1/3+x,5/6-z
+1/3+y,2/3+x,1/6-z
+-x+y,y,1/2+z
+2/3-x+y,1/3+y,5/6+z
+1/3-x+y,2/3+y,1/6+z
+-x,-x+y,1/2-z
+2/3-x,1/3-x+y,5/6-z
+1/3-x,2/3-x+y,1/6-z
+-y,-x,1/2+z
+2/3-y,1/3-x,5/6+z
+1/3-y,2/3-x,1/6+z
+x-y,-y,1/2-z
+2/3+x-y,1/3-y,5/6-z
+1/3+x-y,2/3-y,1/6-z
+y,-x+y,-z
+2/3+y,1/3-x+y,1/3-z
+1/3+y,2/3-x+y,2/3-z
+-x+y,-x,z
+2/3-x+y,1/3-x,1/3+z
+1/3-x+y,2/3-x,2/3+z
+-x,-y,-z
+2/3-x,1/3-y,1/3-z
+1/3-x,2/3-y,2/3-z
+-y,x-y,z
+2/3-y,1/3+x-y,1/3+z
+1/3-y,2/3+x-y,2/3+z
+x-y,x,-z
+2/3+x-y,1/3+x,1/3-z
+1/3+x-y,2/3+x,2/3-z
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+Mn 0.00662 0.00662 0.00624 0.00331 0.00000 0.00000
+Mg 0.00662 0.00662 0.00624 0.00331 0.00000 0.00000
+Fe 0.00662 0.00662 0.00624 0.00331 0.00000 0.00000
+C 0.00632 0.00632 0.00572 0.00316 0.00000 0.00000
+O 0.00634 0.00979 0.01024 0.00485 -0.00108 -0.00216
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+Mn 0.00000 0.00000 0.00000 0.93000
+Mg 0.00000 0.00000 0.00000 0.01000
+Fe 0.00000 0.00000 0.00000 0.06000
+C 0.00000 0.00000 0.25000 1.00000
+O 0.26986 0.00000 0.25000 1.00000
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0020834

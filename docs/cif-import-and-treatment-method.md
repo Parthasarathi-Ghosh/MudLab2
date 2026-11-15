@@ -419,6 +419,18 @@ is not one.
 (they are not ours to redistribute). `MUDLAB_CIF_CORPUS` points the harness at
 a copy; absent, it skips rather than failing.
 
+### The shipped collection
+
+Separately, MudLab ships 65 published structures, one per mineral, in
+`structures/` (a `Structures` folder beside the exe in a build; see
+`docs/structure-collection-plan.md`). 18 are layer silicates in `Clays`, the
+files Import CIF… opens on; the other 47, sepiolite and palygorskite among
+them, are in `Non-clays`. `tools/verify_structure_collection.py` holds every
+file to its published checksum, parses all 65 with no site skipped, projects
+all 18 clays, and computes reflections for all 65 with the non-clay reader.
+The two-layer polytypes listed under known gaps (nacrite, muscovite-2M1,
+paragonite-2M1) are in it; its manifest carries a hint for each.
+
 ### The oracle problem
 
 **Textbook mineral formulas are not a valid oracle**, and learning that cost a

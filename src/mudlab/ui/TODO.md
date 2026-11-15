@@ -645,6 +645,21 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   outer trial). Not essential; no checkbox needed.
 
 ### Other
+- [x] Shipped structure collection, phase 1 (2026-11-15) - 65 published CIFs in
+  `structures/` (Clays 18 / Non-clays 47, README, CREDITS, manifest with
+  sha256); `package.cmd` step 2/7 copies them to a visible `Structures` folder
+  beside the exe before the frozen self-test, which probes them.
+  `structure_collection.py` finds the folder (frozen first, then the repo) and
+  gives each CIF file dialog its start folder: Import CIF... -> Clays; Import
+  Non-Clay, Calibrate FWHM and the non-clay dialog's structure reference ->
+  Non-clays; afterwards the folder last picked from (session only, no
+  QSettings). New **Help -> Structure Collection...** (`main_window.ui`
+  actionStructureCollection) opens the folder. `.gitattributes`
+  `structures/**/*.cif -text` keeps the published bytes.
+  verify_structure_collection.py 43/43 (9 deliberate breaks, all caught).
+- [ ] Structure Library dialog (phase 2 of the collection) - browse the
+  collection and add a structure as a new clay or non-clay phase; needs
+  `structure_library.ui`. Plan: docs/structure-collection-plan.md.
 - [x] CIF reader fixes found by the curated structure set (2026-11-15) - testing
   65 published CIFs with both readers exposed: water labels `Wat…` read as W
   (TUNGSTEN) by the non-clay reader and dropped by the clay importer; deuterium

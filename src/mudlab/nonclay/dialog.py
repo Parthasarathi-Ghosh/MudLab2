@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from mudlab import structure_collection
 from mudlab.calculations.composition import load_conversion_table
 from mudlab.file_parsers.xrd_import import parse_pattern
 from mudlab.nonclay.chemistry import mass_balance, mineral_composition
@@ -297,10 +298,12 @@ class NonclayDialog(QDialog):
 
     def _on_add_cif(self) -> None:
         path, _filter = QFileDialog.getOpenFileName(
-            self, "Add non-clay reference from a structure", "",
+            self, "Add non-clay reference from a structure",
+            structure_collection.start_dir(structure_collection.NONCLAY_REFERENCE),
             "Structure files (*.cif *.str);;All files (*)")
         if not path:
             return
+        structure_collection.remember(structure_collection.NONCLAY_REFERENCE, path)
         specs = [s for s in self._mixture.specimens if s is not None]
         if not specs:
             QMessageBox.warning(

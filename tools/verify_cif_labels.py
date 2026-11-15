@@ -14,8 +14,9 @@ structure collection (2026-11-15), run head-less.
    was silently taken as P1.
 
 Everything here is synthetic, so it runs anywhere (CI included). A last group
-re-reads real files from the user's AMCSD corpus and curated collection when
-they are present, and is skipped - not failed - when they are not.
+re-reads real files: three from the shipped structure collection (in the repo,
+so they always run) and two from the user's AMCSD corpus, which is skipped -
+not failed - on a machine that does not have it.
 
 Run head-less with the bundled interpreter from the repo root:
 
@@ -48,8 +49,17 @@ _WK, _KNOWN = nst._load_wk()
 
 CORPUS = os.environ.get("MUDLAB_CIF_CORPUS",
                         r"C:\GitHub\CIF builder\Clay structures\RRUFF AMCSD")
+# The shipped collection (structures/Clays, structures/Non-clays).
 CURATED = os.environ.get("MUDLAB_CURATED_STRUCTURES",
-                         r"C:\GitHub\CIF builder\Curated structure collection\curated")
+                         os.path.join(_REPO, "structures"))
+
+
+def curated(name):
+    """`name` wherever it sits under the collection (it is split by kind)."""
+    for folder, _dirs, files in os.walk(CURATED):
+        if name in files:
+            return os.path.join(folder, name)
+    return os.path.join(CURATED, name)
 
 
 def cif(sites, symmetry_loop=None, cell=(5.2, 9.0, 10.0, 90.0, 100.0, 90.0),
@@ -199,10 +209,14 @@ def check_real_files():
     targets = [
         ("vermiculite (Wat)", os.path.join(CORPUS, "Vermiculite__0020497.cif")),
         ("sepiolite (Wat)", os.path.join(CORPUS, "Sepiolite__0004269.cif")),
-        ("gypsum (symmetry ids)", os.path.join(CURATED, "Gypsum__COD-2300259.cif")),
-        ("jarosite (symmetry ids)", os.path.join(CURATED, "Jarosite__COD-1557931.cif")),
-        ("laumontite (deuterium)", os.path.join(CURATED, "Laumontite__COD-9005147.cif")),
+        ("gypsum (symmetry ids)", curated("Gypsum__COD-2300259.cif")),
+        ("jarosite (symmetry ids)", curated("Jarosite__COD-1557931.cif")),
+        ("laumontite (deuterium)", curated("Laumontite__COD-9005147.cif")),
     ]
+    # The collection ships in the repo, so its files must be there; only the
+    # corpus may be absent.
+    for name, path in targets[2:]:
+        check("shipped collection holds the %s file" % name, os.path.isfile(path))
     present = [(n, p) for n, p in targets if os.path.isfile(p)]
     if not present:
         print("Real files not found on this machine: real-file checks skipped.")

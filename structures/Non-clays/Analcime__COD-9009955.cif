@@ -1,0 +1,106 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-07-08 10:42:25 +0300 (Sat, 08 Jul 2023) $
+#$Revision: 285095 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/99/9009955.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9009955
+loop_
+_publ_author_name
+'Yokomori, Y.'
+'Idaka, S.'
+_publ_section_title
+;
+ The crystal structure of analcime
+;
+_journal_name_full               'Microporous and Mesoporous Materials'
+_journal_page_first              365
+_journal_page_last               370
+_journal_paper_doi               10.1016/S1387-1811(98)00019-5
+_journal_volume                  21
+_journal_year                    1998
+_chemical_compound_source        Synthetic
+_chemical_formula_sum            'Al2 H4 Na1.862 O13.667 Si4'
+_chemical_name_mineral           Analcime
+_space_group_IT_number           148
+_symmetry_space_group_name_Hall  '-P 3*'
+_symmetry_space_group_name_H-M   'R -3 :R'
+_cell_angle_alpha                109.51
+_cell_angle_beta                 109.51
+_cell_angle_gamma                109.51
+_cell_length_a                   11.909
+_cell_length_b                   11.909
+_cell_length_c                   11.909
+_cell_volume                     1298.311
+_database_code_amcsd             0014403
+_exptl_crystal_density_diffrn    2.209
+_cod_original_cell_volume        1298.312
+_cod_original_sg_symbol_H-M      'R -3'
+_cod_original_formula_sum        'Na1.862 (Al2 Si4) O13.667 H4'
+_cod_database_code               9009955
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+-z,-x,-y
+y,z,x
+-x,-y,-z
+z,x,y
+-y,-z,-x
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+Na1 0.62500 0.87510 0.75020 0.63500 0.03787 Na 0
+Na2 0.62510 0.24990 0.87510 0.60600 0.03610 Na 0
+Al1 0.71272 0.42528 0.46262 0.33333 0.01418 Al 0
+Si1 0.71272 0.42528 0.46262 0.66667 0.01418 Si 0
+Al2 0.74995 0.28724 0.21274 0.33333 0.01418 Al 0
+Si2 0.74995 0.28724 0.21274 0.66667 0.01418 Si 0
+Al3 0.78713 0.03707 0.07435 0.33333 0.01418 Al 0
+Si3 0.78713 0.03707 0.07435 0.66667 0.01418 Si 0
+Al4 0.53716 0.74983 0.96266 0.33333 0.01406 Al 0
+Si4 0.53716 0.74983 0.96266 0.66667 0.01406 Si 0
+O1 0.67600 0.52950 0.41430 1.00000 0.03192 O 0
+O2 0.85410 0.52960 0.61500 1.00000 0.03128 O 0
+O3 0.73910 0.32390 0.35350 1.00000 0.03065 O 0
+O4 0.76080 0.14600 0.17540 1.00000 0.03217 O 0
+O5 0.61500 0.26090 0.08530 1.00000 0.03027 O 0
+O6 0.64650 0.88500 -0.03000 1.00000 0.03116 O 0
+O7 0.91490 0.02960 0.17590 1.00000 0.03141 O 0
+O8 0.58550 0.76180 0.11560 1.00000 0.03242 O 0
+Wat1 0.75000 0.75000 0.75000 0.33333 0.08524 O 2
+Wat2 0.49930 -0.00030 0.74970 1.00000 0.08612 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-23T09:17:32+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0014403
+_cell_formula_units_Z 4

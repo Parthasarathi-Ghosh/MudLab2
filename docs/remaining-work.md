@@ -210,8 +210,20 @@ AMCSD requires citing the article.
   their first letter (`Pb1` → phosphorus); symmetry loops with an id column read
   from the id, so the file was taken as P1; unrecognised sites dropped silently
   (now named in the review's warning line).
-- **Not started: packaging** — where the set lives in the app, how it is
-  browsed (Import CIF…, Import Non-Clay), and the credits file it ships with.
+- ~~**Packaging, phase 1**~~ — **DONE 2026-11-15, for the next release** (see
+  [structure-collection-plan.md](structure-collection-plan.md)): the 65 CIFs
+  are in `structures/` (Clays 18 / Non-clays 47, README, CREDITS, manifest),
+  shipped as a visible `Structures` folder beside `MudLab.exe`; the CIF file
+  dialogs open there; Help → Structure Collection… opens it;
+  `verify_structure_collection.py` 43/43. The repository copy is now the
+  master; the maintainer's CIF workspace keeps only the provenance (sources,
+  proposal, selection spec).
+- **Packaging, phase 2 — not started:** a Structure Library dialog that adds a
+  structure as a new clay or non-clay phase (same plan document).
+- **Release notes:** the version that ships phase 1 needs a line for it.
+- **Chamosite regrouped:** Walker & Bish 1992 (IIb, c = 14.26 Å) is a
+  chlorite; the curation had filed it under 1:1 minerals. Shipped under
+  *Smectites, vermiculite, chlorite*.
 - **Glauconite left out** (user decision): every COD glauconite (Drits et al.
   2010) is an idealised all-Al model; a real Fe-bearing refinement is needed.
 - **Two-layer polytypes not folded automatically** (nacrite, muscovite-2M1,

@@ -21,6 +21,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
+from mudlab import structure_collection
 from mudlab.chart_style import INK_SECONDARY, SERIES_BLUE, SURFACE, style_axes
 from mudlab.csv_import_dialog import import_pattern
 from mudlab.file_parsers.xrd_import import PATTERN_FILTERS
@@ -76,10 +77,13 @@ class ImportNonClayDialog(QDialog):
     # ------------------------------------------------------------------
     def _on_open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open pattern or CIF", "", _SOURCE_FILTERS
+            self, "Open pattern or CIF",
+            structure_collection.start_dir(structure_collection.IMPORT_NONCLAY),
+            _SOURCE_FILTERS,
         )
         if not path:
             return
+        structure_collection.remember(structure_collection.IMPORT_NONCLAY, path)
         if path.lower().endswith(".cif"):
             self._load_cif(path)
         else:

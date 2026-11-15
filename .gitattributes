@@ -14,6 +14,12 @@
 *.cmp binary
 *.phs binary
 
+# The shipped structure collection: each CIF is the PUBLISHED file, byte for
+# byte, and structures/manifest.csv records its sha256 so the citation provably
+# describes the file. Line-ending conversion would change those bytes (the
+# published files mix CRLF and LF), so git must store and check them out as is.
+structures/**/*.cif -text
+
 # Test-only sample projects: the .mud fixtures are gitignored (untracked), so
 # they are never committed or pushed to origin. This export-ignore is
 # defense-in-depth - it keeps tools/sample_projects/ out of `git archive`

@@ -61,6 +61,16 @@ detection was wrong, so the next update stops flagging it for everyone.
 - **Project → Export** writes a `.mud` the original GTK MudLab can open, or a
   `.pyxrd`. Both are lossy in ways the app tells you about at export time.
 
+## Published crystal structures
+
+The **`Structures`** folder holds 65 published crystal structures (CIF files):
+clay minerals in `Clays`, the minerals found with them in `Non-clays`. MudLab's
+CIF import dialogs open there, and **Help → Structure Collection…** opens the
+folder. Each file is the structure exactly as published. **Cite the original
+article whenever you use one**: `CREDITS.md` in that folder lists it for every
+file, and its `README.md` gives the terms of use. Keep the folder inside
+`MudLab`, beside `MudLab.exe`.
+
 ## The manual
 
 Press **F1**, or **Help → Manual**. It opens inside MudLab and is included in

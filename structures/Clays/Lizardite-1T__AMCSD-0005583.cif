@@ -1,0 +1,62 @@
+data_global
+_chemical_name_mineral 'Lizardite-1T'
+loop_
+_publ_author_name
+'Guggenheim S'
+'Zhan W'
+_journal_name_full 'The Canadian Mineralogist'
+_journal_volume 36 
+_journal_year 1998
+_journal_page_first 1587
+_journal_page_last 1594
+_publ_section_title
+;
+ Effect of temperature on the structures of lizardite-1T and lizardite-2H1
+ Sample: T = 20 C
+;
+_database_code_amcsd 0005583
+_chemical_formula_sum 'Mg3 Si2 H4 O9'
+_cell_length_a 5.326
+_cell_length_b 5.326
+_cell_length_c 7.288
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 120
+_cell_volume 179.036
+_exptl_crystal_density_diffrn      2.570
+_symmetry_space_group_name_H-M 'P 3 1 m'
+loop_
+_space_group_symop_operation_xyz
+  'x,y,z'
+  'x-y,-y,z'
+  '-y,x-y,z'
+  'y,x,z'
+  '-x+y,-x,z'
+  '-x,-x+y,z'
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Mg   0.33180   0.00000   0.45500
+Si   0.33333   0.66667   0.07400
+H1   0.58300   0.00000   0.73200
+H2   0.00000   0.00000   0.19700
+O1   0.33333   0.66667   0.29110
+O2   0.50700   0.00000  -0.00800
+O3   0.66400   0.00000   0.58800
+O4   0.00000   0.00000   0.30400
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+Mg 0.00300 0.00300 0.02200 0.00150 -0.00200 0.00000
+Si 0.00650 0.00650 0.02600 0.00325 0.00000 0.00000
+O1 0.00300 0.00300 0.03600 0.00150 0.00000 0.00000
+O2 0.01400 0.00700 0.02100 0.00350 -0.00200 0.00000
+O3 0.00900 0.00800 0.02200 0.00400 -0.00200 0.00000
+O4 0.00800 0.00800 0.01300 0.00400 0.00000 0.00000

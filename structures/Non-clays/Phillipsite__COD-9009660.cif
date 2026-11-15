@@ -1,0 +1,102 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-18 15:51:33 +0300 (Thu, 18 May 2023) $
+#$Revision: 283866 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/96/9009660.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9009660
+loop_
+_publ_author_name
+'Gualtieri, A. F.'
+_publ_section_title
+;
+ Accuracy of XRPD QPA using the combined Rietveld-RIR method
+ Locality: Vallerano, Rome, Italy
+;
+_journal_name_full               'Journal of Applied Crystallography'
+_journal_page_first              267
+_journal_page_last               278
+_journal_paper_doi               10.1107/S002188989901643X
+_journal_volume                  33
+_journal_year                    2000
+_chemical_formula_sum            'Al3.2 Ca0.78 H7.5 K1.22 Na0.41 O21.13 Si4.8'
+_chemical_name_mineral           Phillipsite-K
+_space_group_IT_number           11
+_symmetry_space_group_name_Hall  '-P 2yb'
+_symmetry_space_group_name_H-M   'P 1 21/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 124.2711
+_cell_angle_gamma                90
+_cell_formula_units_Z            2
+_cell_length_a                   9.8881
+_cell_length_b                   14.4040
+_cell_length_c                   8.6848
+_cell_volume                     1022.202
+_exptl_crystal_density_diffrn    2.129
+_cod_original_formula_sum        'K1.22 Ca.78 Na.41 (Si4.8 Al3.2) O21.13 H7.5'
+_cod_database_code               9009660
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+x,1/2-y,z
+-x,1/2+y,-z
+-x,-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+K1 0.84280 0.25000 0.18760 0.85000 0.03700 K 0
+Ca2 0.58730 0.62610 0.41480 0.18500 0.06700 Ca 0
+K2 0.58730 0.62610 0.41480 0.18500 0.06700 K 0
+Na3 0.55920 0.13780 0.40140 0.20500 0.05100 Na 0
+Ca3 0.55920 0.13780 0.40140 0.20500 0.05100 Ca 0
+Si1 0.73890 0.02560 0.28240 0.60000 0.01900 Si 0
+Al1 0.73890 0.02560 0.28240 0.40000 0.01900 Al 0
+Si2 0.41070 0.14190 0.00600 0.60000 0.03100 Si 0
+Al2 0.41070 0.14190 0.00600 0.40000 0.03100 Al 0
+Si3 0.05250 0.00380 0.27490 0.60000 0.02900 Si 0
+Al3 0.05250 0.00380 0.27490 0.40000 0.02900 Al 0
+Si4 0.11490 0.13940 0.05110 0.60000 0.04100 Si 0
+Al4 0.11490 0.13940 0.05110 0.40000 0.04100 Al 0
+O1 0.13860 0.09260 0.24250 1.00000 0.02000 O 0
+O2 0.66150 0.57080 0.18470 1.00000 0.03000 O 0
+O3 0.60780 0.10630 0.16550 1.00000 0.06900 O 0
+O4 0.03070 0.91640 0.15310 1.00000 0.01400 O 0
+O5 0.89180 0.04950 0.26420 1.00000 0.06700 O 0
+O6 0.30130 0.36660 0.09290 1.00000 0.07000 O 0
+O7 0.81720 0.48770 0.50200 1.00000 0.03800 O 0
+O8 0.56590 0.75000 0.02160 1.00000 0.03800 O 0
+O9 0.05780 0.25000 0.01990 1.00000 0.03000 O 0
+Wat1 0.77760 0.75000 0.52880 0.78000 0.02000 O 2
+Wat2 0.18910 0.75000 0.49470 0.88000 0.06000 O 2
+Wat3 0.34130 0.85890 0.17360 0.90000 0.12000 O 2
+Wat4 0.44200 0.25000 0.44970 1.00000 0.04000 O 2
+Wat5 0.50000 0.50000 0.50000 0.67000 0.09000 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-18T11:40:34+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;

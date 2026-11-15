@@ -336,6 +336,30 @@ profile — atom rows with a height and an amount, split into layer and
 interlayer. Everything the projection has to *decide* is shown for review
 before anything is replaced.
 
+### Structures that ship with MudLab
+
+MudLab comes with 65 published crystal structures in a **Structures** folder
+beside `MudLab.exe`. **Help → Structure Collection…** opens it. They are the
+clay minerals and the minerals found with them in clay XRD, one structure per
+mineral, each the CIF exactly as published.
+
+- **`Clays`** holds 18 layer silicates. **Import CIF…** opens there.
+- **`Non-clays`** holds the other 47, including the fibrous clays sepiolite and
+  palygorskite. **Edit Phases → Import Non-Clay** and **Calibrate FWHM** open
+  there.
+- Each of these file dialogs opens in the collection the first time you use it
+  in a session, and after that in the folder you last picked from.
+- Any file works either way: a clay imported with Import Non-Clay gives its
+  fixed powder pattern instead of a stacking model.
+
+Three of the clays are two-layer polytypes that the importer does not fold to
+one layer on its own: **nacrite**, **muscovite-2M1** and **paragonite-2M1**. In
+the review window, set *Layers stacked in the published cell* to 2.
+
+**Cite the original article whenever you use a structure.** `CREDITS.md` in the
+folder lists it for every file, and `README.md` gives the terms of use. Leave
+the files unchanged; to modify a structure, save a copy elsewhere first.
+
 ### The review window
 
 **Nothing changes until you press OK.** The window has three parts.

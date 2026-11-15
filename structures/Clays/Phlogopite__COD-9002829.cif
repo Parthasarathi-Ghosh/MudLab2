@@ -1,0 +1,98 @@
+#------------------------------------------------------------------------------
+#$Date: 2024-04-25 17:59:02 +0300 (Thu, 25 Apr 2024) $
+#$Revision: 291351 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/28/9002829.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9002829
+loop_
+_publ_author_name
+'Redhammer, G. J.'
+'Roth, G.'
+_publ_section_title
+;
+ Single-crystal structure refinements and crystal chemistry of
+ synthetic trioctahedral micas KM3(Al,Si)4O10(OH)2, where
+ M = Ni, Mg, Co, Fe, Al
+ Sample: Phl#2 - Mg
+;
+_journal_name_full               'American Mineralogist'
+_journal_page_first              1464
+_journal_page_last               1476
+_journal_volume                  87
+_journal_year                    2002
+_chemical_formula_sum            'Al1.08 H2 K Mg3 O12 Si2.92'
+_chemical_name_mineral           Phlogopite
+_space_group_IT_number           12
+_symmetry_space_group_name_Hall  '-C 2y'
+_symmetry_space_group_name_H-M   'C 1 2/m 1'
+_cell_angle_alpha                90
+_cell_angle_beta                 99.891
+_cell_angle_gamma                90
+_cell_length_a                   5.3158
+_cell_length_b                   9.2036
+_cell_length_c                   10.3100
+_cell_formula_units_Z            2
+_cell_volume                     496.914
+_database_code_amcsd             0002918
+_exptl_crystal_density_diffrn    2.788
+_cod_original_formula_sum        '(Al1.08 Si2.92) Mg3 K O12 H2'
+_cod_database_code               9002829
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,z
+1/2+x,1/2-y,z
+-x,y,-z
+1/2-x,1/2+y,-z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+AlT 0.00670 0.00770 0.00940 0.00000 0.00190 -0.00010
+SiT 0.00670 0.00770 0.00940 0.00000 0.00190 -0.00010
+MgM1 0.00590 0.00740 0.01120 0.00000 0.00180 0.00000
+MgM2 0.00610 0.00690 0.01140 0.00000 0.00240 0.00000
+K 0.03590 0.03770 0.02240 0.00000 0.00382 0.00000
+O1 0.01710 0.02250 0.01430 -0.00570 0.00440 -0.00270
+O2 0.02410 0.01300 0.01410 0.00000 0.00040 0.00000
+O3 0.00920 0.00950 0.01040 -0.00030 0.00210 0.00020
+O4 0.00900 0.01240 0.01010 0.00000 0.00120 0.00000
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+AlT 0.57651 0.16674 0.22952 0.27000 0.00798
+SiT 0.57651 0.16674 0.22952 0.73000 0.00798
+MgM1 0.00000 0.50000 0.50000 1.00000 0.00811
+MgM2 0.00000 0.83171 0.50000 1.00000 0.00798
+K 0.00000 0.00000 0.00000 1.00000 0.04483
+O1 0.83048 0.22662 0.17165 1.00000 0.01773
+O2 0.50995 0.00000 0.17174 1.00000 0.01748
+O3 0.63068 0.16673 0.39172 1.00000 0.00963
+O4 0.13248 0.00000 0.39880 1.00000 0.01051
+H 0.11100 0.00000 0.31800 1.00000 0.02976
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0002918

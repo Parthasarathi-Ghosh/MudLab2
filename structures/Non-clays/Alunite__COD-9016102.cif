@@ -1,0 +1,139 @@
+#------------------------------------------------------------------------------
+#$Date: 2024-05-29 17:00:33 +0300 (Wed, 29 May 2024) $
+#$Revision: 292100 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/61/9016102.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9016102
+loop_
+_publ_author_name
+'Zema, M.'
+'Callegari, A. M.'
+'Tarantino, S. C.'
+'Gasparini, E.'
+'Ghigna, P.'
+_publ_section_title
+;
+ Thermal expansion of alunite up to dehydroxylation
+ and collapse of the crystal structure
+ Note: T = 25 C
+;
+_journal_name_full               'Mineralogical Magazine'
+_journal_page_first              613
+_journal_page_last               623
+_journal_paper_doi               10.1180/minmag.2012.076.3.12
+_journal_volume                  76
+_journal_year                    2012
+_chemical_compound_source        Hungary
+_chemical_formula_sum            'Al2.964 H6.159 K0.876 Na0.071 O14.053 S2'
+_chemical_name_mineral           Alunite
+_space_group_IT_number           166
+_symmetry_space_group_name_Hall  '-R 3 2"'
+_symmetry_space_group_name_H-M   'R -3 m :H'
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                120
+_cell_length_a                   6.9749
+_cell_length_b                   6.9749
+_cell_length_c                   17.315
+_cell_formula_units_Z            3
+_cell_volume                     729.506
+_database_code_amcsd             0018984
+_exptl_crystal_density_diffrn    2.807
+_cod_depositor_comments
+;
+ Adding the _atom_site_type_symbol data item.
+
+ Antanas Vaitkus,
+ 2017-01-17
+;
+_cod_original_sg_symbol_H-M      'R -3 m'
+_cod_original_formula_sum        'K.876 Na.071 H6.159 O14.053 Al2.964 S2'
+_cod_database_code               9016102
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+2/3+x,1/3+y,1/3+z
+1/3+x,2/3+y,2/3+z
+x,x-y,z
+2/3+x,1/3+x-y,1/3+z
+1/3+x,2/3+x-y,2/3+z
+y,x,-z
+2/3+y,1/3+x,1/3-z
+1/3+y,2/3+x,2/3-z
+-x+y,y,z
+2/3-x+y,1/3+y,1/3+z
+1/3-x+y,2/3+y,2/3+z
+-x,-x+y,-z
+2/3-x,1/3-x+y,1/3-z
+1/3-x,2/3-x+y,2/3-z
+-y,-x,z
+2/3-y,1/3-x,1/3+z
+1/3-y,2/3-x,2/3+z
+x-y,-y,-z
+2/3+x-y,1/3-y,1/3-z
+1/3+x-y,2/3-y,2/3-z
+y,-x+y,-z
+2/3+y,1/3-x+y,1/3-z
+1/3+y,2/3-x+y,2/3-z
+-x+y,-x,z
+2/3-x+y,1/3-x,1/3+z
+1/3-x+y,2/3-x,2/3+z
+-x,-y,-z
+2/3-x,1/3-y,1/3-z
+1/3-x,2/3-y,2/3-z
+-y,x-y,z
+2/3-y,1/3+x-y,1/3+z
+1/3-y,2/3+x-y,2/3+z
+x-y,x,-z
+2/3+x-y,1/3+x,1/3-z
+1/3+x-y,2/3+x,2/3-z
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+KA 0.01400 0.00000 0.01000 0.00700 0.00000 0.00000
+NaA 0.01400 0.00000 0.01000 0.00700 0.00000 0.00000
+HA 0.01400 0.00000 0.01000 0.00700 0.00000 0.00000
+OA 0.01400 0.00000 0.01000 0.00700 0.00000 0.00000
+Al 0.00400 0.00500 0.00900 0.00000 0.00000 0.00200
+S 0.00600 0.00000 0.00700 0.00300 0.00000 0.00000
+O1 0.01300 0.00000 0.00700 0.00700 0.00000 0.00000
+O2 0.01100 0.01100 0.01000 0.00800 0.00000 0.00000
+O3 0.00600 0.00600 0.01200 0.00300 0.00100 0.00100
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+KA K 0.00000 0.00000 0.00000 0.87600 0.01300
+NaA Na 0.00000 0.00000 0.00000 0.07100 0.01300
+HA H 0.00000 0.00000 0.00000 0.15900 0.01300
+OA O 0.00000 0.00000 0.00000 0.05300 0.01300
+Al Al 0.00000 0.50000 0.50000 0.98800 0.00600
+S S 0.00000 0.00000 0.30282 1.00000 0.00600
+O1 O 0.00000 0.00000 0.38666 1.00000 0.01100
+O2 O 0.21823 -0.21823 -0.05997 1.00000 0.00900
+O3 O 0.12604 -0.12604 0.14024 1.00000 0.00800
+H H 0.18790 -0.18790 0.11650 1.00000 0.03000
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0018984

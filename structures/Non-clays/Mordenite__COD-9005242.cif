@@ -1,0 +1,122 @@
+#------------------------------------------------------------------------------
+#$Date: 2023-05-18 15:51:33 +0300 (Thu, 18 May 2023) $
+#$Revision: 283866 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/52/9005242.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9005242
+loop_
+_publ_author_name
+'Passaglia, E.'
+'Artioli, G.'
+'Gualtieri, A.'
+'Carnevali, R.'
+_publ_section_title
+;
+ Diagenetic mordenite from Ponza, Italy
+;
+_journal_name_full               'European Journal of Mineralogy'
+_journal_page_first              429
+_journal_page_last               438
+_journal_volume                  7
+_journal_year                    1995
+_chemical_compound_source        'Ponza, Italy'
+_chemical_formula_sum            'Al2.04 Ca0.4 H22 K0.66 Na0.56 O30.94 Si9.96'
+_chemical_name_mineral           Mordenite
+_space_group_IT_number           63
+_symmetry_space_group_name_Hall  '-C 2c 2'
+_symmetry_space_group_name_H-M   'C m c m'
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                90
+_cell_formula_units_Z            4
+_cell_length_a                   18.109
+_cell_length_b                   20.485
+_cell_length_c                   7.523
+_cell_volume                     2790.754
+_database_code_amcsd             0006588
+_exptl_crystal_density_diffrn    2.158
+_cod_original_cell_volume        2790.753
+_cod_original_formula_sum        'K.66 Na.56 Ca.4 (Si9.96 Al2.04) O30.94 H22'
+_cod_database_code               9005242
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,1/2+y,z
+x,-y,1/2+z
+1/2+x,1/2-y,1/2+z
+-x,y,1/2-z
+1/2-x,1/2+y,1/2-z
+-x,y,z
+1/2-x,1/2+y,z
+x,-y,-z
+1/2+x,1/2-y,-z
+x,y,1/2-z
+1/2+x,1/2+y,1/2-z
+-x,-y,1/2+z
+1/2-x,1/2-y,1/2+z
+-x,-y,-z
+1/2-x,1/2-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+_atom_site_type_symbol
+_atom_site_attached_hydrogens
+KA 0.00000 0.50800 0.07700 0.33000 0.03000 K 0
+NaA 0.00000 0.50800 0.07700 0.28000 0.03000 Na 0
+CaF 0.00000 0.47900 0.25000 0.40000 0.02300 Ca 0
+SiT1 0.19000 0.42800 0.54300 0.83000 0.04900 Si 0
+AlT1 0.19000 0.42800 0.54300 0.17000 0.04900 Al 0
+SiT2 0.19900 0.18700 0.54200 0.83000 0.03000 Si 0
+AlT2 0.19900 0.18700 0.54200 0.17000 0.03000 Al 0
+SiT3 0.07900 0.38700 0.25000 0.83000 0.02600 Si 0
+AlT3 0.07900 0.38700 0.25000 0.17000 0.02600 Al 0
+SiT4 0.09000 0.23200 0.25000 0.83000 0.05000 Si 0
+AlT4 0.09000 0.23200 0.25000 0.17000 0.05000 Al 0
+O1 0.12800 0.39000 0.42800 1.00000 0.03100 O 0
+O2 0.13000 0.19200 0.40700 1.00000 0.01000 O 0
+O3 0.25800 0.37700 0.52400 1.00000 0.02900 O 0
+O4 0.10100 0.31100 0.25000 1.00000 0.03800 O 0
+O5 0.18600 0.20100 0.75000 1.00000 0.03400 O 0
+O6 0.16500 0.42100 0.75000 1.00000 0.07900 O 0
+O7 0.22300 0.50000 0.50000 1.00000 0.01700 O 0
+O8 0.25000 0.25000 0.50000 1.00000 0.04500 O 0
+O9 0.00000 0.42300 0.25000 1.00000 0.02000 O 0
+O10 0.00000 0.23500 0.25000 1.00000 0.04500 O 0
+Wat1 0.00000 0.02100 0.25000 0.46000 0.04500 O 2
+Wat2 0.30000 0.25300 0.03200 0.55000 0.04500 O 2
+Wat3 0.50000 0.44700 0.00000 0.63000 0.04500 O 2
+Wat4 0.47800 0.08200 0.25000 0.53000 0.04500 O 2
+Wat5 0.40800 0.53100 0.25000 0.98000 0.04500 O 2
+loop_
+_cod_changelog_entry_id
+_cod_changelog_entry_author
+_cod_changelog_entry_date
+_cod_changelog_entry_text
+1
+;cod-tools version 3.8.0
+Id: cif_guess_AMCSD_atom_types 9581 2023-05-17 12:35:41Z saulius
+;
+2023-05-18T11:39:07+03:00
+;Derived atom types and hydrogen counts
+from atom names that follow the AMCSD naming convention
+(Wat == water, O-H == hydroxyl).
+;
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0006588

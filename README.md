@@ -11,12 +11,13 @@ installed; the product name is **MudLab**.
 Tagging `v*` (or running the **Build portable Windows package** workflow by
 hand) builds the release on a clean Windows runner and attaches the zip.
 Locally, `package.cmd` builds the same package: a clean PyInstaller build,
-a frozen self-test, then `MudLab-<version>-win64-portable.zip` - a no-install
+the `Structures` folder copied beside the exe, a frozen self-test, then
+`MudLab-<version>-win64-portable.zip` - a no-install
 folder that users unzip and run. Keep the version in step across
 `src/mudlab/__init__.py` (the source of truth), `pyproject.toml` and
 `version_info.txt`; `tools/verify_release_metadata.py` checks that they agree
 and that no project fixtures reached the build.
-`tools/verify_bundle_dependencies.py` - run by `package.cmd` as step 3/6 -
+`tools/verify_bundle_dependencies.py` - run by `package.cmd` as step 4/7 -
 fails the build if any bundled binary needs a library that is not inside the
 package; that is what keeps "portable" true on a machine with no Microsoft
 runtime installed. `tools/run_all.py` runs the whole verification suite.
