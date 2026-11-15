@@ -12,8 +12,8 @@ import os
 
 import numpy as np
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QFontDatabase, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFontDatabase, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -464,6 +464,19 @@ class MainWindow(QMainWindow):
             )
         else:
             self.ui.statusBar.showMessage(f"Loaded {path}", 5000)
+        restored = list(getattr(project, "restored_atom_types", None) or [])
+        if restored:
+            # The repair lives only in memory until saved, so the project is
+            # marked unsaved - closing without saving would lose it again.
+            self._dirty = True
+            QMessageBox.information(
+                self, "Atom types restored",
+                "Some atoms in this project use atom types the project did not "
+                "contain: %s.\n\nThey have been restored from MudLab's built-in "
+                "atom-type list, so those atoms count in the calculated pattern "
+                "again. A component imported from a CIF in MudLab 1.0.4 or 1.1.0 "
+                "could be saved this way.\n\nSave the project to keep the repair."
+                % ", ".join(restored))
 
     def _save_project(self) -> None:
         if self.project.filename:
@@ -1530,16 +1543,19 @@ class MainWindow(QMainWindow):
         self._show_manual(SCIENCE_DOCUMENT)
 
     def _show_structure_collection(self) -> None:
-        """Help -> Structure Collection...: open the shipped folder of published
-        CIFs in the system file browser (README.md and CREDITS.md are in it)."""
-        folder = structure_collection.collection_dir()
-        if folder is None:
+        """Help -> Structure Collection...: the Structure Library, for browsing
+        the shipped published structures, copying a citation and opening the
+        folder (README.md and CREDITS.md are in it). Adding a structure as a
+        phase is offered where phases are edited: Edit Phases -> Structure
+        Library..."""
+        if structure_collection.collection_dir() is None:
             QMessageBox.information(
                 self, "Structure Collection",
                 "This installation has no structure collection. It ships as a "
                 "Structures folder beside MudLab.exe.")
             return
-        if not QDesktopServices.openUrl(QUrl.fromLocalFile(folder)):
-            QMessageBox.information(
-                self, "Structure Collection",
-                "Could not open the folder. It is here:\n\n%s" % folder)
+        from mudlab.structure_library_dialog import StructureLibraryDialog
+
+        dialog = StructureLibraryDialog(self)
+        dialog.exec()
+        dialog.deleteLater()

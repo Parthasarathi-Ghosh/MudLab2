@@ -331,6 +331,50 @@ class CifImportDialog(QDialog):
         return added
 
 
+def adopt_atom_types(project, component) -> list:
+    """Make every atom type `component` uses the PROJECT's own, matched by name,
+    and return the ones the project did not have.
+
+    The one install step every CIF import goes through: the component editor's
+    Import CIF... and the Structure Library's New clay phase. A saved project
+    writes only `project.atom_types`, and on reload an atom resolves only
+    against them, so an atom whose type is not in that list loads with none and
+    scatters nothing - silently. Until 1.1.0 Import CIF... put the new types in
+    the editor's private copy of the list instead: an imported illite's
+    potassium was lost on the next save and reload.
+
+    An atom type the project already has under the same name is reused (the
+    atom is re-pointed to it), so nothing is duplicated - the rule
+    `default_catalog.add_catalog_entry_to_project` follows for default phases.
+    """
+    by_name = {atom_type.name: atom_type for atom_type in project.atom_types}
+    added = []
+    for atom in list(component.layer_atoms) + list(component.interlayer_atoms):
+        atom_type = atom.atom_type
+        if atom_type is None:
+            continue
+        existing = by_name.get(atom_type.name)
+        if existing is None:
+            project.add_atom_type(atom_type)
+            by_name[atom_type.name] = atom_type
+            added.append(atom_type)
+        elif existing is not atom_type:
+            atom.atom_type = existing
+    return added
+
+
+def new_clay_phase(project, component, name: str):
+    """A one-component R0 phase holding `component`, with its atom types adopted
+    by `project`. The phase itself is NOT added to the project: the caller does
+    that, so its own list of phases stays in step (Edit Phases)."""
+    from mudlab.models.phase import Phase
+
+    phase = Phase.create_empty(G=1, R=0, name=name)
+    phase.components = [component]
+    adopt_atom_types(project, component)
+    return phase
+
+
 def _layer_type_text(report) -> str:
     """How to describe the layer the projection found."""
     if report.layer_type == "1:1":

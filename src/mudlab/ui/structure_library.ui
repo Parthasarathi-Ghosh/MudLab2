@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>StructureLibraryDialog</class>
+ <widget class="QDialog" name="StructureLibraryDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>980</width>
+    <height>660</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Structure Library</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QLabel" name="lbl_intro">
+     <property name="text">
+      <string>Published crystal structures that ship with MudLab. Cite the article for any structure you use.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="filterRow">
+     <item>
+      <widget class="QLabel" name="lbl_search_caption">
+       <property name="text">
+        <string>Search</string>
+       </property>
+       <property name="buddy">
+        <cstring>edit_search</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edit_search">
+       <property name="toolTip">
+        <string>Show only the structures whose mineral, formula, group, authors, journal, year or database number contain every word you type.</string>
+       </property>
+       <property name="placeholderText">
+        <string>Mineral, formula, author, journal&#8230;</string>
+       </property>
+       <property name="clearButtonEnabled">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_group_caption">
+       <property name="text">
+        <string>Group</string>
+       </property>
+       <property name="buddy">
+        <cstring>cmb_group</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cmb_group">
+       <property name="toolTip">
+        <string>Show one mineral family.</string>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToContents</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_count">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="childrenCollapsible">
+      <bool>false</bool>
+     </property>
+     <widget class="QTableView" name="tbl_structures">
+      <property name="editTriggers">
+       <set>QAbstractItemView::NoEditTriggers</set>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SingleSelection</enum>
+      </property>
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectRows</enum>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+      <property name="wordWrap">
+       <bool>false</bool>
+      </property>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+     </widget>
+     <widget class="QTextBrowser" name="txt_details">
+      <property name="openExternalLinks">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="actionRow">
+     <item>
+      <widget class="QPushButton" name="btn_new_clay">
+       <property name="toolTip">
+        <string>Build a new one-component clay phase from this structure. The import review shows how the structure was projected onto c*, and anything it got wrong can be corrected there before OK.</string>
+       </property>
+       <property name="text">
+        <string>New clay phase&#8230;</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_add_nonclay">
+       <property name="toolTip">
+        <string>Open Import Non-Clay with this structure loaded, to add it as a non-clay phase. Its peaks and its oxide composition come from the structure; check the name and the peak width before OK.</string>
+       </property>
+       <property name="text">
+        <string>Add as non-clay phase&#8230;</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="actionSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>10</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_copy_citation">
+       <property name="toolTip">
+        <string>Copy the article to cite for this structure.</string>
+       </property>
+       <property name="text">
+        <string>Copy citation</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_open_folder">
+       <property name="toolTip">
+        <string>Open the Structures folder in Explorer. README.md and CREDITS.md are in it.</string>
+       </property>
+       <property name="text">
+        <string>Open folder</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="lbl_status">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>edit_search</tabstop>
+  <tabstop>cmb_group</tabstop>
+  <tabstop>tbl_structures</tabstop>
+  <tabstop>txt_details</tabstop>
+  <tabstop>btn_new_clay</tabstop>
+  <tabstop>btn_add_nonclay</tabstop>
+  <tabstop>btn_copy_citation</tabstop>
+  <tabstop>btn_open_folder</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

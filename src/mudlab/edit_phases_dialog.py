@@ -100,6 +100,20 @@ class EditPhasesDialog(ObjectStoreDialog):
         )
         self.ui.extraLayout.addWidget(self.button_import_nonclay)
         self.button_import_nonclay.clicked.connect(self._on_import_nonclay)
+        # The shipped published structures, browsable, each addable as a new
+        # clay or non-clay phase (structure_library_dialog).
+        self.button_structure_library = QPushButton("Structure Library…", self)
+        self.button_structure_library.setToolTip(
+            "Browse the published crystal structures that ship with MudLab, "
+            "and add one as a new clay or non-clay phase."
+        )
+        self.ui.extraLayout.addWidget(self.button_structure_library)
+        self.button_structure_library.clicked.connect(self._on_structure_library)
+        # autoDefault, layer 2 (the app-wide Enter policy is layer 3): a button
+        # made in code gets it from Qt, and Return must not open the library.
+        for button in (self.button_import_nonclay, self.button_structure_library):
+            button.setAutoDefault(False)
+            button.setDefault(False)
 
         if self._phases:
             self.ui.edit_objects_treeview.setCurrentIndex(
@@ -403,7 +417,23 @@ class EditPhasesDialog(ObjectStoreDialog):
         dialog = ImportNonClayDialog(self, goniometer=self._project_goniometer())
         if dialog.exec() != QDialog.DialogCode.Accepted or dialog.phase is None:
             return
-        phase = dialog.phase
+        self._add_new_phase(dialog.phase)
+
+    def _on_structure_library(self) -> None:
+        """Open the Structure Library; each phase it builds is added here."""
+        if self.project is None:
+            return
+        from mudlab.structure_library_dialog import StructureLibraryDialog
+
+        dialog = StructureLibraryDialog(
+            self, project=self.project, goniometer=self._project_goniometer())
+        dialog.phase_created.connect(self._add_new_phase)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def _add_new_phase(self, phase) -> None:
+        """Add one new phase built elsewhere (Import Non-Clay, the Structure
+        Library) to the project and to this list, and select it."""
         self.project.add_phase(phase)
         first_row = len(self._phases)
         self._phases.append(phase)

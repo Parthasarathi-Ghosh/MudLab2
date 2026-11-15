@@ -206,8 +206,8 @@ distribution — but for a first pass you do not need to.
 > A component can also be built from a published crystal structure (a `.cif`
 > file), and the glycolated and heated states of a 2:1 clay can be derived
 > from it. MudLab ships 65 published structures for this, clays and non-clays,
-> in the **Structures** folder (**Help → Structure Collection…**); your own
-> `.cif` files work too. Both are described under
+> and **Edit Phases → Structure Library…** adds any of them as a new phase;
+> your own `.cif` files work too. Both are described under
 > [Building a component from a CIF](user-manual.md#building-a-component-from-a-cif)
 > in the manual — they are not part of the short path, and the shipped catalog
 > covers the common clays.

@@ -61,6 +61,7 @@ class EditComponentWidget(QWidget):
         self._structure_dialog = None
         self._phase_name = ""
         self._atom_types: list = []
+        self._project = None   # receives the atom types an Import CIF... adds
         self._link_candidates: list = []
         self._on_changed: Callable[[], None] | None = None
         self._updating = False
@@ -148,12 +149,15 @@ class EditComponentWidget(QWidget):
         on_changed: Callable[[], None] | None = None,
         link_candidates=None,
         phase_name: str = "",
+        project=None,
     ) -> None:
         """Show and edit a phase's Component list. `atom_types` fills the atom
         element combos; `link_candidates` are (label, component) pairs offered
         as linking templates (the whole project's components); `on_changed`
-        runs after an accepted edit (used to recompute + redraw the pattern)."""
+        runs after an accepted edit (used to recompute + redraw the pattern).
+        `project` receives the atom types an Import CIF... brings in."""
         self._phase_name = phase_name   # labels the structure diagram
+        self._project = project
         # Keep the phase's ACTUAL component list (not a copy) so an import
         # can replace a component in place (Component import = replace).
         self._components = components if components is not None else []
@@ -519,7 +523,7 @@ class EditComponentWidget(QWidget):
             return
         structure_collection.remember(structure_collection.IMPORT_CIF, path)
 
-        from mudlab.cif_import_dialog import CifImportDialog
+        from mudlab.cif_import_dialog import CifImportDialog, adopt_atom_types
 
         dialog = CifImportDialog(self, path=path,
                                  atom_type_map=self._atom_type_map())
@@ -528,14 +532,20 @@ class EditComponentWidget(QWidget):
         if not dialog.exec() or dialog.component is None:
             return
 
-        # Atom types the CIF needed and the project lacked are added here, not
-        # inside the dialog, because the project owns them - a component whose
-        # types are missing contributes nothing and says nothing.
-        for atom_type in dialog.added_atom_types:
+        new = dialog.component
+        # Atom types the CIF needed and the project lacked go to the PROJECT,
+        # which owns them: a saved project writes only its own list, so a type
+        # kept anywhere else is lost on reload and its atoms scatter nothing.
+        # (Until 1.1.0 they went into this editor's private copy of the list.)
+        # The editor's list is kept in step too, so its atom combos offer them.
+        if self._project is not None:
+            added = adopt_atom_types(self._project, new)
+        else:
+            added = list(dialog.added_atom_types)
+        for atom_type in added:
             if atom_type not in self._atom_types:
                 self._atom_types.append(atom_type)
 
-        new = dialog.component
         self._components[idx] = new
         self._updating = True
         try:
@@ -544,12 +554,12 @@ class EditComponentWidget(QWidget):
         finally:
             self._updating = False
         self._bind_one(idx)
-        if dialog.added_atom_types:
+        if added:
             QMessageBox.information(
                 self, "Import CIF",
                 "Imported. These atom types were added to the project so the "
                 "component actually scatters:\n\n%s"
-                % ", ".join(a.name for a in dialog.added_atom_types))
+                % ", ".join(a.name for a in added))
         self._notify()
 
     def _on_import_component(self) -> None:

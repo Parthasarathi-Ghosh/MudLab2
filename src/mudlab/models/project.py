@@ -87,6 +87,10 @@ class Project(QObject):
         self.raw_properties: dict = {}
         self.file_version: str | None = None
         self.filename: str | None = None
+        # Atom types load_mud had to restore from the built-in library because
+        # atoms named them and the project lacked them (see
+        # mud_project.restore_missing_atom_types). Not persisted.
+        self.restored_atom_types: list = []
         # Optional measured (XRF) oxide analysis - one per project, because one
         # project describes one physical sample. None means "not provided", and
         # every consumer must treat it as optional.

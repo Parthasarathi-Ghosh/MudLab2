@@ -660,9 +660,19 @@ refinement runtime is unaffected (verify_refinement ~180 s, 84/84). Guard:
   including the 11 clays that have a MudLab component matching it; that check
   replaced a talc with a pyrophyllite-size cell (Drits 2012 -> Perdikatsis &
   Burzlaff 1981).
-- [ ] Structure Library dialog (phase 2 of the collection) - browse the
-  collection and add a structure as a new clay or non-clay phase; needs
-  `structure_library.ui`. Plan: docs/structure-collection-plan.md.
+- [x] Structure Library dialog (phase 2 of the collection, 2026-11-15) -
+  `structure_library.ui` + `structure_library_dialog.py`. Edit Phases ->
+  **Structure Library...** (new button beside Import Non-Clay) browses the
+  65 structures (search, family filter, sortable table, citation/DOI/note/
+  hint pane) and adds one as a **New clay phase...** (CIF review, then a
+  one-component R0 phase named after the mineral) or **Add as non-clay
+  phase...** (Import Non-Clay with `path=`/`name=`); Copy citation, Open
+  folder. Help -> Structure Collection... now opens it for reading (add
+  actions hidden). Modal + deleteLater (not WA_DeleteOnClose); autoDefault
+  cleared in the .ui, in __init__ and by the app-wide policy. Shared install
+  step `cif_import_dialog.adopt_atom_types` also FIXES Import CIF... losing
+  new atom types (they went into the editor's private list copy).
+  verify_structure_library.py.
 - [x] CIF reader fixes found by the curated structure set (2026-11-15) - testing
   65 published CIFs with both readers exposed: water labels `Wat…` read as W
   (TUNGSTEN) by the non-clay reader and dropped by the clay importer; deuterium

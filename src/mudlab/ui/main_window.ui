@@ -534,7 +534,7 @@
     <string>&amp;Structure Collection…</string>
    </property>
    <property name="toolTip">
-    <string>Open the folder of 65 published crystal structures (CIF) that ships with MudLab. Cite the article listed in CREDITS.md whenever you use one.</string>
+    <string>Browse the 65 published crystal structures (CIF) that ship with MudLab, copy a citation, or open their folder. Cite the article listed in CREDITS.md whenever you use one. To add one as a phase, use Edit Phases -&gt; Structure Library.</string>
    </property>
   </action>
   <action name="actionAbout">

@@ -39,7 +39,12 @@ _SOURCE_FILTERS = (
 
 
 class ImportNonClayDialog(QDialog):
-    def __init__(self, parent: QWidget | None = None, goniometer=None) -> None:
+    def __init__(self, parent: QWidget | None = None, goniometer=None,
+                 path: str = "", name: str = "") -> None:
+        """`path` opens with that file already loaded and `name` fills the
+        phase name - the Structure Library's Add as non-clay phase, which has
+        already chosen the CIF and knows the mineral's name. The user still
+        checks the name, the width and the oxides before OK."""
         super().__init__(parent)
         self.ui = Ui_ImportNonClayDialog()
         self.ui.setupUi(self)
@@ -74,7 +79,18 @@ class ImportNonClayDialog(QDialog):
         self._update_sum()
         self._update_preview()
 
+        if name:
+            self.ui.edit_name.setText(name)   # before the load, which keeps it
+        if path:
+            self._load_path(path)
+
     # ------------------------------------------------------------------
+    def _load_path(self, path: str) -> None:
+        if path.lower().endswith(".cif"):
+            self._load_cif(path)
+        else:
+            self._load_pattern(path)
+
     def _on_open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "Open pattern or CIF",
@@ -84,10 +100,7 @@ class ImportNonClayDialog(QDialog):
         if not path:
             return
         structure_collection.remember(structure_collection.IMPORT_NONCLAY, path)
-        if path.lower().endswith(".cif"):
-            self._load_cif(path)
-        else:
-            self._load_pattern(path)
+        self._load_path(path)
 
     def _load_cif(self, path: str) -> None:
         try:

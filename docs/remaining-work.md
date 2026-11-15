@@ -218,9 +218,21 @@ citing the article.
   `verify_structure_collection.py` 55/55. The repository copy is now the
   master; the maintainer's CIF workspace keeps only the provenance (sources,
   proposal, selection spec).
-- **Packaging, phase 2 — not started:** a Structure Library dialog that adds a
-  structure as a new clay or non-clay phase (same plan document).
-- **Release notes:** the version that ships phase 1 needs a line for it.
+- ~~**Packaging, phase 2**~~ — **BUILT 2026-11-15, for the next release:** the
+  Structure Library (`structure_library_dialog.py`, `ui/structure_library.ui`),
+  from Edit Phases → Structure Library… (adds a structure as a new clay or
+  non-clay phase) and Help → Structure Collection… (reading only);
+  `verify_structure_library.py`. Its release notes are still to be written.
+- ~~**Import CIF… lost new atom types**~~ — **FIXED 2026-11-15** (found while
+  building phase 2; present since 1.0.4). The component editor added the atom
+  types a CIF needed to its private copy of the list, not the project's, so
+  after a save and reload those atoms had none and scattered nothing.
+  `cif_import_dialog.adopt_atom_types` now gives them to the project, for the
+  library too. Projects already saved that way are repaired when opened:
+  `mud_project.restore_missing_atom_types` restores each missing type from the
+  built-in library by the atom's saved name, and the main window says so and
+  marks the project unsaved (`verify_atom_type_repair.py`).
+- ~~**Release notes**~~ for phase 1 — shipped in 1.1.0.
 - **Chamosite regrouped:** Walker & Bish 1992 (IIb, c = 14.26 Å) is a
   chlorite; the curation had filed it under 1:1 minerals. Shipped under
   *Smectites, vermiculite, chlorite*.

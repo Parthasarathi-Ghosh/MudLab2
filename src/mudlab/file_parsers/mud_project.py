@@ -127,6 +127,50 @@ def resolve_phase_references(project: Project) -> None:
             comp.resolve_relations({**atom_map, **own})
 
 
+def restore_missing_atom_types(project) -> list:
+    """Give back the atom types a project's atoms name but the project lacks.
+    Returns the names restored; [] for a sound project, which is left exactly
+    as it was loaded.
+
+    MudLab 1.0.4 and 1.1.0 could save such a project. Edit Phases -> component
+    -> Import CIF... added the atom types a CIF needed (potassium for an
+    illite, say) to the editor's private copy of the atom-type list, never to
+    the project's. A saved project writes only its own list, so on reload those
+    atoms resolved to nothing and scattered nothing, silently. Each such atom
+    still carries its `atom_type_name` (the CIF importer writes one on every
+    atom), so the type is taken from MudLab's built-in atom-type library by
+    that name, added to the project once, and every such atom pointed at it.
+    An atom whose name the library does not know is left as it was.
+    """
+    pending = []
+    for phase in project.phases:
+        for component in getattr(phase, "components", None) or []:
+            for atom in list(component._layer_atoms) + list(component._interlayer_atoms):
+                if atom.atom_type is None:
+                    name = atom.raw_properties.get("atom_type_name")
+                    if name:
+                        pending.append((atom, name))
+    if not pending:
+        return []
+
+    from mudlab.file_parsers.atom_type_library import atom_type_library_map
+
+    library = atom_type_library_map()
+    by_name = {atom_type.name: atom_type for atom_type in project.atom_types}
+    restored = []
+    for atom, name in pending:
+        atom_type = by_name.get(name)
+        if atom_type is None:
+            atom_type = library.get(name)
+            if atom_type is None:
+                continue
+            project.add_atom_type(atom_type)
+            by_name[name] = atom_type
+            restored.append(name)
+        atom.atom_type = atom_type
+    return restored
+
+
 def load_mud(path: str) -> Project:
     with zipfile.ZipFile(path, "r") as archive:
         names = archive.namelist()
@@ -174,6 +218,7 @@ def load_mud(path: str) -> Project:
     # component links, UCP sources, atom relations). Factored out so .phs phase
     # import can reuse the exact same resolution.
     resolve_phase_references(project)
+    project.restored_atom_types = restore_missing_atom_types(project)
 
     for spec_dict in properties.get("specimens") or []:
         spec_props = spec_dict.get("properties", {})

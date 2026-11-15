@@ -64,9 +64,11 @@ detection was wrong, so the next update stops flagging it for everyone.
 ## Published crystal structures
 
 The **`Structures`** folder holds 65 published crystal structures (CIF files):
-clay minerals in `Clays`, the minerals found with them in `Non-clays`. MudLab's
-CIF import dialogs open there, and **Help → Structure Collection…** opens the
-folder. Each file is the structure exactly as published. **Cite the original
+clay minerals in `Clays`, the minerals found with them in `Non-clays`.
+**Edit Phases → Structure Library…** lists them and adds one as a new clay or
+non-clay phase; **Help → Structure Collection…** opens the same list for
+reading, and MudLab's CIF import dialogs open in the folder. Each file is the
+structure exactly as published. **Cite the original
 article whenever you use one**: `CREDITS.md` in that folder lists it for every
 file, and its `README.md` gives the terms of use. Keep the folder inside
 `MudLab`, beside `MudLab.exe`.

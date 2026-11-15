@@ -7,8 +7,10 @@ Planned 2026-11-15. Two phases:
 2. **The release after:** a Structure Library dialog for browsing the collection
    and adding a structure as a phase.
 
-**Status:** phase 1 is built (2026-11-15) and awaits a release; phase 2 is not
-started. The open work is also listed in [remaining-work.md](remaining-work.md).
+**Status:** phase 1 shipped in 1.1.0 (2026-11-15). Phase 2 is built
+(2026-11-15) and awaits a release: `structure_library_dialog.py` +
+`ui/structure_library.ui`, guarded by `tools/verify_structure_library.py`. The
+open work is also listed in [remaining-work.md](remaining-work.md).
 
 ## What ships
 
@@ -205,6 +207,23 @@ creates the right phase type with the file's citation-named component; Cancel in
 the review adds nothing; Copy citation puts the full citation on the clipboard;
 a missing folder disables the dialog with a message instead of crashing.
 
-**Open for phase 2:** whether the library should also replace the *selected*
-component when it is opened from a component editor, or leave that to
-Import CIF….
+**Decided when it was built (2026-11-15):** the library does not replace a
+selected component; that stays with Import CIF… in the component editor, which
+opens in the same Clays folder. The library adds new phases only.
+
+**As built, beyond the plan:**
+
+- **Help → Structure Collection…** opens the library for reading (search,
+  citations, Open folder) with the add actions hidden; adding is done from Edit
+  Phases, where the new phase can be seen and named.
+- **A hinted polytype** (nacrite, muscovite-2M1, paragonite-2M1) also shows its
+  hint in a message just before the review opens, because the review is where
+  the layer count is set.
+- **The shared install step** is `cif_import_dialog.adopt_atom_types`, used by
+  both the library and the component editor's Import CIF…. Building it found a
+  bug present since 1.0.4: Import CIF… put the atom types a CIF needed into the
+  editor's private copy of the list, not the project's, so after a save and
+  reload those atoms had no atom type and scattered nothing (an imported
+  illite's potassium). Both paths now give them to the project, and projects
+  already saved that way are repaired when opened
+  (`mud_project.restore_missing_atom_types`).

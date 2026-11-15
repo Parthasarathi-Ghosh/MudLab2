@@ -26,7 +26,8 @@
 5. **Users can find them.** The folder resolves in a source checkout and in a
    (simulated) frozen build; the four CIF file dialogs open in the right
    subfolder and then remember the user's folder; Help -> Structure
-   Collection... opens the folder; package.cmd copies it before the self-test.
+   Collection... reaches the folder (through the Structure Library's Open
+   folder since phase 2); package.cmd copies it before the self-test.
 
 Run head-less with the bundled interpreter from the repo root:
 
@@ -408,12 +409,18 @@ def check_help_action():
     from PySide6.QtGui import QDesktopServices
 
     from mudlab.main_window import MainWindow
+    from mudlab.structure_library_dialog import StructureLibraryDialog
 
     opened, told = [], []
     real_open = QDesktopServices.openUrl
     real_info = QMessageBox.information
+    real_exec = StructureLibraryDialog.exec
     QDesktopServices.openUrl = staticmethod(lambda url: opened.append(url) or True)
     QMessageBox.information = staticmethod(lambda *a, **k: told.append(a[2:3]))
+    # Since phase 2 the action opens the Structure Library (modal), and the
+    # folder is one click further, on its Open folder button. exec() would
+    # block head-less, so it presses that button and returns.
+    StructureLibraryDialog.exec = lambda self: (self.ui.btn_open_folder.click(), 0)[1]
     try:
         window = MainWindow()
         action = window.ui.actionStructureCollection
@@ -425,7 +432,8 @@ def check_help_action():
         check("the action names CREDITS.md in its tooltip",
               "CREDITS.md" in action.toolTip())
         action.trigger()
-        check("Help -> Structure Collection... opens the collection folder",
+        check("Help -> Structure Collection... reaches the collection folder "
+              "(the library's Open folder)",
               len(opened) == 1
               and os.path.normcase(opened[0].toLocalFile()) == os.path.normcase(ROOT)
               and not told)
@@ -444,6 +452,7 @@ def check_help_action():
     finally:
         QDesktopServices.openUrl = real_open
         QMessageBox.information = real_info
+        StructureLibraryDialog.exec = real_exec
 
 
 def check_packaging():

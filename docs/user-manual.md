@@ -339,9 +339,10 @@ before anything is replaced.
 ### Structures that ship with MudLab
 
 MudLab comes with 65 published crystal structures in a **Structures** folder
-beside `MudLab.exe`. **Help → Structure Collection…** opens it. They are the
-clay minerals and the minerals found with them in clay XRD, one structure per
-mineral, each the CIF exactly as published.
+beside `MudLab.exe`. They are the clay minerals and the minerals found with them
+in clay XRD, one structure per mineral, each the CIF exactly as published. The
+**Structure Library** (below) is the easiest way to use them; the folder also
+works with the ordinary file dialogs.
 
 - **`Clays`** holds 18 layer silicates. **Import CIF…** opens there.
 - **`Non-clays`** holds the other 47, including the fibrous clays sepiolite and
@@ -359,6 +360,37 @@ the review window, set *Layers stacked in the published cell* to 2.
 **Cite the original article whenever you use a structure.** `CREDITS.md` in the
 folder lists it for every file, and `README.md` gives the terms of use. Leave
 the files unchanged; to modify a structure, save a copy elsewhere first.
+
+### The Structure Library
+
+**Edit Phases → Structure Library…** lists the 65 structures in a table, with
+the mineral, its family, whether it is a clay, its formula, the year and the
+database numbers.
+
+- **Search** shows only the structures that contain every word you type, in
+  any order: a mineral, a formula element, an author, a journal or a year. The
+  **Group** list shows one mineral family.
+- Below the table is the selected structure's full citation, with its DOI as a
+  link, any note on the conditions it was measured at, and, for the three
+  two-layer polytypes, what to set in the review window.
+- **New clay phase…** (clays only) opens the review window described below.
+  When you press OK there, a new phase is added with one component built from
+  the structure and named after the mineral; the component's name records which
+  published structure it came from. Any atom types the structure needs are
+  added to the project.
+- **Add as non-clay phase…** opens **Import Non-Clay** with the structure
+  already loaded and the mineral's name filled in. Check the name and the peak
+  width, then press OK.
+- **Copy citation** puts the article to cite on the clipboard, and **Open
+  folder** opens the Structures folder.
+
+The library stays open, so you can add several phases in one visit; each new
+phase appears in the Edit Phases list straight away. Pressing Cancel in the
+review window or in Import Non-Clay adds nothing.
+
+**Help → Structure Collection…** opens the same library for reading: you can
+search, read and copy citations, and open the folder, but adding phases is done
+from Edit Phases.
 
 ### The review window
 

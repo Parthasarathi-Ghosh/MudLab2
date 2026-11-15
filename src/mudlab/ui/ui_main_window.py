@@ -410,7 +410,7 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(shortcut)
         self.actionStructureCollection.setText(QCoreApplication.translate("MainWindow", u"&Structure Collection\u2026", None))
 #if QT_CONFIG(tooltip)
-        self.actionStructureCollection.setToolTip(QCoreApplication.translate("MainWindow", u"Open the folder of 65 published crystal structures (CIF) that ships with MudLab. Cite the article listed in CREDITS.md whenever you use one.", None))
+        self.actionStructureCollection.setToolTip(QCoreApplication.translate("MainWindow", u"Browse the 65 published crystal structures (CIF) that ship with MudLab, copy a citation, or open their folder. Cite the article listed in CREDITS.md whenever you use one. To add one as a phase, use Edit Phases -> Structure Library.", None))
 #endif // QT_CONFIG(tooltip)
         self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"&About MudLab", None))
         self.actionTrimData.setText(QCoreApplication.translate("MainWindow", u"Trim", None))

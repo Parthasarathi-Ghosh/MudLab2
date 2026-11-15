@@ -22,6 +22,7 @@ no settings between runs, so that memory lasts one session.
 
 from __future__ import annotations
 
+import csv
 import os
 import sys
 
@@ -105,3 +106,62 @@ def remember(key: str, path: str) -> None:
 def forget_all() -> None:
     """Clear the session memory (tests)."""
     _last_dir.clear()
+
+
+# ----------------------------------------------------------------------
+# The manifest (the Structure Library reads it)
+# ----------------------------------------------------------------------
+MANIFEST = "manifest.csv"
+#: The manifest's `kind` values.
+KIND_CLAY = "clay"
+KIND_NONCLAY = "non-clay"
+
+
+def load_manifest(root: str | None = None) -> list[dict]:
+    """One dict per structure, in the manifest's order (grouped by mineral
+    family), with the manifest's columns plus ``path``: the CIF on disk.
+    [] when there is no collection or no manifest."""
+    root = root or collection_dir()
+    if root is None:
+        return []
+    manifest = os.path.join(root, MANIFEST)
+    if not os.path.isfile(manifest):
+        return []
+    with open(manifest, encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    for row in rows:
+        row["path"] = os.path.join(root, *row["file"].split("/"))
+    return rows
+
+
+def source_ids(row: dict) -> str:
+    """The database numbers, as CREDITS.md gives them: "COD 9009233, AMCSD
+    0012235"."""
+    parts = []
+    if row.get("cod"):
+        parts.append("COD %s" % row["cod"])
+    if row.get("amcsd"):
+        parts.append("AMCSD %s" % row["amcsd"])
+    return ", ".join(parts)
+
+
+def citation(row: dict) -> str:
+    """The full citation as plain text, in CREDITS.md's form: "Authors (year).
+    Title. Journal volume, pages. https://doi.org/... [COD n, AMCSD n]"."""
+    text = "%s (%s)." % (row["authors"], row["year"])
+    # A few CIFs give no title the reader can keep (marcasite); CREDITS.md
+    # then goes straight to the journal, and so does this.
+    if row.get("title"):
+        text += " %s." % row["title"].rstrip(".")
+    text += " %s" % row["journal"]
+    if row.get("volume"):
+        text += " %s" % row["volume"]
+    if row.get("pages"):
+        text += ", %s" % row["pages"]
+    text += "."
+    if row.get("doi"):
+        text += " https://doi.org/%s" % row["doi"]
+    ids = source_ids(row)
+    if ids:
+        text += " [%s]" % ids
+    return text
